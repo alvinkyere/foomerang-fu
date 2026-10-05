@@ -1,0 +1,25 @@
+# CI answers one question: does the repository satisfy its engineering gates from a clean checkout?
+# It runs the same command developers run locally (`pnpm validate`) — one definition of correctness.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # pnpm is pinned by "packageManager" in package.json and provided by Corepack (see README).
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm validate
