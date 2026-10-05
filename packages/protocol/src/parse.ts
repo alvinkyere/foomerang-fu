@@ -1,8 +1,22 @@
 import { z } from 'zod';
-import { handshakeMessageSchema } from './client';
+import { handshakeAcceptedMessageSchema, handshakeMessageSchema } from './client';
 import { inputEventMessageSchema, inputMoveMessageSchema } from './controller';
 import { errorMessageSchema, type ErrorCode } from './errors';
 import { heartbeatAckMessageSchema, heartbeatMessageSchema } from './heartbeat';
+import {
+  hostReconnectMessageSchema,
+  hostReconnectedMessageSchema,
+  playerInputMessageSchema,
+  roomCreateMessageSchema,
+  roomCreatedMessageSchema,
+  roomUpdatedMessageSchema,
+} from './host';
+import {
+  playerReconnectMessageSchema,
+  playerReconnectedMessageSchema,
+  roomJoinMessageSchema,
+  roomJoinedMessageSchema,
+} from './room';
 import { isSupportedProtocolVersion } from './version';
 
 /**
@@ -19,6 +33,10 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   inputMoveMessageSchema,
   inputEventMessageSchema,
   heartbeatMessageSchema,
+  roomCreateMessageSchema,
+  hostReconnectMessageSchema,
+  roomJoinMessageSchema,
+  playerReconnectMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
 
@@ -26,6 +44,13 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>;
 const serverMessageSchema = z.discriminatedUnion('type', [
   errorMessageSchema,
   heartbeatAckMessageSchema,
+  handshakeAcceptedMessageSchema,
+  roomCreatedMessageSchema,
+  hostReconnectedMessageSchema,
+  roomJoinedMessageSchema,
+  playerReconnectedMessageSchema,
+  roomUpdatedMessageSchema,
+  playerInputMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 

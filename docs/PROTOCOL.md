@@ -1,6 +1,6 @@
 # PROTOCOL
 
-Status: v0.3 — **foundations implemented** in `packages/protocol` (Slice 2). Everything marked _planned_ is not built yet.
+Status: v0.4 — foundations (Slice 2) plus the room/host messages needed by the server (Slice 6) are implemented in `packages/protocol`. Everything marked _planned_ is not built yet.
 
 The package owns wire formats, schemas, versioning and validation semantics. It does **not** own behavior: join-code _generation_ and collision handling belong to `room-engine`. It has no dependency on React, browser APIs, Socket.IO, or Node (a native client must be able to implement it), and its only runtime dependency is Zod.
 
@@ -52,23 +52,36 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 
 ### Client → server
 
-| Type          | Envelope  | Payload                                                          |
-| ------------- | --------- | ---------------------------------------------------------------- |
-| `HANDSHAKE`   | plain     | `{ protocolVersion, clientType, clientVersion }`                 |
-| `INPUT_MOVE`  | state     | `{ x, y }`, each finite in `[-1, 1]`                             |
-| `INPUT_EVENT` | event     | `{ action: PRIMARY\|SECONDARY, phase: pressed\|released }`       |
-| `HEARTBEAT`   | heartbeat | —                                                                |
+| Type               | Envelope  | Payload                                                          | Who may send it |
+| ------------------ | --------- | ---------------------------------------------------------------- | --------------- |
+| `HANDSHAKE`        | plain     | `{ protocolVersion, clientType, clientVersion }`                 | anyone, once, first |
+| `HEARTBEAT`        | heartbeat | —                                                                | any ACTIVE connection |
+| `ROOM_CREATE`      | plain     | `{ gameId }` (`[a-z0-9-]`, ≤64)                                  | console without a room |
+| `HOST_RECONNECT`   | plain     | `{ joinCode, hostToken }`                                        | console without a room |
+| `ROOM_JOIN`        | plain     | `{ joinCode, displayName }` (wire-bounded ≤64; domain applies the real rules) | controller without an identity |
+| `PLAYER_RECONNECT` | plain     | `{ joinCode, reconnectToken }`                                   | controller without an identity |
+| `INPUT_MOVE`       | state     | `{ x, y }`, each finite in `[-1, 1]`                             | joined player |
+| `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY, phase: pressed\|released }`       | joined player |
 
-`clientType`: `console` \| `controller` \| `native-controller`.
+`clientType`: `console` \| `controller` \| `native-controller` (a native controller is authorized exactly like a controller). The "who may send it" column is enforced by the server's session layer (`UNAUTHORIZED` otherwise), not by the parser.
 
 ### Server → client
 
-| Type            | Envelope  | Payload                          |
-| --------------- | --------- | -------------------------------- |
-| `ERROR`         | plain     | `{ code }` (an `ErrorCode`)      |
-| `HEARTBEAT_ACK` | heartbeat | — (echoes `seq`; also yields RTT)|
+| Type                 | Envelope  | Payload                                                          | To |
+| -------------------- | --------- | ---------------------------------------------------------------- | -- |
+| `HANDSHAKE_ACCEPTED` | plain     | `{ protocolVersion }`                                            | the new connection |
+| `ERROR`              | plain     | `{ code }` (an `ErrorCode`)                                      | the sender |
+| `HEARTBEAT_ACK`      | heartbeat | — (echoes `seq`; also yields RTT)                                | the sender |
+| `ROOM_CREATED`       | plain     | `{ joinCode, hostToken }`                                        | the creating console |
+| `HOST_RECONNECTED`   | plain     | `{ joinCode, hostToken }` (**new** credential; the old one is dead) | the reconnecting console |
+| `ROOM_JOINED`        | plain     | `{ playerId, reconnectToken }`                                   | the joining controller |
+| `PLAYER_RECONNECTED` | plain     | `{ playerId, reconnectToken }` (**new** credential)              | the reconnecting controller |
+| `ROOM_UPDATED`       | plain     | `{ joinCode, state, hostConnection, players[{ playerId, displayName, connection, seat }] }` — a full roster snapshot (≤64 players) | the room's host |
+| `PLAYER_INPUT`       | plain     | `{ playerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` | the room's host |
 
-### Planned (not built): room join/create/reconnect, host messages, roster updates, controller manifest, match lifecycle, `GAME_STATE`.
+Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.
+
+### Planned (not built): controller manifest, roster/status messages for controllers, match lifecycle (`MATCH_*`), `GAME_STATE`, room closing.
 
 ## Joystick semantics
 
@@ -90,6 +103,8 @@ Six characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `0 O 1 I L`; 31⁶ ≈
 Stable machine identifiers; renaming or removing is a breaking change, adding is additive. Consumer copy ("This game is full.") lives in the clients.
 
 `INVALID_MESSAGE`, `UNSUPPORTED_PROTOCOL`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `INVALID_RECONNECT_TOKEN`, `RATE_LIMITED`, `UNAUTHORIZED`.
+
+Added in Slice 6 (additive), each because the server's translation layer needed a distinct answer: `ROOM_NOT_JOINABLE`, `INVALID_DISPLAY_NAME`, `SEAT_RELEASED`, `ROOM_CLOSING`, `UNKNOWN_GAME`, `HANDSHAKE_REQUIRED` (anything but a handshake first, or no handshake in time), `INTERNAL_ERROR` (a server fault; never carries details).
 
 ## Identity (_planned_, designed in ARCHITECTURE)
 

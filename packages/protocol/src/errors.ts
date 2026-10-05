@@ -14,6 +14,13 @@ export const ERROR_CODES = [
   'INVALID_RECONNECT_TOKEN',
   'RATE_LIMITED',
   'UNAUTHORIZED',
+  'ROOM_NOT_JOINABLE',
+  'INVALID_DISPLAY_NAME',
+  'SEAT_RELEASED',
+  'ROOM_CLOSING',
+  'UNKNOWN_GAME',
+  'HANDSHAKE_REQUIRED',
+  'INTERNAL_ERROR',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

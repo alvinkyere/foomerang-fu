@@ -13,6 +13,14 @@ describe('protocol error codes', () => {
       'INVALID_RECONNECT_TOKEN',
       'RATE_LIMITED',
       'UNAUTHORIZED',
+      // Added in Slice 6 as the server's translation layer needed them (additive, wire-stable):
+      'ROOM_NOT_JOINABLE',
+      'INVALID_DISPLAY_NAME',
+      'SEAT_RELEASED',
+      'ROOM_CLOSING',
+      'UNKNOWN_GAME',
+      'HANDSHAKE_REQUIRED',
+      'INTERNAL_ERROR',
     ]);
   });
 

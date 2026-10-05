@@ -12,13 +12,54 @@ export {
   CLIENT_TYPES,
   clientTypeSchema,
   clientVersionSchema,
+  handshakeAcceptedMessageSchema,
   handshakeMessageSchema,
   handshakePayloadSchema,
 } from './client';
-export type { ClientType, HandshakeMessage, HandshakePayload } from './client';
+export type {
+  ClientType,
+  HandshakeAcceptedMessage,
+  HandshakeMessage,
+  HandshakePayload,
+} from './client';
 
-export { JOIN_CODE_ALPHABET, JOIN_CODE_LENGTH, joinCodeSchema } from './room';
-export type { JoinCode } from './room';
+export {
+  JOIN_CODE_ALPHABET,
+  JOIN_CODE_LENGTH,
+  joinCodeSchema,
+  playerReconnectMessageSchema,
+  playerReconnectedMessageSchema,
+  roomJoinMessageSchema,
+  roomJoinedMessageSchema,
+} from './room';
+export type {
+  JoinCode,
+  PlayerReconnectMessage,
+  PlayerReconnectedMessage,
+  RoomJoinMessage,
+  RoomJoinedMessage,
+} from './room';
+
+export {
+  CONNECTION_STATUSES,
+  ROOM_STATES,
+  SEAT_STATUSES,
+  hostReconnectMessageSchema,
+  hostReconnectedMessageSchema,
+  playerInputMessageSchema,
+  roomCreateMessageSchema,
+  roomCreatedMessageSchema,
+  roomUpdatedMessageSchema,
+} from './host';
+export type {
+  HostReconnectMessage,
+  HostReconnectedMessage,
+  PlayerInputMessage,
+  RoomCreateMessage,
+  RoomCreatedMessage,
+  RoomUpdatedMessage,
+  RosterEntry,
+} from './host';
 
 export {
   ACTIONS,

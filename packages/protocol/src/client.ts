@@ -28,3 +28,10 @@ export type HandshakePayload = z.infer<typeof handshakePayloadSchema>;
 
 export const handshakeMessageSchema = plainEnvelope('HANDSHAKE', handshakePayloadSchema);
 export type HandshakeMessage = z.infer<typeof handshakeMessageSchema>;
+
+/** Server → client: the handshake was accepted and this connection is now ACTIVE. */
+export const handshakeAcceptedMessageSchema = plainEnvelope(
+  'HANDSHAKE_ACCEPTED',
+  z.strictObject({ protocolVersion: z.number().int().min(1) }),
+);
+export type HandshakeAcceptedMessage = z.infer<typeof handshakeAcceptedMessageSchema>;
