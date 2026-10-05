@@ -106,6 +106,19 @@ Heartbeats live in *our* session layer. Socket.IO's idea of "alive" is not our d
 ## Security posture (threat model, M1 baseline)
 Every client is hostile or broken. Server-enforced: schema validation at the boundary, payload-size limits, per-connection rate limits (input spam, join spam), room capacity, authorization of every event (host-only vs player), malformed-packet tolerance, no trust in client-reported state. Out of scope: sophisticated anti-cheat. Tests include spam/flood cases.
 
+**Credentials.** Authentication/reconnection credentials (`ReconnectToken`, `HostToken`) must not appear in routine logs, analytics, error messages, or consumer-facing state. In the domain they are redacting `Credential` objects (see ROOM_ENGINE.md); any future structured logging needs explicit, tested redaction. Tokens are unpredictable (CSPRNG, ≥128 bits) and expire with the room.
+
+## Input normalization ownership
+Joystick handling is reusable platform infrastructure, not per-game logic:
+```
+raw touch → controller joystick mapping → normalized protocol axes (finite, each in [-1,1])
+          → game-input normalization (unit-disc magnitude clamp, dead zone) → game movement
+```
+The protocol validates only the per-axis range. Magnitude clamping and dead-zone policy live in a reusable `game-core` input primitive (built with `game-core`, Slice 5) so no individual game has to remember diagonal normalization; Foomerang Fu consumes already-normalized input.
+
+## Room model
+The room/session domain model — identity types, credentials, state machine, invariants, atomicity, join-code allocation and concurrency notes — is specified in [ROOM_ENGINE.md](ROOM_ENGINE.md). Principles: Room ≠ connection; Host ≠ WebSocket; Player ≠ WebSocket; expected failures are results, not exceptions; failed operations never partially mutate state.
+
 ## Controller design principle
 The phone should psychologically disappear; the TV is the source of truth. Controller = large tactile zones (stick + a few buttons), no stats/menus/text to read mid-game, haptic/audio feedback where available. Layout scales to the actual usable viewport (never device names); architecture must not assume one screen size. Future: button size/position, left-handed layout, sensitivity, dead zone (not M1).
 

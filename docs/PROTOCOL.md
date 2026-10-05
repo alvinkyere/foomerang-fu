@@ -22,6 +22,15 @@ unknown (from the wire) ──► parseClientMessage ──► ClientMessage (ty
 - `clientVersion` (semver string, e.g. `0.1.0`): the application release. Informational. Releasing app `0.2.0` does not imply a protocol change.
 - A handshake with a well-formed but unsupported `protocolVersion` gets `UNSUPPORTED_PROTOCOL` **even if the rest of its payload has an unknown shape**, so a future client can show an upgrade prompt rather than a generic failure. A non-positive-integer version is malformed → `INVALID_MESSAGE`.
 
+## Connection lifecycle
+
+```
+CONNECT → UNNEGOTIATED → HANDSHAKE → validate protocolVersion → ACTIVE
+                                                  └── incompatible → REJECT (UNSUPPORTED_PROTOCOL)
+```
+
+Once `ACTIVE`, every message on that connection is interpreted under the negotiated protocol. **A reconnect is a new transport connection and handshakes again.** Player/host identity can survive a reconnect (via credentials); protocol negotiation does not. Before `ACTIVE`, anything other than `HANDSHAKE` is rejected by the session layer (the session layer, not the parser, tracks this state).
+
 ## Envelopes (by semantics, not one universal packet)
 
 | Class     | Shape                            | Used by                              |
@@ -36,7 +45,8 @@ Protocol version is negotiated **once** in the handshake, not repeated per messa
 No timestamps yet: `t` fields for input-age measurement are added when the latency instrumentation slice needs them.
 
 - `seq`: unsigned 32-bit integer per stream. Stale `seq` is dropped by the receiver; ordering never relies on cross-device clocks. Wraparound is unsupported (~2 years at 60 Hz).
-- `eventId`: client-generated, `[A-Za-z0-9_-]{8,64}`, unique per event within a session. Deliberately **not** a UUID — `crypto.randomUUID()` is unavailable in insecure contexts (e.g. a phone loading the controller over plain HTTP on a LAN).
+- `eventId`: client-generated, `[A-Za-z0-9_-]{8,64}`. The required **property** is not "is a UUID" but "this action instance is distinguishable from another sufficiently to deduplicate retries". Implementation is the client's choice (e.g. session-specific entropy + monotonic counter); we define properties, not mechanisms. Deliberately not a UUID — `crypto.randomUUID()` is unavailable in insecure contexts (e.g. a phone loading the controller over plain HTTP on a LAN).
+- **Bounded deduplication (requirement for the action-processing slice):** receivers dedupe with a `Set<string>`/`Map`, but storage must be bounded — a 7-hour room must not retain every eventId ever received. Use a sliding window / expiry sized to the maximum retry horizon.
 
 ## Messages
 
