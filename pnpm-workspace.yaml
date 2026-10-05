@@ -3,5 +3,5 @@ packages:
   - games/*
   - packages/*
   - integration
-minimumReleaseAgeExclude:
-  - '@vitejs/plugin-react@6.1.2'
+allowBuilds:
+  esbuild: false
