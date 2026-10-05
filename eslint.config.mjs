@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 // ---------------------------------------------------------------------------
@@ -90,6 +91,18 @@ export default tseslint.config(
     ],
     ignores: ['**/*.test.ts', 'games/foomerang-fu/src/render/**'],
     rules: pureRules,
+  },
+
+  // React: the rules of hooks, and stale-closure / effect mistakes, in every UI package.
+  {
+    files: ['apps/*/src/**/*.{ts,tsx}', 'packages/ui/src/**/*.{ts,tsx}'],
+    ...reactHooks.configs.flat.recommended,
+  },
+
+  // Plain Node scripts (build checks, dev tools).
+  {
+    files: ['**/*.mjs'],
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
   },
 
   // The only places allowed to touch Socket.IO.

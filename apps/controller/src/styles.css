@@ -1,0 +1,319 @@
+/* Foomerang controller. Placeholder-quality visuals (the premium art pass is Milestone 7); the
+   things that matter here are mechanical: touch behaviour, safe areas, sizes, focus, motion. */
+
+:root {
+  color-scheme: dark;
+
+  --color-bg: #0e1217;
+  --color-surface: #171d25;
+  --color-surface-raised: #1f2833;
+  --color-border: #2c3744;
+  --color-text: #f2f5f8;
+  --color-muted: #9aa7b6;
+  --color-accent: #ffb020;
+  --color-accent-contrast: #1a1200;
+  --color-good: #3ddc84;
+  --color-warning: #ffb020;
+  --color-danger: #ff7b7b;
+  --color-focus: #7cc4ff;
+
+  --tap-target: 56px; /* comfortably above the 48 px minimum */
+  --radius: 16px;
+  --space: 16px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Never let a stray gesture scroll, bounce or select while playing. */
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- join / ended -------------------------------------------------------------------------- */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-height: 100dvh;
+  padding: calc(var(--space) + env(safe-area-inset-top, 0px))
+    calc(var(--space) + env(safe-area-inset-right, 0px))
+    calc(var(--space) + env(safe-area-inset-bottom, 0px))
+    calc(var(--space) + env(safe-area-inset-left, 0px));
+}
+
+.wordmark {
+  font-size: 2.25rem;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+/* 20 px: iOS Safari zooms the page when focusing a field smaller than 16 px. */
+.field-input {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: 0 18px;
+  font: inherit;
+  font-size: 20px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.field-input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.code-input {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.button {
+  min-height: var(--tap-target);
+  padding: 0 24px;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.message {
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.message-error {
+  color: var(--color-danger);
+}
+
+/* ---- play ---------------------------------------------------------------------------------- */
+
+.play {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: var(--color-bg);
+  /* The play surface owns every gesture. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+
+.play-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  padding: 10px var(--space);
+}
+
+.player-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+
+.connection-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-good);
+}
+
+.connection-badge[data-state='reconnecting'] .connection-dot {
+  background: var(--color-warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.rotate-hint {
+  margin: 0 var(--space) 6px;
+  padding: 8px 14px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--color-accent);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.controls {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+  padding: 0 8px 8px;
+  min-height: 0;
+}
+
+.joystick-zone {
+  position: relative;
+  overflow: hidden;
+  min-height: var(--tap-target);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* A faint ring suggests where to put a thumb; the real base appears wherever the thumb lands. */
+.joystick-zone::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(45%, 180px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px dashed var(--color-border);
+  border-radius: 50%;
+  transition: opacity 120ms ease;
+}
+
+.joystick-zone[data-active='true']::before {
+  opacity: 0;
+}
+
+.joystick-base {
+  --size: calc(var(--joystick-radius, 80px) * 2);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--joystick-radius, 80px) * -1) 0 0 calc(var(--joystick-radius, 80px) * -1);
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  opacity: 0;
+  transition: opacity 80ms ease;
+  pointer-events: none;
+}
+
+.joystick-zone[data-active='true'] .joystick-base {
+  opacity: 1;
+}
+
+.joystick-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 46%;
+  margin: -23% 0 0 -23%;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* Dim, but never block: the thumb stays usable while the connection heals. */
+.reconnecting-veil {
+  position: absolute;
+  inset: 0;
+  background: rgb(14 18 23 / 0.45);
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

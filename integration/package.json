@@ -1,0 +1,20 @@
+{
+  "name": "@foomerang/integration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Test-only workspace: exercises the real packages together over real sockets (browser end-to-end tests join it in Slice 8). Nothing may depend on it.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@foomerang/config": "workspace:*",
+    "@foomerang/controller-sdk": "workspace:*",
+    "@foomerang/protocol": "workspace:*",
+    "@foomerang/server": "workspace:*",
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

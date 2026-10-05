@@ -14,11 +14,13 @@ interface PackageJson {
 
 const readJson = <T>(path: string): T => JSON.parse(readFileSync(repoRoot + path, 'utf8')) as T;
 
-const workspaceDirs = ['apps', 'games', 'packages'].flatMap((group) =>
+const workspaceDirs = ['apps', 'games', 'packages', 'integration'].flatMap((group) =>
   readdirSync(repoRoot + group, { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(`${repoRoot}${group}/${e.name}/package.json`))
     .map((e) => `${group}/${e.name}`),
 );
+// A top-level, test-only workspace (real packages exercised together; Playwright joins it later).
+if (existsSync(`${repoRoot}integration/package.json`)) workspaceDirs.push('integration');
 
 /** Which @foomerang/* workspace packages each package may depend on. Everyone may use @foomerang/config. */
 const allowedWorkspaceDeps: Record<string, string[]> = {
@@ -32,6 +34,16 @@ const allowedWorkspaceDeps: Record<string, string[]> = {
   'packages/controller-sdk': ['protocol'],
   'packages/ui': [],
   'packages/config': [],
+  // Test-only: may exercise any package. Nothing may depend on it (nothing lists it above).
+  integration: [
+    'protocol',
+    'room-engine',
+    'game-core',
+    'controller-sdk',
+    'server',
+    'ui',
+    'foomerang-fu',
+  ],
 };
 
 const purePackages = ['packages/game-core', 'packages/protocol', 'packages/room-engine'];
