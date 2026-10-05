@@ -13,7 +13,13 @@
   "devDependencies": {
     "@foomerang/config": "workspace:*",
     "@types/node": "^24.0.0",
+    "socket.io-client": "^4.8.4",
     "typescript": "~5.9.3",
     "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "@foomerang/protocol": "workspace:*",
+    "@foomerang/room-engine": "workspace:*",
+    "socket.io": "^4.8.4"
   }
 }

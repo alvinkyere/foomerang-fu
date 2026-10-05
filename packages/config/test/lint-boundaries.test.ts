@@ -104,6 +104,35 @@ describe('architecture boundaries enforced by lint', () => {
       }
     });
 
+    it('is rejected in the session layer and the application, even for the server package', async () => {
+      for (const file of [
+        'apps/server/src/gateway.ts',
+        'apps/server/src/application.ts',
+        'apps/server/src/session.ts',
+        'apps/server/src/server.ts',
+      ]) {
+        expect(
+          await ruleIds(file, "import { Server } from 'socket.io';\nexport { Server };\n"),
+          file,
+        ).toContain('no-restricted-imports');
+      }
+    });
+
+    it('is allowed in the test-side Socket.IO client helper only', async () => {
+      expect(
+        await ruleIds(
+          'apps/server/test/support/SocketIOTransportClient.ts',
+          "import { io } from 'socket.io-client';\nexport { io };\n",
+        ),
+      ).toEqual([]);
+      expect(
+        await ruleIds(
+          'apps/server/test/integration.test.ts',
+          "import { io } from 'socket.io-client';\nexport { io };\n",
+        ),
+      ).toContain('no-restricted-imports');
+    });
+
     it('is allowed inside SocketIOTransport files', async () => {
       expect(
         await ruleIds(

@@ -1,0 +1,251 @@
+import type {
+  HeartbeatMessage,
+  InputEventMessage,
+  InputMoveMessage,
+  ErrorCode,
+  ServerMessage,
+} from '@foomerang/protocol';
+import type { PlayerId, Room, RoomId, RoomRegistry } from '@foomerang/room-engine';
+import type { BindingTable } from './bindings';
+import { BoundedEventWindow } from './dedup';
+import type { Diagnostics } from './diagnostics';
+import type { Session } from './session';
+import {
+  CREATE_ROOM_ERRORS,
+  JOIN_ERRORS,
+  RECONNECT_HOST_ERRORS,
+  RECONNECT_PLAYER_ERRORS,
+} from './translation';
+
+export interface GameDefinition {
+  readonly minPlayers: number;
+  readonly maxPlayers: number;
+}
+
+export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
+  'foomerang-fu': { minPlayers: 2, maxPlayers: 6 },
+});
+
+export interface ApplicationDeps {
+  readonly registry: RoomRegistry;
+  readonly bindings: BindingTable;
+  readonly games: ReadonlyMap<string, GameDefinition>;
+  readonly diagnostics: Diagnostics;
+  /** How many recent action-event ids are remembered per player. */
+  readonly eventWindowCapacity: number;
+}
+
+/**
+ * Room coordination: turns AUTHORIZED, already-parsed requests into room-engine operations and
+ * sends the results. It never sees a socket — only sessions — and it knows nothing about how
+ * messages travel or how a session was authorized.
+ *
+ * Translation seam: room-engine result → (translation.ts) → protocol ErrorCode.
+ */
+export class Application {
+  readonly #deps: ApplicationDeps;
+  /** Per-player action dedup, keyed by identity (so it survives reconnects). Bounded per player and pruned with the room. */
+  readonly #eventWindows = new Map<RoomId, Map<PlayerId, BoundedEventWindow>>();
+
+  constructor(deps: ApplicationDeps) {
+    this.#deps = deps;
+  }
+
+  createRoom(session: Session, gameId: string): void {
+    const game = this.#deps.games.get(gameId);
+    if (game === undefined) return this.#error(session, 'UNKNOWN_GAME');
+
+    const created = this.#deps.registry.createRoom({ gameId, ...game });
+    if (!created.ok) return this.#error(session, CREATE_ROOM_ERRORS[created.reason]);
+
+    const room = created.value;
+    this.#deps.bindings.bindHost(room.roomId, room.host.hostId, session);
+    session.send({
+      type: 'ROOM_CREATED',
+      payload: { joinCode: room.joinCode, hostToken: room.host.hostToken.reveal() },
+    });
+    this.#notifyHost(room.roomId);
+  }
+
+  joinRoom(session: Session, joinCode: string, displayName: string): void {
+    const joined = this.#deps.registry.joinByCode(joinCode, displayName);
+    if (!joined.ok) return this.#error(session, JOIN_ERRORS[joined.reason]);
+
+    const { room, player } = joined.value;
+    this.#deps.bindings.bindPlayer(room.roomId, player.playerId, session);
+    session.send({
+      type: 'ROOM_JOINED',
+      payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
+    });
+    this.#notifyHost(room.roomId);
+  }
+
+  reconnectPlayer(session: Session, joinCode: string, reconnectToken: string): void {
+    const found = this.#deps.registry.findByJoinCode(joinCode);
+    if (found === undefined) return this.#error(session, 'ROOM_NOT_FOUND');
+
+    const result = this.#deps.registry.reconnectPlayer(found.roomId, reconnectToken);
+    if (!result.ok) return this.#error(session, RECONNECT_PLAYER_ERRORS[result.reason]);
+
+    const { player } = result.value;
+    const { superseded } = this.#deps.bindings.bindPlayer(found.roomId, player.playerId, session);
+    this.#supersede(superseded);
+    session.send({
+      type: 'PLAYER_RECONNECTED',
+      payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
+    });
+    this.#notifyHost(found.roomId);
+  }
+
+  reconnectHost(session: Session, joinCode: string, hostToken: string): void {
+    const found = this.#deps.registry.findByJoinCode(joinCode);
+    if (found === undefined) return this.#error(session, 'ROOM_NOT_FOUND');
+
+    const result = this.#deps.registry.reconnectHost(found.roomId, hostToken);
+    if (!result.ok) return this.#error(session, RECONNECT_HOST_ERRORS[result.reason]);
+
+    const room = result.value.room;
+    const { superseded } = this.#deps.bindings.bindHost(found.roomId, room.host.hostId, session);
+    this.#supersede(superseded);
+    session.send({
+      type: 'HOST_RECONNECTED',
+      payload: { joinCode: room.joinCode, hostToken: room.host.hostToken.reveal() },
+    });
+    this.#notifyHost(found.roomId);
+  }
+
+  routeMove(session: Session, message: InputMoveMessage): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'PLAYER') return;
+    const host = this.#host(identity.roomId);
+    if (host === undefined) return;
+    host.send({
+      type: 'PLAYER_INPUT',
+      payload: {
+        playerId: identity.playerId,
+        input: { kind: 'MOVE', seq: message.seq, ...message.payload },
+      },
+    });
+    this.#deps.diagnostics.increment('movementRouted');
+  }
+
+  routeEvent(session: Session, message: InputEventMessage): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'PLAYER') return;
+    const host = this.#host(identity.roomId);
+    if (host === undefined) return; // not remembered, so a later retry can still get through
+    if (this.#window(identity.roomId, identity.playerId).record(message.eventId) === 'DUPLICATE') {
+      this.#deps.diagnostics.increment('duplicateEventsDiscarded');
+      return;
+    }
+    host.send({
+      type: 'PLAYER_INPUT',
+      payload: {
+        playerId: identity.playerId,
+        input: {
+          kind: 'ACTION',
+          eventId: message.eventId,
+          action: message.payload.action,
+          phase: message.payload.phase,
+        },
+      },
+    });
+    this.#deps.diagnostics.increment('eventsRouted');
+  }
+
+  heartbeat(session: Session, message: HeartbeatMessage): void {
+    this.#deps.diagnostics.increment('heartbeats');
+    session.send({ type: 'HEARTBEAT_ACK', seq: message.seq });
+  }
+
+  /**
+   * A transport ended. Only the connection that CURRENTLY speaks for an identity can disconnect
+   * it; a superseded connection's late close is ignored (the stale-close race).
+   */
+  sessionClosed(session: Session): void {
+    const identity = session.identity;
+    if (identity === undefined) return;
+    if (!this.#deps.bindings.release(session)) {
+      this.#deps.diagnostics.increment('staleClosesIgnored');
+      return;
+    }
+    if (identity.kind === 'PLAYER') {
+      this.#deps.registry.disconnectPlayer(identity.roomId, identity.playerId);
+      this.#notifyHost(identity.roomId);
+    } else {
+      this.#deps.registry.disconnectHost(identity.roomId);
+    }
+  }
+
+  /** Housekeeping: advance every room to now and tell hosts what changed. Correctness never depends on it. */
+  reconcileSweep(): void {
+    for (const room of this.#deps.registry.reconcile()) this.#notifyHost(room.roomId);
+    for (const roomId of [...this.#eventWindows.keys()]) {
+      if (this.#deps.registry.getRoom(roomId) === undefined) {
+        this.#eventWindows.delete(roomId);
+        this.#deps.bindings.forgetRoom(roomId);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------
+
+  #error(session: Session, code: ErrorCode): void {
+    session.send({ type: 'ERROR', payload: { code } });
+  }
+
+  #host(roomId: RoomId): Session | undefined {
+    const host = this.#deps.bindings.hostSession(roomId);
+    if (host === undefined || host.lifecycle !== 'ACTIVE') {
+      this.#deps.diagnostics.increment('inputDroppedNoHost');
+      return undefined;
+    }
+    return host;
+  }
+
+  /** The previous connection for this identity loses it. Its eventual close event will be ignored. */
+  #supersede(previous: Session | undefined): void {
+    if (previous === undefined) return;
+    this.#deps.diagnostics.increment('takeovers');
+    previous.close();
+  }
+
+  #window(roomId: RoomId, playerId: PlayerId): BoundedEventWindow {
+    let room = this.#eventWindows.get(roomId);
+    if (room === undefined) {
+      room = new Map();
+      this.#eventWindows.set(roomId, room);
+    }
+    let window = room.get(playerId);
+    if (window === undefined) {
+      window = new BoundedEventWindow(this.#deps.eventWindowCapacity);
+      room.set(playerId, window);
+    }
+    return window;
+  }
+
+  #notifyHost(roomId: RoomId): void {
+    const host = this.#deps.bindings.hostSession(roomId);
+    const room = this.#deps.registry.getRoom(roomId);
+    if (host === undefined || room === undefined) return;
+    host.send(rosterMessage(room));
+  }
+}
+
+/** Domain room → wire roster. Carries identities and statuses only: never a credential. */
+function rosterMessage(room: Room): ServerMessage {
+  return {
+    type: 'ROOM_UPDATED',
+    payload: {
+      joinCode: room.joinCode,
+      state: room.state,
+      hostConnection: room.host.connection.status,
+      players: room.players.map((player) => ({
+        playerId: player.playerId,
+        displayName: player.displayName,
+        connection: player.connection.status,
+        seat: player.membership.status,
+      })),
+    },
+  };
+}
