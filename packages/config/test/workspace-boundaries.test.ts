@@ -67,9 +67,11 @@ describe('workspace boundaries', () => {
     const pkg = readJson<PackageJson>(`${dir}/package.json`);
     // protocol is allowed exactly one future runtime dependency: zod (ADR to follow).
     const allowedRuntime = dir === 'packages/protocol' ? ['zod'] : [];
-    expect(Object.keys(pkg.dependencies ?? {}).filter((d) => !allowedRuntime.includes(d))).toEqual(
-      [],
+    // Workspace packages (@foomerang/*) are governed by the allow-list test above, not this one.
+    const thirdParty = Object.keys(pkg.dependencies ?? {}).filter(
+      (d) => !d.startsWith('@foomerang/'),
     );
+    expect(thirdParty.filter((d) => !allowedRuntime.includes(d))).toEqual([]);
     expect(Object.keys(pkg.peerDependencies ?? {})).toEqual([]);
   });
 

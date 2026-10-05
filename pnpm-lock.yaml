@@ -295,6 +295,10 @@ importers:
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
 
   packages/room-engine:
+    dependencies:
+      '@foomerang/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       '@foomerang/config':
         specifier: workspace:*

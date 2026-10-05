@@ -75,13 +75,15 @@ State changes only through named domain operations — never `room.state = ...`.
 | **CLOSING** | – | – | – | – | – | ✔ `completeClose` |
 | **CLOSED** | – | – | – | – | – | – |
 
-Every one of the 36 (from,to) pairs is tested: the 10 permitted succeed, the other 26 fail with `INVALID_TRANSITION` and leave the room unchanged. `CLOSED` is terminal: a closed room cannot reopen. Cancelling a start (STARTING → LOBBY) is deliberately absent until a requirement exists. `beginStart` additionally requires `minPlayers`.
+Every one of the 36 (from,to) pairs is tested: the 9 permitted succeed, the other 27 fail with `INVALID_TRANSITION` and leave the room unchanged. `CLOSED` is terminal: a closed room cannot reopen. Cancelling a start (STARTING → LOBBY) is deliberately absent until a requirement exists. `beginStart` additionally requires `minPlayers`.
 
 ## Operations (public via `RoomRegistry`)
 
-`createRoom(config)`, `joinRoom(roomId, displayName)`, `beginStart`, `startPlaying`, `finishGame`, `returnToLobby`, `closeRoom`, `completeClose`, plus lookups (`getRoom`, `findByJoinCode`) and credential identification (`identifyPlayer(roomId, token)`, `isHost(roomId, token)`).
+`createRoom(config)`, `joinRoom(roomId, displayName)`, `joinByCode(joinCode, displayName)`, `beginStart`, `startPlaying`, `finishGame`, `returnToLobby`, `closeRoom`, `completeClose` (each by `roomId`), lookups `getRoom(roomId)` / `findByJoinCode(input)` / `size`, and credential identification `identifyPlayer(roomId, token)` / `isHost(roomId, token)`.
 
-Reconnect / disconnect behavior is Slice 4.
+The raw pure operations (`joinRoom(room, …)`, `beginStart(room)`, …) are **internal to the package** and tested directly; only the registry is public, so no caller can perform its own read-modify-write.
+
+Reconnect / disconnect behavior (changing `connectionStatus`, token-based reclaim) is Slice 4.
 
 ## RoomRegistry
 
