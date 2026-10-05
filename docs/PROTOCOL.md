@@ -77,11 +77,12 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `ROOM_JOINED`        | plain     | `{ playerId, reconnectToken }`                                   | the joining controller |
 | `PLAYER_RECONNECTED` | plain     | `{ playerId, reconnectToken }` (**new** credential)              | the reconnecting controller |
 | `ROOM_UPDATED`       | plain     | `{ joinCode, state, hostConnection, players[{ playerId, displayName, connection, seat }] }` — a full roster snapshot (≤64 players) | the room's host |
+| `CONTROLLER_MANIFEST` | plain    | `{ gameId, orientation: landscape\|portrait\|any, controls[{ id, type: joystick }] }` (1–16 controls, unique `[A-Z][A-Z0-9_]*` ids) — what the controller should render, from the GAME's definition | the controller, after `ROOM_JOINED` / `PLAYER_RECONNECTED` |
 | `PLAYER_INPUT`       | plain     | `{ playerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` | the room's host |
 
 Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.
 
-### Planned (not built): controller manifest, roster/status messages for controllers, match lifecycle (`MATCH_*`), `GAME_STATE`, room closing.
+### Planned (not built): more control types (the manifest knows only `joystick` because that is all the controller implements), roster/status messages for controllers, match lifecycle (`MATCH_*`), `GAME_STATE`, room closing.
 
 ## Joystick semantics
 

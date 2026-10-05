@@ -66,7 +66,7 @@ Walls/obstacles, player–player collision (bodies currently pass through each o
 
 ## Unresolved questions
 
-1. **Y-axis orientation.** `+y` input increases `y`; "up" on screen is the renderer's convention (screen coordinates usually grow downward). The controller's joystick mapping must agree; decide with the first end-to-end (Slice 7/8).
+1. ~~Y-axis orientation~~ — **decided (Slice 7): +X right, +Y down**, the screen convention, end to end (controller → protocol → game-core → renderer). No layer flips an axis. See CONTROLLER.md.
 2. **Adding/removing bodies mid-match** (late join, elimination): `createWorld` fixes the body set; the API for changing it is a Foomerang Fu rules concern (Slice 4-of-the-game, M5).
 3. **RNG state in `WorldState`** once a rule draws from it.
 4. **Where the accumulator lives** (console and, later, server) and how it discards time beyond `MAX_STEP_SECONDS`.

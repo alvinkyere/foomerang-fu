@@ -192,3 +192,10 @@ SRS / ARCHITECTURE / ADRs   (authoritative)
 
 ## Toolchain policy
 Pin to a *supported, reproducible* combination, not the newest version number. Version claims in reports must be verified against the registry/compatibility data at the time. Current: TypeScript 5.9.x (typescript-eslint supports `<6.1`), ESLint 10, Vitest 5, pnpm pinned via `packageManager`. See README for setup.
+
+## Controller platform and the integration workspace (Slice 7)
+- The phone controller is specified in [CONTROLLER.md](CONTROLLER.md): a React UI over `controller-sdk` (session, sampler, geometry, storage) over a `ControllerTransport`. React never touches a socket, a sequence number or a reconnect.
+- **World coordinates: +X right, +Y down**, end to end. No layer flips an axis.
+- `integration/` is a **test-only workspace** that may depend on any package (nothing may depend on it). It exercises the real packages together over real sockets, and is where Playwright joins in Slice 8. The boundary test lists it explicitly.
+- **TLS/HTTPS:** plain HTTP over the LAN is accepted for Slice 7 development. HTTPS becomes required before any physical-iPhone result is called production-representative.
+- The build is now part of `pnpm validate` (`pnpm build`): it runs the production build and enforces the controller's bundle budget.

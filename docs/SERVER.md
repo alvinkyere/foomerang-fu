@@ -97,6 +97,10 @@ An exception inside handling becomes `INTERNAL_ERROR` (no detail), is counted, i
 
 Runtime infrastructure the pure packages deliberately lack: UUIDs from `crypto.randomUUID`; credentials = **256 bits** from `crypto.randomBytes`, base64url (requirement: ≥128); join-code candidates drawn with the unbiased `crypto.randomInt` from the unambiguous alphabet (the room engine decides availability); time from `performance.now()` — **monotonic elapsed time, not a calendar timestamp**. Tests check structure (format, length, 100,000-sample uniqueness, alphabet, redaction, non-decreasing time) — not whether output "looks random".
 
+## Controller manifest
+
+Each game definition carries its capacity **and its controller** (`orientation`, `controls`). Definitions are validated against the protocol's manifest schema when the server is created (a game phones could not render fails at startup, not on a phone). A joining or reconnecting controller receives `CONTROLLER_MANIFEST` right after `ROOM_JOINED` / `PLAYER_RECONNECTED`; hosts never do. The platform contains no per-game controller logic.
+
 ## Housekeeping and shutdown
 
 - `registry.reconcile()` runs **once per second** (configurable) to make status changes visible to hosts. **Correctness never depends on it**: every operation reconciles its room at the current instant first (tested: a seat that expired at 60,000 ms is free with no sweep having run).
@@ -121,5 +125,5 @@ Runtime infrastructure the pure packages deliberately lack: UUIDs from `crypto.r
 5. **Rooms never close or expire** yet (no close operations are wired; FR-023), so the registry grows. Dedup windows and bindings are pruned with a room, but rooms themselves are not.
 6. **Default bind `0.0.0.0`** so phones on a LAN can reach a dev machine. Security rests on credentials, not network position; revisit for production. WebSockets are not CORS-restricted and there is no cookie auth, so cross-site socket opening is not a credential risk.
 7. **`onInternalError` receives raw errors.** Domain faults do not contain credentials by construction, but anything logged later must be redacted explicitly.
-8. **No process entry point** (`main`) or build yet: the package is consumed as TypeScript source. Slice 8 needs a runnable dev server.
+8. **Development entry point only:** `pnpm --filter @foomerang/server start` (via `tsx`, port 3001, binds `0.0.0.0`). It is a development configuration — public binding widens the attack surface, and credentials are not a substitute for origin/network/TLS controls in production. No build or deployment exists yet.
 9. **Movement is not coalesced** on the way to the host (every accepted message is forwarded). Latest-wins coalescing / host-side consumption policy is a measurement question.

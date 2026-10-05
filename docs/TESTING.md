@@ -24,3 +24,9 @@ Latency methodology (to refine in M1): RTT via PING/PONG; true controller→pixe
 
 ## Gates
 Strict `tsc`, lint, unit+integration on every change; E2E on PR; performance check on changes touching input path.
+
+## Layers added in Slice 7
+- **Component tests** (jsdom, React Testing Library) drive the REAL pointer-event code path via a minimal `PointerEvent` polyfill.
+- **`integration/`** (test-only workspace): the real `controller-sdk` against the real server over real Socket.IO.
+- **Real browser engine, ad hoc:** the controller was driven in headless Chrome (iPhone user agent, emulated touch) against the real server through the DevTools protocol. This is a manual verification, not a gate, and it is **not** Safari or a phone.
+- **Bundle budget:** `pnpm build` fails if the controller exceeds its gzip budget.

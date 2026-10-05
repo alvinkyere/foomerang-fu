@@ -63,8 +63,8 @@ Physical-device testing remains separate: Playwright cannot judge feel.
 4. `room-engine`: connection vs. seat lifecycle, reconcile against injected monotonic time, credential rotation, player + host reconnect — **done**.
 5. `game-core`: pure `step(state, inputs, dt)` for circles — 60 Hz, radial dead zone, unit-disc clamp, arena bounds with radius, seeded RNG — **done**.
 6. `server`: transport adapter, session layer, room coordination, real-socket integration tests — **done** (see SERVER.md).
-7. `controller`: manifest-driven joystick + sampler + join flow.
-8. `console`: lobby, QR, host arena, debug overlay. **Playwright is introduced here** — as soon as host + server + controller exist — with a smoke test (host creates room, a controller joins), then grows each slice toward the full two-phone flow below. It is not deferred to the end, and it is **not earlier either**: there is nothing meaningful to drive before slice 8. From slice 8 on it is a **hard integration gate**, not a stretch goal.
+7. `controller`: manifest-driven joystick + sampler + join flow — **done** (see CONTROLLER.md). Physical-device (iPhone Safari) testing is still **open**; it needs HTTPS before it counts as production-representative.
+8. `console`: lobby, QR, host arena, debug overlay (Playwright specs live in the existing `integration/` workspace). **Playwright is introduced here** — as soon as host + server + controller exist — with a smoke test (host creates room, a controller joins), then grows each slice toward the full two-phone flow below. It is not deferred to the end, and it is **not earlier either**: there is nothing meaningful to drive before slice 8. From slice 8 on it is a **hard integration gate**, not a stretch goal.
 9. Complete the required Playwright E2E (two controllers, simultaneous movement, reconnect).
 10. Real-device measurement and write-up.
 

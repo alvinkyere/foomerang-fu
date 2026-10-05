@@ -35,6 +35,16 @@ Do not use `sudo` to get tooling working. `pnpm validate` runs format check, lin
 | `pnpm lint`                         | ESLint, including architecture boundary rules |
 | `pnpm format` / `pnpm format:check` | Prettier                                      |
 
+## Try the controller on a phone
+
+```bash
+pnpm --filter @foomerang/server start          # the server (:3001)
+pnpm --filter @foomerang/controller dev        # the controller (:5173, on your LAN)
+pnpm --filter @foomerang/controller dev:host   # a stand-in TV: opens a room, prints join links
+```
+
+Open the printed link on a phone on the same Wi-Fi. Details and caveats (plain HTTP, development-only server bind) in [docs/CONTROLLER.md](docs/CONTROLLER.md).
+
 ## Working agreements
 
 See [AGENTS.md](AGENTS.md) and [docs/TESTING.md](docs/TESTING.md): test-driven, small slices, architecture reviewed at each checkpoint.
