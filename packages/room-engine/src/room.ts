@@ -16,19 +16,49 @@ import { canTransition, type RoomState } from './state';
 
 export type ConnectionStatus = 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
 
+/**
+ * CONNECTION answers: "can we currently communicate with this controller?"
+ * `disconnectedAt` exists only while not connected (a discriminated union, so it cannot be
+ * read from a connected player).
+ */
+export type Connection =
+  | { readonly status: 'CONNECTED' }
+  | { readonly status: 'RECONNECTING' | 'DISCONNECTED'; readonly disconnectedAt: number };
+
+/**
+ * MEMBERSHIP answers: "does this participant still own one of the room's player seats?"
+ * Independent of connection: a DISCONNECTED player whose seat is HELD still occupies capacity.
+ * RELEASED is permanent and does NOT erase the participant — the record remains in
+ * `room.players` (match history is a later concern; seat lifecycle ≠ participant lifecycle).
+ *
+ * Invariants (tested over arbitrary operation sequences): CONNECTED ⇒ HELD; RELEASED ⇒ DISCONNECTED.
+ * Two independent facts, never combined states like DISCONNECTED_RESERVED.
+ */
+export type Membership =
+  { readonly status: 'HELD' } | { readonly status: 'RELEASED'; readonly releasedAt: number };
+
+export const CONNECTED: Connection = Object.freeze({ status: 'CONNECTED' });
+export const HELD: Membership = Object.freeze({ status: 'HELD' });
+
+/** The host consumes no seat, so it has a connection but no membership. */
 export interface Host {
   readonly hostId: HostId;
-  /** Credential: redacts itself everywhere except an explicit `reveal()`. */
+  /** Credential: redacts itself everywhere except an explicit `reveal()`. Rotates on reconnect. */
   readonly hostToken: HostToken;
+  readonly connection: Connection;
 }
 
 export interface Player {
+  // identity
   readonly playerId: PlayerId;
   readonly displayName: string;
-  /** Credential: redacts itself everywhere except an explicit `reveal()`. */
+  /** Credential: redacts itself everywhere except an explicit `reveal()`. Rotates on reconnect. */
   readonly reconnectToken: ReconnectToken;
-  readonly connectionStatus: ConnectionStatus;
   readonly joinedAt: number;
+  // connection
+  readonly connection: Connection;
+  // membership
+  readonly membership: Membership;
 }
 
 export interface Room {
@@ -48,7 +78,7 @@ export function createRoom(params: {
   roomId: RoomId;
   joinCode: JoinCode;
   config: RoomConfig;
-  host: Host;
+  host: Pick<Host, 'hostId' | 'hostToken'>;
   now: number;
 }): Room {
   return Object.freeze({
@@ -56,10 +86,33 @@ export function createRoom(params: {
     joinCode: params.joinCode,
     state: 'LOBBY',
     config: Object.freeze({ ...params.config }),
-    host: Object.freeze({ ...params.host }),
+    host: Object.freeze({ ...params.host, connection: CONNECTED }),
     players: Object.freeze([]),
     createdAt: params.now,
   });
+}
+
+/** Players who currently hold a seat (membership HELD), whatever their connection status. */
+export function seatedPlayers(room: Room): readonly Player[] {
+  return room.players.filter((player) => player.membership.status === 'HELD');
+}
+
+/**
+ * THE definition of occupancy, used for capacity everywhere: a seat is occupied while the
+ * player's membership is held, regardless of whether their transport is currently connected.
+ */
+export function occupiedSeats(room: Room): number {
+  return seatedPlayers(room).length;
+}
+
+/** Defense in depth: a duplicate credential would let one player claim another's identity. */
+export function assertFreshCredential(room: Room, candidate: string): void {
+  if (
+    room.host.hostToken.equals(candidate) ||
+    room.players.some((p) => p.reconnectToken.equals(candidate))
+  ) {
+    throw new Error('RoomEnvironment produced a credential already in use in this room');
+  }
 }
 
 /**
@@ -69,23 +122,27 @@ export function createRoom(params: {
 export function joinRoom(
   room: Room,
   displayName: string,
+  now: number,
   env: RoomEnvironment,
 ): Result<{ room: Room; player: Player }, JoinFailure> {
   if (room.state !== 'LOBBY') return fail('ROOM_NOT_JOINABLE');
   const name = validateDisplayName(displayName);
   if (name === undefined) return fail('INVALID_DISPLAY_NAME');
-  if (room.players.length >= room.config.maxPlayers) return fail('ROOM_FULL');
+  if (occupiedSeats(room) >= room.config.maxPlayers) return fail('ROOM_FULL');
 
   const playerId = env.newPlayerId();
   if (room.players.some((existing) => existing.playerId === playerId)) {
     throw new Error('RoomEnvironment produced a PlayerId already in use in this room');
   }
+  const reconnectToken = env.newReconnectToken();
+  assertFreshCredential(room, reconnectToken.reveal());
   const player: Player = Object.freeze({
     playerId,
     displayName: name,
-    reconnectToken: env.newReconnectToken(),
-    connectionStatus: 'CONNECTED',
-    joinedAt: env.now(),
+    reconnectToken,
+    joinedAt: now,
+    connection: CONNECTED,
+    membership: HELD,
   });
   const next: Room = Object.freeze({
     ...room,
@@ -102,7 +159,11 @@ function moveTo(room: Room, to: RoomState): Result<Room, TransitionFailure> {
 
 export function beginStart(room: Room): Result<Room, TransitionFailure> {
   if (!canTransition(room.state, 'STARTING')) return fail('INVALID_TRANSITION');
-  if (room.players.length < room.config.minPlayers) return fail('NOT_ENOUGH_PLAYERS');
+  // Only players who can actually play count: a seat-holder who is reconnecting cannot.
+  const ready = room.players.filter(
+    (p) => p.membership.status === 'HELD' && p.connection.status === 'CONNECTED',
+  );
+  if (ready.length < room.config.minPlayers) return fail('NOT_ENOUGH_PLAYERS');
   return moveTo(room, 'STARTING');
 }
 export const startPlaying = (room: Room) => moveTo(room, 'PLAYING');

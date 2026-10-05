@@ -149,6 +149,14 @@ The phone should psychologically disappear; the TV is the source of truth. Contr
 5. Scope creep into SDK/art before the input feel is proven.
 6. Realtime test flakiness — injectable clocks, deterministic sim.
 7. Dev-time device access (phones reaching the dev machine).
+8. **Host loss = simulation loss (Milestone 1).** Because the M1 simulation runs in the host browser, losing the host stops the game, unlike a controller drop. The room, players and seats are preserved by the domain (see ROOM_ENGINE.md), but pause/recover/restart behavior is an open product policy. This is exactly why `game-core` is kept portable to a server-authoritative model.
+
+## Server-layer obligations from the room-engine
+The pure domain cannot enforce these; the server (Slice 6) must, and will be tested for them:
+- On reconnect/host-reconnect with `replacedActiveConnection`, replace the stale transport and **ignore its late close event**; map each connection to `(roomId, playerId | host)` and only report a disconnect for the connection currently bound to that identity.
+- Decide when to call `registry.reconcile()` (cadence), and broadcast the rooms it returns.
+- Supply a **monotonic** clock (not wall-clock) and CSPRNG-backed ids/tokens (≥128 bits).
+- Deliver rotated credentials to their owner (the only `reveal()` sites) and never log them.
 
 ## Slice 1 notes (tooling)
 - Lint-enforced boundaries (tested in `packages/config/test`): pure packages (`game-core`, `protocol`, `room-engine`) and Foomerang Fu rules may not import React/Phaser/Socket.IO/Node/apps, may not use DOM/runtime globals, and may not call `Date.now`/`Math.random`/`performance.now`. Socket.IO is importable only in `SocketIOTransport*` files.

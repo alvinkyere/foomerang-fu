@@ -5,15 +5,23 @@
 export { DEFAULT_MAX_JOIN_CODE_ATTEMPTS, RoomRegistry } from './registry';
 export type {
   CreateRoomFailure,
+  RegistryDisconnectHostFailure,
+  RegistryDisconnectPlayerFailure,
   RegistryJoinFailure,
+  RegistryReconnectHostFailure,
+  RegistryReconnectPlayerFailure,
   RegistryTransitionFailure,
   RoomRegistryOptions,
 } from './registry';
 
+export { DEFAULT_ROOM_TIMINGS } from './timing';
+export type { RoomTimings } from './timing';
+
 export { ROOM_STATES, canTransition } from './state';
 export type { RoomState } from './state';
 
-export type { ConnectionStatus, Host, Player, Room } from './room';
+export { occupiedSeats, seatedPlayers } from './room';
+export type { Connection, ConnectionStatus, Host, Membership, Player, Room } from './room';
 export type { RoomConfig } from './config';
 export type { RoomEnvironment } from './environment';
 export type { Result } from './result';

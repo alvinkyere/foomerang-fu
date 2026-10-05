@@ -59,17 +59,17 @@ Physical-device testing remains separate: Playwright cannot judge feel.
 ## Milestone 1 slice order (TDD, one at a time; report to reviewer after each)
 1. **Tooling skeleton** — done.
 2. `protocol` foundations: version, client types, handshake, join-code *schema*, error codes, movement/event/heartbeat messages, envelopes (Zod at the boundary).
-3. `room-engine`: room state machine, create/join/capacity/identity/tokens, **join-code generation + collision handling**. **CI lands at the start of this slice** (see below).
-4. `room-engine`: connection states, seat-hold, player + host reconnect (injected clock).
+3. `room-engine`: room state machine, create/join/capacity/identity/tokens, join-code generation + collision handling — **done**. CI workflow added.
+4. `room-engine`: connection vs. seat lifecycle, reconcile against injected monotonic time, credential rotation, player + host reconnect — **done**.
 5. `game-core`: pure `step(state, inputs, dt)` for circles (injected clock / random).
 6. `server`: Socket.IO adapter behind transport abstraction + integration tests.
 7. `controller`: manifest-driven joystick + sampler + join flow.
-8. `console`: lobby, QR, host arena, debug overlay. **Playwright is introduced here** — as soon as host + server + controller exist — with a smoke test (host creates room, a controller joins), then grows each slice toward the full two-phone flow below. It is not deferred to the end.
+8. `console`: lobby, QR, host arena, debug overlay. **Playwright is introduced here** — as soon as host + server + controller exist — with a smoke test (host creates room, a controller joins), then grows each slice toward the full two-phone flow below. It is not deferred to the end, and it is **not earlier either**: there is nothing meaningful to drive before slice 8. From slice 8 on it is a **hard integration gate**, not a stretch goal.
 9. Complete the required Playwright E2E (two controllers, simultaneous movement, reconnect).
 10. Real-device measurement and write-up.
 
 ## Process requirements
-- **CI is required before significant application behavior accumulates.** At minimum: install → `format:check` → `lint` → `typecheck` → unit/integration tests; E2E added when Playwright arrives. Target: first thing in Slice 3, before room-engine behavior merges. (Requires a git repository and a CI host — decision pending.)
+- **CI is required before significant application behavior accumulates.** At minimum: install → `format:check` → `lint` → `typecheck` → unit/integration tests; E2E added when Playwright arrives. **Status (honest):** the workflow exists (`.github/workflows/ci.yml`) and a local clean-checkout reproduction of the same commands passes. **GitHub Actions execution is unverified until a remote is configured and the workflow has actually run.** Do not report CI as passing before then.
 - A TDD project whose tests only run on one developer's laptop does not meet our standard.
 
 ## Technical housekeeping (not blocking)

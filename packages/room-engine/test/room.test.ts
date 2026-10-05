@@ -1,68 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomConfig } from '../src/config';
-import { parseJoinCode } from '../src/ids';
 import {
   beginStart,
   closeRoom,
   completeClose,
-  createRoom,
   finishGame,
   identifyPlayer,
   isHost,
   joinRoom,
   returnToLobby,
   startPlaying,
-  type Room,
 } from '../src/room';
-import { ROOM_STATES, canTransition, type RoomState } from '../src/state';
-import { createFakeEnvironment, type FakeEnvironment } from './support/fakeEnvironment';
-
-const FOOMERANG_FU: RoomConfig = { gameId: 'foomerang-fu', minPlayers: 2, maxPlayers: 6 };
-
-function newRoom(env: FakeEnvironment, config: RoomConfig = FOOMERANG_FU): Room {
-  const joinCode = parseJoinCode('K7M4PX');
-  if (!joinCode) throw new Error('test setup: bad join code');
-  return createRoom({
-    roomId: env.newRoomId(),
-    joinCode,
-    config,
-    host: { hostId: env.newHostId(), hostToken: env.newHostToken() },
-    now: env.now(),
-  });
-}
-
-function withPlayers(env: FakeEnvironment, room: Room, names: string[]): Room {
-  return names.reduce((current, name) => {
-    const joined = joinRoom(current, name, env);
-    if (!joined.ok) throw new Error(`test setup: ${name} could not join: ${joined.reason}`);
-    return joined.value.room;
-  }, room);
-}
-
-function unwrap<T>(result: { ok: true; value: T } | { ok: false; reason: string }): T {
-  if (!result.ok) throw new Error(`test setup: unexpected failure ${result.reason}`);
-  return result.value;
-}
-
-/** A room (with 2 players, the minimum) driven into the requested state via real operations. */
-function roomIn(state: RoomState, env = createFakeEnvironment()): Room {
-  let room = withPlayers(env, newRoom(env), ['Alice', 'Bob']);
-  const steps: Record<RoomState, ((r: Room) => Room)[]> = {
-    LOBBY: [],
-    STARTING: [(r) => unwrap(beginStart(r))],
-    PLAYING: [(r) => unwrap(beginStart(r)), (r) => unwrap(startPlaying(r))],
-    RESULTS: [
-      (r) => unwrap(beginStart(r)),
-      (r) => unwrap(startPlaying(r)),
-      (r) => unwrap(finishGame(r)),
-    ],
-    CLOSING: [(r) => unwrap(closeRoom(r))],
-    CLOSED: [(r) => unwrap(closeRoom(r)), (r) => unwrap(completeClose(r))],
-  };
-  for (const step of steps[state]) room = step(room);
-  expect(room.state).toBe(state);
-  return room;
-}
+import { ROOM_STATES, canTransition } from '../src/state';
+import { createFakeEnvironment } from './support/fakeEnvironment';
+import { FOOMERANG_FU, newRoom, roomIn, unwrap, withPlayers } from './support/rooms';
 
 describe('CREATE', () => {
   it('begins in LOBBY with identity, config, host and no players retained', () => {
@@ -103,10 +53,11 @@ describe('JOIN', () => {
     const env = createFakeEnvironment();
     const room = newRoom(env);
     env.time = 2_000;
-    const { room: after, player } = unwrap(joinRoom(room, '  Alvin ', env));
+    const { room: after, player } = unwrap(joinRoom(room, '  Alvin ', env.time, env));
     expect(player.playerId).toBe('player-1');
     expect(player.displayName).toBe('Alvin'); // trimmed
-    expect(player.connectionStatus).toBe('CONNECTED');
+    expect(player.connection).toEqual({ status: 'CONNECTED' });
+    expect(player.membership).toEqual({ status: 'HELD' });
     expect(player.joinedAt).toBe(2_000);
     expect(player.reconnectToken.reveal()).toBe('reconnect-secret-1');
     expect(after.players).toEqual([player]);
@@ -116,7 +67,7 @@ describe('JOIN', () => {
   it('never mutates the room it was given', () => {
     const env = createFakeEnvironment();
     const room = newRoom(env);
-    unwrap(joinRoom(room, 'Alvin', env));
+    unwrap(joinRoom(room, 'Alvin', env.time, env));
     expect(room.players).toHaveLength(0);
   });
 
@@ -137,7 +88,7 @@ describe('JOIN', () => {
   it('treats a generator that repeats a PlayerId as a system fault: throws and changes nothing', () => {
     const env = createFakeEnvironment({ playerIds: ['dup', 'dup'] });
     const room = withPlayers(env, newRoom(env), ['Alice']);
-    expect(() => joinRoom(room, 'Bob', env)).toThrow();
+    expect(() => joinRoom(room, 'Bob', env.time, env)).toThrow();
     expect(room.players).toHaveLength(1);
   });
 
@@ -146,14 +97,14 @@ describe('JOIN', () => {
       const env = createFakeEnvironment();
       const room = withPlayers(env, newRoom(env), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
       expect(room.players).toHaveLength(6);
-      expect(joinRoom(room, 'p7', env)).toEqual({ ok: false, reason: 'ROOM_FULL' });
+      expect(joinRoom(room, 'p7', env.time, env)).toEqual({ ok: false, reason: 'ROOM_FULL' });
     });
 
     it('enforces a different game’s capacity (max 3), not a platform constant of six', () => {
       const env = createFakeEnvironment();
       const small = newRoom(env, { gameId: 'trivia', minPlayers: 2, maxPlayers: 3 });
       const full = withPlayers(env, small, ['a', 'b', 'c']);
-      expect(joinRoom(full, 'd', env)).toEqual({ ok: false, reason: 'ROOM_FULL' });
+      expect(joinRoom(full, 'd', env.time, env)).toEqual({ ok: false, reason: 'ROOM_FULL' });
       const big = newRoom(env, { gameId: 'party', minPlayers: 2, maxPlayers: 12 });
       expect(
         joinRoom(
@@ -163,6 +114,7 @@ describe('JOIN', () => {
             Array.from({ length: 11 }, (_, i) => `p${i}`),
           ),
           'x',
+          env.time,
           env,
         ).ok,
       ).toBe(true);
@@ -173,7 +125,10 @@ describe('JOIN', () => {
     it.each(ROOM_STATES.filter((s) => s !== 'LOBBY'))('%s → ROOM_NOT_JOINABLE', (state) => {
       const env = createFakeEnvironment();
       const room = roomIn(state, env);
-      expect(joinRoom(room, 'Late', env)).toEqual({ ok: false, reason: 'ROOM_NOT_JOINABLE' });
+      expect(joinRoom(room, 'Late', env.time, env)).toEqual({
+        ok: false,
+        reason: 'ROOM_NOT_JOINABLE',
+      });
     });
   });
 
@@ -181,7 +136,7 @@ describe('JOIN', () => {
     'rejects invalid display name %j with INVALID_DISPLAY_NAME',
     (name) => {
       const env = createFakeEnvironment();
-      expect(joinRoom(newRoom(env), name, env)).toEqual({
+      expect(joinRoom(newRoom(env), name, env.time, env)).toEqual({
         ok: false,
         reason: 'INVALID_DISPLAY_NAME',
       });
@@ -196,9 +151,9 @@ describe('JOIN', () => {
       const snapshot = JSON.stringify(full);
       const callsBefore = { ...env.calls };
 
-      expect(joinRoom(full, 'p7', env).ok).toBe(false); // ROOM_FULL
-      expect(joinRoom(full, '', env).ok).toBe(false); // INVALID_DISPLAY_NAME
-      expect(joinRoom(playing, 'late', env).ok).toBe(false); // ROOM_NOT_JOINABLE
+      expect(joinRoom(full, 'p7', env.time, env).ok).toBe(false); // ROOM_FULL
+      expect(joinRoom(full, '', env.time, env).ok).toBe(false); // INVALID_DISPLAY_NAME
+      expect(joinRoom(playing, 'late', env.time, env).ok).toBe(false); // ROOM_NOT_JOINABLE
 
       expect(env.calls).toEqual(callsBefore); // no PlayerId, credential or clock read consumed
       expect(JSON.stringify(full)).toBe(snapshot);
@@ -208,17 +163,20 @@ describe('JOIN', () => {
     it('a failed join does not consume capacity: the seat remains available', () => {
       const env = createFakeEnvironment();
       const room = withPlayers(env, newRoom(env), ['p1', 'p2', 'p3', 'p4', 'p5']);
-      expect(joinRoom(room, '', env).ok).toBe(false);
-      expect(joinRoom(room, '', env).ok).toBe(false);
-      expect(joinRoom(room, 'p6', env).ok).toBe(true); // the 6th seat is still there
+      expect(joinRoom(room, '', env.time, env).ok).toBe(false);
+      expect(joinRoom(room, '', env.time, env).ok).toBe(false);
+      expect(joinRoom(room, 'p6', env.time, env).ok).toBe(true); // the 6th seat is still there
     });
   });
 
   it('checks joinable state, then name, then capacity', () => {
     const env = createFakeEnvironment();
     const full = withPlayers(env, newRoom(env), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
-    expect(joinRoom(full, '', env)).toEqual({ ok: false, reason: 'INVALID_DISPLAY_NAME' });
-    expect(joinRoom(roomIn('PLAYING', env), '', env)).toEqual({
+    expect(joinRoom(full, '', env.time, env)).toEqual({
+      ok: false,
+      reason: 'INVALID_DISPLAY_NAME',
+    });
+    expect(joinRoom(roomIn('PLAYING', env), '', env.time, env)).toEqual({
       ok: false,
       reason: 'ROOM_NOT_JOINABLE',
     });
