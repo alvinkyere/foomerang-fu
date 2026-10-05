@@ -1,0 +1,4 @@
+{
+  "extends": "@foomerang/config/tsconfig/node.json",
+  "include": ["src", "test"]
+}

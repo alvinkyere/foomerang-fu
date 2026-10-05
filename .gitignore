@@ -1,0 +1,13 @@
+node_modules/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.env
+.env.*
+.DS_Store
+
+# Secrets: never commit. Document required variables in .env.example instead.
+!.env.example
