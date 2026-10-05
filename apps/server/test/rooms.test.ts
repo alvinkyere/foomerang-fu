@@ -3,10 +3,14 @@ import { createRig, msg, type Rig } from './support/rig';
 
 let rig: Rig;
 beforeEach(async () => {
+  const controller = {
+    orientation: 'landscape',
+    controls: [{ id: 'MOVE', type: 'joystick' }],
+  } as const;
   rig = createRig({
     games: {
-      'foomerang-fu': { minPlayers: 2, maxPlayers: 6 },
-      duo: { minPlayers: 2, maxPlayers: 2 },
+      'foomerang-fu': { minPlayers: 2, maxPlayers: 6, controller },
+      duo: { minPlayers: 2, maxPlayers: 2, controller },
     },
   });
   await rig.start();

@@ -3,6 +3,7 @@ import { handshakeAcceptedMessageSchema, handshakeMessageSchema } from './client
 import { inputEventMessageSchema, inputMoveMessageSchema } from './controller';
 import { errorMessageSchema, type ErrorCode } from './errors';
 import { heartbeatAckMessageSchema, heartbeatMessageSchema } from './heartbeat';
+import { controllerManifestMessageSchema } from './manifest';
 import {
   hostReconnectMessageSchema,
   hostReconnectedMessageSchema,
@@ -51,6 +52,7 @@ const serverMessageSchema = z.discriminatedUnion('type', [
   playerReconnectedMessageSchema,
   roomUpdatedMessageSchema,
   playerInputMessageSchema,
+  controllerManifestMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 

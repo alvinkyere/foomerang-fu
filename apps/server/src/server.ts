@@ -1,5 +1,5 @@
 import { RoomRegistry, type RoomEnvironment, type RoomTimings } from '@foomerang/room-engine';
-import { Application, DEFAULT_GAMES, type GameDefinition } from './application';
+import { Application, DEFAULT_GAMES, validateGames, type GameDefinition } from './application';
 import { BindingTable } from './bindings';
 import { Diagnostics, type DiagnosticsSnapshot } from './diagnostics';
 import { createNodeEnvironment } from './environment';
@@ -60,7 +60,7 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
   const application = new Application({
     registry,
     bindings,
-    games: new Map(Object.entries(options.games ?? DEFAULT_GAMES)),
+    games: validateGames(options.games ?? DEFAULT_GAMES),
     diagnostics,
     eventWindowCapacity: options.eventWindowCapacity ?? 256,
   });

@@ -1,9 +1,12 @@
-import type {
-  HeartbeatMessage,
-  InputEventMessage,
-  InputMoveMessage,
-  ErrorCode,
-  ServerMessage,
+import {
+  controllerManifestSchema,
+  type ControlDescriptor,
+  type ControllerOrientation,
+  type ErrorCode,
+  type HeartbeatMessage,
+  type InputEventMessage,
+  type InputMoveMessage,
+  type ServerMessage,
 } from '@foomerang/protocol';
 import type { PlayerId, Room, RoomId, RoomRegistry } from '@foomerang/room-engine';
 import type { BindingTable } from './bindings';
@@ -17,14 +20,40 @@ import {
   RECONNECT_PLAYER_ERRORS,
 } from './translation';
 
+/**
+ * What the platform needs to know about a game: its capacity, and the controller it wants phones
+ * to render. The controller is DATA delivered to phones as a manifest; the platform has no
+ * per-game logic.
+ */
 export interface GameDefinition {
   readonly minPlayers: number;
   readonly maxPlayers: number;
+  readonly controller: {
+    readonly orientation: ControllerOrientation;
+    readonly controls: readonly ControlDescriptor[];
+  };
 }
 
 export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
-  'foomerang-fu': { minPlayers: 2, maxPlayers: 6 },
+  // The primitive prototype controller: one joystick. Foomerang Fu will advertise more later.
+  'foomerang-fu': {
+    minPlayers: 2,
+    maxPlayers: 6,
+    controller: { orientation: 'landscape', controls: [{ id: 'MOVE', type: 'joystick' }] },
+  },
 });
+
+/** Fails fast, at server creation, on a game whose controller phones could not render. */
+export function validateGames(
+  games: Readonly<Record<string, GameDefinition>>,
+): ReadonlyMap<string, GameDefinition> {
+  const validated = new Map<string, GameDefinition>();
+  for (const [gameId, game] of Object.entries(games)) {
+    controllerManifestSchema.parse({ gameId, ...game.controller });
+    validated.set(gameId, game);
+  }
+  return validated;
+}
 
 export interface ApplicationDeps {
   readonly registry: RoomRegistry;
@@ -55,7 +84,11 @@ export class Application {
     const game = this.#deps.games.get(gameId);
     if (game === undefined) return this.#error(session, 'UNKNOWN_GAME');
 
-    const created = this.#deps.registry.createRoom({ gameId, ...game });
+    const created = this.#deps.registry.createRoom({
+      gameId,
+      minPlayers: game.minPlayers,
+      maxPlayers: game.maxPlayers,
+    });
     if (!created.ok) return this.#error(session, CREATE_ROOM_ERRORS[created.reason]);
 
     const room = created.value;
@@ -77,6 +110,7 @@ export class Application {
       type: 'ROOM_JOINED',
       payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
     });
+    this.#sendManifest(session, room);
     this.#notifyHost(room.roomId);
   }
 
@@ -94,6 +128,7 @@ export class Application {
       type: 'PLAYER_RECONNECTED',
       payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
     });
+    this.#sendManifest(session, result.value.room);
     this.#notifyHost(found.roomId);
   }
 
@@ -189,6 +224,20 @@ export class Application {
   }
 
   // ---------------------------------------------------------------------------------------
+
+  /** Tells a controller what to render, from the GAME's definition. */
+  #sendManifest(session: Session, room: Room): void {
+    const game = this.#deps.games.get(room.config.gameId);
+    if (game === undefined) return;
+    session.send({
+      type: 'CONTROLLER_MANIFEST',
+      payload: {
+        gameId: room.config.gameId,
+        orientation: game.controller.orientation,
+        controls: [...game.controller.controls],
+      },
+    });
+  }
 
   #error(session: Session, code: ErrorCode): void {
     session.send({ type: 'ERROR', payload: { code } });

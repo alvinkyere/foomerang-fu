@@ -75,3 +75,17 @@ export type { HeartbeatAckMessage, HeartbeatMessage } from './heartbeat';
 
 export { parseClientMessage, parseServerMessage } from './parse';
 export type { ClientMessage, ParseResult, ServerMessage } from './parse';
+
+export {
+  CONTROLLER_ORIENTATIONS,
+  CONTROL_TYPES,
+  controllerManifestMessageSchema,
+  controllerManifestSchema,
+} from './manifest';
+export type {
+  ControlDescriptor,
+  ControlType,
+  ControllerManifest,
+  ControllerManifestMessage,
+  ControllerOrientation,
+} from './manifest';
