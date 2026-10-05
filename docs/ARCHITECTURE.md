@@ -170,7 +170,13 @@ The pure domain cannot enforce these; the server (Slice 6) must, and will be tes
   Map *geometry/definitions* belong with rules/data; map *artwork/tilemaps* belong with rendering. No generic `entities/` or `systems/` folders just because engines have them.
 
 ## Injected time and randomness (not "no time, no randomness")
-Deterministic packages must not read nondeterminism from platform globals — the lint rule forbids `Date.now`, `Math.random`, `performance.now`, timers. The correct pattern is dependency injection: the simulation *receives* time and randomness (conceptually a `SimulationClock` and a seeded `RandomSource`, e.g. `simulation.step({ now, random }, ...)`). These abstractions are not built yet; do not work around the lint rule with hacks — inject instead. This keeps everything testable and enables deterministic replay later.
+Deterministic packages must not read nondeterminism from platform globals — the lint rule forbids `Date.now`, `Math.random`, `performance.now`, timers. Two different needs, two different answers:
+
+- **Simulation time is state, not a clock.** `game-core` has no clock dependency: `nextState = step(previousState, inputs, dt)` advances `state.time` by `dt` and nothing else. Wall-clock reads (and the accumulator that turns real elapsed time into fixed 60 Hz steps) belong in the loop *around* the simulation, never inside `step`. *(This supersedes the earlier idea of injecting a `SimulationClock` into the simulation: determinism wins.)*
+- **Randomness is injected where a rule needs it:** a seeded `RandomSource` (implemented in `game-core`), never `Math.random`.
+- **Real elapsed time** is only needed by `room-engine` (reconnect windows), which has its own injected monotonic `RoomEnvironment.now()`. Different problem, different clock.
+
+Do not work around the lint rules with hacks — inject or advance state instead. See [GAME_CORE.md](GAME_CORE.md).
 
 ## Ownership: protocol vs room-engine
 `protocol` owns wire formats: schemas, versioning, validation semantics, and the *representation* of a `JoinCode` (six characters from the allowed alphabet). `room-engine` owns *behavior*: generating an available join code, collision handling against active rooms. Validation (Zod) happens at trust boundaries only; internal code carries the guarantee in TypeScript types and does not re-parse.

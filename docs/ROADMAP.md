@@ -61,7 +61,7 @@ Physical-device testing remains separate: Playwright cannot judge feel.
 2. `protocol` foundations: version, client types, handshake, join-code *schema*, error codes, movement/event/heartbeat messages, envelopes (Zod at the boundary).
 3. `room-engine`: room state machine, create/join/capacity/identity/tokens, join-code generation + collision handling — **done**. CI workflow added.
 4. `room-engine`: connection vs. seat lifecycle, reconcile against injected monotonic time, credential rotation, player + host reconnect — **done**.
-5. `game-core`: pure `step(state, inputs, dt)` for circles (injected clock / random).
+5. `game-core`: pure `step(state, inputs, dt)` for circles — 60 Hz, radial dead zone, unit-disc clamp, arena bounds with radius, seeded RNG — **done**.
 6. `server`: Socket.IO adapter behind transport abstraction + integration tests.
 7. `controller`: manifest-driven joystick + sampler + join flow.
 8. `console`: lobby, QR, host arena, debug overlay. **Playwright is introduced here** — as soon as host + server + controller exist — with a smoke test (host creates room, a controller joins), then grows each slice toward the full two-phone flow below. It is not deferred to the end, and it is **not earlier either**: there is nothing meaningful to drive before slice 8. From slice 8 on it is a **hard integration gate**, not a stretch goal.
