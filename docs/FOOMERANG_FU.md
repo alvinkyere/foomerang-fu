@@ -21,7 +21,16 @@ How it got there:
 
 What the pass does **not** establish: balance with more than two players, or with players of different skill; long-session feel; Safari/iOS behaviour or other phone models (the physical devices used are not recorded here); and anything beyond Slice 1's scope. No Slice 2 work has started, and none will without separate authorization.
 
-## Slice 2: Arena Combat (engineering complete; **first playtest found one defect, fixed below; not yet PASS**)
+## Slice 2: Arena Combat — **PASS**
+
+**Foomerang Fu Slice 2 — Arena Combat: PASS**, on a physical human playtest after the returning-boomerang fix. The owner's verdict: the arena feels good, and the returning boomerang now behaves naturally around solid geometry.
+
+**What play changed.** The first Slice 2 playtest found that a RETURNING boomerang phased through walls to reach its owner, and that felt unfair. The rule became **cover means cover in both directions**: solid geometry blocks a boomerang whether it is THROWN or RETURNING, and a returning boomerang keeps homing on its owner by sliding round the walls (local wall-following, no pathfinding). That decision came from actual play and is part of the baseline.
+
+**Baseline.** The approved Slice 1 and Slice 2 behaviour is the gameplay baseline for what follows: the Slice 1 values in `DEFAULT_FU_CONFIG`, the primitive arena, wall solidity for players and boomerangs (both states), the slash line-of-sight rule, and the return-wall algorithm. **`returnWallSeconds = 3` is a defensive failsafe, not established balance tuning:** a normal, reachable production arena should not rely on recall for ordinary returns, and in the primitive arena it never fires (tested).
+
+The design notes for Slice 2 follow.
+
 
 Slice 2 asks one question: *does deliberate arena geometry make the existing combat substantially deeper and more fun?* It adds geometry and nothing else: no new abilities, no new tuning.
 
