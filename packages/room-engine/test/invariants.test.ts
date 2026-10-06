@@ -158,5 +158,5 @@ describe('lifecycle invariants hold over arbitrary operation sequences', () => {
         }
       }
     }
-  });
+  }, 60_000); // CPU-bound by design; a loaded cold checkout took 9 s against vitest's 5 s default (assertions unchanged)
 });
