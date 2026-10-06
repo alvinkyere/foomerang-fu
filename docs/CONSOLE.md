@@ -113,7 +113,7 @@ Playwright reads authoritative state through one read-only function that returns
 - Losing the console's own connection shows a banner, keeps the roster visible, retries with backoff for 70 s, then ends with an explanation.
 - A renderer that cannot start (no WebGL) shows a message; the simulation keeps running.
 
-## Host-loss policy (approved at the Slice 8 review; partly NOT implemented yet)
+## Host-loss policy (approved at the Slice 8 review; partly NOT implemented yet — known post-Milestone-1 limitations)
 
 Separate **ownership survival** from **gameplay survival**. While the simulation runs in the host browser, *host browser = authoritative simulation*, and we do not pretend to support match recovery.
 

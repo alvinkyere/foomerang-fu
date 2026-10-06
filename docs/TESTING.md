@@ -38,4 +38,4 @@ Strict `tsc`, lint, unit+integration on every change; E2E on PR; performance che
 - **`pnpm e2e:tls`:** the whole suite over https/wss with a throwaway certificate; the browser is told to trust that one public key only. Not part of `validate`.
 - **`pnpm e2e:webkit`:** console + controller in Playwright's WebKit build (mouse-driven). Opt-in; needs `playwright install webkit`. **Not iOS Safari.**
 - **Mutation testing** of the console modules and of the E2E suite itself (inject a real defect; the right test must fail) — survivors became tests.
-- **Still not covered by any automated test:** a physical iPhone, Safari, a real network, input-to-photon latency (DEVICE_TESTING.md).
+- **Not coverable by automated tests:** a physical phone, Safari, a real network, input-to-photon latency. Milestone 1 passed on a physical run (MILESTONE_1_VALIDATION.md); what was measured there is recorded, and what was not is marked so.

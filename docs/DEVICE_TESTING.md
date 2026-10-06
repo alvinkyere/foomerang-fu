@@ -1,13 +1,15 @@
 # DEVICE TESTING — Milestone 1's physical gate
 
-**Automated tests never complete Milestone 1.** Milestone 1 needs a physical iPhone running Safari, over a real network, against an HTTPS (production-representative) deployment, plus a second physical phone or browser where available, plus recorded performance observations. As of this slice **none of that has been done**.
+**Result: Milestone 1 PASSED** on the reviewer's physical run; what was and was not recorded is in [MILESTONE_1_VALIDATION.md](MILESTONE_1_VALIDATION.md). The procedure below stays the reference for any re-test.
+
+**Automated tests never complete Milestone 1.** Milestone 1 needed a physical iPhone running Safari, over a real network, against an HTTPS (production-representative) deployment, plus a second physical phone or browser where available, plus recorded performance observations. As of this slice **none of that has been done**.
 
 Two separate statuses, kept apart on purpose:
 
 | Status | Meaning | Today |
 | --- | --- | --- |
-| **Slice 8 engineering** | The automated flow passes (unit, component, Playwright against the real server + console + two controllers, production-build check, clean clone). | Complete when the report says so. |
-| **Milestone 1** | The above **plus** the physical-device evidence below. | **Open.** |
+| **Slice 8 engineering** | The automated flow passes (unit, component, Playwright against the real server + console + two controllers, production-build check, clean clone). | **Complete.** |
+| **Milestone 1** | The above **plus** the physical-device evidence below. | **PASS** (reviewer-declared; see the validation report for exactly what was recorded). |
 
 ## What counts as evidence
 
