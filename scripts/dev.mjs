@@ -42,8 +42,18 @@ const services = [
   ],
 ];
 
+// Run children with the SAME pnpm that started this script (it may only be reachable through
+// `corepack pnpm`, not as a bare `pnpm` on PATH).
+const execPath = process.env.npm_execpath;
+const pnpmCommand =
+  execPath === undefined
+    ? ['pnpm']
+    : /\.(c|m)?js$/.test(execPath)
+      ? [process.execPath, execPath] // a JavaScript entry point
+      : [execPath]; // a native executable (as Corepack provides)
+
 const children = services.map(([name, pnpmArgs, env]) => {
-  const child = spawn('pnpm', pnpmArgs, {
+  const child = spawn(pnpmCommand[0], [...pnpmCommand.slice(1), ...pnpmArgs], {
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true, // its own process group, so Ctrl-C can stop the whole tree
@@ -55,6 +65,10 @@ const children = services.map(([name, pnpmArgs, env]) => {
         if (line.trim() !== '') console.log(prefix + line);
     });
   }
+  child.once('error', (error) => {
+    console.error(`${prefix}could not start: ${error.message}`);
+    stop(1);
+  });
   child.once('exit', (code) => {
     if (!stopping) {
       console.error(`${prefix}exited (${code}); stopping the rest.`);
