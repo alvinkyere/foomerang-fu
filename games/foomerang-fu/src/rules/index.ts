@@ -3,6 +3,18 @@
 
 export { PRIMITIVE_ARENA } from './arena';
 export { SYSTEMS_ARENA, SYSTEMS_POWERUP_SPOTS } from './systemsArena';
+export {
+  GARDEN_ARENA,
+  GARDEN_BOOK_SPOTS,
+  GARDEN_HEIGHT,
+  GARDEN_ROCKS,
+  GARDEN_SPAWNS,
+  GARDEN_WALLS,
+  GARDEN_WALL_THICKNESS,
+  GARDEN_WIDTH,
+  rockRects,
+} from './gardenArena';
+export type { GardenRock, GardenWall } from './gardenArena';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {
   GatePhase,

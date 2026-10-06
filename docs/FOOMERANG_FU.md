@@ -410,7 +410,11 @@ Honest reading: **the ordering is strictly Easy < Medium < Hard, and mirror matc
 
 Start the demo, open the console (Foomerang Fu), join from your phone, **Add CPU** with *Easy*, Start; then again with *Medium*, then *Hard*; then a table: you + Easy + Medium + Hard, and the systems arena (`?arena=systems`) and Books (`?powerups=high`). Judge: does Easy feel gentle and *slightly silly*, Medium fair, Hard sharp but not psychic? Does any CPU do something a person could not (see through walls, dodge instantly, never miss a deflect)? Do they get stuck, wander forever, or camp? Do they use Books, dashes, gates, the floor sensibly? Is a round against a CPU too short (the first throw tends to decide it)? **Slice 7 is not PASS until you have played Easy, Medium and Hard.** After the recalibration, replay Easy and Medium first (does Medium feel like a competent friend you can beat if you play well? does it pause, commit, overshoot, miss, mistime a deflection, dash only now and then?), then Hard.
 
-## Slice 8: Game Modes + Kill-Race Match Structure (engineering complete, **not yet played**; 14 kills and the pacing are playtest hypotheses)
+## Slice 8: Game Modes + Kill-Race Match Structure — **PASS**
+
+**Slice 8 — Match Structure / Free For All: PASS** on a physical human playtest (the project owner). Frozen as the approved gameplay baseline together with Slices 1–7: the 14-hole kill race, attribution and the self-kill penalty, immediate victory, the same-step tiebreak, regulation/overtime, rematch and return to lobby, late join and the host lifecycle. Slices 1–8 are the regression baseline for all production content.
+
+(The engineering record of the slice follows.)
 
 The proposed round-win scoring (*last survivor → +1 round point*) is **rejected and not implemented**. Standard Free For All is a persistent **kill race**: every credited enemy elimination fills one of fourteen holes in the killer's meter; the first meter to fill ends the match **at once**. Rounds still exist (they restore combat state, never the match's progression), but surviving a round is worth nothing.
 
