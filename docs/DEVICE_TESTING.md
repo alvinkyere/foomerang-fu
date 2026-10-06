@@ -47,6 +47,7 @@ Fill in [MILESTONE_1_VALIDATION.md](MILESTONE_1_VALIDATION.md) as you go; it is 
 - **Android:** `chrome://inspect` on a desktop Chrome with USB debugging.
 - **Phaser load on the host:** the host browser's Network panel while pressing Start.
 - **Six players on hardware you don't have:** `pnpm e2e:six` runs six simulated players (real controller SDK, random thumbs) against the production console; set `FOOMERANG_E2E_SIX_SECONDS` for the duration. It is not a phone test.
+- **CPU players (Slice 7):** `pnpm e2e:cpu6` plays one idle controller against five Hard CPUs (a full table of six) on the dev console and reports the host frame rate, what deciding for the CPUs costs per step, and any discarded simulation time; `FOOMERANG_E2E_CPU6_SECONDS` sets the duration. Deterministic bot-vs-bot statistics (no browser): `pnpm --filter @foomerang/foomerang-fu eval:cpu` (`FU_CPU_EVAL_SEEDS` sets the number of matches).
 - **Port problems:** if `dev:demo` says a port is in use, an earlier run is still going: `pkill -f scripts/dev.mjs; pkill -f vite; pkill -f "tsx src/main.ts"`.
 
 ## Checklist to run and record

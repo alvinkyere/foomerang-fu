@@ -23,7 +23,7 @@ describe('starting a match', () => {
     expect(host.errors()).toEqual([]);
   });
 
-  it('the primitive arena can be started by a single phone (Foomerang Fu itself needs two)', () => {
+  it('a single phone can start either game (Foomerang Fu fills the other seats with CPUs in the console)', () => {
     const { client: host, joinCode } = rig.host('primitive-arena');
     rig.player(joinCode, 'Alice');
     host.send(start);
@@ -32,8 +32,8 @@ describe('starting a match', () => {
     const fu = rig.host('foomerang-fu');
     rig.player(fu.joinCode, 'Solo');
     fu.client.send(start);
-    expect(fu.client.errors()).toEqual(['NOT_ENOUGH_PLAYERS']);
-    expect(state(fu.client)).toBe('LOBBY');
+    expect(fu.client.errors()).toEqual([]);
+    expect(state(fu.client)).toBe('PLAYING');
   });
 
   it('a room with nobody in it cannot start', () => {

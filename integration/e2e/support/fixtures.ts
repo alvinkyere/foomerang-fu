@@ -86,6 +86,18 @@ export interface Snapshot {
           deflectedBy: string | undefined;
         }[];
         duplicatesIgnored: number;
+        /** Slice 7: the CPU participants (software controllers) and what deciding for them costs the host. */
+        cpus: {
+          id: string;
+          difficulty: string;
+          throws: number;
+          slashes: number;
+          dashes: number;
+          dodges: number;
+          deflectTries: number;
+          lapses: number;
+        }[];
+        cpuDecisionMs: { decisions: number; meanMs: number; maxMs: number };
       }
     | undefined;
   diagnostics: { actionsReceived: number; movementReceived: number; reconnects: number };

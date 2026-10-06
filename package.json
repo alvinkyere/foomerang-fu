@@ -18,6 +18,7 @@
     "dev:demo": "node scripts/dev.mjs",
     "e2e:tls": "pnpm --filter @foomerang/integration e2e:tls",
     "e2e:webkit": "pnpm --filter @foomerang/integration e2e:webkit",
+    "e2e:cpu6": "pnpm --filter @foomerang/integration e2e:cpu6",
     "e2e:six": "pnpm --filter @foomerang/integration e2e:six"
   },
   "devDependencies": {

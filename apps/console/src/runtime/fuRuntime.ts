@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
+  CpuController,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
@@ -12,6 +13,7 @@ import {
   type FuArena,
   type FuConfig,
   type PowerKind,
+  seedFor,
   stepFu,
   type FuEvent,
   type FuPlayerInput,
@@ -97,6 +99,9 @@ export class FuRuntime implements MatchRuntime {
   #pendingDashes = new Set<string>();
   #seenEvents = new Map<string, { order: string[]; set: Set<string> }>();
   #events: FuEvent[] = [];
+  /** CPU participants: software controllers that answer through the same `FuPlayerInput` a person's phone produces. */
+  #cpus = new Map<string, CpuController>();
+  #cpuDecisions = { count: 0, totalMs: 0, maxMs: 0 };
 
   get world(): WorldState | undefined {
     return this.state?.world;
@@ -122,6 +127,16 @@ export class FuRuntime implements MatchRuntime {
     this.#seenEvents = new Map();
     this.#events = [];
     this.duplicatesIgnored = 0;
+    // each CPU's randomness is the match seed mixed with its own index: replays are exact
+    this.#cpus = new Map();
+    this.#cpuDecisions = { count: 0, totalMs: 0, maxMs: 0 };
+    players.forEach((p, index) => {
+      if (p.cpu !== undefined)
+        this.#cpus.set(
+          p.playerId,
+          new CpuController(p.playerId, p.cpu, seedFor(this.state?.config.seed ?? 1, index)),
+        );
+    });
   }
 
   setActivity(isActive: (playerId: string) => boolean): void {
@@ -159,7 +174,17 @@ export class FuRuntime implements MatchRuntime {
     for (let i = 0; i < steps; i += 1) {
       const thumbs = this.#inputs.frame(nowMs, this.#isActive);
       const inputs = new Map<string, FuPlayerInput>();
+      for (const [id, cpu] of this.#cpus) {
+        const began = performance.now();
+        inputs.set(id, cpu.decide(this.state));
+        const took = performance.now() - began;
+        this.#cpuDecisions.count += 1;
+        this.#cpuDecisions.totalMs += took;
+        if (took > this.#cpuDecisions.maxMs) this.#cpuDecisions.maxMs = took;
+      }
       for (const player of this.state.players) {
+        if (this.#cpus.has(player.id)) continue; // a CPU's input is already decided
+
         const move = thumbs.get(player.id);
         const active = i === 0 && this.#isActive(player.id);
         const wantsThrow = active && this.#pendingThrows.has(player.id);
@@ -249,6 +274,15 @@ export class FuRuntime implements MatchRuntime {
         deflectedBy: b.deflectedBy,
       })),
       duplicatesIgnored: this.duplicatesIgnored,
+      cpus: [...this.#cpus].map(([id, c]) => ({ id, difficulty: c.difficulty, ...c.stats })),
+      cpuDecisionMs: {
+        decisions: this.#cpuDecisions.count,
+        meanMs:
+          this.#cpuDecisions.count === 0
+            ? 0
+            : this.#cpuDecisions.totalMs / this.#cpuDecisions.count,
+        maxMs: this.#cpuDecisions.maxMs,
+      },
     };
   }
 

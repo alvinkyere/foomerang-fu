@@ -1,4 +1,5 @@
 import type { WorldState } from '@foomerang/game-core';
+import type { Difficulty } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
@@ -17,6 +18,8 @@ export interface RuntimeMetrics extends TimingMetrics {
 export interface MatchPlayer {
   readonly playerId: string;
   readonly slot: number;
+  /** Present for a CPU participant: its controller is software of this difficulty (no network, no seat). */
+  readonly cpu?: Difficulty;
 }
 
 /**

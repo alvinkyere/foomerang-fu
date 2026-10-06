@@ -3,9 +3,10 @@ import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
 import { GameRuntime } from './gameRuntime';
 import { LazyFuRuntime, warmUpFu } from './lazyFuRuntime';
-import type { MatchRuntime } from './matchRuntime';
+import type { MatchPlayer, MatchRuntime } from './matchRuntime';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
+import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
@@ -42,6 +43,8 @@ export class MatchDirector {
   /** The game currently (or last) running. Before the first match it is an idle placeholder. */
   runtime: MatchRuntime = new GameRuntime();
   readonly slots = new SlotAllocator();
+  /** The CPUs the host added in the lobby (software controllers; no seat, no connection, no socket). */
+  readonly cpus = new CpuRoster();
   #roster: readonly RosterEntry[] = [];
   #connected = new Set<string>();
   #inMatch = false;
@@ -56,7 +59,32 @@ export class MatchDirector {
   ) {
     this.#createRuntime = createRuntime;
     this.#warmUp = warmUp;
-    this.runtime.setActivity((playerId) => this.#connected.has(playerId));
+    this.runtime.setActivity((playerId) => this.#isActive(playerId));
+    this.cpus.subscribe(() => this.#syncSlots());
+  }
+
+  /** A CPU is always ready to act; a person only while connected. */
+  #isActive(playerId: string): boolean {
+    return isCpuId(playerId) || this.#connected.has(playerId);
+  }
+
+  /** The CPUs as roster entries, so the lobby and the arena name and colour them like anyone else. */
+  #cpuRoster(): readonly RosterEntry[] {
+    return this.cpus.entries.map((c: CpuEntry) => ({
+      playerId: c.id,
+      displayName: c.name,
+      connection: 'CONNECTED' as const,
+      seat: 'HELD' as const,
+    }));
+  }
+
+  #syncSlots(): void {
+    this.slots.sync(
+      [...this.#roster, ...this.#cpuRoster()].map((r) => ({
+        playerId: r.playerId,
+        seated: r.seat === 'HELD',
+      })),
+    );
   }
 
   onRoom(
@@ -69,7 +97,7 @@ export class MatchDirector {
     this.#connected = new Set(
       roster.filter((r) => r.connection === 'CONNECTED').map((r) => r.playerId),
     );
-    this.slots.sync(roster.map((r) => ({ playerId: r.playerId, seated: r.seat === 'HELD' })));
+    this.#syncSlots();
 
     if (roomState !== 'PLAYING') {
       this.#inMatch = false;
@@ -79,11 +107,16 @@ export class MatchDirector {
     if (this.#inMatch) return;
     this.#inMatch = true;
     this.runtime = this.#createRuntime(gameId);
-    this.runtime.setActivity((playerId) => this.#connected.has(playerId));
-    const bodies: { playerId: string; slot: number }[] = [];
+    this.runtime.setActivity((playerId) => this.#isActive(playerId));
+    const bodies: MatchPlayer[] = [];
     for (const r of roster) {
       const slot = this.slots.slotOf(r.playerId);
       if (r.seat === 'HELD' && slot !== undefined) bodies.push({ playerId: r.playerId, slot });
+    }
+    // CPUs join after the people, so a full table never turns a person away.
+    for (const c of this.cpus.entries) {
+      const slot = this.slots.slotOf(c.id);
+      if (slot !== undefined) bodies.push({ playerId: c.id, slot, cpu: c.difficulty });
     }
     this.runtime.start(bodies, nowMs);
   }
@@ -103,6 +136,6 @@ export class MatchDirector {
   /** What to draw, or undefined when no match is running. */
   arenaView(): ArenaView | undefined {
     if (!this.#inMatch) return undefined;
-    return this.runtime.view(this.#roster, this.slots);
+    return this.runtime.view([...this.#roster, ...this.#cpuRoster()], this.slots);
   }
 }

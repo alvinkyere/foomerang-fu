@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
@@ -17,6 +18,13 @@ const https =
 export default defineConfig({
   envPrefix: ['VITE_', 'FOOMERANG_CONTROLLER_URL', 'FOOMERANG_SERVER_URL'],
   plugins: [react()],
+  // The renderer needs graphics, text, containers and scaling — not a physics engine: the arcade-physics
+  // build leaves out Matter, which is dead weight in a lazy chunk with a hard budget.
+  resolve: {
+    alias: {
+      phaser: join(process.cwd(), 'node_modules/phaser/dist/phaser-arcade-physics.min.js'),
+    },
+  },
   // `host: true` listens on the LAN so the console can be opened by its LAN address.
   server: { host: true, port: Number(process.env['PORT'] ?? 5174), ...(https ? { https } : {}) },
   preview: { host: true, port: 4174, ...(https ? { https } : {}) },

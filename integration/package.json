@@ -10,6 +10,7 @@
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:tls": "FOOMERANG_E2E_TLS=1 playwright test -c e2e/playwright.config.ts",
     "e2e:webkit": "FOOMERANG_E2E_WEBKIT=1 playwright test -c e2e/playwright.config.ts e2e/webkit.e2e.ts",
+    "e2e:cpu6": "FOOMERANG_E2E_CPU6=1 playwright test -c e2e/playwright.config.ts e2e/cpu.e2e.ts",
     "e2e:six": "FOOMERANG_E2E_SIX=1 playwright test -c e2e/playwright.config.ts e2e/six-players.e2e.ts"
   },
   "devDependencies": {

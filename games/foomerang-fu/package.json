@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "eval:cpu": "FU_CPU_EVAL=1 vitest run test/cpuEval.test.ts"
   },
   "devDependencies": {
     "@foomerang/config": "workspace:*",

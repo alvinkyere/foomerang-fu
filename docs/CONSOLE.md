@@ -81,9 +81,11 @@ Measured with `pnpm build` (gzip; budgets are ratchets checked by `scripts/check
 
 | Part                              | Size       | Budget |
 | --------------------------------- | ---------- | ------ |
-| Initial JS (lobby: React, protocol, session, QR) | 122.2 kB | 130 kB |
+| Initial JS (lobby: React, protocol, session, QR, CPU roster) | 124.3 kB | 130 kB |
 | Initial CSS                       | 1.2 kB     | 5 kB   |
-| Lazy chunk (Phaser + arena)       | 357.0 kB   | 380 kB |
+| Lazy chunks (Phaser arcade-physics build + arena 327.6, Fu rules + runtime + CPU controller 18.7) | 346.3 kB   | 380 kB |
+
+Slice 7 adds the lobby's CPU roster to the initial chunk (about 2 kB) and the CPU controller to the lazy Fu chunk; the Phaser chunk uses the arcade-physics-only build of Phaser (`apps/console/vite.config.ts` alias), which is what made room (about 34 kB). The lobby imports no game code: the difficulty list is its own constant.
 
 The controller's own budget (130 kB JS) is unchanged and untouched by the console.
 

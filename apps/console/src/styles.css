@@ -229,3 +229,12 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+.roster li.cpu select,
+.roster li.cpu button {
+  margin-left: 0.5rem;
+}
+
+.cpu-controls {
+  margin-top: 0.75rem;
+}

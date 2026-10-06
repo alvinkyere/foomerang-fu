@@ -286,9 +286,9 @@ Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to ba
 
 **The Slice 5 playtest asked:** is a mystery Book exciting or frustrating? Is one Book a round-ish scarce enough, too scarce? Do you feel the three-slot FIFO (does losing the oldest hurt, does it create decisions)? Which powers are fun to *keep* for nine rounds and which become the only thing that matters? Is OVERDRIVE a build or just a faster game? Does PHASE_DASH without charges trivialise the arena? Is BLAST on every throw too much? Does the SHIELD feel right as a one-hit buffer that you can lose and refill?
 
-## Slice 6: Arena Systems (engineering complete, **not yet played**)
+## Slice 6: Arena Systems — **PASS**
 
-Slice 6 asks: *can interactive arena elements deepen positioning, timing and combat without making the arena unpredictable, confusing or more important than the players?* One experimental arena (`SYSTEMS_ARENA`; the Slice 2 arena is untouched and remains the regression baseline) with exactly three families: **timed gates**, **moving platforms** and **one hazard type**. No portals, destructible terrain, switches, random hazards, turrets, conveyors, wind, water, ice, trails or new powerups. Play it with `?arena=systems` on the console address (the baseline arena is the default).
+**Slice 6 — Arena Systems: PASS** on a physical human playtest (the project owner). Frozen as the approved baseline together with Slices 1–5: timed gates (wait while occupied), moving platforms (carry riders, never crush), the SAFE → WARNING → ACTIVE lethal floor, the platform-over-hazard shelter, and the experimental arena. Slice 6 asked: *can interactive arena elements deepen positioning, timing and combat without making the arena unpredictable, confusing or more important than the players?* One experimental arena (`SYSTEMS_ARENA`; the Slice 2 arena is untouched and remains the regression baseline) with exactly three families: **timed gates**, **moving platforms** and **one hazard type**. No portals, destructible terrain, switches, random hazards, turrets, conveyors, wind, water, ice, trails or new powerups. Play it with `?arena=systems` on the console address (the baseline arena is the default).
 
 **Everything is a pure function of `roundTime`** — simulated seconds of *active play* since the round began (`FuState.roundTime`, frozen while the round is over, 0 again at every round start). The same time gives the same gate phase, platform place and hazard phase at any dt; nothing reads a wall clock; Phaser only draws (`systemsView`). The only extra state: `gatesShut` (whether each gate has actually shut) and `hazardSpared` (shield passes).
 
@@ -309,6 +309,86 @@ Slice 6 asks: *can interactive arena elements deepen positioning, timing and com
 **Tuning hypotheses (unvalidated):** gate 4 s open + 2 s warning + 6 s closed · hazard 5 s safe + 2 s warning + 3 s active · platform 4 s travel + 1.5 s pause.
 
 **The playtest will answer:** can you read a gate before you commit to it? Is the warning long enough everywhere (gate 2 s, hazard 2 s)? Do you ever die *surprised*? Does the platform-bridge protection (a hypothesis, not baseline) make riding a fun risk, or a fixed best route — and should it stay? Does camping a gate doorway (which keeps it open) become a problem? Do the hazards shape fights, or just get ignored? Does anything make the arena matter more than the players?
+
+## Slice 7: CPU Players + Difficulty (engineering complete, **not yet played**; every number is a playtest hypothesis)
+
+Slice 7 asked: *can software players make a room playable when there are not enough people, without breaking the rules or feeling fake?* **A CPU is a player whose controller happens to be software.** It has no combat rules of its own: every step it produces exactly what a phone produces — a MOVE thumb vector and the SLASH / THROW / DASH button presses (`FuPlayerInput`) — and `stepFu` treats it like anyone else. It is slowed by fatigue, stopped by walls and closed gates, killed by the floor, deflected, shielded, phased and Book-fed by the same rules. Slice 7 adds no mechanic, powerup, arena system, map, scoring change, art or audio, and the Slice 1–6 baselines are untouched.
+
+```
+Human phone ─► network ─► InputBuffer ─┐
+                                       ├─► FuPlayerInput ─► stepFu (the rules) ─► FuState
+CpuController (software) ──────────────┘
+```
+
+**Where it lives.** `games/foomerang-fu/src/cpu` (`controller.ts`, `nav.ts`, `profile.ts`, `rng.ts`) — pure and deterministic like the rules: no Node, DOM, Phaser, Socket.IO, clock or `Math.random`; the lint boundaries apply. The console wires it: `apps/console/src/runtime/cpuRoster.ts` (the CPUs the host added), `matchDirector.ts` (CPU bodies, slots, activity), `fuRuntime.ts` (asks each `CpuController` for its input each step and puts it in the same `inputs` map the network path fills), `ui/Lobby.tsx`. The CPU code is in the lazy Fu chunk; the lobby never downloads it. **No CPU is a socket:** the server only ever knows people.
+
+**Participants.** A participant is a human (seat, connection, network input) or a CPU (a difficulty, no seat, no connection). A CPU has the same stable identity as anyone: a slot (spawn point, colour, number, marker), a name (`CPU 1` …) and an id that cannot collide with a person's (`cpu:N`; ids are never reused). Up to **six** participants, humans and CPUs together. Supported: human-only, human vs CPU, several of each, per-CPU difficulty, filling empty slots (e.g. Human, Human, CPU Easy, CPU Medium, CPU Hard, CPU Hard). A CPU-only match is exercised by the tests and the evaluation harness; the lobby always needs one person (the server's `minPlayers` for Fu is now 1; the console requires at least two participants and at most six).
+
+**Lobby.** Add CPU (with a difficulty chooser: Easy / Medium / Hard), per-CPU difficulty selector, per-CPU Remove, CPUs listed in the roster with their marker and number and the label “CPU”. Start is disabled with fewer than two or more than six participants (and says why). No settings screen, personalities or names.
+
+**Difficulty is decision quality, never physics.** The three profiles (`profile.ts`) differ in how stale the world it sees is, how often it re-decides, aim error, how much it leads a moving target, how well it defends, how it uses DASH, hazards, Books and routes. None changes speed, dash allowance, boomerang speed, hitbox, recovery, powerups, shields or what it may know.
+
+**Perception and reaction.** Each step a CPU sees a snapshot of the world **delayed** by its own reaction time, drawn once per CPU from its difficulty's band with its seeded generator: **Easy 400–650 ms (24–39 ticks), Medium 200–350 ms (12–21), Hard 100–180 ms (6–11).** It sees what a player on screen sees: positions, boomerang states, facings, inventories, Books (as unknown objects), walls, gates, hazards and platforms — never a Book's award, another player's future input, the future or the random generator. Velocities are *inferred* from successive delayed snapshots, and stale positions are extrapolated by the delay (scaled by the profile's `lead`), so a CPU aims where something *was* plus what it can infer, not where it is. At the start of every round it observes nothing for `delay + 6` ticks (it cannot act on a world it has not seen yet). It decides every `decisionTicks` (Easy 12, Medium 8, Hard 4) with a per-CPU phase so a table does not think in lockstep, and Easy sometimes lapses (wanders) or skips a decision.
+
+**Navigation.** The smallest thing that works: a 25-unit grid over the arena (`nav.ts`) with walls and *currently shut or about-to-shut gates* as obstacles, a breadth-first distance field from the goal (cached for 20 ticks), steered by walking down the field with a line-of-sight shortcut. Hazards are avoided by their phase (ACTIVE always; WARNING and an imminent ACTIVE by the profile's lookahead; Easy ignores the schedule), gates are read by their status and the time to the next change, platforms are used (Hard only) as bridges over a hazard it must cross. **PHASE_DASH is used only through the ordinary DASH press, only when it owns the power:** `planPhaseDash` (the rules' own planner) over 16 directions to see whether a phased dash reaches the goal sooner than walking. No teleporting, no steering of its own.
+
+**Combat.** Weapon state: with a boomerang in hand it looks for a throw (in range, line of sight, aimed with the profile's lead and error; the aim is a small thumb vector toward the aim point sent on the same step as THROW, because a boomerang flies where you last pointed); with it away it seeks cover and avoids pressing an armed enemy, and it presses an opponent whose boomerangs are away (Hard only). Incoming boomerangs (thrown, RETURNING or DEFLECTED, anyone's but its own) are projected along their inferred path; it then chooses — with the profile's probabilities — a timed SLASH deflection (the press is scheduled for when the boomerang will be in reach, allowing for its own walking speed, with timing jitter), a sidestep, or a dodging DASH; a CPU can mistime a deflection and die. In reach of an opponent it slashes (Hard slashes eagerly, Easy half the time). A pursuit DASH never runs down the line of fire of an armed enemy. DASH is fatigue-aware (Medium/Hard stop dashing before they would be FATIGUED; Easy does not, and sometimes dashes for no reason).
+
+**Powerups.** The same mystery Book as everyone: a CPU goes to a Book it can see (its interest and range by profile; Hard skips a Book when a foe is on top of it), has no idea what it will award, and plays whatever it now owns through the same buttons: OVERDRIVE (more reach in walking and dashing), PHASE_DASH (route shortcuts above), TWIN_THROW (one press, two boomerangs: aimed so the pair brackets the target), BLAST_BOOMERANG (a blast shot near walls/cover is acceptable), SHIELD (it presses closer, “bold”). The persistent three-slot FIFO inventory, the match-long persistence and the clearing at match end are the rules'.
+
+**Arena systems.** Avoids an ACTIVE floor, reacts to WARNING (leaves the strip), treats a closed gate as a wall and a CLOSING one as shutting, and a gate it would hold open is just a doorway to it. Hard uses a platform as a bridge; Easy ignores the schedule entirely and may die to it.
+
+**Target selection.** Among living opponents, score = proximity, exposure (a foe whose boomerangs are away, or who is in line of sight), threat (grudge against whoever last attacked it) with the rule *a strictly better score wins, an exact tie keeps the earlier opponent in match order*; kept for `retarget` ticks (Easy 90, Medium 60, Hard 30) unless the target dies.
+
+**Hard is smart, not psychic.** Its limits are measurable: it still reacts 100–180 ms late; it aims with a 0.035 rad standard deviation and leads only what it can infer from delayed snapshots (a target that jinks after the throw is missed; a test shows Hard still misses); it decides every 4 ticks; its prediction horizon is 0.9 s; it can mistime a deflection; it can choose the wrong dodge; it lapses 1.5% of decisions. Easy never leads, aims 0.24 rad off, reacts 400–650 ms late, ignores hazards and often wanders.
+
+**Determinism.** Every bit of variability comes from one seeded generator per CPU (`Rng`, mulberry32; `seedFor(matchSeed, index)`). No `Math.random`, no `Date`, no wall clock; the same seed, arena, participants and human inputs replay to the identical state and events (tested, including the full 4-participant mixed match). A different seed plays a different game. (The console seeds each CPU from the match's seed and its seat; the host measures decision cost with `performance.now`, which never feeds back into a decision.)
+
+### Profiles (all hypotheses)
+
+| | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| reaction (ms / ticks) | 400–650 / 24–39 | 200–350 / 12–21 | 100–180 / 6–11 |
+| decides every | 12 ticks | 8 | 4 |
+| aim error σ (rad) | 0.24 | 0.10 | 0.035 |
+| target lead | none | 60% | 100% |
+| deflect attempt / timing σ | 12% / 9 ticks | 50% / 4 | 85% / 1.5 |
+| dodge | 25% | 60% | 90% |
+| dash use, fatigue-aware | 15%, no (+6% misuse) | 50%, yes | 90%, yes |
+| hazard lookahead | none | 0.5 s | 1.5 s |
+| Book interest / range | 30% / 300 | 70% / 700 | 100% / 1600 |
+| PHASE routes, platforms | no, no | yes, no | yes, yes |
+| pressure an unarmed foe, cover | no, no | no, yes | yes, yes |
+| lapses | 14% | 5% | 1.5% |
+
+### Evaluation (diagnostic only; nothing was tuned toward these figures)
+
+`pnpm --filter @foomerang/foomerang-fu eval:cpu` plays CPU-vs-CPU matches (two minutes each, deterministic, Books on, sides alternated), prints the statistics and asserts nothing. 60 matches per matchup (≈1,800–2,100 rounds each), baseline arena:
+
+| Matchup | A wins | B wins | no winner | mean round |
+| --- | --- | --- | --- | --- |
+| Easy vs Easy | 55.0% | 40.2% | 4.8% | 1.4 s |
+| Medium vs Medium | 45.7% | 52.8% | 1.6% | 1.4 s |
+| Hard vs Hard | 49.0% | 47.4% | 3.6% | 1.4 s |
+| Easy vs Medium | 1.0% | 98.9% | 0.1% | 1.2 s |
+| Medium vs Hard | 4.5% | 95.5% | 0.0% | 1.0 s |
+| Easy vs Hard | 0.0% | 100% | 0.0% | 1.0 s |
+
+Honest reading: **the ordering is strictly Easy < Medium < Hard, and mirror matchups are about even (no seat bias); but the gaps are very large and rounds are short (≈1–1.4 s) because the first throw usually decides them.** The reaction delay therefore dominates: a faster CPU throws first. That says little about *humans* (who react however they react, and can dodge a late Easy throw); the playtest decides whether Easy is gentle enough and whether Hard is fair. Candidate knobs after play (not applied): narrower reaction bands, a minimum opening delay, more Easy hesitation. Defensive and Book behaviours (deflects, dashes, Books, guard blocks) appear in the per-round counts only when the first throw misses (e.g. Hard vs Hard: 0.06 deflects, 2.08 dashes, 0.09 Books per round). Tables in the systems arena (60 matches, seats rotated): four (E M H H): Easy 0.7%, Medium 36.4%, Hard 26.7% / 35.2%; six (E E M M H H): Easy 10.3% / 10.6%, Medium 22.4% / 15.0%, Hard 18.1% / 22.4% — in a free-for-all the weak survive by being ignored.
+
+### Tests
+
+`games/foomerang-fu/test/cpu.test.ts` (behaviour, through the real rules, never the CPU's internals): the CPU's output is only the legal inputs; MOVE/THROW/SLASH/DASH really happen in the rules; no better physics (speed, dash length, allowance, recovery) for any difficulty; reaction differs by difficulty and a CPU does not know the present or the future (the opponent's change is noticed no earlier than its delay; with the Book award changed its inputs are identical until the Book is taken); aim and prediction differ by difficulty (first-throw kill rate on a target that jinks: Easy 1/60, Medium 16/60, Hard 48/60 — and Hard misses); defence: timed deflection works and can be mistimed, dodging, fatigue-aware dashing; walls, corridors, gates (open/closing/closed), hazards (WARNING, ACTIVE), platforms; PHASE only when owned and only through DASH; Books taken through the normal rules and an unknown award; builds up to three, TWIN, BLAST, SHIELD; multi-CPU target selection and ties; a mixed match; six CPUs; death/reset; nine-round persistence; deterministic replay; seeded-generator purity. Console: `test/cpuRuntime.test.ts` (roster, six at the table, same input path, a CPU is always active, hostile input addressed to a CPU is ignored, slots) and the lobby tests in `test/app.test.tsx`. End to end (`integration/e2e/cpu.e2e.ts`): one real controller plays a Medium and a Hard CPU from the lobby; remove/difficulty/limit of six.
+
+**Mutation testing of the CPU** (24 hand-made faults in the profiles, perception, aim, deflection, hazards, fatigue, Books, tie rule and seeding; each run against `cpu.test.ts` + `cpuProfiles.test.ts`): **21 killed, 3 survive.** Killed include: Hard with zero reaction time; Easy as fast as Hard; Hard aiming perfectly / no aim error; Easy leading fully; Hard deflecting perfectly; Medium never deflecting; Easy reading the hazard schedule; WARNING not avoided; Hard ignoring fatigue / dashing while fatigued; Hard ignoring Books; Hard never planning PHASE routes; no observation window at round start; observing the present instead of the delayed past; the tie rule going to the later opponent; stale shot positions not advanced; an inverted chance; a seed (or seat) ignored by `seedFor`; dashing on every decision. **Survivors, stated honestly:** (a) Easy never misusing DASH (the misuse is 6% of decisions on top of its ordinary dash use; not separable in a scenario); (b) no extrapolation of a stale observation (about 30 units of lead; the lead tests are insensitive to it); (c) the aim-internal range check (the throw decision already enforces the same range first, so it is a redundant guard). The survivors' mutants were found by the first run and the missing tests for the rest (aim spread, deflection frequency, the warning floor, fatigue, Books, seat seeding, dash frequency) were added in `cpuProfiles.test.ts`.
+
+### Performance (measured)
+
+`pnpm e2e:cpu6`: one idle controller and five Hard CPUs (six participants), dev console, headless Chrome on the development Mac, 60 s: **FPS 59.95 / 60.00 / 60.06 (min / median / max of 30 two-second samples)**; CPU decisions 18,210, **mean 0.021 ms, worst 4.5 ms** (one outlier; includes the first path-field build); **3,642 simulation steps, 2 catch-up frames, 1 discard event, 16.7 ms of simulation discarded in total.** Six Hard CPUs with no person at the table are not reachable from the lobby (a person is needed to start); they are covered by the evaluation harness and tests. Bundle (`pnpm build`, gzip): initial JS **124.3 kB** (budget 130), lazy JS **346.3 kB** (budget 380, unchanged); the CPU controller adds about 4.7 kB to the lazy Fu chunk and the lobby roster about 2 kB to the initial one. Budgets were not raised; the headroom comes from the arcade-physics-only Phaser build.
+
+### How to play it (the playtest)
+
+Start the demo, open the console (Foomerang Fu), join from your phone, **Add CPU** with *Easy*, Start; then again with *Medium*, then *Hard*; then a table: you + Easy + Medium + Hard, and the systems arena (`?arena=systems`) and Books (`?powerups=high`). Judge: does Easy feel gentle and *slightly silly*, Medium fair, Hard sharp but not psychic? Does any CPU do something a person could not (see through walls, dodge instantly, never miss a deflect)? Do they get stuck, wander forever, or camp? Do they use Books, dashes, gates, the floor sensibly? Is a round against a CPU too short (the first throw tends to decide it)? **Slice 7 is not PASS until you have played Easy, Medium and Hard.**
 
 ## State (`FuState`, plain data)
 

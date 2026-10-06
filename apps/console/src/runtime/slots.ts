@@ -35,8 +35,9 @@ export class SlotAllocator {
   readonly #slotByPlayer = new Map<string, number>();
 
   sync(players: readonly SeatedPlayer[]): void {
-    for (const player of players) {
-      if (!player.seated) this.#slotByPlayer.delete(player.playerId);
+    const listed = new Set(players.filter((p) => p.seated).map((p) => p.playerId));
+    for (const id of [...this.#slotByPlayer.keys()]) {
+      if (!listed.has(id)) this.#slotByPlayer.delete(id); // released, or gone altogether (a removed CPU)
     }
     const used = new Set(this.#slotByPlayer.values());
     for (const player of players) {

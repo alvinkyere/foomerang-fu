@@ -379,3 +379,78 @@ describe('losing the room', () => {
     expect(screen.getByRole('button', { name: 'Create room' })).toBeTruthy();
   });
 });
+
+describe('CPU players in the lobby (Foomerang Fu)', () => {
+  const lobbyWith = async (people: ReturnType<typeof roster>) => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
+    await flush();
+    return ctx;
+  };
+  const start = () => screen.getByRole('button', { name: 'Start' });
+
+  it('one person alone cannot start; adding a CPU makes two participants and enables Start', async () => {
+    await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    expect(start().hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/At least two players are needed/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    expect(start().hasAttribute('disabled')).toBe(false);
+  });
+
+  it('the roster tells humans from CPUs, and a CPU has a name, a marker, a number and its difficulty', async () => {
+    await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    fireEvent.change(screen.getByLabelText('New CPU difficulty'), { target: { value: 'HARD' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    const rows = screen.getAllByRole('listitem');
+    expect(rows[0]?.textContent).toBe('●1AlvinConnected');
+    expect(rows[1]?.textContent).toContain('CPU 1');
+    expect(rows[1]?.textContent).toContain('CPU');
+    expect((screen.getByLabelText('Difficulty of CPU 1') as HTMLSelectElement).value).toBe('HARD');
+    expect(rows[1]?.textContent).toContain('■2');
+  });
+
+  it('each CPU has its own difficulty, which can be changed, and it can be removed', async () => {
+    const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    fireEvent.change(screen.getByLabelText('Difficulty of CPU 1'), { target: { value: 'EASY' } });
+    fireEvent.change(screen.getByLabelText('Difficulty of CPU 2'), { target: { value: 'HARD' } });
+    expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove CPU 1' }));
+    expect(runtime.director.cpus.entries.map((c) => c.name)).toEqual(['CPU 2']);
+    expect(runtime.director.slots.slotOf('cpu:1')).toBeUndefined(); // its slot is free again
+    expect(runtime.director.slots.slotOf('cpu:2')).toBe(2); // and the other keeps its identity
+  });
+
+  it('a match holds at most six participants: Add CPU stops at the table size, and an overfull table cannot start', async () => {
+    const { runtime } = await lobbyWith(
+      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
+    );
+    const add = screen.getByRole('button', { name: 'Add CPU' });
+    for (let i = 0; i < 8; i += 1) fireEvent.click(add);
+    expect(runtime.director.cpus.entries).toHaveLength(4);
+    expect(add.hasAttribute('disabled')).toBe(true);
+    expect(start().hasAttribute('disabled')).toBe(false);
+  });
+
+  it('a person joining a full table (CPUs filled it) is told to remove a CPU and Start waits', async () => {
+    const { network, runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    for (let i = 0; i < 5; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    expect(runtime.director.cpus.entries).toHaveLength(5);
+    network.roomUpdated(
+      network.last,
+      'LOBBY',
+      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
+    );
+    await flush();
+    expect(screen.getByRole('alert').textContent).toMatch(/remove a CPU/);
+    expect(start().hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove CPU 5' }));
+    expect(start().hasAttribute('disabled')).toBe(false);
+  });
+
+  it('the primitive arena (platform test) has no CPUs', async () => {
+    await inLobby();
+    expect(screen.queryByRole('button', { name: 'Add CPU' })).toBeNull();
+  });
+});

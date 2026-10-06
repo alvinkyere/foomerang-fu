@@ -54,9 +54,12 @@ export function installDebugHook(
     snapshot(): DebugSnapshot {
       const state = runtime.session.getState();
       const slots: Record<string, number> = {};
-      for (const entry of state.roster) {
-        const slot = runtime.director.slots.slotOf(entry.playerId);
-        if (slot !== undefined) slots[entry.playerId] = slot;
+      for (const id of [
+        ...state.roster.map((r) => r.playerId),
+        ...runtime.director.cpus.entries.map((c) => c.id),
+      ]) {
+        const slot = runtime.director.slots.slotOf(id);
+        if (slot !== undefined) slots[id] = slot;
       }
       const snapshot: DebugSnapshot = {
         phase: state.phase,

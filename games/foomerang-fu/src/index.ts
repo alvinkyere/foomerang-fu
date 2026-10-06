@@ -4,3 +4,6 @@
 export * from './rules';
 export { FU_BUTTONS, FU_CONTROLS } from './controls';
 export type { FuButtonId } from './controls';
+
+export { CpuController, DIFFICULTIES, PROFILES, Rng, seedFor } from './cpu';
+export type { Difficulty, Profile } from './cpu';
