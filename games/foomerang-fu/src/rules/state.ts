@@ -1,7 +1,7 @@
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
 import { DASH_READY, RESTED, type DashState, type Fatigue } from './dash';
-import { NO_POWERS, type Pickup, type PickupClock, type Powers } from './powerups';
+import { NO_POWERS, type Inventory, type Pickup, type PickupClock } from './powerups';
 import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
 import { spawnPosition } from './spawn';
@@ -23,8 +23,8 @@ export interface FuPlayer {
   readonly dash: DashState;
   /** Slice 4: how many successful dashes in this burst and how long until rested; see `isFatigued`. */
   readonly fatigue: Fatigue;
-  /** Slice 5: the powerups this player holds (see `Powers`). */
-  readonly powers: Powers;
+  /** Slice 5: the powers this player OWNS, oldest first, at most 3. Persists across rounds; see `Inventory`. */
+  readonly inventory: Inventory;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER';
@@ -56,8 +56,10 @@ export interface FuState {
   readonly extraBoomerangs: readonly Boomerang[];
   /** Slice 5: pickups lying in the arena, in spawn order. */
   readonly pickups: readonly Pickup[];
-  /** Slice 5: the pickup schedule for this round. */
+  /** Slice 5: the Book schedule for this round. */
   readonly pickupClock: PickupClock;
+  /** Slice 5: how many Books have been taken this match (with the seed, it decides what the next one awards). */
+  readonly awards: number;
   readonly roundOver: FuRoundOver | undefined;
 }
 
@@ -93,6 +95,9 @@ export function startRound(
   config: FuConfig,
   round: number,
   elapsed: number,
+  /** What each player owns coming into this round (a new match passes nothing). */
+  carried: ReadonlyMap<string, Inventory> = new Map(),
+  awards = 0,
 ): FuState {
   const centre = { x: config.arena.width / 2, y: config.arena.height / 2 };
   const spawns = specs.map((spec) => spawnPosition(spec.slot, config.arena));
@@ -120,7 +125,7 @@ export function startRound(
       slash: SLASH_READY,
       dash: DASH_READY,
       fatigue: RESTED,
-      powers: NO_POWERS,
+      inventory: carried.get(spec.id) ?? NO_POWERS,
     });
   });
 
@@ -140,6 +145,13 @@ export function startRound(
     }),
   );
 
+  // A new round gives each owner of TWIN_THROW their second boomerang, in hand.
+  const twins = specs.flatMap((spec, index) =>
+    (carried.get(spec.id) ?? NO_POWERS).includes('TWIN_THROW')
+      ? [Object.freeze({ ...(boomerangs[index] as Boomerang) })]
+      : [],
+  );
+
   return Object.freeze({
     config,
     round,
@@ -148,9 +160,10 @@ export function startRound(
     world,
     players: Object.freeze(players),
     boomerangs: Object.freeze(boomerangs),
-    extraBoomerangs: Object.freeze([]),
+    extraBoomerangs: Object.freeze(twins),
     pickups: Object.freeze([]),
     pickupClock: Object.freeze({ spawnIn: config.powerups?.firstSeconds ?? 0, spawned: 0 }),
+    awards,
     roundOver: undefined,
   });
 }

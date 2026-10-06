@@ -36,7 +36,6 @@ export interface CircleView {
 /** A powerup lying in the arena. */
 export interface PickupView {
   readonly id: number;
-  readonly kind: PowerKind;
   readonly x: number;
   readonly y: number;
 }
@@ -69,7 +68,7 @@ export interface ViewEvent {
     | 'RECOVERED'
     | 'SPAWNED'
     | 'PICKUP'
-    | 'EXPIRED'
+    | 'POWER_LOST'
     | 'BLASTED'
     | 'GUARD_BLOCKED'
     | 'PHASE_ENTERED'
@@ -84,8 +83,12 @@ export interface ViewEvent {
   readonly direction?: Vec2;
   /** For DASHED: a Phase Dash (may cross walls). */
   readonly phasing?: true;
-  /** For SPAWNED / PICKUP / EXPIRED: which powerup. */
+  /** For PICKUP / POWER_LOST: which power (revealed only when the Book is taken). */
   readonly kind?: PowerKind;
+  /** For PICKUP / POWER_LOST: who (their display name), for the on-screen announcement. */
+  readonly who?: string;
+  /** For POWER_LOST: why. */
+  readonly reason?: 'EVICTED' | 'SHIELD_BROKEN';
   /** For BLASTED: the blast radius, exactly as the rules resolve it. */
   readonly radius?: number;
   /** For SLASHED: the swing exactly as the rules resolve it, so it can be drawn but never decided. */

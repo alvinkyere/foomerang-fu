@@ -49,6 +49,14 @@ const POWER_STYLE: Readonly<Record<PowerKind, { readonly color: number; readonly
     TWIN_THROW: { color: 0x8be45b, label: 'TWIN' },
     PHASE_DASH: { color: 0xb36bff, label: 'PHASE' },
   };
+/** What each power is called on screen. (GUARD is shown as SHIELD: it is a one-hit shield.) */
+const POWER_NAME: Readonly<Record<PowerKind, string>> = {
+  OVERDRIVE: 'OVERDRIVE',
+  BLAST_BOOMERANG: 'BLAST BOOMERANG',
+  GUARD: 'SHIELD',
+  TWIN_THROW: 'TWIN THROW',
+  PHASE_DASH: 'PHASE DASH',
+};
 /** The violet used for everything about walking through walls. */
 const PHASE_COLOR = POWER_STYLE.PHASE_DASH.color;
 
@@ -92,29 +100,35 @@ function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: number): 
   }
 }
 
-/** A powerup lying in the arena: a dark disc with its colour ring, its glyph and its name. */
+/** A Powerup Book lying in the arena: the same blue book with a red bookmark for EVERY power, and a question mark. */
 class PickupSprite {
   readonly container: Phaser.GameObjects.Container;
   constructor(scene: Phaser.Scene, view: PickupView) {
-    const { color, label } = POWER_STYLE[view.kind];
-    const base = scene.add.graphics();
-    base.fillStyle(0x0c1118, 0.92);
-    base.fillCircle(0, 0, 34);
-    base.lineStyle(6, color, 1);
-    base.strokeCircle(0, 0, 34);
-    const glyph = scene.add.graphics();
-    drawGlyph(glyph, view.kind, 20);
-    const text = scene.add
-      .text(0, 52, label, {
+    const book = scene.add.graphics();
+    book.fillStyle(0x0c1118, 0.6);
+    book.fillRoundedRect(-30, -36, 66, 78, 8); // a soft shadow
+    book.fillStyle(0x2a6fdb, 1); // the cover
+    book.fillRoundedRect(-34, -42, 66, 78, 8);
+    book.fillStyle(0x1b4aa0, 1); // the spine
+    book.fillRect(-34, -42, 10, 78);
+    book.fillStyle(0xf4f1e6, 1); // the pages' edge
+    book.fillRect(26, -38, 6, 70);
+    book.lineStyle(4, 0xffffff, 1);
+    book.strokeRoundedRect(-34, -42, 66, 78, 8);
+    book.fillStyle(0xe5302f, 1); // the red bookmark hanging below
+    book.fillRect(6, 30, 12, 26);
+    book.fillTriangle(6, 56, 18, 56, 12, 46);
+    const mark = scene.add
+      .text(-1, -6, '?', {
         fontFamily: 'system-ui, sans-serif',
-        fontSize: '22px',
+        fontSize: '52px',
         fontStyle: 'bold',
         color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4,
+        stroke: '#0c1118',
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
-    this.container = scene.add.container(view.x, view.y, [base, glyph, text]).setDepth(2);
+    this.container = scene.add.container(view.x, view.y, [book, mark]).setDepth(2);
   }
   bob(time: number): void {
     this.container.setScale(1 + 0.08 * Math.sin(time / 220));
@@ -240,18 +254,26 @@ class PlayerSprite {
     const g = this.#badges;
     g.clear();
     const row = circle.powers;
-    row.forEach((kind, i) => {
-      const x = (i - (row.length - 1) / 2) * 34;
+    // three slots, oldest on the left; an empty slot is a thin dashed frame
+    for (let i = 0; i < 3; i += 1) {
+      const x = (i - 1) * 34;
       const y = nameOffset(circle.radius) + 56;
-      g.fillStyle(0x0c1118, 0.85);
+      const kind = row[i];
+      g.fillStyle(0x0c1118, kind === undefined ? 0.35 : 0.85);
       g.fillCircle(x, y, 15);
-      g.lineStyle(3, POWER_STYLE[kind].color, 1);
+      g.lineStyle(
+        kind === undefined ? 2 : 3,
+        kind === undefined ? 0x56688a : POWER_STYLE[kind].color,
+        1,
+      );
       g.strokeCircle(x, y, 15);
-      g.save();
-      g.translateCanvas(x, y);
-      drawGlyph(g, kind, 8);
-      g.restore();
-    });
+      if (kind !== undefined) {
+        g.save();
+        g.translateCanvas(x, y);
+        drawGlyph(g, kind, 8);
+        g.restore();
+      }
+    }
     this.#guard.clear();
     const guarded = row.includes('GUARD');
     if (guarded) {
@@ -501,6 +523,8 @@ class BoomerangSprite {
 
 interface Effect {
   readonly graphics: Phaser.GameObjects.Graphics;
+  /** A text announcement that lives and dies with the effect. */
+  readonly extra?: Phaser.GameObjects.Text;
   readonly born: number;
   readonly duration: number;
   readonly update: (g: Phaser.GameObjects.Graphics, progress: number) => void;
@@ -516,6 +540,8 @@ class ArenaScene extends Phaser.Scene {
   #wallViews: readonly WallView[] = [];
   #banner: Phaser.GameObjects.Text | undefined;
   #roundLabel: Phaser.GameObjects.Text | undefined;
+  /** Who owns what, in the order they got it: a plain text list in the corner. */
+  #inventoryList: Phaser.GameObjects.Text | undefined;
   #ready: (() => void) | undefined;
 
   constructor(ready: () => void) {
@@ -541,6 +567,14 @@ class ArenaScene extends Phaser.Scene {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '30px',
         color: '#9aa7b6',
+      })
+      .setDepth(10);
+    this.#inventoryList = this.add
+      .text(24, 56, '', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '24px',
+        color: '#c9d4e3',
+        lineSpacing: 6,
       })
       .setDepth(10);
     this.#ready?.();
@@ -605,6 +639,17 @@ class ArenaScene extends Phaser.Scene {
       this.#banner.setPosition(view.width / 2, view.height / 2 - 40);
       this.#banner.setText(view.banner ?? '').setVisible(view.banner !== undefined);
     }
+    this.#inventoryList?.setText(
+      view.circles
+        .map((c) => {
+          const slots = [0, 1, 2].map((i) => {
+            const kind = c.powers[i];
+            return kind === undefined ? '[ — ]' : `[${POWER_NAME[kind]}]`;
+          });
+          return `${c.label}  ${slots.join(' ')}`;
+        })
+        .join('\n'),
+    );
     this.#roundLabel?.setText(view.round === undefined ? '' : `Round ${view.round}`);
   }
 
@@ -639,9 +684,11 @@ class ArenaScene extends Phaser.Scene {
       const progress = (time - effect.born) / effect.duration;
       if (progress >= 1) {
         effect.graphics.destroy();
+        effect.extra?.destroy();
         return false;
       }
       effect.update(effect.graphics, progress);
+      effect.extra?.setAlpha(Math.min(1, 2.2 * (1 - progress))).setY(effect.extra.y - 0.35);
       return true;
     });
   }
@@ -775,13 +822,26 @@ class ArenaScene extends Phaser.Scene {
       case 'PICKUP': {
         // taken: a ring in the power's own colour (and the player's) closing on the player
         const power = POWER_STYLE[event.kind ?? 'GUARD'].color;
+        const named = POWER_NAME[event.kind ?? 'GUARD'];
+        const reveal = this.add
+          .text(event.x, event.y - 110, `${event.who ?? 'PLAYER'} GOT ${named}!`, {
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: '40px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 8,
+          })
+          .setOrigin(0.5)
+          .setDepth(12);
         this.#effects.push({
           graphics,
+          extra: reveal,
           born,
-          duration: 480,
+          duration: 1800,
           update: (g, progress) => {
             g.clear();
-            const fade = 1 - progress;
+            const fade = Math.max(0, 1 - progress * 3);
             g.lineStyle(12 * fade + 2, power, fade);
             g.strokeCircle(event.x, event.y, 120 - progress * 80);
             g.lineStyle(5 * fade + 1, color, fade);
@@ -790,18 +850,44 @@ class ArenaScene extends Phaser.Scene {
         });
         break;
       }
-      case 'EXPIRED':
+      case 'POWER_LOST': {
+        // a power leaving the inventory: pushed out by a newer one (red) or a shield that broke (cyan)
+        const broke = event.reason === 'SHIELD_BROKEN';
+        const note = this.add
+          .text(
+            event.x,
+            event.y - 80,
+            broke
+              ? `${event.who ?? ''} SHIELD BROKE`
+              : `${POWER_NAME[event.kind ?? 'GUARD']} REPLACED`,
+            {
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: '30px',
+              fontStyle: 'bold',
+              color: broke ? '#4fd8ff' : '#ff8a80',
+              stroke: '#000000',
+              strokeThickness: 6,
+            },
+          )
+          .setOrigin(0.5)
+          .setDepth(12);
         this.#effects.push({
           graphics,
+          extra: note,
           born,
-          duration: 380,
+          duration: 1500,
           update: (g, progress) => {
             g.clear();
-            g.lineStyle(8 * (1 - progress) + 1, POWER_STYLE.OVERDRIVE.color, 0.8 * (1 - progress));
-            g.strokeCircle(event.x, event.y, 40 + progress * 60);
+            g.lineStyle(
+              8 * (1 - progress) + 1,
+              broke ? POWER_STYLE.GUARD.color : 0xff5a5a,
+              1 - progress,
+            );
+            g.strokeCircle(event.x, event.y, 40 + progress * 70);
           },
         });
         break;
+      }
       case 'BLASTED': {
         // the explosion, to exactly the radius the rules resolved: a flash, then the edge of the blast
         const radius = event.radius ?? 170;

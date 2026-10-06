@@ -16,6 +16,7 @@ import {
   patchBoomerang,
   patchPlayer,
   patchPowers,
+  own,
   place,
   player,
   run,
@@ -108,7 +109,7 @@ function arenaWith(
 ): FuState {
   let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
   s = place(place(s, 'a', start.x, start.y), 'b', 1500, 850);
-  s = patchPowers(s, 'a', { phase: charges });
+  if (charges) s = own(s, 'a', 'PHASE_DASH');
   return extra(s);
 }
 
@@ -186,15 +187,14 @@ describe('crossing a thin wall', () => {
     }
   });
 
-  it('spends one charge on entering the wall, counts as a successful dash for fatigue, and nothing else', () => {
+  it('counts as a successful dash for fatigue and costs nothing else (there are no charges)', () => {
     const { state } = dashFrom(arenaWith({ x: 130, y: 450 }), RIGHT);
-    expect(player(state, 'a').powers.phase).toBe(1);
+    expect(player(state, 'a').inventory).toEqual(['PHASE_DASH']);
     expect(player(state, 'a').fatigue.dashes).toBe(1);
   });
 
-  it('a dash through open ground is a plain dash: no charge spent, no phase events', () => {
+  it('a dash through open ground is a plain dash: no phase events', () => {
     const { state, events } = dashFrom(arenaWith({ x: 800, y: 250 }), RIGHT);
-    expect(player(state, 'a').powers.phase).toBe(2);
     expect(types(events)).not.toContain('PHASE_ENTERED');
     expect(at(state, 'a').x).toBeCloseTo(800 + FULL, 6);
   });
@@ -214,12 +214,11 @@ describe('crossing a thin wall', () => {
 });
 
 describe('crossing a thick wall needs enough dash', () => {
-  it('the central block (120 deep) cannot be crossed by a full dash: it stops flush; the charge is not spent', () => {
+  it('the central block (120 deep) cannot be crossed by a full dash: it stops flush, valid, no phase events', () => {
     const { state, events } = dashFrom(arenaWith({ x: 800, y: 330 }), { x: 0, y: 1 });
     expect(at(state, 'a').y).toBeCloseTo(390 - R, 6);
     expect(valid(at(state, 'a'))).toBe(true);
     expect(types(events)).not.toContain('PHASE_ENTERED');
-    expect(player(state, 'a').powers.phase).toBe(2); // used only when you actually phase
     expect(player(state, 'a').fatigue.dashes).toBe(1); // but it was a successful dash
   });
 
@@ -394,27 +393,53 @@ describe('fatigue: a Phase Dash is a DASH', () => {
   });
 });
 
-describe('charges', () => {
-  it('there are exactly phaseDashCharges phase crossings; the next one is a normal dash stopped flush', () => {
-    expect(C.phaseDashCharges).toBe(2);
-    let s = arenaWith({ x: 130, y: 450 }, C.phaseDashCharges);
-    s = dashFrom(s, RIGHT).state; // 130 → 306 through the outer wall
-    expect(player(s, 'a').powers.phase).toBe(1);
-    s = place(s, 'a', 130, 450);
-    s = dashFrom(s, RIGHT).state;
-    expect(player(s, 'a').powers.phase).toBe(0);
-    expect(at(s, 'a').x).toBeCloseTo(130 + FULL, 6);
-    s = place(s, 'a', 130, 450);
-    s = dashFrom(s, RIGHT).state; // out of charges
-    expect(at(s, 'a').x).toBeCloseTo(200 - R, 6);
+describe('owning PHASE_DASH: unlimited, persistent, no counter', () => {
+  it('every dash through a wall works, however many: twenty in a row, never a charge spent', () => {
+    let s = arenaWith({ x: 130, y: 450 });
+    for (let n = 1; n <= 20; n += 1) {
+      s = patchPlayer(place(s, 'a', 130, 450), 'a', { fatigue: { dashes: 0, recoverIn: 0 } }); // (fatigue is its own tested system)
+      s = dashFrom(s, RIGHT).state;
+      expect(at(s, 'a').x, `dash ${n}`).toBeCloseTo(130 + FULL, 6);
+      expect(valid(at(s, 'a'))).toBe(true);
+      expect(player(s, 'a').inventory, `dash ${n}`).toEqual(['PHASE_DASH']);
+    }
   });
 
-  it('a start that is not valid space (patched into a wall) is never phased: a normal dash, no charge spent', () => {
-    const s = arenaWith({ x: 225, y: 450 }); // inside the wall: invalid
-    const r = stepFu(s, input({ a: { dash: true, move: RIGHT } }), DT);
+  it('with the normal fatigue system still applying, crossings go on while fatigued (at 70%)', () => {
+    let s = arenaWith({ x: 200 - R, y: 450 });
+    s = patchPlayer(s, 'a', { fatigue: { dashes: 30, recoverIn: 4 } });
+    const { state } = dashFrom(s, RIGHT);
+    expect(at(state, 'a').x).toBeCloseTo(200 - R + FATIGUED_LENGTH, 6);
+    expect(player(state, 'a').inventory).toEqual(['PHASE_DASH']);
+  });
+
+  it('persists across rounds: round 2, round 5 and round 9 all still phase', () => {
+    let s = arenaWith({ x: 130, y: 450 });
+    for (const round of [2, 5, 9]) {
+      s = { ...s, round: round - 1 };
+      s = stepFu(
+        { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
+        NONE,
+        DT,
+      ).state;
+      for (let i = 0; i < 400 && s.round === round - 1; i += 1) s = stepFu(s, NONE, DT).state;
+      expect(s.round).toBe(round);
+      expect(player(s, 'a').inventory).toEqual(['PHASE_DASH']);
+      const placed = place(s, 'a', 130, 450);
+      const done = dashFrom(placed, RIGHT).state;
+      expect(at(done, 'a').x).toBeCloseTo(130 + FULL, 6);
+    }
+  });
+
+  it('a start that is not valid space (patched into a wall) is never phased: a normal dash', () => {
+    const r = stepFu(arenaWith({ x: 225, y: 450 }), input({ a: { dash: true, move: RIGHT } }), DT);
     expect(types(r.events)).not.toContain('PHASE_ENTERED');
-    expect(player(r.state, 'a').powers.phase).toBe(2);
     expect(player(r.state, 'a').dash).not.toHaveProperty('phasing');
+  });
+
+  it('a player who does NOT own it is stopped flush (the power is what matters)', () => {
+    const { state } = dashFrom(arenaWith({ x: 130, y: 450 }, 0), RIGHT);
+    expect(at(state, 'a').x).toBeCloseTo(200 - R, 6);
   });
 });
 
@@ -505,7 +530,7 @@ describe('no invulnerability: a phasing player is vulnerable to everything', () 
     s = flying(s, 'b', { x: 186, y: 380 }, { x: 0, y: 1 });
     const r = run(s, 12, input({ a: { dash: true, move: RIGHT } }));
     expect(player(r.state, 'a').alive).toBe(true);
-    expect(player(r.state, 'a').powers.guard).toBe(false);
+    expect(player(r.state, 'a').inventory).toEqual(['PHASE_DASH']); // the shield broke; the phase power stays
     expect(r.events.some((e) => e.type === 'GUARD_BLOCKED')).toBe(true);
   });
 
@@ -550,18 +575,19 @@ const normalise = (x: number, y: number) => {
 describe('walls are solid again the moment the dash is over', () => {
   it('after a phase dash, walking into the next wall stops flush; nothing is permanently loosened', () => {
     let s = dashFrom(arenaWith({ x: 130, y: 450 }, 1), RIGHT).state; // ends at 306, in the corridor
-    expect(player(s, 'a').powers.phase).toBe(0);
+    expect(player(s, 'a').inventory).toEqual(['PHASE_DASH']);
     s = run(s, 300, input({ a: { move: RIGHT } }), { repeat: true }).state;
     expect(at(s, 'a').x).toBeCloseTo(350 - R, 6);
     s = run(s, 300, input({ a: { move: { x: -1, y: 0 } } }), { repeat: true }).state;
     expect(at(s, 'a').x).toBeCloseTo(250 + R, 6); // back against the wall it came through, from the other side
   });
 
-  it('a second dash with no charges left is stopped by a wall', () => {
+  it('a second dash crosses the next wall too (owned, not charged)', () => {
     let s = dashFrom(arenaWith({ x: 130, y: 450 }, 1), RIGHT).state;
     s = place(s, 'a', 286, 450);
     const r = dashFrom(s, RIGHT);
-    expect(at(r.state, 'a').x).toBeCloseTo(350 - R, 6);
+    expect(at(r.state, 'a').x).toBeCloseTo(286 + FULL, 6);
+    expect(valid(at(r.state, 'a'))).toBe(true);
   });
 });
 
@@ -648,14 +674,5 @@ describe('determinism, accepted dt and invariants', () => {
       }
     }
     expect(crossings).toBeGreaterThan(5); // the fuzz really did phase through walls
-  });
-});
-
-describe('PHASE_DASH and the other powers (the charge model)', () => {
-  it('malformed charge counts never phase: zero, negative or non-integer charges do nothing special', () => {
-    for (const phase of [0, -1, Number.NaN]) {
-      const { state } = dashFrom(arenaWith({ x: 130, y: 450 }, phase as number), RIGHT);
-      expect(at(state, 'a').x).toBeCloseTo(200 - R, 6);
-    }
   });
 });

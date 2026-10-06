@@ -9,7 +9,6 @@ import {
   give,
   input,
   make,
-  patchPowers,
   place,
   player,
   run,
@@ -49,14 +48,34 @@ describe('OVERDRIVE: walking', () => {
     );
   });
 
-  it('is back to normal the step after it ends', () => {
+  it('never expires with time: still 1.4× after a minute of play, and still owned', () => {
     let s = give(lane(), 'a', 'OVERDRIVE');
-    s = patchPowers(s, 'a', { overdrive: 3 * DT });
-    s = run(s, 3, WALK, { repeat: true }).state;
-    expect(player(s, 'a').powers.overdrive).toBe(0);
+    s = run(s, 60 * 60).state; // a whole minute standing still
+    expect(player(s, 'a').inventory).toEqual(['OVERDRIVE']);
     const before = at(s, 'a').x;
-    const after = run(s, 5, WALK, { repeat: true }).state;
-    expect(at(after, 'a').x - before).toBeCloseTo(5 * C.playerSpeed * DT, 6);
+    const after = run(s, 10, WALK, { repeat: true }).state;
+    expect(at(after, 'a').x - before).toBeCloseTo(
+      10 * C.playerSpeed * C.overdriveMoveFactor * DT,
+      6,
+    );
+  });
+
+  it('persists across a round reset (it is part of the build, not the round)', () => {
+    let s = give(lane(), 'a', 'OVERDRIVE');
+    s = stepFu(
+      { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
+      NONE,
+      DT,
+    ).state;
+    for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
+    expect(s.round).toBe(2);
+    expect(player(s, 'a').inventory).toEqual(['OVERDRIVE']);
+    const before = at(s, 'a').x;
+    const after = run(s, 10, WALK, { repeat: true }).state;
+    expect(at(after, 'a').x - before).toBeCloseTo(
+      10 * C.playerSpeed * C.overdriveMoveFactor * DT,
+      6,
+    );
   });
 
   it('multiplies with the slash slowdown while swinging', () => {
@@ -87,17 +106,14 @@ describe('OVERDRIVE: DASH', () => {
     for (let i = 0; i < 40 && player(s, 'a').dash.phase === 'DASHING'; i += 1)
       s = stepFu(s, NONE, DT).state;
     expect(at(s, 'a').x - start).toBeCloseTo(FULL, 6);
-    // started under a nearly-over overdrive: it runs out mid-dash and the dash is still the fast one
-    let t = give(lane(), 'a', 'OVERDRIVE');
-    t = patchPowers(t, 'a', { overdrive: 2 * DT });
-    const { moved, state } = dashOnce(t);
-    expect(player(state, 'a').powers.overdrive).toBe(0);
+    // started under overdrive: it keeps that speed for the whole dash
+    const t = give(lane(), 'a', 'OVERDRIVE');
+    const { moved } = dashOnce(t);
     expect(moved).toBeCloseTo(FULL * C.overdriveDashFactor, 6);
   });
 
   it('multiplies with fatigue: a fatigued dash under overdrive is 0.7 × 1.3', () => {
     let s = give(lane(), 'a', 'OVERDRIVE');
-    s = patchPowers(s, 'a', { overdrive: 100 });
     s = {
       ...s,
       players: s.players.map((p) =>
@@ -131,7 +147,7 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
 
   it('the allowance is still 8 free dashes and the 9th still triggers FATIGUED', () => {
     const over = give(lane(), 'a', 'OVERDRIVE');
-    const withIt = dashN(patchPowers(over, 'a', { overdrive: 1000 }), 10);
+    const withIt = dashN(over, 10);
     const without = dashN(lane(), 10);
     expect(withIt.events.filter((e) => e === 'FATIGUED')).toHaveLength(1);
     // the same dash numbers go fatigued with and without it
@@ -166,7 +182,6 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
   it('the 5 s recovery clock is unchanged: the same count and the same time left, with or without it', () => {
     let a = lane();
     let b = give(lane(), 'a', 'OVERDRIVE');
-    b = patchPowers(b, 'a', { overdrive: 1000 });
     for (let i = 0; i < 9; i += 1) {
       a = dashN(a, 1).s;
       b = dashN(b, 1).s;
@@ -183,7 +198,6 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
 
   it('fatigued walking under overdrive is 0.7 × 1.4 (it offsets the fatigue, it does not remove it)', () => {
     let s = give(lane(), 'a', 'OVERDRIVE');
-    s = patchPowers(s, 'a', { overdrive: 100 });
     s = {
       ...s,
       players: s.players.map((p) =>

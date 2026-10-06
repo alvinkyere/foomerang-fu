@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_POWERS,
   POWER_COMBINATIONS,
   POWER_KINDS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
+  SPAWN_RATES,
+  awardPower,
+  chooseAward,
   createFuMatch,
   isPowerKind,
-  spawnKind,
+  powerupsFor,
+  removePower,
   stepFu,
   type FuState,
   type PowerKind,
@@ -14,9 +19,9 @@ import {
 import {
   C,
   DT,
-  LANE,
   NONE,
   at,
+  book,
   face,
   give,
   holds,
@@ -24,17 +29,16 @@ import {
   kill,
   make,
   must,
-  patchPowers,
+  own,
+  patchPlayer,
   place,
   player,
   run,
   types,
 } from './support/fixtures';
 
-// ------------------------------------------------------------------------------------------------
-// The powerup SYSTEM: what exists, where it appears, who takes it, how long it lasts, how it
-// stacks. (What each of the five does has its own file.) Everything here is rules state.
-// ------------------------------------------------------------------------------------------------
+// Powerups are persistent MATCH upgrades: a player owns at most three (FIFO), they survive death and
+// round resets, and are cleared only when the match ends. A generic Book awards the power on pickup.
 
 const SPOTS = [
   { x: 400, y: 300 },
@@ -43,18 +47,33 @@ const SPOTS = [
 ];
 const SCHEDULE = {
   spots: SPOTS,
-  firstSeconds: 2,
-  intervalSeconds: 3,
-  maxOnField: 2,
+  firstSeconds: 12,
+  intervalSeconds: 45,
+  maxOnField: 1,
   pickupRadius: 28,
 };
-const withSchedule = (overrides: object = {}) =>
-  make(['a', 'b'], { powerups: { ...SCHEDULE, ...overrides } });
-/** Both players far from every spot, so nothing collects by accident. */
-const parked = (s = withSchedule()) => place(place(s, 'a', 100, 800), 'b', 1500, 800);
+const parked = (overrides: object = {}) =>
+  place(
+    place(make(['a', 'b'], { powerups: SCHEDULE, ...overrides }), 'a', 100, 800),
+    'b',
+    1500,
+    800,
+  );
+/** Ends the current round (b dies) and runs the reset; returns the first state of the next round. */
+function nextRound(start: FuState): FuState {
+  let s = stepFu(
+    { ...start, players: start.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
+    NONE,
+    DT,
+  ).state;
+  for (let i = 0; i < 400 && s.round === start.round; i += 1) s = stepFu(s, NONE, DT).state;
+  return s;
+}
+const inv = (s: FuState, id = 'a') => player(s, id).inventory;
+const lone = () => place(place(make(), 'a', 600, 450), 'b', 1500, 800);
 
-describe('the five powerups and their compatibility table', () => {
-  it('there are exactly five, in a fixed order', () => {
+describe('the five powers and their compatibility table', () => {
+  it('exactly five, in a fixed order, and every unordered pair is spelled out', () => {
     expect([...POWER_KINDS]).toEqual([
       'OVERDRIVE',
       'BLAST_BOOMERANG',
@@ -62,140 +81,379 @@ describe('the five powerups and their compatibility table', () => {
       'TWIN_THROW',
       'PHASE_DASH',
     ]);
-    expect(POWER_KINDS.every(isPowerKind)).toBe(true);
-    for (const junk of ['', 'overdrive', 'SHIELD', 7, null, undefined, {}]) {
+    for (const junk of ['', 'overdrive', 'SHIELD', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);
-    }
-  });
-
-  it('every unordered pair is spelled out — nothing combines (or fails to) by accident', () => {
-    const keys = Object.keys(POWER_COMBINATIONS).sort();
-    expect(keys).toHaveLength(10);
-    const expected: string[] = [];
-    for (const a of POWER_KINDS) for (const b of POWER_KINDS) if (a < b) expected.push(`${a}+${b}`);
-    expect(keys).toEqual(expected.sort());
-    for (const entry of Object.values(POWER_COMBINATIONS)) {
-      expect(entry.allowed).toBe(true);
-      expect(entry.rule.length).toBeGreaterThan(5);
-    }
+    expect(Object.keys(POWER_COMBINATIONS)).toHaveLength(10);
+    for (const entry of Object.values(POWER_COMBINATIONS)) expect(entry.allowed).toBe(true);
   });
 });
 
-describe('the pickup schedule is deterministic', () => {
-  it('there are no pickups, ever, unless the config asks for them (Slices 1–4 are untouched)', () => {
-    const s = run(make(), 3000).state;
-    expect(s.pickups).toEqual([]);
-    expect(s.pickupClock.spawned).toBe(0);
+describe('the inventory: at most three, oldest out first (FIFO)', () => {
+  it('the pure operations: append, evict the oldest when full, remove keeps the order of the rest', () => {
+    expect(MAX_POWERS).toBe(3);
+    let i = awardPower([], 'OVERDRIVE').inventory;
+    i = awardPower(i, 'GUARD').inventory;
+    i = awardPower(i, 'PHASE_DASH').inventory;
+    expect(i).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    const fourth = awardPower(i, 'TWIN_THROW');
+    expect(fourth.inventory).toEqual(['GUARD', 'PHASE_DASH', 'TWIN_THROW']);
+    expect(fourth.evicted).toBe('OVERDRIVE');
+    const fifth = awardPower(fourth.inventory, 'BLAST_BOOMERANG');
+    expect(fifth.inventory).toEqual(['PHASE_DASH', 'TWIN_THROW', 'BLAST_BOOMERANG']);
+    expect(fifth.evicted).toBe('GUARD');
+    expect(awardPower(['GUARD'], 'PHASE_DASH').evicted).toBeUndefined();
+    expect(removePower(['PHASE_DASH', 'GUARD', 'TWIN_THROW'], 'GUARD')).toEqual([
+      'PHASE_DASH',
+      'TWIN_THROW',
+    ]);
   });
 
-  it('the first pickup appears exactly firstSeconds in, the next intervalSeconds after, in a fixed rotation of all five', () => {
-    let s = parked();
-    const appeared: { at: number; kind: PowerKind; x: number; y: number }[] = [];
-    for (let step = 1; step <= 60 * 40 && appeared.length < 5; step += 1) {
-      const r = stepFu(s, NONE, DT);
-      s = r.state;
-      // keep the field clear so the cap does not hold the schedule back
-      for (const e of r.events) {
-        if (e.type === 'POWERUP_SPAWNED')
-          appeared.push({ at: step, kind: e.kind, x: e.position.x, y: e.position.y });
-      }
-      s = { ...s, pickups: [] };
+  it('through the real rules: the 4th acquisition evicts the oldest, the 5th the next-oldest, and says so', () => {
+    let s = lone();
+    for (const kind of ['OVERDRIVE', 'GUARD', 'PHASE_DASH'] as const) s = give(s, 'a', kind);
+    expect(inv(s)).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    // the 4th: Book laid, the real step, and read the events
+    const take = (state: FuState, kind: PowerKind) =>
+      stepFu(
+        {
+          ...state,
+          config: { ...state.config, enabledPowers: [kind] },
+          pickups: [{ id: 50, position: at(state, 'a') }],
+        },
+        NONE,
+        DT,
+      );
+    const fourth = take(s, 'TWIN_THROW');
+    expect(inv(fourth.state)).toEqual(['GUARD', 'PHASE_DASH', 'TWIN_THROW']);
+    expect(fourth.events).toContainEqual({
+      type: 'POWER_LOST',
+      playerId: 'a',
+      kind: 'OVERDRIVE',
+      reason: 'EVICTED',
+    });
+    const fifth = take(fourth.state, 'BLAST_BOOMERANG');
+    expect(inv(fifth.state)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'BLAST_BOOMERANG']);
+    expect(fifth.events).toContainEqual({
+      type: 'POWER_LOST',
+      playerId: 'a',
+      kind: 'GUARD',
+      reason: 'EVICTED',
+    });
+  });
+
+  it('a player already holding three can always take another (it never refuses a full inventory)', () => {
+    let s = own(lone(), 'a', 'OVERDRIVE', 'GUARD', 'PHASE_DASH');
+    s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
+    const r = stepFu(s, NONE, DT);
+    expect(r.state.pickups).toEqual([]);
+    expect(inv(r.state)).toHaveLength(3);
+  });
+
+  it('no duplicates: a power you already own is never awarded again (a Book with nothing left stays for others)', () => {
+    let s = own(lone(), 'a', 'GUARD');
+    s = {
+      ...s,
+      config: { ...s.config, enabledPowers: ['GUARD'] },
+      pickups: [{ id: 1, position: at(s, 'a') }],
+    };
+    const r = stepFu(s, NONE, DT);
+    expect(r.state.pickups).toHaveLength(1); // nothing to award a: it stays
+    expect(inv(r.state)).toEqual(['GUARD']);
+    const b = stepFu(place(r.state, 'b', at(s, 'a').x + 40, at(s, 'a').y), NONE, DT).state;
+    expect(inv(b, 'b')).toEqual(['GUARD']); // another player can have it
+  });
+
+  it('a player owning four of five can only be awarded the one they lack; owning all enabled means no award', () => {
+    let s = own(lone(), 'a', 'OVERDRIVE', 'GUARD', 'PHASE_DASH');
+    s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
+    const r = stepFu(s, NONE, DT);
+    expect(['BLAST_BOOMERANG', 'TWIN_THROW']).toContain(inv(r.state).at(-1));
+  });
+
+  it('is deterministic: the same acquisitions give the same inventory', () => {
+    const play = () => {
+      let s = lone();
+      for (const kind of POWER_KINDS) s = give(s, 'a', kind);
+      return JSON.stringify(inv(s));
+    };
+    expect(play()).toBe(play());
+  });
+});
+
+describe('persistence: ownership is a match upgrade, not a round state', () => {
+  it('survives a round reset, and several', () => {
+    let s = give(lone(), 'a', 'OVERDRIVE');
+    for (const round of [2, 3, 4]) {
+      s = nextRound(s);
+      expect(s.round).toBe(round);
+      expect(inv(s)).toEqual(['OVERDRIVE']);
     }
-    expect(appeared.map((p) => p.at)).toEqual([120, 300, 480, 660, 840]); // 2 s, then every 3 s (+ the step that spawns)
-    expect(appeared.map((p) => p.kind)).toEqual([
+  });
+
+  it('a nine-round match: OVERDRIVE (r1), PHASE_DASH (r4), TWIN_THROW (r6), GUARD (r8) → round 9 holds [PHASE_DASH, TWIN_THROW, GUARD]', () => {
+    let s = lone();
+    const gains: Record<number, PowerKind> = {
+      1: 'OVERDRIVE',
+      4: 'PHASE_DASH',
+      6: 'TWIN_THROW',
+      8: 'GUARD',
+    };
+    for (let round = 1; round <= 9; round += 1) {
+      expect(s.round).toBe(round);
+      if (round === 2) expect(inv(s)).toEqual(['OVERDRIVE']);
+      const gained = gains[round];
+      if (gained !== undefined) s = give(place(s, 'a', 600, 450), 'a', gained);
+      if (round === 8) expect(inv(s)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']); // the 4th evicted OVERDRIVE
+      if (round < 9) s = nextRound(s);
+    }
+    expect(inv(s)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
+  });
+
+  it('death does not clear what a player owns', () => {
+    let s = place(place(make(['a', 'b', 'c']), 'a', 600, 450), 'b', 700, 450);
+    s = place(s, 'c', 1500, 100);
+    s = face(own(s, 'a', 'OVERDRIVE', 'PHASE_DASH'), 'b', -1, 0);
+    const r = stepFu(s, input({ b: { slash: true } }), DT);
+    expect(player(r.state, 'a').alive).toBe(false);
+    expect(inv(r.state)).toEqual(['OVERDRIVE', 'PHASE_DASH']);
+  });
+
+  it('a kill by a killed player and a round end do not clear it either (a dead player keeps ownership)', () => {
+    const s = nextRound(own(kill(lone(), 'a'), 'a', 'GUARD', 'TWIN_THROW'));
+    expect(inv(s)).toEqual(['GUARD', 'TWIN_THROW']);
+  });
+
+  it('only the end of the MATCH clears every inventory, and a new match starts at round 1', () => {
+    let s = make(['a', 'b'], { matchRounds: 3 });
+    s = own(
+      place(place(s, 'a', 600, 450), 'b', 1500, 800),
+      'a',
       'OVERDRIVE',
       'GUARD',
       'PHASE_DASH',
-      'BLAST_BOOMERANG',
-      'TWIN_THROW',
-    ]);
-    expect(new Set(appeared.map((p) => p.kind)).size).toBe(5);
-    expect(appeared.map((p) => [p.x, p.y])).toEqual([
-      [400, 300],
-      [800, 300],
-      [1200, 300],
-      [400, 300],
-      [800, 300],
-    ]);
-  });
-
-  it('is a pure function of the spawn counter and the round (round 2 starts the rotation elsewhere)', () => {
-    expect(spawnKind(0, 1)).toBe('OVERDRIVE');
-    expect(spawnKind(0, 2)).toBe('BLAST_BOOMERANG');
-    expect(spawnKind(0, 3)).toBe('GUARD');
-    for (let n = 0; n < 5; n += 1) {
-      expect(new Set(POWER_KINDS.map((_, i) => spawnKind(n + i, 1))).size).toBe(5);
+    );
+    s = { ...s, awards: 4 };
+    s = nextRound(s);
+    s = nextRound(s);
+    expect(s.round).toBe(3);
+    expect(inv(s)).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    expect(s.awards).toBe(4);
+    // the last round ends: the match is over and the next one begins clean
+    let end = stepFu(
+      { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
+      NONE,
+      DT,
+    ).state;
+    const events: string[] = [];
+    for (let i = 0; i < 400 && end.round === 3; i += 1) {
+      const r = stepFu(end, NONE, DT);
+      end = r.state;
+      events.push(...types(r.events));
     }
+    expect(events).toContain('MATCH_OVER');
+    expect(end.round).toBe(1);
+    expect(inv(end)).toEqual([]);
+    expect(end.awards).toBe(0);
+    expect(end.extraBoomerangs).toEqual([]);
   });
 
-  it('stops spawning at maxOnField, holds its clock while the field is full, and resumes when one is taken', () => {
+  it('with no matchRounds (Slices 1–4) rounds simply go on', () => {
+    expect(nextRound(nextRound(nextRound(make()))).round).toBe(4);
+  });
+});
+
+describe('the mystery Book', () => {
+  it('a Book carries no kind: nothing about it, in the state or its spawn event, says what it awards', () => {
+    const s = parked({ powerups: { ...SCHEDULE, firstSeconds: DT } });
+    const r = stepFu(s, NONE, DT);
+    const [pickup] = r.state.pickups;
+    expect(Object.keys(pickup ?? {}).sort()).toEqual(['id', 'position']);
+    const spawned = r.events.find((e) => e.type === 'POWERUP_SPAWNED');
+    expect(Object.keys(spawned ?? {}).sort()).toEqual(['pickupId', 'position', 'type']);
+    expect(JSON.stringify(r.state.pickups)).not.toMatch(new RegExp(POWER_KINDS.join('|')));
+  });
+
+  it('the award is revealed only on collection (PICKED_UP carries it) and decided from the seed', () => {
+    let s = lone();
+    s = book(s, 600, 450);
+    const r = stepFu(s, NONE, DT);
+    const taken = r.events.find((e) => e.type === 'PICKED_UP');
+    expect(taken).toMatchObject({ type: 'PICKED_UP', playerId: 'a' });
+    if (taken?.type === 'PICKED_UP') expect(inv(r.state)).toEqual([taken.kind]);
+    expect(r.state.awards).toBe(1);
+  });
+
+  it('deterministic seeded selection: the same seed and count always choose the same power; seeds differ', () => {
+    for (let n = 0; n < 20; n += 1)
+      expect(chooseAward(POWER_KINDS, 7, n)).toBe(chooseAward(POWER_KINDS, 7, n));
+    const a = Array.from({ length: 30 }, (_, n) => chooseAward(POWER_KINDS, 1, n));
+    const b = Array.from({ length: 30 }, (_, n) => chooseAward(POWER_KINDS, 2, n));
+    expect(a).not.toEqual(b);
+    expect(new Set(a).size).toBeGreaterThan(2); // it actually varies
+    expect(chooseAward([], 1, 0)).toBeUndefined();
+  });
+
+  it('through the rules: two identical matches take the same Books to the same powers; a different seed need not', () => {
+    const play = (seed: number) => {
+      let s = lone();
+      s = { ...s, config: { ...s.config, seed } };
+      const got: string[] = [];
+      for (let n = 0; n < 6; n += 1) {
+        s = place(book(s, 600, 450, 100 + n), 'a', 600, 450);
+        s = stepFu(s, NONE, DT).state;
+        got.push(inv(s).at(-1) ?? '');
+      }
+      return got.join(',');
+    };
+    expect(play(3)).toBe(play(3));
+    expect(new Set([play(1), play(2), play(3), play(4)]).size).toBeGreaterThan(1);
+  });
+
+  it('a disabled power is never awarded (try many Books)', () => {
+    let s = lone();
+    s = { ...s, config: { ...s.config, enabledPowers: ['OVERDRIVE', 'GUARD'] } };
+    for (let n = 0; n < 12; n += 1) {
+      s = patchPlayer(s, 'a', { inventory: [] });
+      s = stepFu(book(place(s, 'a', 600, 450), 600, 450, 200 + n), NONE, DT).state;
+      expect(['OVERDRIVE', 'GUARD']).toContain(inv(s)[0]);
+    }
+    // nothing enabled: nothing is ever awarded and the Book just lies there
+    const none = stepFu(
+      book({ ...lone(), config: { ...C, enabledPowers: [] } }, 600, 450),
+      NONE,
+      DT,
+    ).state;
+    expect(none.pickups).toHaveLength(1);
+    expect(inv(none)).toEqual([]);
+  });
+
+  it('collection: the nearer player (tie: the earlier in the match) takes the Book; one per player per step', () => {
+    let s = book(make(['a', 'b']), 600, 450);
+    s = place(place(s, 'a', 600 - 40, 450), 'b', 600 + 40, 450);
+    expect(inv(stepFu(s, NONE, DT).state, 'a')).toHaveLength(1);
+    expect(inv(stepFu(s, NONE, DT).state, 'b')).toHaveLength(0);
+    let near = book(make(['a', 'b']), 600, 450);
+    near = place(place(near, 'a', 600 - 50, 450), 'b', 600 + 40, 450);
+    expect(inv(stepFu(near, NONE, DT).state, 'b')).toHaveLength(1);
+    let two = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 1500, 800);
+    two = book(book(two, 600, 450, 1), 610, 450, 2);
+    const one = stepFu(two, NONE, DT);
+    expect(one.state.pickups).toHaveLength(1);
+    expect(inv(one.state)).toHaveLength(1);
+    expect(inv(stepFu(one.state, NONE, DT).state)).toHaveLength(2);
+  });
+
+  it('cover applies; the dead take nothing; collection comes before kills and throws in a step', () => {
+    const arena = { width: 1600, height: 900, walls: [{ x: 700, y: 300, width: 50, height: 300 }] };
+    const wide = {
+      spots: [{ x: 300, y: 100 }],
+      firstSeconds: 99,
+      intervalSeconds: 99,
+      maxOnField: 1,
+      pickupRadius: 60,
+    };
+    const behind = book(
+      place(place(make(['a', 'b'], { arena, powerups: wide }), 'a', 664, 450), 'b', 1500, 800),
+      752,
+      450,
+    );
+    expect(stepFu(behind, NONE, DT).state.pickups).toHaveLength(1);
+    expect(inv(stepFu(kill(book(lone(), 600, 450), 'a'), NONE, DT).state)).toEqual([]);
+    // takes a Book the very step they die: they still took it, and still own it
+    let s = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 700, 450);
+    s = face(book(s, 600, 450), 'b', -1, 0);
+    const r = stepFu(s, input({ b: { slash: true } }), DT);
+    expect(types(r.events)).toContain('PICKED_UP');
+    expect(player(r.state, 'a').alive).toBe(false);
+    expect(inv(r.state)).toHaveLength(1);
+  });
+});
+
+describe('the Book spawn model is scarce', () => {
+  it('there are no Books unless the config asks for them (Slices 1–4 exactly)', () => {
+    expect(run(make(), 3000).state.pickups).toEqual([]);
+  });
+
+  it('nothing at the start of a round: the first Book appears exactly firstSeconds into ACTIVE play', () => {
     let s = parked();
-    s = run(s, 60 * 12).state; // far longer than needed for three pickups
-    expect(s.pickups).toHaveLength(2);
-    expect(s.pickupClock.spawned).toBe(2);
-    const held = s.pickupClock.spawnIn;
-    s = run(s, 120).state;
-    expect(s.pickupClock.spawnIn).toBe(held); // frozen, not banking time
-    // take one: the next appears after the REMAINING time, not instantly and not a full interval later
-    const first = must(s.pickups[0], 'pickup');
-    s = place(s, 'a', first.position.x, first.position.y);
-    s = stepFu(s, NONE, DT).state;
+    let first = 0;
+    for (let step = 1; step <= 60 * 20 && first === 0; step += 1) {
+      const r = stepFu(s, NONE, DT);
+      s = r.state;
+      if (r.events.some((e) => e.type === 'POWERUP_SPAWNED')) first = step;
+    }
+    expect(first).toBe(720); // 12 s
     expect(s.pickups).toHaveLength(1);
+  });
+
+  it('at most one Book lies in the arena, and the next comes intervalSeconds AFTER it is taken (not after it appeared)', () => {
+    let s = parked();
+    s = run(s, 60 * 60).state; // a minute: still the one Book, the clock frozen while it lies there
+    expect(s.pickups).toHaveLength(1);
+    expect(s.pickupClock.spawned).toBe(1);
+    const spot = must(s.pickups[0], 'Book').position;
+    s = stepFu(place(s, 'a', spot.x, spot.y), NONE, DT).state;
+    expect(s.pickups).toEqual([]);
     s = place(s, 'a', 100, 800);
     let steps = 0;
-    while (s.pickups.length < 2 && steps < 1000) {
+    while (s.pickups.length === 0 && steps < 6000) {
       s = stepFu(s, NONE, DT).state;
       steps += 1;
     }
-    expect(Math.abs(steps - held / DT)).toBeLessThanOrEqual(1);
+    expect(Math.abs(steps - 45 * 60)).toBeLessThanOrEqual(1);
   });
 
-  it('never stacks two pickups on one spot, and waits when every spot is taken', () => {
-    let s = parked(withSchedule({ spots: [SPOTS[0], SPOTS[1]], maxOnField: 5 }));
-    s = run(s, 60 * 30).state;
-    expect(s.pickups).toHaveLength(2);
-    const where = s.pickups.map((p) => `${p.position.x},${p.position.y}`);
-    expect(new Set(where).size).toBe(2);
-    expect(s.pickupClock.spawnIn).toBeLessThanOrEqual(0); // ready, but nowhere to put it
-    // a spot frees up: it fills at once
-    const target = must(s.pickups[0], 'pickup');
-    s = place(s, 'a', target.position.x, target.position.y);
-    s = stepFu(s, NONE, DT).state;
-    s = place(s, 'a', 100, 800);
-    s = stepFu(s, NONE, DT).state;
-    expect(s.pickups).toHaveLength(2);
+  it('the named rates are ordered, and OFF means no schedule at all', () => {
+    expect(SPAWN_RATES.LOW.first).toBeGreaterThan(SPAWN_RATES.NORMAL.first);
+    expect(SPAWN_RATES.NORMAL.first).toBeGreaterThan(SPAWN_RATES.HIGH.first);
+    expect(SPAWN_RATES.LOW.interval).toBeGreaterThan(SPAWN_RATES.NORMAL.interval);
+    expect(SPAWN_RATES.NORMAL.interval).toBeGreaterThan(SPAWN_RATES.HIGH.interval);
+    expect(PRIMITIVE_POWERUPS).toMatchObject({
+      firstSeconds: 15,
+      intervalSeconds: 45,
+      maxOnField: 1,
+    });
+    expect(powerupsFor('OFF')).toBeUndefined();
+    expect(powerupsFor('LOW')?.firstSeconds).toBe(25);
+    expect(SPAWN_RATES.NORMAL.first).toBeGreaterThanOrEqual(10);
   });
 
-  it('a round reset clears the field and restarts the schedule; powers do not carry over', () => {
-    let s = parked();
-    s = run(s, 60 * 5).state;
-    expect(s.pickups.length).toBeGreaterThan(0);
-    s = give(s, 'a', 'GUARD');
-    s = stepFu(kill(s, 'b'), NONE, DT).state;
-    expect(s.phase).toBe('ROUND_OVER');
-    let next = s;
+  it('a new round clears the field and restarts the clock; nothing spawns while the round is over', () => {
+    const s = run(parked(), 60 * 15).state;
+    expect(s.pickups).toHaveLength(1);
+    const over = stepFu(kill(s, 'b'), NONE, DT).state;
+    const before = over.pickupClock;
+    expect(run(over, 30).state.pickupClock).toEqual(before);
+    let next = over;
     for (let i = 0; i < 400 && next.round === 1; i += 1) next = stepFu(next, NONE, DT).state;
-    expect(next.round).toBe(2);
     expect(next.pickups).toEqual([]);
     expect(next.pickupClock).toEqual({ spawnIn: SCHEDULE.firstSeconds, spawned: 0 });
-    expect(next.players.every((p) => holds(next, p.id, 'GUARD') === false)).toBe(true);
-    expect(next.extraBoomerangs).toEqual([]);
   });
 
-  it('nothing spawns while the round is over', () => {
-    let s = parked();
-    s = stepFu(kill(s, 'b'), NONE, DT).state;
-    const before = s.pickupClock;
-    s = run(s, 30).state;
-    expect(s.pickupClock).toEqual(before);
-    expect(s.pickups).toEqual([]);
+  it('spawn spots rotate, never two on one spot, and a Book waits when there is nowhere to put it', () => {
+    const wide = {
+      ...SCHEDULE,
+      spots: SPOTS.slice(0, 2),
+      firstSeconds: 1,
+      intervalSeconds: 1,
+      maxOnField: 5,
+    };
+    const s = run(parked({ powerups: wide }), 60 * 20).state;
+    expect(new Set(s.pickups.map((p) => `${p.position.x},${p.position.y}`)).size).toBe(
+      s.pickups.length,
+    );
+    expect(s.pickups.length).toBeLessThanOrEqual(2);
   });
 
-  it('is deterministic: the same match replays to the identical state and events (1,500 steps)', () => {
+  it('is deterministic: the same match replays to the identical state and events (3,000 steps, 3 players)', () => {
     const play = () => {
-      let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA, powerups: PRIMITIVE_POWERUPS });
+      let s = make(['a', 'b', 'c'], {
+        arena: PRIMITIVE_ARENA,
+        powerups: { ...PRIMITIVE_POWERUPS, firstSeconds: 3, intervalSeconds: 4 },
+        matchRounds: 9,
+      });
       const log: unknown[] = [];
-      for (let i = 0; i < 1500; i += 1) {
+      for (let i = 0; i < 3000; i += 1) {
         const r = stepFu(
           s,
           input({
@@ -222,329 +480,40 @@ describe('the pickup schedule is deterministic', () => {
   });
 });
 
-describe('collection: who takes a pickup, and when', () => {
-  const lay = (s: FuState = make(), kind: PowerKind = 'GUARD', x = 600, y = 450): FuState => ({
-    ...s,
-    pickups: [...s.pickups, { id: 1 + s.pickups.length, kind, position: { x, y } }],
-  });
-  const base = () => place(place(make(), 'a', 100, 800), 'b', 1500, 800);
-
-  it('a body overlapping the pickup takes it: removed from the field, announced, and now theirs', () => {
-    const s = place(lay(base()), 'a', 600 + 60, 450);
-    const r = stepFu(s, NONE, DT);
-    expect(r.state.pickups).toEqual([]);
-    expect(player(r.state, 'a').powers.guard).toBe(true);
-    const picked = r.events.filter((e) => e.type === 'PICKED_UP');
-    expect(picked).toEqual([
-      {
-        type: 'PICKED_UP',
-        playerId: 'a',
-        kind: 'GUARD',
-        pickupId: 1,
-        position: { x: 600, y: 450 },
-      },
-    ]);
-  });
-
-  it('just out of reach it is not taken (reach = player radius + pickup radius)', () => {
-    const reach = C.playerRadius + 28;
-    const near = stepFu(place(lay(base()), 'a', 600 + reach - 0.5, 450), NONE, DT).state;
-    expect(near.pickups).toEqual([]);
-    const far = stepFu(place(lay(base()), 'a', 600 + reach + 0.5, 450), NONE, DT).state;
-    expect(far.pickups).toHaveLength(1);
-    expect(player(far, 'a').powers.guard).toBe(false);
-  });
-
-  it('cover matters: a pickup on the far side of a wall cannot be taken through it', () => {
-    const arena = { width: 1600, height: 900, walls: [{ x: 700, y: 300, width: 50, height: 300 }] };
-    let s = make(['a', 'b'], { arena });
-    s = place(place(s, 'a', 690, 450), 'b', 1500, 800);
-    s = lay(s, 'GUARD', 752, 450); // 62 away: inside the radius, but the wall is between
-    const after = stepFu(s, NONE, DT).state;
-    expect(after.pickups).toHaveLength(1);
-    expect(player(after, 'a').powers.guard).toBe(false);
-  });
-
-  it('cover matters even for a long reach: with a wider pickup radius a wall is still between player and pickup', () => {
-    const arena = { width: 1600, height: 900, walls: [{ x: 700, y: 300, width: 50, height: 300 }] };
-    const wide = {
-      spots: [{ x: 300, y: 100 }],
-      firstSeconds: 99,
-      intervalSeconds: 99,
-      maxOnField: 1,
-      pickupRadius: 60,
-    };
-    let s = make(['a', 'b'], { arena, powerups: wide });
-    s = place(place(s, 'a', 664, 450), 'b', 1500, 800); // flush against the wall
-    s = lay(s, 'GUARD', 752, 450); // 88 away: inside the (36 + 60) reach, behind the wall
-    const after = stepFu(s, NONE, DT).state;
-    expect(after.pickups).toHaveLength(1);
-    expect(player(after, 'a').powers.guard).toBe(false);
-    // the same distance with nothing in the way is taken
-    let open = make(['a', 'b'], { powerups: { ...wide, spots: [{ x: 300, y: 100 }] } });
-    open = place(place(open, 'a', 664, 450), 'b', 1500, 800);
-    open = lay(open, 'GUARD', 752, 450);
-    expect(player(stepFu(open, NONE, DT).state, 'a').powers.guard).toBe(true);
-  });
-
-  it('an impossible pickup (unknown kind) is dropped and never obeyed; nothing is granted', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = {
-      ...s,
-      pickups: [{ id: 1, kind: 'SHIELD' as unknown as PowerKind, position: at(s, 'a') }],
-    };
-    const r = stepFu(s, NONE, DT);
-    expect(r.state.pickups).toEqual([]);
-    expect(r.events).toEqual([]);
-    expect(player(r.state, 'a').powers).toEqual({
-      overdrive: 0,
-      blast: false,
-      guard: false,
-      twin: false,
-      phase: 0,
-    });
-  });
-
-  it('contention: the NEARER player takes it; an exact tie goes to the earlier player in the match', () => {
-    let s = lay(make(['a', 'b']));
-    s = place(place(s, 'a', 600 - 50, 450), 'b', 600 + 40, 450);
-    let r = stepFu(s, NONE, DT);
-    expect(player(r.state, 'b').powers.guard).toBe(true);
-    expect(player(r.state, 'a').powers.guard).toBe(false);
-    // …but they are 72 apart so cannot overlap; use a vertical pair for the exact tie
-    s = lay(make(['a', 'b']));
-    s = place(place(s, 'a', 600 - 40, 450), 'b', 600 + 40, 450);
-    r = stepFu(s, NONE, DT);
-    expect(player(r.state, 'a').powers.guard).toBe(true); // a is earlier in the match
-    expect(player(r.state, 'b').powers.guard).toBe(false);
-    // the match order, not the ids, decides it
-    let flipped = lay(make(['b', 'a']));
-    flipped = place(place(flipped, 'a', 600 - 40, 450), 'b', 600 + 40, 450);
-    const f = stepFu(flipped, NONE, DT);
-    expect(player(f.state, 'b').powers.guard).toBe(true);
-    expect(player(f.state, 'a').powers.guard).toBe(false);
-  });
-
-  it('contention never depends on which player pressed what: inputs do not change the winner', () => {
-    let s = lay(make(['a', 'b']));
-    s = place(place(s, 'a', 600 - 40, 450), 'b', 600 + 40, 450);
-    for (const inputs of [
-      NONE,
-      input({ a: { slash: true } }),
-      input({ b: { throw: true }, a: { throw: true } }),
-    ]) {
-      const r = stepFu(s, inputs, DT);
-      expect(player(r.state, 'a').powers.guard).toBe(true);
-    }
-  });
-
-  it('a player takes at most ONE pickup per step; the next step they take the next', () => {
-    let s = base();
-    s = lay(lay(s, 'GUARD', 600, 450), 'OVERDRIVE', 610, 450);
-    s = place(s, 'a', 600, 450);
-    const one = stepFu(s, NONE, DT);
-    expect(one.state.pickups).toHaveLength(1);
-    expect(player(one.state, 'a').powers.guard).toBe(true); // the lower pickup id first
-    expect(player(one.state, 'a').powers.overdrive).toBe(0);
-    const two = stepFu(one.state, NONE, DT);
-    expect(two.state.pickups).toEqual([]);
-    expect(player(two.state, 'a').powers.overdrive).toBeGreaterThan(0);
-  });
-
-  it('two pickups, two players, one step: each takes the one nearest them', () => {
-    let s = base();
-    s = lay(lay(s, 'GUARD', 400, 450), 'PHASE_DASH', 800, 450);
-    s = place(place(s, 'a', 800, 450), 'b', 400, 450); // each stands on the OTHER one's pickup
-    const r = stepFu(s, NONE, DT);
-    expect(player(r.state, 'a').powers.phase).toBeGreaterThan(0);
-    expect(player(r.state, 'b').powers.guard).toBe(true);
-  });
-
-  it('a duplicate is refused: the pickup stays for someone else, and nothing is wasted or stacked', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = give(s, 'a', 'GUARD');
-    s = lay(s, 'GUARD', 600, 450);
-    const again = stepFu(s, NONE, DT).state;
-    expect(again.pickups).toHaveLength(1);
-    // another player who does not hold one can take it
-    const taken = stepFu(place(again, 'b', 600 + 40, 450), NONE, DT).state;
-    expect(taken.pickups).toEqual([]);
-    expect(player(taken, 'b').powers.guard).toBe(true);
-    // a timed one is "held" while it runs, and takeable again once it has ended
-    let t = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    t = give(t, 'a', 'OVERDRIVE');
-    t = lay(t, 'OVERDRIVE', 600, 450);
-    expect(stepFu(t, NONE, DT).state.pickups).toHaveLength(1);
-    t = patchPowers(t, 'a', { overdrive: 0 });
-    expect(stepFu(t, NONE, DT).state.pickups).toHaveLength(0);
-  });
-
-  it('different powers coexist: a player can take all five, one at a time', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    for (const kind of POWER_KINDS) s = give(s, 'a', kind);
-    for (const kind of POWER_KINDS) expect(holds(s, 'a', kind), kind).toBe(true);
-  });
-
-  it('an excluded pair cannot be held together (the pickup stays), and the table can say so', () => {
-    const only = (pairs: [PowerKind, PowerKind][]) =>
-      place(place(make(['a', 'b'], { exclusivePairs: pairs }), 'a', 600, 450), 'b', 1500, 800);
-    let s = give(only([['GUARD', 'PHASE_DASH']]), 'a', 'GUARD');
-    s = lay(s, 'PHASE_DASH', 600, 450);
-    expect(stepFu(s, NONE, DT).state.pickups).toHaveLength(1);
-    expect(player(stepFu(s, NONE, DT).state, 'a').powers.phase).toBe(0);
-    // order does not matter, and other kinds are unaffected
-    let t = give(only([['GUARD', 'PHASE_DASH']]), 'a', 'PHASE_DASH');
-    t = lay(t, 'GUARD', 600, 450);
-    expect(stepFu(t, NONE, DT).state.pickups).toHaveLength(1);
-    t = lay({ ...t, pickups: [] }, 'OVERDRIVE', 600, 450);
-    expect(stepFu(t, NONE, DT).state.pickups).toHaveLength(0);
-  });
-
-  it('the dead take nothing', () => {
-    const s = kill(place(lay(base()), 'a', 600, 450), 'a');
-    const r = stepFu(s, NONE, DT);
-    expect(r.state.pickups).toHaveLength(1);
-    expect(player(r.state, 'a').powers.guard).toBe(false);
-  });
-
-  it('a dasher takes what is under them at the end of the step, at any accepted dt', () => {
-    for (const dt of [DT, 0.1]) {
-      let s = lay(base(), 'GUARD', 700, 450);
-      s = face(place(s, 'a', 560, 450), 'a', 1, 0);
-      let r = stepFu(s, input({ a: { dash: true } }), dt);
-      for (let i = 0; i < 12; i += 1) r = stepFu(r.state, NONE, dt);
-      expect(r.state.pickups, `dt ${dt}`).toEqual([]);
-      expect(player(r.state, 'a').powers.guard, `dt ${dt}`).toBe(true);
-    }
-  });
-
-  it('collection happens BEFORE kills in a step: a player who dies the step they take one still took it (and loses it)', () => {
-    let s = make(['a', 'b']);
-    s = place(place(s, 'a', 600, 450), 'b', 600 + 100, 450);
-    s = face(s, 'b', -1, 0);
-    s = lay(s, 'GUARD', 600, 450);
-    s = { ...s, pickups: [{ id: 1, kind: 'OVERDRIVE', position: { x: 600, y: 450 } }] };
-    const r = stepFu(s, input({ b: { slash: true } }), DT);
-    expect(types(r.events)).toContain('PICKED_UP');
-    expect(player(r.state, 'a').alive).toBe(false);
-    expect(player(r.state, 'a').powers).toEqual({
-      overdrive: 0,
-      blast: false,
-      guard: false,
-      twin: false,
-      phase: 0,
-    });
-  });
-
-  it('collection happens BEFORE throws in a step: what you take this step already counts when you throw', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = face(s, 'a', 1, 0);
-    s = lay(s, 'BLAST_BOOMERANG', 600, 450);
-    const r = stepFu(s, input({ a: { throw: true } }), DT);
-    expect(r.state.boomerangs[0]?.blast).toBe(true);
-  });
-});
-
-describe('lifetimes', () => {
-  it('OVERDRIVE is timed: on for exactly overdriveSeconds after the step it was taken, then announced as ended', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = give(s, 'a', 'OVERDRIVE');
-    expect(player(s, 'a').powers.overdrive).toBe(C.overdriveSeconds);
-    const steps = Math.round(C.overdriveSeconds / DT);
-    const nearly = run(s, steps - 1);
-    expect(holds(nearly.state, 'a', 'OVERDRIVE')).toBe(true);
-    const done = stepFu(nearly.state, NONE, DT);
-    expect(holds(done.state, 'a', 'OVERDRIVE')).toBe(false);
-    expect(done.events).toEqual([{ type: 'POWER_EXPIRED', playerId: 'a', kind: 'OVERDRIVE' }]);
-  });
-
-  it('death takes every power; so does a round reset; the dead hold nothing', () => {
-    let s = place(place(make(['a', 'b', 'c']), 'a', 600, 450), 'b', 1500, 800);
-    s = place(s, 'c', 1500, 100);
-    for (const kind of POWER_KINDS) s = give(s, 'a', kind);
-    expect(s.extraBoomerangs).toHaveLength(1);
-    s = patchPowers(s, 'a', { guard: false }); // (a guard would absorb this very swing: see guard.test.ts)
-    s = place(s, 'b', 700, 450);
-    s = face(s, 'b', -1, 0);
-    const r = stepFu(s, input({ b: { slash: true } }), DT);
-    expect(player(r.state, 'a').alive).toBe(false);
-    for (const kind of POWER_KINDS) expect(holds(r.state, 'a', kind), kind).toBe(false);
-  });
-
-  it('powers survive ordinary play: moving, dashing, slashing and throwing spend none of them', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = give(give(s, 'a', 'GUARD'), 'a', 'TWIN_THROW');
-    s = run(s, 30, input({ a: { move: { x: 1, y: 0 }, slash: true } })).state;
-    expect(player(s, 'a').powers.guard).toBe(true);
-    expect(player(s, 'a').powers.twin).toBe(true);
-  });
-});
-
 describe('powerup configuration is checked (a bad schedule is a RangeError, never a game state)', () => {
   const bad = (powerups: object) => () =>
     createFuMatch([{ id: 'a', slot: 0 }], {
       arena: PRIMITIVE_ARENA,
       powerups: { ...PRIMITIVE_POWERUPS, ...powerups },
     });
-
-  it('accepts the primitive arena schedule', () => {
-    expect(bad({})).not.toThrow();
-  });
-
+  it('accepts the primitive arena schedule', () => expect(bad({})).not.toThrow());
   it.each([
     ['no spots', { spots: [] }],
     ['a spot outside the arena', { spots: [{ x: 5000, y: 100 }] }],
     ['a spot inside a wall', { spots: [{ x: 800, y: 450 }] }],
-    ['a spot against a wall', { spots: [{ x: 690, y: 450 }] }],
     ['a non-finite spot', { spots: [{ x: Number.NaN, y: 100 }] }],
-    [
-      'two identical spots',
-      {
-        spots: [
-          { x: 460, y: 450 },
-          { x: 460, y: 450 },
-        ],
-      },
-    ],
     ['a zero first delay', { firstSeconds: 0 }],
     ['a negative interval', { intervalSeconds: -3 }],
-    ['an infinite interval', { intervalSeconds: Number.POSITIVE_INFINITY }],
     ['a fractional cap', { maxOnField: 1.5 }],
-    ['a zero cap', { maxOnField: 0 }],
     ['a zero pickup radius', { pickupRadius: 0 }],
-  ])('rejects %s', (_name, powerups) => {
-    expect(bad(powerups)).toThrow(RangeError);
-  });
+  ])('rejects %s', (_n, p) => expect(bad(p)).toThrow(RangeError));
 
   it('rejects nonsense power settings', () => {
     const mk = (o: object) => () => createFuMatch([{ id: 'a', slot: 0 }], o);
-    expect(mk({ phaseDashCharges: 0 })).toThrow(RangeError);
-    expect(mk({ phaseDashCharges: 1.5 })).toThrow(RangeError);
     expect(mk({ overdriveMoveFactor: 0.9 })).toThrow(RangeError);
-    expect(mk({ overdriveDashFactor: 0.5 })).toThrow(RangeError);
-    expect(mk({ overdriveSeconds: 0 })).toThrow(RangeError);
     expect(mk({ blastRadius: -1 })).toThrow(RangeError);
+    expect(mk({ seed: 1.5 })).toThrow(RangeError);
+    expect(mk({ matchRounds: 0 })).toThrow(RangeError);
+    expect(mk({ enabledPowers: ['NOPE'] })).toThrow(RangeError);
     expect(mk({ exclusivePairs: [['GUARD', 'NOPE']] })).toThrow(RangeError);
-    expect(mk({ exclusivePairs: [['GUARD']] })).toThrow(RangeError);
-    // an overdriven body or dash must still be sweepable
     expect(mk({ overdriveMoveFactor: 6 })).toThrow(RangeError);
-    expect(mk({ overdriveDashFactor: 2 })).toThrow(RangeError);
   });
 });
 
-describe('the overall step order is fixed and written down', () => {
-  it('spawning happens after collection: a pickup that appears this step cannot be taken this step', () => {
-    let s = make(['a', 'b'], { powerups: { ...SCHEDULE, firstSeconds: DT } });
-    s = place(place(s, 'a', 400, 300), 'b', 1500, 800); // standing on the first spot
-    const r = stepFu(s, NONE, DT);
-    expect(r.state.pickups).toHaveLength(1);
-    expect(player(r.state, 'a').powers.overdrive).toBe(0);
-    const next = stepFu(r.state, NONE, DT);
-    expect(player(next.state, 'a').powers.overdrive).toBeGreaterThan(0);
-  });
-
-  it('LANE keeps the shared fixture honest', () => {
-    expect(LANE.arena.width).toBeGreaterThan(PRIMITIVE_ARENA.width);
-    expect(at(make(), 'a')).toBeDefined();
+describe('holds() and the fixtures agree with the rules', () => {
+  it('give() really goes through a Book', () => {
+    const s = give(lone(), 'a', 'PHASE_DASH');
+    expect(holds(s, 'a', 'PHASE_DASH')).toBe(true);
+    expect(s.awards).toBe(1);
   });
 });

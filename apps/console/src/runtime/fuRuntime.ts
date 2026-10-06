@@ -3,10 +3,12 @@ import {
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
+  powerupsFor,
   createFuMatch,
   isFatigued,
   type FuArena,
   type FuConfig,
+  type PowerKind,
   stepFu,
   type FuEvent,
   type FuPlayerInput,
@@ -55,14 +57,21 @@ export class FuRuntime implements MatchRuntime {
   /** Pickups appear only in the primitive test arena (the one with places to put them). */
   readonly #powerups: FuConfig['powerups'];
 
-  constructor(arena: FuArena = PRIMITIVE_ARENA, powerups: PowerupMode = 'normal') {
+  readonly #enabled: readonly PowerKind[] | undefined;
+
+  constructor(
+    arena: FuArena = PRIMITIVE_ARENA,
+    powerups: PowerupMode = 'normal',
+    enabled?: readonly PowerKind[],
+  ) {
     this.#arena = arena;
+    this.#enabled = enabled;
     this.#powerups =
       arena !== PRIMITIVE_ARENA || powerups === 'off'
         ? undefined
         : powerups === 'fast'
           ? { ...PRIMITIVE_POWERUPS, firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 }
-          : PRIMITIVE_POWERUPS;
+          : powerupsFor(powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL');
   }
 
   #stepper = new FrameStepper();
@@ -83,7 +92,12 @@ export class FuRuntime implements MatchRuntime {
     // The rules' default is the open Slice 1 arena; the game people play is the primitive test arena.
     this.state = createFuMatch(
       players.map((p) => ({ id: p.playerId, slot: p.slot })),
-      { arena: this.#arena, ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }) },
+      {
+        arena: this.#arena,
+        ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
+        matchRounds: 9, // a normal Foomerang Fu match is nine rounds; what players own lasts until it ends
+        ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }),
+      },
     );
     this.#stepper.start(nowMs);
     this.#inputs = new InputBuffer();
@@ -192,7 +206,7 @@ export class FuRuntime implements MatchRuntime {
         dash: p.dash.phase,
         phasing: p.dash.phase === 'DASHING' && p.dash.phasing !== undefined,
         inWall: p.dash.phase === 'DASHING' && p.dash.phasing?.inside === true,
-        powers: { ...p.powers },
+        inventory: [...p.inventory],
         fatigue: {
           dashes: p.fatigue.dashes,
           recoverIn: p.fatigue.recoverIn,
@@ -201,10 +215,10 @@ export class FuRuntime implements MatchRuntime {
       })),
       pickups: state.pickups.map((p) => ({
         id: p.id,
-        kind: p.kind,
         x: p.position.x,
         y: p.position.y,
       })),
+      awards: state.awards,
       boomerangs: [...state.boomerangs, ...state.extraBoomerangs].map((b) => ({
         blast: b.blast,
         ownerId: b.ownerId,

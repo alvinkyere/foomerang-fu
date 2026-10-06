@@ -18,58 +18,76 @@ export type PowerKind = (typeof POWER_KINDS)[number];
 export const isPowerKind = (value: unknown): value is PowerKind =>
   typeof value === 'string' && (POWER_KINDS as readonly string[]).includes(value);
 
+/** A player may own at most this many powers at once (see `awardPower`). */
+export const MAX_POWERS = 3;
+
 /**
- * What one player holds. Each power has the shape of its own lifetime:
- *   overdrive  seconds left (TIMED; 0 = not held)
- *   blast      a charge: arms the NEXT boomerang thrown (CONSUMED ON USE: the first detonation)
- *   guard      absorbs one lethal contact (CONSUMED ON HIT)
- *   twin       a second boomerang (PERSISTENT until death or round reset)
- *   phase      Phase Dash charges left (CONSUMED ON USE: one per successful dash)
- * Death and a new round reset all of it.
+ * OWNERSHIP vs CHARGE STATE. A player's `inventory` is the list of powers they OWN, in the order they
+ * got them (at most MAX_POWERS). Ownership persists across rounds for the whole match; it ends only
+ * by FIFO eviction (a 4th power pushes out the oldest), by a power consuming itself (GUARD, when it
+ * blocks a hit), or when the match ends. Nothing else is stored for a power: while owned, OVERDRIVE,
+ * PHASE_DASH, TWIN_THROW and BLAST_BOOMERANG simply work (no charges, no timers); any per-round or
+ * per-flight state lives on the thing it belongs to (a boomerang's `blast` flag, a swing's `spared`).
  */
-export interface Powers {
-  readonly overdrive: number;
-  readonly blast: boolean;
-  readonly guard: boolean;
-  readonly twin: boolean;
-  readonly phase: number;
+export type Inventory = readonly PowerKind[];
+export const NO_POWERS: Inventory = Object.freeze([]);
+
+export const owns = (inventory: Inventory, kind: PowerKind): boolean => inventory.includes(kind);
+
+/** FIFO: the new power goes last; when full the OLDEST is removed (returned as `evicted`). */
+export function awardPower(
+  inventory: Inventory,
+  kind: PowerKind,
+): { readonly inventory: Inventory; readonly evicted: PowerKind | undefined } {
+  const full = inventory.length >= MAX_POWERS;
+  return {
+    inventory: Object.freeze([...(full ? inventory.slice(1) : inventory), kind]),
+    evicted: full ? inventory[0] : undefined,
+  };
 }
 
-export const NO_POWERS: Powers = Object.freeze({
-  overdrive: 0,
-  blast: false,
-  guard: false,
-  twin: false,
-  phase: 0,
-});
+/** Removing a power (a broken GUARD) frees its slot at once and keeps the order of the rest. */
+export const removePower = (inventory: Inventory, kind: PowerKind): Inventory =>
+  Object.freeze(inventory.filter((k) => k !== kind));
 
-/** A pickup lying in the arena. `id` is the spawn counter, so it is unique and ordered. */
+/** A Powerup Book lying in the arena. It carries NO kind: what it awards is decided when it is taken. */
 export interface Pickup {
   readonly id: number;
-  readonly kind: PowerKind;
   readonly position: Vec2;
 }
 
-/** When the next pickup appears and how many have appeared this round (the whole spawn state). */
+/** When the next Book appears and how many have appeared this round (the whole spawn state). */
 export interface PickupClock {
   readonly spawnIn: number;
   readonly spawned: number;
 }
 
-/** Where and when pickups appear. Absent from the config: no powerups at all (Slices 1–4 exactly). */
+/** How often Books appear. `OFF` is none. */
+export type SpawnRate = 'OFF' | 'LOW' | 'NORMAL' | 'HIGH';
+
+/** Where and when Books appear. Absent from the config: no powerups at all (Slices 1–4 exactly). */
 export interface PowerupConfig {
   /** Fixed places, in the order the rotation uses them. */
   readonly spots: readonly Vec2[];
-  /** Seconds from the start of a round to the first pickup. */
+  /** Seconds of ACTIVE play from the start of a round to the first Book. */
   readonly firstSeconds: number;
-  /** Seconds between pickups (counted only while fewer than `maxOnField` are lying around). */
+  /** Seconds after a Book is TAKEN before another can appear (the clock is frozen while one lies there). */
   readonly intervalSeconds: number;
   readonly maxOnField: number;
-  /** A player collects a pickup when their body overlaps this radius around it. */
+  /** A player takes a Book when their body overlaps this radius around it. */
   readonly pickupRadius: number;
 }
 
-/** Which kinds a player can hold at the same time, as an explicit table (see POWER_COMBINATIONS). */
+/** The shipped pacing per rate (hypotheses, not frozen): seconds into a round, then seconds after a take. */
+export const SPAWN_RATES: Readonly<
+  Record<Exclude<SpawnRate, 'OFF'>, { first: number; interval: number }>
+> = Object.freeze({
+  LOW: Object.freeze({ first: 25, interval: 90 }),
+  NORMAL: Object.freeze({ first: 15, interval: 45 }),
+  HIGH: Object.freeze({ first: 10, interval: 25 }),
+});
+
+/** Which kinds a player can own at the same time, as an explicit table (see POWER_COMBINATIONS). */
 export interface Combination {
   readonly allowed: boolean;
   /** What the pair does together, in one sentence; the tests pin each one. */
@@ -90,19 +108,19 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   [
     'BLAST_BOOMERANG',
     'GUARD',
-    'independent: a guard absorbs one blast like any other lethal contact; the owner is immune to their own blast.',
+    'independent: a shield absorbs one blast like any other lethal contact (and breaks); the owner is immune to their own blast.',
   ],
   [
     'BLAST_BOOMERANG',
     'TWIN_THROW',
-    'one blast charge arms only the next boomerang thrown (either of the pair); the other flies plain.',
+    'every boomerang thrown, of either of the pair, is armed (each can detonate once per throw).',
   ],
   ['BLAST_BOOMERANG', 'PHASE_DASH', 'independent.'],
   ['GUARD', 'TWIN_THROW', 'independent.'],
   [
     'GUARD',
     'PHASE_DASH',
-    'independent: phasing grants no invulnerability, and a guard is spent by a hit while phasing like anywhere else.',
+    'independent: phasing grants no invulnerability, and a shield breaks on a hit while phasing like anywhere else.',
   ],
   ['TWIN_THROW', 'PHASE_DASH', 'independent.'],
 ];
@@ -120,24 +138,13 @@ export const POWER_COMBINATIONS: Readonly<Record<string, Combination>> = Object.
 
 export const combinationKey = pair;
 
-/** The kinds a player holds, in POWER_KINDS order (never an object's key order). */
-export function heldKinds(powers: Powers, blastArmedInFlight: boolean): PowerKind[] {
-  const held: PowerKind[] = [];
-  if (powers.overdrive > 0) held.push('OVERDRIVE');
-  if (powers.blast || blastArmedInFlight) held.push('BLAST_BOOMERANG');
-  if (powers.guard) held.push('GUARD');
-  if (powers.twin) held.push('TWIN_THROW');
-  if (powers.phase > 0) held.push('PHASE_DASH');
-  return held;
-}
-
 /**
- * May a player holding `held` take a pickup of `kind`? Never one they already hold (the pickup stays
- * for someone else: a duplicate is neither wasted nor stacked), and never one that is not allowed
- * with something they hold.
+ * May a player owning `held` be awarded `kind`? Never one they already own (no duplicates), never one
+ * the enabled pool excludes, and never one that is not allowed with something they own.
  */
 export function canCollect(held: readonly PowerKind[], kind: PowerKind, config: FuConfig): boolean {
   if (held.includes(kind)) return false;
+  if (!(config.enabledPowers ?? POWER_KINDS).includes(kind)) return false;
   const exclusive = (config.exclusivePairs ?? []).map(([a, b]) => pair(a, b));
   return held.every((other) => {
     const entry = POWER_COMBINATIONS[pair(kind, other)];
@@ -145,25 +152,24 @@ export function canCollect(held: readonly PowerKind[], kind: PowerKind, config: 
   });
 }
 
-/** The powers after taking a pickup of `kind` (the caller has checked `canCollect`). */
-export function grant(powers: Powers, kind: PowerKind, config: FuConfig): Powers {
-  switch (kind) {
-    case 'OVERDRIVE':
-      return Object.freeze({ ...powers, overdrive: config.overdriveSeconds });
-    case 'BLAST_BOOMERANG':
-      return Object.freeze({ ...powers, blast: true });
-    case 'GUARD':
-      return Object.freeze({ ...powers, guard: true });
-    case 'TWIN_THROW':
-      return Object.freeze({ ...powers, twin: true });
-    case 'PHASE_DASH':
-      return Object.freeze({ ...powers, phase: config.phaseDashCharges });
-  }
+/** The powers a player owning `held` could be awarded now, in POWER_KINDS order. */
+export const awardPool = (held: readonly PowerKind[], config: FuConfig): PowerKind[] =>
+  POWER_KINDS.filter((kind) => canCollect(held, kind, config));
+
+/** A small integer mix (pure, no state): the same (seed, n) always gives the same number. */
+export function mix(seed: number, n: number): number {
+  let x = (seed ^ Math.imul(n + 1, 0x9e3779b1)) >>> 0;
+  x = Math.imul(x ^ (x >>> 15), 0x85ebca6b) >>> 0;
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
+  return (x ^ (x >>> 16)) >>> 0;
 }
 
-/** What the pickup schedule would spawn: a pure function of the spawn counter and the round. */
-export const spawnKind = (spawned: number, round: number): PowerKind =>
-  POWER_KINDS[(spawned * 2 + round - 1) % POWER_KINDS.length] as PowerKind;
+/** Which power the `award`-th Book of the match gives, from the player's pool: a pure function of the seed. */
+export const chooseAward = (
+  pool: readonly PowerKind[],
+  seed: number,
+  award: number,
+): PowerKind | undefined => (pool.length === 0 ? undefined : pool[mix(seed, award) % pool.length]);
 
 /** The first free spot at or after the rotation's choice; undefined when every spot is taken. */
 export function spawnSpot(

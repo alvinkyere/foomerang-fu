@@ -33,16 +33,14 @@ import {
 } from './dash';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import {
-  NO_POWERS,
-  canCollect,
-  grant,
-  heldKinds,
-  isPowerKind,
-  spawnKind,
+  awardPool,
+  awardPower,
+  chooseAward,
+  removePower,
   spawnSpot,
   type Pickup,
   type PowerKind,
-  type Powers,
+  type Inventory,
 } from './powerups';
 import { lastValidAlong, planPhaseDash } from './phase';
 import { startRound, type FuPlayer, type FuState } from './state';
@@ -84,13 +82,9 @@ export type FuEvent =
       /** Slice 5: present (true) for a dash by a holder of PHASE_DASH that may cross walls. */
       readonly phasing?: true;
     }
-  /** Slice 5: a pickup appeared. */
-  | {
-      readonly type: 'POWERUP_SPAWNED';
-      readonly pickupId: number;
-      readonly kind: PowerKind;
-      readonly position: Vec2;
-    }
+  /** Slice 5: a Powerup Book appeared (it says nothing about what it will award). */
+  | { readonly type: 'POWERUP_SPAWNED'; readonly pickupId: number; readonly position: Vec2 }
+  /** Slice 5: a player took a Book; `kind` is revealed only now. */
   | {
       readonly type: 'PICKED_UP';
       readonly playerId: string;
@@ -98,8 +92,13 @@ export type FuEvent =
       readonly pickupId: number;
       readonly position: Vec2;
     }
-  /** Slice 5: a timed power ended (OVERDRIVE). */
-  | { readonly type: 'POWER_EXPIRED'; readonly playerId: string; readonly kind: PowerKind }
+  /** Slice 5: a power left a player's inventory: pushed out by a newer one, or a shield that broke. */
+  | {
+      readonly type: 'POWER_LOST';
+      readonly playerId: string;
+      readonly kind: PowerKind;
+      readonly reason: 'EVICTED' | 'SHIELD_BROKEN';
+    }
   /** Slice 5: an armed boomerang exploded at `position`; `victims` were inside the blast with a clear line (before any guard). */
   | {
       readonly type: 'BLASTED';
@@ -140,7 +139,9 @@ export type FuEvent =
       readonly position: Vec2;
     }
   | { readonly type: 'ROUND_OVER'; readonly winnerId: string | undefined }
-  | { readonly type: 'ROUND_START'; readonly round: number };
+  | { readonly type: 'ROUND_START'; readonly round: number }
+  /** Slice 5: the last round of a match ended; inventories are cleared as the next match starts. */
+  | { readonly type: 'MATCH_OVER' };
 
 export interface FuStepResult {
   readonly state: FuState;
@@ -332,7 +333,18 @@ function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuS
   const elapsed = state.elapsed + dt;
   if (remaining <= EPSILON) {
     const specs = state.players.map((p) => ({ id: p.id, slot: p.slot }));
-    const next = startRound(specs, state.config, state.round + 1, elapsed);
+    const { matchRounds } = state.config;
+    if (matchRounds !== undefined && state.round >= matchRounds) {
+      // The match is over: every inventory is cleared and a new match begins at round 1.
+      const next = startRound(specs, state.config, 1, elapsed);
+      return {
+        state: next,
+        events: [{ type: 'MATCH_OVER' }, { type: 'ROUND_START', round: next.round }],
+      };
+    }
+    // A normal round reset keeps what each player owns (and the match's count of Books taken).
+    const carried = new Map(state.players.map((p) => [p.id, p.inventory]));
+    const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards);
     return { state: next, events: [{ type: 'ROUND_START', round: next.round }] };
   }
   return {
@@ -384,8 +396,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return isObject(raw) ? (raw as FuPlayerInput) : undefined;
   });
   const dashingAtStart = state.players.map((p) => p.alive && p.dash.phase === 'DASHING');
-  const powers: Powers[] = state.players.map((p) => p.powers);
-  const overdriven = state.players.map((p) => p.alive && p.powers.overdrive > EPSILON);
+  // What each player OWNS (oldest first). Changes only by a Book, FIFO eviction or a shield breaking.
+  const inventory: Inventory[] = state.players.map((p) => p.inventory);
+  const has = (index: number, kind: PowerKind): boolean =>
+    (inventory[index] as Inventory).includes(kind);
+  const overdriven = state.players.map((p, index) => p.alive && has(index, 'OVERDRIVE'));
   // Every boomerang in one list: each player's own (same order as the players), then the twins. A twin
   // whose owner is not in the match is an impossible state and is dropped, never obeyed.
   const startExtras = state.extraBoomerangs.filter((b) => ownerOf.has(b.ownerId));
@@ -468,7 +483,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const boostedDash = overdriven[index] === true;
       // A holder of PHASE_DASH, starting from valid (non-wall) space, dashes along a planned straight line.
       let plan: { origin: Vec2; limit: number } | undefined;
-      if ((powers[index] as Powers).phase > 0 && !circleHitsWalls(origin, R, walls)) {
+      if (has(index, 'PHASE_DASH') && !circleHitsWalls(origin, R, walls)) {
         const speed =
           config.dashSpeed *
           (tired ? config.fatiguedDashFactor : 1) *
@@ -551,11 +566,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       if (seen !== undefined && dash.phasing !== undefined) {
         const position = world.bodies.find((b) => b.id === id)?.position ?? ZERO;
         if (seen.inside && !dash.phasing.inside) {
-          // entering a wall spends the charge (one per crossing) and is announced
-          powers[j] = Object.freeze({
-            ...(powers[j] as Powers),
-            phase: (powers[j] as Powers).phase - 1,
-          });
+          // entering a wall is announced (owning PHASE_DASH costs nothing: no charges)
           events.push({ type: 'PHASE_ENTERED', playerId: id, position });
         } else if (!seen.inside && dash.phasing.inside) {
           events.push({ type: 'PHASE_EXITED', playerId: id, position });
@@ -588,15 +599,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // 2. Pickups are collected on the end-of-movement positions, before anything is thrown or hit ---
   // Pickups are visited in id order; each goes to the NEAREST eligible player (a tie goes to the earlier
   // player in the match); a player takes at most one per step. A pickup is out of reach behind a wall.
-  const armedOwners = new Set(
-    startWeapons.flatMap((w) => (w.blast ? [ownerOf.get(w.ownerId) as number] : [])),
-  );
   const reachSquared = (R + (config.powerups?.pickupRadius ?? DEFAULT_PICKUP_RADIUS)) ** 2;
   const took = new Set<number>();
   const newTwins: Boomerang[] = [];
   const lying: Pickup[] = [];
+  let awards = state.awards;
   for (const pickup of [...state.pickups].sort((a, b) => a.id - b.id)) {
-    if (!isPowerKind(pickup.kind)) continue; // an impossible pickup is dropped, never obeyed
     let best: number | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
     state.players.forEach((p, index) => {
@@ -605,10 +613,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const d = distanceSquared(where, pickup.position);
       if (d >= reachSquared || d >= bestDistance) return;
       if (!lineIsClear(where, pickup.position, walls)) return;
-      if (
-        !canCollect(heldKinds(powers[index] as Powers, armedOwners.has(index)), pickup.kind, config)
-      )
-        return;
+      if (awardPool(inventory[index] as Inventory, config).length === 0) return; // nothing to award them
       best = index;
       bestDistance = d;
     });
@@ -616,17 +621,34 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       lying.push(pickup);
       continue;
     }
+    // Only now, on collection, is the power decided: a pure function of the seed, how many Books have been
+    // taken this match, and what this player can still be awarded. Nothing about it exists before.
     const taker = state.players[best] as FuPlayer;
+    const kind = chooseAward(
+      awardPool(inventory[best] as Inventory, config),
+      config.seed,
+      awards,
+    ) as PowerKind;
+    awards += 1;
     took.add(best);
-    powers[best] = grant(powers[best] as Powers, pickup.kind, config);
+    const given = awardPower(inventory[best] as Inventory, kind);
+    inventory[best] = given.inventory;
     events.push({
       type: 'PICKED_UP',
       playerId: taker.id,
-      kind: pickup.kind,
+      kind,
       pickupId: pickup.id,
       position: pickup.position,
     });
-    if (pickup.kind === 'TWIN_THROW') {
+    if (given.evicted !== undefined) {
+      events.push({
+        type: 'POWER_LOST',
+        playerId: taker.id,
+        kind: given.evicted,
+        reason: 'EVICTED',
+      });
+    }
+    if (kind === 'TWIN_THROW') {
       newTwins.push(
         Object.freeze({
           ownerId: taker.id,
@@ -691,9 +713,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       walls,
     ).position;
     thrownNow.add(k);
-    // A BLAST charge arms the next boomerang thrown, and is spent on the throw.
-    const arm = (powers[index] as Powers).blast;
-    if (arm) powers[index] = Object.freeze({ ...(powers[index] as Powers), blast: false });
+    // An owner of BLAST_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
+    const arm = has(index, 'BLAST_BOOMERANG');
     events.push({ type: 'THROWN', playerId: player.id, position, direction: facing });
     weapons[k] = transition(b, 'THROWN', { position, direction: facing, travelled: 0, blast: arm });
   });
@@ -810,13 +831,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       type: f.recalled === true ? 'RECALLED' : 'CAUGHT',
       playerId: (players[owner] as FuPlayer).id,
     });
-    if ((weapons[k] as Boomerang).blast) {
-      // an armed boomerang that comes home unused gives the charge back
-      weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
-      if ((players[owner] as FuPlayer).alive) {
-        powers[owner] = Object.freeze({ ...(powers[owner] as Powers), blast: true });
-      }
-    }
+    // home again: whatever armed this throw is spent; the NEXT throw is armed afresh while BLAST is owned
+    weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
   });
 
   // 4b. Deflection (Slice 3) ---------------------------------------------------------------------
@@ -946,10 +962,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       (x, y) => x.attacker - y.attacker || x.rank - y.rank || x.weapon - y.weapon,
     );
     if (list.length === 0) return;
-    if ((powers[v] as Powers).guard) {
+    if (has(v, 'GUARD')) {
       // A guard absorbs exactly ONE lethal contact and is spent; the weapon cannot hit them again this leg/swing.
       const first = list.shift() as Contact;
-      powers[v] = Object.freeze({ ...(powers[v] as Powers), guard: false });
+      inventory[v] = removePower(inventory[v] as Inventory, 'GUARD'); // the shield breaks: its slot is free
+      events.push({
+        type: 'POWER_LOST',
+        playerId: victim.id,
+        kind: 'GUARD',
+        reason: 'SHIELD_BROKEN',
+      });
       events.push({
         type: 'GUARD_BLOCKED',
         playerId: victim.id,
@@ -975,11 +997,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const [killing] = list;
     if (killing !== undefined) killedBy.set(victim.id, (players[killing.attacker] as FuPlayer).id);
   });
-  const survivors: FuPlayer[] = swings.map((player, index) => {
+  const survivors: FuPlayer[] = swings.map((player) => {
     const byId = killedBy.get(player.id);
     if (byId === undefined) return player;
     events.push({ type: 'HIT', byId, victimId: player.id, position: positionOf(player.id) });
-    powers[index] = NO_POWERS;
     return Object.freeze({
       ...player,
       alive: false,
@@ -987,16 +1008,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       dash: DASH_READY,
       fatigue: RESTED,
     });
-  });
-
-  // 6. Timers, then the pickup schedule -------------------------------------------------------------
-  // OVERDRIVE runs down by this step's time (a power taken this step starts running next step).
-  survivors.forEach((player, index) => {
-    if (!player.alive || overdriven[index] !== true) return;
-    const left = (powers[index] as Powers).overdrive - dt;
-    const over = left <= EPSILON;
-    powers[index] = Object.freeze({ ...(powers[index] as Powers), overdrive: over ? 0 : left });
-    if (over) events.push({ type: 'POWER_EXPIRED', playerId: player.id, kind: 'OVERDRIVE' });
   });
 
   // 7. Round end ------------------------------------------------------------------------------
@@ -1025,7 +1036,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       else {
         const pickup: Pickup = Object.freeze({
           id: clock.spawned,
-          kind: spawnKind(clock.spawned, state.round),
           position: spot,
         });
         pickups = [...pickups, pickup];
@@ -1033,7 +1043,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         events.push({
           type: 'POWERUP_SPAWNED',
           pickupId: pickup.id,
-          kind: pickup.kind,
           position: spot,
         });
       }
@@ -1043,9 +1052,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const finalPlayers = survivors.map((p, index) => {
     const base =
       roundEnds && p.dash.phase !== 'READY' ? Object.freeze({ ...p, dash: DASH_READY }) : p;
-    // the dead hold nothing, however they came to be dead
-    const held = p.alive ? (powers[index] as Powers) : NO_POWERS;
-    return base.powers === held ? base : Object.freeze({ ...base, powers: held });
+    // Ownership outlives death and the end of a round: only a Book, FIFO eviction or a broken shield changes it.
+    const owned = inventory[index] as Inventory;
+    return base.inventory === owned ? base : Object.freeze({ ...base, inventory: owned });
   });
 
   return {
@@ -1056,9 +1065,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.
       players: Object.freeze(finalPlayers),
       boomerangs: Object.freeze(weapons.slice(0, count)),
-      extraBoomerangs: Object.freeze(weapons.slice(count)),
+      // A twin belongs to an owner of TWIN_THROW: when they lose the power (FIFO) their second boomerang goes too.
+      extraBoomerangs: Object.freeze(
+        weapons.slice(count).filter((b) => has(ownerOf.get(b.ownerId) as number, 'TWIN_THROW')),
+      ),
       pickups: Object.freeze(pickups),
       pickupClock: clock,
+      awards,
       phase: roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds
         ? Object.freeze({ winnerId, resetInSeconds: config.roundEndSeconds })

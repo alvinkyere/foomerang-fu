@@ -90,8 +90,36 @@ export const patchPlayer = (state: FuState, id: string, patch: object): FuState 
   ...state,
   players: state.players.map((p) => (p.id === id ? { ...p, ...patch } : p)),
 });
-export const patchPowers = (state: FuState, id: string, patch: object): FuState =>
-  patchPlayer(state, id, { powers: { ...player(state, id).powers, ...patch } });
+/** Directly sets what a player OWNS (oldest first), giving TWIN_THROW owners their second boomerang. */
+export function own(state: FuState, id: string, ...kinds: PowerKind[]): FuState {
+  const withTwin =
+    kinds.includes('TWIN_THROW') && !state.extraBoomerangs.some((b) => b.ownerId === id)
+      ? [
+          ...state.extraBoomerangs,
+          {
+            ...must(
+              state.boomerangs.find((b) => b.ownerId === id),
+              'boomerang',
+            ),
+            state: 'HELD' as const,
+          },
+        ]
+      : state.extraBoomerangs;
+  return { ...patchPlayer(state, id, { inventory: kinds }), extraBoomerangs: withTwin };
+}
+/** Old-style shim used by the geometry tests: truthy keys mean "owns it". */
+export function patchPowers(state: FuState, id: string, patch: Record<string, unknown>): FuState {
+  const kinds: PowerKind[] = [...player(state, id).inventory];
+  const add = (cond: unknown, kind: PowerKind) => {
+    if (cond && !kinds.includes(kind)) kinds.push(kind);
+  };
+  add(patch['overdrive'], 'OVERDRIVE');
+  add(patch['blast'], 'BLAST_BOOMERANG');
+  add(patch['guard'], 'GUARD');
+  add(patch['twin'], 'TWIN_THROW');
+  add(patch['phase'], 'PHASE_DASH');
+  return own(state, id, ...kinds);
+}
 export const patchBoomerang = (
   state: FuState,
   ownerId: string,
@@ -145,37 +173,36 @@ export function run(
 }
 
 let nextPickup = 9000;
-/** Lays a pickup of `kind` on the player and takes one step, so they collect it through the real rules. */
+/**
+ * Lays a Book on the player and takes one step, so they collect it through the real rules. The Book's
+ * award is whatever the pool allows, so this narrows the pool to `kind` for that one step.
+ */
 export function give(state: FuState, id: string, kind: PowerKind): FuState {
   const where = at(state, id);
   const laid: FuState = {
     ...state,
-    pickups: [
-      ...state.pickups,
-      { id: (nextPickup += 1), kind, position: { x: where.x, y: where.y } },
-    ],
+    config: { ...state.config, enabledPowers: [kind] },
+    pickups: [...state.pickups, { id: (nextPickup += 1), position: { x: where.x, y: where.y } }],
   };
   const next = stepFu(laid, NONE, DT).state;
   if (player(next, id).alive && !holds(next, id, kind)) {
     throw new Error(`test setup: ${id} could not take ${kind}`);
   }
-  return next;
+  return { ...next, config: state.config };
 }
-export function holds(s: FuState, id: string, kind: PowerKind): boolean {
-  const p = player(s, id).powers;
-  switch (kind) {
-    case 'OVERDRIVE':
-      return p.overdrive > 0;
-    case 'BLAST_BOOMERANG':
-      return p.blast || weaponsOf(s, id).some((w) => w.blast);
-    case 'GUARD':
-      return p.guard;
-    case 'TWIN_THROW':
-      return p.twin;
-    case 'PHASE_DASH':
-      return p.phase > 0;
-  }
-}
+export const holds = (s: FuState, id: string, kind: PowerKind): boolean =>
+  player(s, id).inventory.includes(kind);
+export const has = holds;
+/** A Book lying at a place (it carries no kind). */
+export const book = (
+  state: FuState,
+  x: number,
+  y: number,
+  id = 1 + state.pickups.length,
+): FuState => ({
+  ...state,
+  pickups: [...state.pickups, { id, position: { x, y } }],
+});
 
 export { PRIMITIVE_ARENA, stepFu, createFuMatch };
 export type { FuConfig, FuEvent, FuInputs, FuState };

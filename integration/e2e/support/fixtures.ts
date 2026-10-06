@@ -40,16 +40,13 @@ export interface Snapshot {
           /** Slice 5: mid Phase Dash, and whether the body is in a wall right now. */
           phasing: boolean;
           inWall: boolean;
-          powers: {
-            overdrive: number;
-            blast: boolean;
-            guard: boolean;
-            twin: boolean;
-            phase: number;
-          };
+          /** What they own, oldest first. */
+          inventory: string[];
           fatigue: { dashes: number; recoverIn: number; fatigued: boolean };
         }[];
-        pickups: { id: number; kind: string; x: number; y: number }[];
+        /** Books lying in the arena: a Book carries no kind. */
+        pickups: { id: number; x: number; y: number }[];
+        awards: number;
         boomerangs: {
           blast: boolean;
           ownerId: string;
@@ -315,8 +312,11 @@ interface Fixtures {
   host: Host;
   /** The console opened for Foomerang Fu (the default game). */
   fuHost: Host;
-  /** The Foomerang Fu console with pickups appearing every second (`?powerups=fast`), so every power can be tried in seconds. */
-  powerHost: Host;
+  /**
+   * The Foomerang Fu console with a Book every second (`?powerups=fast`, developer only) so every power
+   * can be tried in seconds; `enable` narrows which powers a Book may award (`?enable=GUARD`).
+   */
+  powerHost: (enable?: string) => Promise<Host>;
   /** The console from `vite build`: no debug hook, so tests can only look at what a person sees. */
   productionHost: Host;
   newPhone: () => Promise<Phone>;
@@ -351,14 +351,21 @@ export const test = base.extend<Fixtures>({
     await context.close();
   },
   powerHost: async ({ browser, stack }, use) => {
-    const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-    const host = new Host(await context.newPage(), `${stack.consoleUrl}/?powerups=fast`);
-    await host.open();
-    await use(host);
-    expect(host.errors, 'no console errors or uncaught exceptions on the power console').toEqual(
-      [],
-    );
-    await context.close();
+    const opened: { host: Host; close: () => Promise<void> }[] = [];
+    await use(async (enable) => {
+      const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+      const query = `?powerups=fast${enable === undefined ? '' : `&enable=${enable}`}`;
+      const host = new Host(await context.newPage(), `${stack.consoleUrl}/${query}`);
+      await host.open();
+      opened.push({ host, close: () => context.close() });
+      return host;
+    });
+    for (const { host, close } of opened) {
+      expect(host.errors, 'no console errors or uncaught exceptions on the power console').toEqual(
+        [],
+      );
+      await close();
+    }
   },
 
   productionHost: async ({ browser, stack }, use) => {

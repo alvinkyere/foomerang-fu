@@ -1,6 +1,12 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
 import { assertValidSpawns, assertValidWalls, distanceToRect, type FuArena } from './arena';
-import { isPowerKind, type PowerKind, type PowerupConfig } from './powerups';
+import {
+  SPAWN_RATES,
+  isPowerKind,
+  type PowerKind,
+  type PowerupConfig,
+  type SpawnRate,
+} from './powerups';
 import { spawnPosition } from './spawn';
 
 /**
@@ -54,16 +60,18 @@ export interface FuConfig {
   readonly fatiguedMoveFactor: number;
   /** Slice 4: dash speed (so distance) while FATIGUED, as a fraction of normal (1 = no penalty). */
   readonly fatiguedDashFactor: number;
-  /** Slice 5 (unvalidated): how long OVERDRIVE lasts, seconds. */
-  readonly overdriveSeconds: number;
   /** Slice 5: walking speed multiplier while OVERDRIVE is on (it multiplies with fatigue and the slash slowdown). */
   readonly overdriveMoveFactor: number;
   /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under OVERDRIVE (multiplies with fatigue). */
   readonly overdriveDashFactor: number;
   /** Slice 5: BLAST_BOOMERANG's blast radius, centre to body centre, world units. */
   readonly blastRadius: number;
-  /** Slice 5: how many Phase Dashes one PHASE_DASH pickup gives. */
-  readonly phaseDashCharges: number;
+  /** Slice 5: which powers a Book may award (default all five). A disabled power is never awarded. */
+  readonly enabledPowers?: readonly PowerKind[];
+  /** Slice 5: the seed the Book's choice of power is derived from (with how many Books have been taken). */
+  readonly seed: number;
+  /** Slice 5: how many rounds make a match (9 in the real game). Absent: rounds go on forever (Slices 1–4). A match ends after its last round: every inventory is cleared and a new match begins. */
+  readonly matchRounds?: number;
   /** Slice 5: where and when pickups appear. Absent: no powerups (Slices 1–4 exactly). */
   readonly powerups?: PowerupConfig;
   /** Slice 5: pairs of powers one player may NOT hold together (default none; every pair is allowed). */
@@ -94,11 +102,10 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fatigueRecoverySeconds: 5,
   fatiguedMoveFactor: 0.7,
   fatiguedDashFactor: 0.7,
-  overdriveSeconds: 8,
   overdriveMoveFactor: 1.4,
   overdriveDashFactor: 1.3,
   blastRadius: 170,
-  phaseDashCharges: 2,
+  seed: 1,
   roundEndSeconds: 2.5,
 });
 
@@ -113,11 +120,27 @@ export const PRIMITIVE_POWERUPS: PowerupConfig = Object.freeze({
     Object.freeze({ x: 460, y: 450 }),
     Object.freeze({ x: 1140, y: 450 }),
   ]),
-  firstSeconds: 6,
-  intervalSeconds: 8,
-  maxOnField: 3,
+  firstSeconds: SPAWN_RATES.NORMAL.first,
+  intervalSeconds: SPAWN_RATES.NORMAL.interval,
+  maxOnField: 1,
   pickupRadius: 28,
 });
+
+/** The Book schedule for a spawn rate on a set of spots: `OFF` is no schedule at all. */
+export function powerupsFor(
+  rate: SpawnRate,
+  spots: PowerupConfig['spots'] = PRIMITIVE_POWERUPS.spots,
+): PowerupConfig | undefined {
+  if (rate === 'OFF') return undefined;
+  const pace = SPAWN_RATES[rate];
+  return Object.freeze({
+    spots,
+    firstSeconds: pace.first,
+    intervalSeconds: pace.interval,
+    maxOnField: 1,
+    pickupRadius: 28,
+  });
+}
 
 const positive = (value: number): boolean => Number.isFinite(value) && value > 0;
 
@@ -145,7 +168,6 @@ export function assertValidConfig(config: FuConfig): void {
     ['fatigueRecoverySeconds', config.fatigueRecoverySeconds],
     ['fatiguedMoveFactor', config.fatiguedMoveFactor],
     ['fatiguedDashFactor', config.fatiguedDashFactor],
-    ['overdriveSeconds', config.overdriveSeconds],
     ['overdriveMoveFactor', config.overdriveMoveFactor],
     ['overdriveDashFactor', config.overdriveDashFactor],
     ['blastRadius', config.blastRadius],
@@ -164,8 +186,15 @@ export function assertValidConfig(config: FuConfig): void {
   if (config.overdriveMoveFactor < 1 || config.overdriveDashFactor < 1) {
     throw new RangeError('overdrive cannot make a player slower');
   }
-  if (!Number.isInteger(config.phaseDashCharges) || config.phaseDashCharges < 1) {
-    throw new RangeError('phaseDashCharges must be a positive integer');
+  if (!Number.isInteger(config.seed)) throw new RangeError('seed must be an integer');
+  if (
+    config.matchRounds !== undefined &&
+    (!Number.isInteger(config.matchRounds) || config.matchRounds < 1)
+  ) {
+    throw new RangeError('matchRounds must be a positive integer');
+  }
+  if (config.enabledPowers !== undefined && !config.enabledPowers.every(isPowerKind)) {
+    throw new RangeError('enabledPowers must be power kinds');
   }
   for (const entry of config.exclusivePairs ?? []) {
     if (!Array.isArray(entry) || entry.length !== 2 || !entry.every(isPowerKind)) {

@@ -13,6 +13,7 @@ import {
   make,
   patchBoomerang,
   patchPlayer,
+  own,
   place,
   player,
   run,
@@ -53,21 +54,24 @@ const armed = (
 ) => flying(s, owner, from, dir, { blast: true }, which);
 
 describe('arming: the charge and the throw', () => {
-  it('taking it gives a charge; the next throw arms THAT boomerang and spends the charge', () => {
+  it('owning it arms EVERY throw; the power stays owned; an explosion spends only that projectile', () => {
     let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
     s = face(give(s, 'a', 'BLAST_BOOMERANG'), 'a', 1, 0);
-    expect(player(s, 'a').powers.blast).toBe(true);
-    expect(boom(s, 'a').blast).toBe(false); // the boomerang in hand is not armed yet
+    expect(player(s, 'a').inventory).toEqual(['BLAST_BOOMERANG']);
+    expect(boom(s, 'a').blast).toBe(false); // nothing is armed until it is thrown
     const r = stepFu(s, input({ a: { throw: true } }), DT);
     expect(boom(r.state, 'a').blast).toBe(true);
-    expect(player(r.state, 'a').powers.blast).toBe(false);
+    expect(player(r.state, 'a').inventory).toEqual(['BLAST_BOOMERANG']); // throwing does not use the power up
   });
 
-  it('while armed in flight it counts as held (a second pickup is refused)', () => {
+  it('while owned it cannot be awarded again (the Book stays for someone else)', () => {
     let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
-    s = face(give(s, 'a', 'BLAST_BOOMERANG'), 'a', 1, 0);
-    s = stepFu(s, input({ a: { throw: true } }), DT).state;
-    s = { ...s, pickups: [{ id: 5, kind: 'BLAST_BOOMERANG', position: at(s, 'a') }] };
+    s = give(s, 'a', 'BLAST_BOOMERANG');
+    s = {
+      ...s,
+      config: { ...s.config, enabledPowers: ['BLAST_BOOMERANG'] },
+      pickups: [{ id: 5, position: at(s, 'a') }],
+    };
     expect(stepFu(s, NONE, DT).state.pickups).toHaveLength(1);
   });
 
@@ -217,23 +221,38 @@ describe('what does NOT detonate it', () => {
     expect(player(r.state, 'b').alive).toBe(true); // ~125 from the blast, in the clear — but he knocked it away
   });
 
-  it('coming home unused gives the charge back (nothing is wasted)', () => {
+  it('the capability survives an explosion and the return: still owned, and the next throw is armed again', () => {
     let s = field(['a', 'b']);
-    s = place(s, 'a', 300, 450);
-    s = patchBoomerang(s, 'a', {
+    s = own(s, 'a', 'BLAST_BOOMERANG');
+    s = place(place(s, 'b', 520, 450), 'a', 300, 450);
+    s = armed(s, 'a', { x: 400, y: 450 });
+    const exploded = run(s, 14);
+    expect(blasted(exploded.events)).toHaveLength(1);
+    expect(boom(exploded.state, 'a').blast).toBe(false); // this projectile's blast is spent
+    expect(player(exploded.state, 'a').inventory).toEqual(['BLAST_BOOMERANG']); // the power is not
+    // the boomerang comes home (the round is over for the dead victim, so look at it directly)
+    let home = patchBoomerang(place(exploded.state, 'a', 300, 450), 'a', {
       state: 'RETURNING',
-      position: { x: 400, y: 450 },
+      position: { x: 320, y: 450 },
       direction: { x: 0, y: 0 },
-      blast: true,
     });
-    const r = run(s, 12);
-    expect(boom(r.state, 'a')).toMatchObject({ state: 'HELD', blast: false });
-    expect(player(r.state, 'a').powers.blast).toBe(true);
+    home = run(
+      {
+        ...home,
+        phase: 'PLAYING',
+        roundOver: undefined,
+        players: home.players.map((p) => ({ ...p, alive: true })),
+      },
+      8,
+    ).state;
+    expect(boom(home, 'a').state).toBe('HELD');
+    const again = stepFu(face(home, 'a', 1, 0), input({ a: { throw: true } }), DT).state;
+    expect(boom(again, 'a').blast).toBe(true);
   });
 });
 
 describe('GUARD and BLAST', () => {
-  it('a guard absorbs the blast (and is spent); the unguarded bystander still dies', () => {
+  it('a shield absorbs the blast (and breaks); the unshielded bystander still dies', () => {
     let s = field();
     s = place(s, 'b', 520, 450);
     s = give(s, 'b', 'GUARD');
@@ -246,7 +265,7 @@ describe('GUARD and BLAST', () => {
     ]);
     expect(victims(r.events)).toEqual(['c']);
     expect(player(r.state, 'b').alive).toBe(true);
-    expect(player(r.state, 'b').powers.guard).toBe(false);
+    expect(player(r.state, 'b').inventory).toEqual([]);
   });
 });
 
@@ -272,15 +291,16 @@ describe('simultaneous explosions and ownership', () => {
     expect(hits(r.events)).toEqual([expect.objectContaining({ victimId: 'b', byId: 'a' })]);
   });
 
-  it('a new round starts with nothing armed', () => {
+  it('a new round starts with nothing armed in flight, and the owner still owns it', () => {
     let s = field(['a', 'b']);
+    s = own(s, 'a', 'BLAST_BOOMERANG');
     s = armed(s, 'a');
     s = { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) };
     s = stepFu(s, NONE, DT).state;
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
     expect(weaponsOf(s, 'a').every((w) => !w.blast && w.state === 'HELD')).toBe(true);
-    expect(player(s, 'a').powers.blast).toBe(false);
+    expect(player(s, 'a').inventory).toEqual(['BLAST_BOOMERANG']);
   });
 
   it('the blast radius is the same at any accepted dt (judged at the end-of-step position)', () => {

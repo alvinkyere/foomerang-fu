@@ -1,4 +1,4 @@
-import { heldKinds, isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
+import { isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { SlotAllocator } from '../runtime/slots';
 import {
@@ -39,15 +39,7 @@ export function buildFuView(
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),
       armed: !dead && boomerang?.state === 'HELD',
-      powers:
-        player === undefined || dead
-          ? []
-          : heldKinds(
-              player.powers,
-              [...state.boomerangs, ...state.extraBoomerangs].some(
-                (b) => b.ownerId === body.id && b.blast,
-              ),
-            ),
+      powers: player === undefined ? [] : player.inventory, // what they own, oldest first (the dead keep theirs)
       ...(!dead && player?.dash.phase === 'DASHING' && player.dash.phasing !== undefined
         ? { phasing: { inWall: player.dash.phasing.inside } }
         : {}),
@@ -112,7 +104,7 @@ export function buildFuView(
           },
         ];
       case 'POWERUP_SPAWNED':
-        return [{ type: 'SPAWNED', ...event.position, color: '#FFFFFF', kind: event.kind }];
+        return [{ type: 'SPAWNED', ...event.position, color: '#FFFFFF' }];
       case 'PICKED_UP':
         return [
           {
@@ -120,17 +112,22 @@ export function buildFuView(
             ...event.position,
             color: styleOf(event.playerId, slots).color,
             kind: event.kind,
+            who: identityOf(event.playerId, roster, slots).label,
           },
         ];
-      case 'POWER_EXPIRED':
+      case 'POWER_LOST':
         return [
           {
-            type: 'EXPIRED',
+            type: 'POWER_LOST',
             ...positionOf(event.playerId),
             color: styleOf(event.playerId, slots).color,
             kind: event.kind,
+            reason: event.reason,
+            who: identityOf(event.playerId, roster, slots).label,
           },
         ];
+      case 'MATCH_OVER':
+        return [];
       case 'BLASTED':
         return [
           {
@@ -209,7 +206,6 @@ export function buildFuView(
     boomerangs,
     pickups: state.pickups.map((p) => ({
       id: p.id,
-      kind: p.kind,
       x: p.position.x,
       y: p.position.y,
     })),

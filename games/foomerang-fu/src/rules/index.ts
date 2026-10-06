@@ -25,9 +25,21 @@ export {
   POWER_COMBINATIONS,
   POWER_KINDS,
   NO_POWERS,
-  heldKinds,
+  MAX_POWERS,
+  SPAWN_RATES,
+  awardPower,
+  awardPool,
+  chooseAward,
+  owns,
+  removePower,
   isPowerKind,
-  spawnKind,
 } from './powerups';
-export type { Pickup, PickupClock, PowerKind, PowerupConfig, Powers } from './powerups';
-export { PRIMITIVE_POWERUPS } from './config';
+export type {
+  Inventory,
+  Pickup,
+  PickupClock,
+  PowerKind,
+  PowerupConfig,
+  SpawnRate,
+} from './powerups';
+export { PRIMITIVE_POWERUPS, powerupsFor } from './config';

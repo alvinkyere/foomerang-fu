@@ -3,21 +3,19 @@ import { stepFu } from '../src/rules';
 import {
   DT,
   NONE,
-  at,
   boom,
   face,
   flying,
   give,
+  has,
   input,
-  kill,
   make,
   patchBoomerang,
   patchPlayer,
-  patchPowers,
+  own,
   place,
   player,
   run,
-  types,
   type FuEvent,
   type FuState,
 } from './support/fixtures';
@@ -40,7 +38,7 @@ describe('GUARD vs SLASH', () => {
   it('absorbs the swing: the player lives, the guard is spent, and it is announced', () => {
     const r = stepFu(scene(), SLASH_B, DT);
     expect(player(r.state, 'a').alive).toBe(true);
-    expect(player(r.state, 'a').powers.guard).toBe(false);
+    expect(has(r.state, 'a', 'GUARD')).toBe(false);
     expect(r.events).toContainEqual({
       type: 'GUARD_BLOCKED',
       playerId: 'a',
@@ -149,7 +147,7 @@ describe('GUARD vs boomerangs (THROWN, RETURNING, DEFLECTED)', () => {
     });
     const r = passes(s, 12);
     expect(r.events.filter((e) => e.type === 'GUARD_BLOCKED')).toEqual([]);
-    expect(player(r.state, 'a').powers.guard).toBe(true);
+    expect(has(r.state, 'a', 'GUARD')).toBe(true);
   });
 
   it('their OWN boomerang is never a lethal contact, so it spends nothing', () => {
@@ -160,7 +158,7 @@ describe('GUARD vs boomerangs (THROWN, RETURNING, DEFLECTED)', () => {
       direction: { x: 0, y: 0 },
     });
     const r = passes(s, 20);
-    expect(player(r.state, 'a').powers.guard).toBe(true);
+    expect(has(r.state, 'a', 'GUARD')).toBe(true);
     expect(boom(r.state, 'a').state).toBe('HELD');
   });
 });
@@ -215,30 +213,65 @@ describe('GUARD with several lethal contacts', () => {
     s = face(s, 'b', -1, 0);
     s = face(s, 'c', 1, 0);
     const r = stepFu(s, SLASH_B, DT);
-    expect(player(r.state, 'a').powers.guard).toBe(false);
-    expect(player(r.state, 'c').powers.guard).toBe(true); // Bob's swing is -x only: Carol is behind Alice, out of reach
+    expect(has(r.state, 'a', 'GUARD')).toBe(false);
+    expect(has(r.state, 'c', 'GUARD')).toBe(true); // Bob's swing is -x only: Carol is behind Alice, out of reach
   });
 });
 
-describe('GUARD lifecycle', () => {
-  it('is held until used: it does not expire, and moving or dashing does not spend it', () => {
+describe('SHIELD (GUARD) lifecycle: owned until it blocks a hit', () => {
+  const nextRound = (start: FuState): FuState => {
+    let s = stepFu(
+      { ...start, players: start.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
+      NONE,
+      DT,
+    ).state;
+    for (let i = 0; i < 400 && s.round === start.round; i += 1) s = stepFu(s, NONE, DT).state;
+    return s;
+  };
+
+  it('never expires with time, and moving or dashing does not break it', () => {
     let s = scene(['a', 'b']);
     s = run(s, 400, input({ a: { move: { x: -1, y: 0 }, dash: true } }), { repeat: true }).state;
-    expect(player(s, 'a').powers.guard).toBe(true);
+    expect(has(s, 'a', 'GUARD')).toBe(true);
+    expect(player(run(s, 60 * 60).state, 'a').inventory).toContain('GUARD'); // a minute later
   });
 
-  it('death and round reset clear it', () => {
-    const dead = stepFu(kill(scene(['a', 'b']), 'a'), NONE, DT).state;
-    expect(player(dead, 'a').powers.guard).toBe(false);
-    let s = stepFu(kill(scene(['a', 'b']), 'b'), NONE, DT).state;
-    for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
-    expect(player(s, 'a').powers.guard).toBe(false);
+  it('survives a round transition, and several, if it is never hit', () => {
+    let s = scene(['a', 'b']);
+    for (let r = 1; r <= 3; r += 1) {
+      s = nextRound(s);
+      expect(s.round).toBe(r + 1);
+      expect(player(s, 'a').inventory).toEqual(['GUARD']);
+    }
   });
 
-  it('is not the kind of thing patchPowers can leave half-set: a guard is a plain boolean', () => {
-    const s = patchPowers(scene(), 'a', { guard: false });
-    expect(player(s, 'a').powers.guard).toBe(false);
-    expect(types(stepFu(s, SLASH_B, DT).events)).toContain('HIT');
-    expect(at(s, 'a')).toEqual({ x: 600, y: 450 });
+  it('a valid lethal hit breaks it: the player lives, the power leaves the inventory and says why', () => {
+    const r = stepFu(scene(), SLASH_B, DT);
+    expect(player(r.state, 'a').alive).toBe(true);
+    expect(player(r.state, 'a').inventory).toEqual([]);
+    expect(r.events).toContainEqual({
+      type: 'POWER_LOST',
+      playerId: 'a',
+      kind: 'GUARD',
+      reason: 'SHIELD_BROKEN',
+    });
+  });
+
+  it('a broken shield frees its slot at once and the others keep their order; the next power fills the freed slot', () => {
+    let s = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 700, 450);
+    s = face(face(s, 'a', 1, 0), 'b', -1, 0);
+    s = own(s, 'a', 'PHASE_DASH', 'GUARD', 'TWIN_THROW');
+    s = stepFu(s, SLASH_B, DT).state;
+    expect(player(s, 'a').inventory).toEqual(['PHASE_DASH', 'TWIN_THROW']);
+    s = place(s, 'a', 600, 450);
+    s = give(s, 'a', 'OVERDRIVE');
+    expect(player(s, 'a').inventory).toEqual(['PHASE_DASH', 'TWIN_THROW', 'OVERDRIVE']); // nothing was evicted
+  });
+
+  it('death does not remove an unused shield (ownership outlives the round)', () => {
+    let s = scene(['a', 'b', 'c']);
+    s = patchPlayer(s, 'a', { alive: false });
+    s = stepFu(s, NONE, DT).state;
+    expect(player(s, 'a').inventory).toEqual(['GUARD']);
   });
 });

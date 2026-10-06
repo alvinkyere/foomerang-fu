@@ -4,6 +4,7 @@ import {
   PRIMITIVE_POWERUPS,
   createFuMatch,
   type FuState,
+  type PowerKind,
 } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import { describe, expect, it } from 'vitest';
@@ -39,6 +40,8 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
   it('knows exactly fast and off; anything else is normal', () => {
     expect(parsePowerupsParam('?powerups=fast')).toBe('fast');
     expect(parsePowerupsParam('?game=foomerang-fu&powerups=off')).toBe('off');
+    expect(parsePowerupsParam('?powerups=low')).toBe('low');
+    expect(parsePowerupsParam('?powerups=high')).toBe('high');
     for (const junk of [
       '',
       '?powerups=',
@@ -56,6 +59,13 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     const normal = new FuRuntime();
     normal.start(players, 0);
     expect(config(normal)).toEqual(PRIMITIVE_POWERUPS);
+    expect(normal.state?.config.matchRounds).toBe(9); // a normal match is nine rounds
+    const low = new FuRuntime(PRIMITIVE_ARENA, 'low');
+    low.start(players, 0);
+    expect(config(low)).toMatchObject({ firstSeconds: 25, intervalSeconds: 90, maxOnField: 1 });
+    const high = new FuRuntime(PRIMITIVE_ARENA, 'high');
+    high.start(players, 0);
+    expect(config(high)).toMatchObject({ firstSeconds: 10, intervalSeconds: 25, maxOnField: 1 });
     const fast = new FuRuntime(PRIMITIVE_ARENA, 'fast');
     fast.start(players, 0);
     expect(config(fast)).toMatchObject({ firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 });
@@ -86,19 +96,20 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     expect(runtime.state?.pickups).toHaveLength(0);
     for (let i = 0; i < 40; i += 1) runtime.frame((now += 1000 / 60));
     expect(runtime.state?.pickups.length).toBeGreaterThan(0);
-    const debug = runtime.debugState() as { pickups: { kind: string; x: number }[] };
-    expect(debug.pickups[0]).toMatchObject({ kind: 'OVERDRIVE', x: 800 });
+    const debug = runtime.debugState() as { pickups: { x: number; y: number }[] };
+    expect(debug.pickups[0]).toMatchObject({ x: 800, y: 295 });
+    expect(Object.keys(debug.pickups[0] ?? {})).not.toContain('kind'); // a Book says nothing about what it awards
   });
 
   it('reports powers and phase state in the read-only debug snapshot', () => {
     const runtime = new FuRuntime(PRIMITIVE_ARENA, 'off');
     runtime.start(players, 0);
     const debug = runtime.debugState() as {
-      players: { powers: Record<string, unknown>; phasing: boolean; inWall: boolean }[];
+      players: { inventory: string[]; phasing: boolean; inWall: boolean }[];
       boomerangs: { blast: boolean }[];
     };
     expect(debug.players[0]).toMatchObject({
-      powers: { overdrive: 0, blast: false, guard: false, twin: false, phase: 0 },
+      inventory: [],
       phasing: false,
       inWall: false,
     });
@@ -110,38 +121,28 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
 describe('buildFuView: powerup state → what Phaser draws', () => {
   const entries = roster;
   const base = fresh();
-  const withPowers = (patch: object): FuState => ({
+  const withInventory = (inventory: PowerKind[]): FuState => ({
     ...base,
-    players: base.players.map((p, i) =>
-      i === 0 ? { ...p, powers: { ...p.powers, ...patch } } : p,
-    ),
+    players: base.players.map((p, i) => (i === 0 ? { ...p, inventory } : p)),
   });
 
-  it('lists the powers a player holds, in a fixed order, and nothing for the dead', () => {
-    const view = buildFuView(
-      withPowers({ overdrive: 3, guard: true, twin: true, phase: 1, blast: true }),
-      [],
-      entries,
-      slots(),
-    );
-    expect(view.circles[0]?.powers).toEqual([
-      'OVERDRIVE',
-      'BLAST_BOOMERANG',
-      'GUARD',
-      'TWIN_THROW',
-      'PHASE_DASH',
-    ]);
+  it('lists what a player OWNS in the order they got it (at most three); the dead keep theirs', () => {
+    const owned = withInventory(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
+    const view = buildFuView(owned, [], entries, slots());
+    expect(view.circles[0]?.powers).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
     expect(view.circles[1]?.powers).toEqual([]);
     const dead: FuState = {
-      ...withPowers({ guard: true }),
-      players: withPowers({ guard: true }).players.map((p, i) =>
-        i === 0 ? { ...p, alive: false } : p,
-      ),
+      ...owned,
+      players: owned.players.map((p, i) => (i === 0 ? { ...p, alive: false } : p)),
     };
-    expect(buildFuView(dead, [], entries, slots()).circles[0]?.powers).toEqual([]);
+    expect(buildFuView(dead, [], entries, slots()).circles[0]?.powers).toEqual([
+      'PHASE_DASH',
+      'TWIN_THROW',
+      'GUARD',
+    ]);
   });
 
-  it('an armed boomerang in flight still counts as the player holding BLAST_BOOMERANG', () => {
+  it('draws an armed boomerang as armed (a rules fact on the boomerang, separate from owning the power)', () => {
     const s: FuState = {
       ...base,
       boomerangs: base.boomerangs.map((b, i) =>
@@ -149,8 +150,8 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
       ),
     };
     const view = buildFuView(s, [], entries, slots());
-    expect(view.circles[0]?.powers).toEqual(['BLAST_BOOMERANG']);
     expect(view.boomerangs[0]).toMatchObject({ id: 'a', ownerId: 'a', blast: true });
+    expect(view.circles[0]?.powers).toEqual([]);
   });
 
   it('draws twin boomerangs as separate boomerangs with their own ids, own first', () => {
@@ -197,26 +198,26 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     expect(buildFuView(base, [], entries, slots()).circles[0]?.phasing).toBeUndefined();
   });
 
-  it('hands over the pickups lying in the arena exactly as the rules have them', () => {
+  it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,
       pickups: [
-        { id: 3, kind: 'GUARD', position: { x: 10, y: 20 } },
-        { id: 4, kind: 'TWIN_THROW', position: { x: 30, y: 40 } },
+        { id: 3, position: { x: 10, y: 20 } },
+        { id: 4, position: { x: 30, y: 40 } },
       ],
     };
     expect(buildFuView(s, [], entries, slots()).pickups).toEqual([
-      { id: 3, kind: 'GUARD', x: 10, y: 20 },
-      { id: 4, kind: 'TWIN_THROW', x: 30, y: 40 },
+      { id: 3, x: 10, y: 20 },
+      { id: 4, x: 30, y: 40 },
     ]);
     expect(buildFuView(base, [], entries, slots()).pickups).toEqual([]);
   });
 
-  it('turns the powerup events into drawable ones, placed and coloured', () => {
+  it('turns the powerup events into drawable ones; the award is named only in PICKUP', () => {
     const view = buildFuView(
       base,
       [
-        { type: 'POWERUP_SPAWNED', pickupId: 1, kind: 'GUARD', position: { x: 5, y: 6 } },
+        { type: 'POWERUP_SPAWNED', pickupId: 1, position: { x: 5, y: 6 } },
         {
           type: 'PICKED_UP',
           playerId: 'b',
@@ -224,7 +225,8 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
           pickupId: 1,
           position: { x: 7, y: 8 },
         },
-        { type: 'POWER_EXPIRED', playerId: 'a', kind: 'OVERDRIVE' },
+        { type: 'POWER_LOST', playerId: 'a', kind: 'OVERDRIVE', reason: 'EVICTED' },
+        { type: 'POWER_LOST', playerId: 'b', kind: 'GUARD', reason: 'SHIELD_BROKEN' },
         { type: 'BLASTED', ownerId: 'a', position: { x: 9, y: 10 }, radius: 170, victims: ['b'] },
         { type: 'GUARD_BLOCKED', playerId: 'b', byId: 'a', position: { x: 11, y: 12 } },
         { type: 'PHASE_ENTERED', playerId: 'a', position: { x: 13, y: 14 } },
@@ -240,14 +242,33 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
       entries,
       slots(),
     );
+    const here = base.world.bodies[0]?.position;
+    const there = base.world.bodies[1]?.position;
     expect(view.events).toEqual([
-      { type: 'SPAWNED', x: 5, y: 6, color: '#FFFFFF', kind: 'GUARD' },
-      { type: 'PICKUP', x: 7, y: 8, color: SLOT_STYLES[1]?.color, kind: 'PHASE_DASH' },
+      { type: 'SPAWNED', x: 5, y: 6, color: '#FFFFFF' },
       {
-        type: 'EXPIRED',
-        ...base.world.bodies[0]?.position,
+        type: 'PICKUP',
+        x: 7,
+        y: 8,
+        color: SLOT_STYLES[1]?.color,
+        kind: 'PHASE_DASH',
+        who: 'David',
+      },
+      {
+        type: 'POWER_LOST',
+        ...here,
         color: SLOT_STYLES[0]?.color,
         kind: 'OVERDRIVE',
+        reason: 'EVICTED',
+        who: 'Alvin',
+      },
+      {
+        type: 'POWER_LOST',
+        ...there,
+        color: SLOT_STYLES[1]?.color,
+        kind: 'GUARD',
+        reason: 'SHIELD_BROKEN',
+        who: 'David',
       },
       { type: 'BLASTED', x: 9, y: 10, color: SLOT_STYLES[0]?.color, radius: 170 },
       { type: 'GUARD_BLOCKED', x: 11, y: 12, color: SLOT_STYLES[1]?.color },
@@ -262,10 +283,30 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         phasing: true,
       },
     ]);
+    // before collection nothing names a power
+    expect(JSON.stringify(view.events[0])).not.toMatch(/OVERDRIVE|GUARD|PHASE|TWIN|BLAST/);
   });
 
   it('is pure: the same state gives the same view', () => {
-    const s = withPowers({ guard: true, phase: 2 });
+    const s = withInventory(['GUARD', 'PHASE_DASH']);
     expect(buildFuView(s, [], entries, slots())).toEqual(buildFuView(s, [], entries, slots()));
+  });
+});
+
+describe('?enable= (the enabled power pool, for playtesting one power at a time)', () => {
+  it("keeps only known names, in the rules' order; nothing valid means the default pool", async () => {
+    const { parseEnabledParam } = await import('../src/runtime/powerupMode');
+    expect(parseEnabledParam('?enable=GUARD')).toEqual(['GUARD']);
+    expect(parseEnabledParam('?enable=PHASE_DASH,GUARD')).toEqual(['GUARD', 'PHASE_DASH']);
+    expect(parseEnabledParam('?enable=GUARD,NOPE')).toEqual(['GUARD']);
+    for (const junk of ['', '?enable=', '?enable=NOPE', '?enabled=GUARD']) {
+      expect(parseEnabledParam(junk), junk).toBeUndefined();
+    }
+  });
+
+  it('reaches the rules: a Book awards only an enabled power', () => {
+    const runtime = new FuRuntime(PRIMITIVE_ARENA, 'fast', ['TWIN_THROW']);
+    runtime.start(players, 0);
+    expect(runtime.state?.config.enabledPowers).toEqual(['TWIN_THROW']);
   });
 });

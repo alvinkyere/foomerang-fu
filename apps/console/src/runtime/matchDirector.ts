@@ -4,12 +4,17 @@ import type { ArenaView } from '../render/viewModel';
 import { GameRuntime } from './gameRuntime';
 import { LazyFuRuntime, warmUpFu } from './lazyFuRuntime';
 import type { MatchRuntime } from './matchRuntime';
+import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { PowerupMode } from './powerupMode';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
-export function createRuntimeFor(gameId: string, powerups?: PowerupMode): MatchRuntime {
-  return gameId === 'foomerang-fu' ? new LazyFuRuntime(powerups) : new GameRuntime();
+export function createRuntimeFor(
+  gameId: string,
+  powerups?: PowerupMode,
+  enabled?: readonly PowerKind[],
+): MatchRuntime {
+  return gameId === 'foomerang-fu' ? new LazyFuRuntime(powerups, enabled) : new GameRuntime();
 }
 
 /** Fetches what a game will need while players are still in the lobby (a no-op for games with nothing to fetch). */

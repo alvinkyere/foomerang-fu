@@ -46,9 +46,13 @@ describe('getting the second boomerang', () => {
     expect(s.extraBoomerangs[0]?.position).toEqual(at(s, 'a'));
   });
 
-  it('a duplicate pickup is refused: still exactly two', () => {
+  it('a duplicate is refused: the Book stays, still exactly two boomerangs', () => {
     let s = twinned();
-    s = { ...s, pickups: [{ id: 77, kind: 'TWIN_THROW', position: at(s, 'a') }] };
+    s = {
+      ...s,
+      config: { ...s.config, enabledPowers: ['TWIN_THROW'] },
+      pickups: [{ id: 77, position: at(s, 'a') }],
+    };
     s = stepFu(s, NONE, DT).state;
     expect(s.pickups).toHaveLength(1);
     expect(s.extraBoomerangs).toHaveLength(1);
@@ -185,7 +189,7 @@ describe('twin boomerangs in combat', () => {
     expect(own?.state === 'RETURNING' || own?.state === 'HELD').toBe(true);
   });
 
-  it("a dead owner's boomerangs keep flying (and the twin stays in play until the round resets)", () => {
+  it("a dead owner's boomerangs keep flying, and death does not take the power", () => {
     let s = twinned();
     s = stepFu(s, THROW, DT).state;
     s = stepFu(s, THROW, DT).state;
@@ -193,20 +197,31 @@ describe('twin boomerangs in combat', () => {
     s = stepFu(s, NONE, DT).state;
     expect(weaponsOf(s, 'a')).toHaveLength(2);
     expect(weaponsOf(s, 'a').every((w) => w.state !== 'HELD')).toBe(true);
-    expect(player(s, 'a').powers.twin).toBe(false); // the power died with them
+    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW']);
   });
 
-  it('a new round takes the twin away: one boomerang each again', () => {
+  it('a new round gives the owner their second boomerang again, in hand (it persists; thrown ones are restored)', () => {
     let s = twinned();
+    s = stepFu(s, THROW, DT).state;
+    s = stepFu(s, THROW, DT).state;
     s = stepFu(
       { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
       NONE,
       DT,
     ).state;
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
-    expect(s.extraBoomerangs).toEqual([]);
-    expect(weaponsOf(s, 'a')).toHaveLength(1);
-    expect(player(s, 'a').powers.twin).toBe(false);
+    expect(s.round).toBe(2);
+    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW']);
+    expect(weaponsOf(s, 'a')).toHaveLength(2);
+    expect(weaponsOf(s, 'a').every((w) => w.state === 'HELD')).toBe(true);
+    expect(weaponsOf(s, 'b')).toHaveLength(1); // nobody else gained one
+  });
+
+  it('losing TWIN_THROW (FIFO eviction) takes the second boomerang away', () => {
+    let s = twinned();
+    s = give(give(give(s, 'a', 'GUARD'), 'a', 'PHASE_DASH'), 'a', 'OVERDRIVE'); // the 4th power pushes TWIN_THROW out
+    expect(player(s, 'a').inventory).toEqual(['GUARD', 'PHASE_DASH', 'OVERDRIVE']);
+    expect(s.extraBoomerangs.filter((b) => b.ownerId === 'a')).toHaveLength(0);
   });
 
   it('a boomerang whose owner is not in the match is inert and cannot hurt anyone (impossible state is rejected, not obeyed)', () => {
@@ -231,33 +246,13 @@ describe('twin boomerangs in combat', () => {
 });
 
 describe('TWIN_THROW and BLAST_BOOMERANG', () => {
-  it('one charge arms only the NEXT boomerang thrown; the other flies plain', () => {
+  it('owning both: every boomerang thrown, of either of the pair, is armed', () => {
     let s = give(twinned(), 'a', 'BLAST_BOOMERANG');
     s = stepFu(s, THROW, DT).state;
     s = stepFu(s, THROW, DT).state;
     const [own, twin] = weaponsOf(s, 'a');
     expect(own?.blast).toBe(true);
-    expect(twin?.blast).toBe(false);
-  });
-
-  it('a charge picked up while the first is out arms the SECOND throw instead', () => {
-    let s = twinned();
-    s = stepFu(s, THROW, DT).state;
-    s = give(place(s, 'a', 600, 450), 'a', 'BLAST_BOOMERANG');
-    s = stepFu(s, THROW, DT).state;
-    const [own, twin] = weaponsOf(s, 'a');
-    expect(own?.blast).toBe(false);
     expect(twin?.blast).toBe(true);
-  });
-
-  it('both can be armed in turn once the first has been spent (or come home) and a new charge is taken', () => {
-    let s = give(twinned(), 'a', 'BLAST_BOOMERANG');
-    s = stepFu(s, THROW, DT).state;
-    expect(player(s, 'a').powers.blast).toBe(false);
-    // a second pickup is refused while the first is armed in flight
-    s = { ...s, pickups: [{ id: 91, kind: 'BLAST_BOOMERANG', position: at(s, 'a') }] };
-    s = stepFu(s, NONE, DT).state;
-    expect(s.pickups).toHaveLength(1);
-    expect(player(s, 'a').powers.blast).toBe(false);
+    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW', 'BLAST_BOOMERANG']);
   });
 });
