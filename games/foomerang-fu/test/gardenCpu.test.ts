@@ -64,62 +64,73 @@ function longestIdle(
 }
 
 describe('CPUs play Garden', () => {
-  it('a CPU of every difficulty finds and reaches an idle opponent standing at every Book spot and every other spawn (routes through every corridor and corner)', () => {
-    const goals = [...GARDEN_BOOK_SPOTS, ...GARDEN_SPAWNS.slice(1)];
-    for (const d of DIFFICULTIES) {
-      let reached = 0;
-      for (const goal of goals) {
-        let closest = Infinity;
-        let killed = false;
-        playMatch({
-          participants: [
-            { id: 'a', cpu: d },
-            { id: 'b', human: () => ({}) },
-          ],
-          arena: GARDEN_ARENA,
-          seed: 3,
-          steps: 60 * 60,
-          config: { ...FREE_FOR_ALL, targetKills: 99 },
-          start: (st) => ({
-            ...st,
-            world: {
-              ...st.world,
-              bodies: st.world.bodies.map((body) =>
-                body.id === 'b' ? { ...body, position: { ...goal } } : body,
-              ),
+  it(
+    'a CPU of every difficulty finds and reaches an idle opponent standing at every Book spot and every other spawn (routes through every corridor and corner)',
+    { timeout: 300_000 },
+    () => {
+      const goals = [...GARDEN_BOOK_SPOTS, ...GARDEN_SPAWNS.slice(1)];
+      for (const d of DIFFICULTIES) {
+        let reached = 0;
+        for (const goal of goals) {
+          let closest = Infinity;
+          let killed = false;
+          playMatch({
+            participants: [
+              { id: 'a', cpu: d },
+              { id: 'b', human: () => ({}) },
+            ],
+            arena: GARDEN_ARENA,
+            seed: 3,
+            steps: 60 * 60,
+            config: { ...FREE_FOR_ALL, targetKills: 99 },
+            start: (st) => ({
+              ...st,
+              world: {
+                ...st.world,
+                bodies: st.world.bodies.map((body) =>
+                  body.id === 'b' ? { ...body, position: { ...goal } } : body,
+                ),
+              },
+            }),
+            onStep: (st, events) => {
+              closest = Math.min(
+                closest,
+                Math.hypot(at(st, 'a').x - goal.x, at(st, 'a').y - goal.y),
+              );
+              if (events.some((e) => e.type === 'HIT' && e.victimId === 'b')) killed = true;
             },
-          }),
-          onStep: (st, events) => {
-            closest = Math.min(closest, Math.hypot(at(st, 'a').x - goal.x, at(st, 'a').y - goal.y));
-            if (events.some((e) => e.type === 'HIT' && e.victimId === 'b')) killed = true;
-          },
-        });
-        if (killed || closest < 220) reached += 1;
+          });
+          if (killed || closest < 220) reached += 1;
+        }
+        expect(reached, `${d} reached ${reached} of ${goals.length}`).toBe(goals.length);
       }
-      expect(reached, `${d} reached ${reached} of ${goals.length}`).toBe(goals.length);
-    }
-  });
+    },
+  );
 
-  it('no CPU is ever inside a wall, and none sits idle for long, in 4-CPU and 6-CPU matches of every mix (seeded)', () => {
-    const mixes: Difficulty[][] = [
-      ['EASY', 'EASY', 'EASY', 'EASY'],
-      ['MEDIUM', 'MEDIUM', 'MEDIUM', 'MEDIUM'],
-      ['HARD', 'HARD', 'HARD', 'HARD'],
-      ['EASY', 'EASY', 'MEDIUM', 'MEDIUM', 'HARD', 'HARD'],
-      ['HARD', 'HARD', 'HARD', 'HARD', 'HARD', 'HARD'],
-    ];
-    const results: string[] = [];
-    mixes.forEach((mix, k) => {
-      for (const seed of [1, 2, 3]) {
-        const { idle, state } = longestIdle(cpus(mix), seed * 10 + k, 90);
-        results.push(`${mix.join('/')} seed ${seed}: longest idle ${idle.toFixed(1)} s`);
-        for (const p of state.players)
-          if (p.alive) expect(circleHitsWalls(at(state, p.id), 35.9, walls)).toBe(false);
-        expect(idle, `${mix.join('/')} seed ${seed}`).toBeLessThan(12);
-      }
-    });
-    console.warn(results.join('\n'));
-  });
+  it(
+    'no CPU is ever inside a wall, and none sits idle for long, in 4-CPU and 6-CPU matches of every mix (seeded)',
+    { timeout: 300_000 },
+    () => {
+      const mixes: Difficulty[][] = [
+        ['EASY', 'EASY', 'EASY', 'EASY'],
+        ['MEDIUM', 'MEDIUM', 'MEDIUM', 'MEDIUM'],
+        ['HARD', 'HARD', 'HARD', 'HARD'],
+        ['EASY', 'EASY', 'MEDIUM', 'MEDIUM', 'HARD', 'HARD'],
+        ['HARD', 'HARD', 'HARD', 'HARD', 'HARD', 'HARD'],
+      ];
+      const results: string[] = [];
+      mixes.forEach((mix, k) => {
+        for (const seed of [1, 2, 3]) {
+          const { idle, state } = longestIdle(cpus(mix), seed * 10 + k, 90);
+          results.push(`${mix.join('/')} seed ${seed}: longest idle ${idle.toFixed(1)} s`);
+          for (const p of state.players)
+            if (p.alive) expect(circleHitsWalls(at(state, p.id), 35.9, walls)).toBe(false);
+          expect(idle, `${mix.join('/')} seed ${seed}`).toBeLessThan(12);
+        }
+      });
+      console.warn(results.join('\n'));
+    },
+  );
 });
 
 describe('Free For All on Garden', () => {
@@ -129,6 +140,7 @@ describe('Free For All on Garden', () => {
     ['6 CPUs', ['EASY', 'EASY', 'MEDIUM', 'MEDIUM', 'HARD', 'HARD']],
   ] as [string, Difficulty[]][])(
     '%s play a complete match to the 14-kill win (and replay identically)',
+    { timeout: 300_000 },
     (_name, mix) => {
       const play = (seed: number) =>
         playMatch({

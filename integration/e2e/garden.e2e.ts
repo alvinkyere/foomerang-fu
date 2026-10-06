@@ -301,11 +301,15 @@ test('Garden: a Book is a mystery until taken; taking it (through the corridors)
   expect(GARDEN_BOOK_SPOTS.some((p) => p.x === book.x && p.y === book.y)).toBe(true);
   expect(Object.keys(book).sort()).toEqual(['id', 'x', 'y']); // it names nothing
   await walkTo(host, alice, aliceId, { x: book.x, y: book.y }, 18);
+  // (a Book may be taken on the way too, and every Book awards PHASE_DASH here: she owns it, possibly more than once)
   await expect
-    .poll(async () => (await host.fu()).players.find((p) => p.id === aliceId)?.inventory, {
-      timeout: 8_000,
-    })
-    .toEqual(['PHASE_DASH']);
+    .poll(
+      async () => (await host.fu()).players.find((p) => p.id === aliceId)?.inventory.length ?? 0,
+      { timeout: 8_000 },
+    )
+    .toBeGreaterThan(0);
+  const owned = (await host.fu()).players.find((p) => p.id === aliceId)?.inventory ?? [];
+  expect(owned.every((k) => k === 'PHASE_DASH')).toBe(true);
 
   // stand just south of H6 (a stone wall 36 thick) and dash north through it
   const h6 = GARDEN_WALLS.find((w) => w.id === 'H6');

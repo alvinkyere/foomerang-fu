@@ -115,6 +115,7 @@ export interface Snapshot {
     discardedSimulationMs: number;
     fps: number | undefined;
     frameMs: number | undefined;
+    frameMaxMs: number | undefined;
   };
 }
 

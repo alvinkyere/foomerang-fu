@@ -78,7 +78,11 @@ if (!config.ok) {
         controllerBaseUrl={config.controllerBaseUrl}
         serverUrl={config.serverUrl}
         warnings={config.warnings}
-        loadRenderer={phaserRendererFor(parseArenaParam(window.location.search))}
+        loadRenderer={phaserRendererFor(
+          parseGameParam(window.location.search) === 'foomerang-fu'
+            ? parseArenaParam(window.location.search)
+            : 'primitive',
+        )}
         onRenderer={onRenderer}
       />
     </StrictMode>,

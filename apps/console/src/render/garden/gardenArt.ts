@@ -24,9 +24,9 @@ export const PALETTE = {
   wallSouth: 0x6e77b1,
   wallSide: 0x7d86bf,
   wallSeam: 0x7a83bb,
-  oliveTop: 0x8b8850,
-  oliveSouth: 0x66633a,
-  oliveSide: 0x77743f,
+  oliveTop: 0xb59a4a,
+  oliveSouth: 0x86743a,
+  oliveSide: 0x9a8541,
   rockTop: 0x8f99cf,
   rockHighlight: 0xa3acdb,
   rockSide: 0x5a6aa8,
@@ -162,8 +162,8 @@ export const PORTALS: readonly {
   readonly ry: number;
   readonly tilt: number;
 }[] = [
-  { x: 441, y: 700, rx: 21, ry: 64, tilt: -0.06 },
-  { x: 1526, y: 412, rx: 20, ry: 62, tilt: 0.08 },
+  { x: 441, y: 700, rx: 15, ry: 56, tilt: -0.06 },
+  { x: 1526, y: 412, rx: 14, ry: 54, tilt: 0.08 },
 ];
 
 /** Lever structures: the base block's ground point, and the blue orb at the end of the handle (decoration in Slice 9). */

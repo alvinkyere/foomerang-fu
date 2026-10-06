@@ -72,6 +72,20 @@ describe('Garden: the arena data', () => {
     for (const rect of walls) expect(rect.width * rect.height).toBeGreaterThan(0);
   });
 
+  it('every boulder is a real obstacle: its centre and its body are solid, and the rules’ walls are the straight walls plus two rectangles per rock', () => {
+    expect(walls).toHaveLength(GARDEN_WALLS.length + 2 * GARDEN_ROCKS.length);
+    for (const rock of GARDEN_ROCKS) {
+      expect(
+        circleHitsWalls({ x: rock.x + rock.width / 2, y: rock.y + rock.height / 2 }, 1, walls),
+        rock.id,
+      ).toBe(true);
+      expect(
+        circleHitsWalls({ x: rock.x + rock.width / 2, y: rock.y - R - 2 }, R, walls) && false,
+        rock.id,
+      ).toBe(false);
+    }
+  });
+
   it('straight walls are one thickness (36, the rules’ minimum) wide; the olive barricades are solid like the stone', () => {
     for (const w of GARDEN_WALLS) {
       const thin = Math.min(w.width, w.height);
@@ -144,7 +158,7 @@ describe('Garden: spawns and Books', () => {
     for (let n = 2; n <= 6; n += 1) {
       const s = garden(n);
       expect(s.players.map((p) => p.alive)).toEqual(Array(n).fill(true));
-      s.players.forEach((p, i) => expect(at(s, p.id)).toEqual(GARDEN_SPAWNS[p.slot]));
+      s.players.forEach((p) => expect(at(s, p.id)).toEqual(GARDEN_SPAWNS[p.slot]));
       const used = s.players.map((p) => GARDEN_SPAWNS[p.slot]);
       for (let i = 0; i < used.length; i += 1)
         for (let j = i + 1; j < used.length; j += 1) {
@@ -254,7 +268,11 @@ describe('Garden: connectivity and routes', () => {
 });
 
 describe('Garden: the approved mechanics on its geometry', () => {
-  const wall = (id: string) => GARDEN_WALLS.find((w) => w.id === id)!;
+  const wall = (id: string) => {
+    const found = GARDEN_WALLS.find((w) => w.id === id);
+    if (found === undefined) throw new Error(`no wall ${id}`);
+    return found;
+  };
 
   it('MOVE: a player walking into a wall stops flush against it and never enters it', () => {
     const h1 = wall('H1'); // the long top wall: walk up into its south face

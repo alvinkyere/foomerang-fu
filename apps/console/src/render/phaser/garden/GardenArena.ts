@@ -355,9 +355,45 @@ class GardenScene extends Phaser.Scene {
       this.#sprites.get(event.actor)?.act('THROW', now);
     if (event.type === 'SLASHED' && event.actor !== undefined)
       this.#sprites.get(event.actor)?.act('SLASH', now);
+    if (event.type === 'SLASHED' && event.swing !== undefined) this.#crescents(event, event.swing);
     spawnEffect(this, event, this.#effects, {
       pen: groundPen(this.add.graphics().setDepth(5000)),
       at: (x, y) => project(x, y),
+    });
+  }
+
+  /** The slash's golden crescents: three sweeping arcs along the swing the rules resolved (a look; the wedge beneath is the truth). */
+  #crescents(event: ViewEvent, swing: NonNullable<ViewEvent['swing']>): void {
+    const pen = groundPen(this.add.graphics().setDepth(5100));
+    const centre = Math.atan2(swing.direction.y, swing.direction.x);
+    const start = centre - swing.arc / 2;
+    this.#effects.push({
+      graphics: pen,
+      born: this.time.now,
+      duration: 360,
+      update: (g, progress) => {
+        g.clear();
+        const sweep = Math.min(1, progress / 0.45);
+        const fade = progress < 0.45 ? 1 : 1 - (progress - 0.45) / 0.55;
+        const tail = 0.55;
+        for (const [k, width, color] of [
+          [1, 12, 0xfff3b0],
+          [0.82, 9, 0xffc43a],
+          [0.64, 6, 0xff9a1f],
+        ] as const) {
+          g.lineStyle(width, color, 0.95 * fade);
+          g.beginPath();
+          g.arc(
+            event.x,
+            event.y,
+            swing.reach * k,
+            start + swing.arc * Math.max(0, sweep - tail),
+            start + swing.arc * sweep,
+            false,
+          );
+          g.strokePath();
+        }
+      },
     });
   }
 

@@ -29,3 +29,35 @@ test('Garden draws: the canonical canvas, with four characters in it', async ({ 
     await canvas.screenshot({ path: join(OUT, 'implementation.png') });
   }
 });
+
+test('Garden in the PRODUCTION build: its renderer chunk is fetched (only now), the arena draws, and nothing errors', async ({
+  browser,
+  stack,
+}) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  const { Host: HostClass } = await import('./support/fixtures');
+  const host = new HostClass(
+    await context.newPage(),
+    `${stack.productionConsoleUrl}/?arena=garden&powerups=off&kills=13`,
+  );
+  await host.open();
+  try {
+    expect(host.requests.some((u) => /GardenArena/.test(u))).toBe(false); // the lobby never downloads it
+    await host.createRoom();
+    await addCpu(host, 'Medium');
+    await addCpu(host, 'Hard');
+    await host.start();
+    const canvas = host.page.getByTestId('arena').locator('canvas');
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    await expect
+      .poll(() => host.requests.some((u) => /GardenArena/.test(u)), { timeout: 20_000 })
+      .toBe(true);
+    await host.page.waitForTimeout(1500);
+    const picture = await canvas.screenshot();
+    expect(picture.length).toBeGreaterThan(50_000); // not a blank canvas
+  } finally {
+    expect(host.errors).toEqual([]);
+    await context.close();
+  }
+});

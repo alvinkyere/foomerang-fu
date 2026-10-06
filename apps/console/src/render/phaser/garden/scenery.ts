@@ -35,6 +35,10 @@ const poly = (g: G, pts: readonly Point[], color: number, alpha = 1): void => {
   g.fillStyle(color, alpha);
   g.fillPoints(pts as never, true);
 };
+const mixPoint = (a: Point, b: Point): Point => ({
+  x: a.x + (b.x - a.x) * 0.35,
+  y: a.y + (b.y - a.y) * 0.35,
+});
 const blob = (g: G, b: Blob, color: number, alpha = 1): void => {
   g.fillStyle(color, alpha);
   g.fillEllipse(b.x, b.y, b.rx * 2, b.ry * 2);
@@ -259,16 +263,25 @@ export function rockChunk(rock: GardenRock): Chunk {
   const x1 = rock.x + rock.width;
   const y0 = rock.y;
   const y1 = rock.y + rock.height;
-  const ring: [number, number][] = [
-    [x0 + c, y0],
-    [x1 - c, y0],
-    [x1, y0 + c],
-    [x1, y1 - c],
-    [x1 - c, y1],
-    [x0 + c, y1],
-    [x0, y1 - c],
-    [x0, y0 + c],
-  ];
+  // boulders are lumpy: a deterministic nudge of each corner, from the rock's own name
+  let seed = 0;
+  for (const ch of rock.id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const nudge = (i: number): number => {
+    seed = (Math.imul(seed ^ (i + 1), 2654435761) >>> 0) % 1000;
+    return (seed / 1000 - 0.5) * 12;
+  };
+  const ring: [number, number][] = (
+    [
+      [x0 + c, y0],
+      [x1 - c, y0],
+      [x1, y0 + c],
+      [x1, y1 - c],
+      [x1 - c, y1],
+      [x0 + c, y1],
+      [x0, y1 - c],
+      [x0, y0 + c],
+    ] as [number, number][]
+  ).map(([x, y], i) => [x + nudge(i), y + nudge(i + 8)]);
   const mx = (x0 + x1) / 2;
   const my = (y0 + y1) / 2;
   const TAPER = 0.9;
@@ -302,6 +315,25 @@ export function rockChunk(rock: GardenRock): Chunk {
         project(mx + (x - mx) * TAPER * 0.8 - 4, my + (y - my) * TAPER * 0.8 - 4, ROCK_HEIGHT),
       );
       poly(g, inset, PALETTE.rockHighlight, 0.55);
+      // a lit facet on the upper left and a darker lower body: a rounder, heavier look
+      poly(
+        g,
+        [top[7] as Point, top[0] as Point, top[1] as Point, inset[1] as Point, inset[7] as Point],
+        PALETTE.rockHighlight,
+        0.5,
+      );
+      poly(
+        g,
+        [
+          base[4] as Point,
+          base[5] as Point,
+          base[6] as Point,
+          mixPoint(base[6] as Point, top[6] as Point),
+          mixPoint(base[4] as Point, top[4] as Point),
+        ],
+        PALETTE.rockDeep,
+        0.35,
+      );
       g.lineStyle(3, PALETTE.rockDeep, 0.25);
       g.strokePoints(top as never, true);
     },
@@ -399,7 +431,7 @@ export function drawPortals(g: G, time: number): void {
   for (const p of PORTALS) {
     const pulse = 1 + 0.05 * Math.sin(time / 260);
     g.fillStyle(PALETTE.rockDeep, 1);
-    g.fillEllipse(p.x + 6, p.y, p.rx * 2.5, p.ry * 2.25);
+    g.fillEllipse(p.x + 8, p.y, p.rx * 3.2, p.ry * 2.5);
     g.fillStyle(PALETTE.portalGlow, 0.18);
     g.fillEllipse(p.x - 6, p.y, p.rx * 3.4 * pulse, p.ry * 2.5 * pulse);
     g.fillStyle(PALETTE.portalDeep, 0.95);

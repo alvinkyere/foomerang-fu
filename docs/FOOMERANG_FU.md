@@ -488,6 +488,27 @@ Bundle (`pnpm build`, gzip): initial JS **126.6 kB** (budget 130; +2.3 kB for th
 
 Is 14 the right number, and is a match of a few minutes the right length? Do you feel the race (whose meter is closest) without staring at the strip? Is the strip readable from the couch without cluttering the arena? Does the floor penalty feel fair? Does the champion screen, rematch and return flow feel right? Does a latecomer waiting feel acceptable?
 
+## Slice 9: Production Content — Garden (engineering complete, **not yet played**; the visual gate is the owner's)
+
+**Slice 9 — Garden: engineering complete. Not PASS.** One production arena, **Garden**, reconstructed from the repository's `Garden Map - Fu.jpeg` (2752 × 1566, 1.757 : 1) — see **docs/GARDEN.md** for the measurement method, the measured layout, the camera, the geometry, the characters, the combat presentation, the occlusion rule, the CPU results, the screenshot comparison, the known visual discrepancies and the performance numbers. Two independent gates: **(A) gameplay/engineering** — Garden behaves as a Foomerang Fu arena (all approved mechanics, the full Free For All, CPUs); **(B) visual fidelity** — does it look like the reference. Passing tests does not imply passing (B); the owner judges it.
+
+Summary: 36 solid walls (33 stone, 3 olive) and 8 boulder pieces measured from the image and made real rules geometry (arena 1440 × 1456); six spawns ordered so every 2–6 player prefix is fair; **no arena systems** (the reference has none the approved ones could represent); portals and levers **drawn but gameplay-inactive**; four characters (Bread Slice, Coffee Cup, Orange, Green Fruit), purely cosmetic, animated; the shared combat effects projected onto Garden's ground; a camera fitted to the reference; walls that hide a player fade while they do. **Gameplay baseline untouched** (Slices 1–8 unchanged; the only existing test edits were the console's default arena becoming Garden, `?arena=primitive` for the old test arena, and view events gaining an `actor`). The console now defaults to Garden (`?arena=garden`; `?arena=primitive` and `?arena=systems` remain).
+
+### Play it on phones (the physical playtest)
+
+1. `pnpm dev:demo`, open the console it prints (Foomerang Fu opens in **Garden** by default), create a room, join from two to six phones in landscape, add CPUs if you like (Add CPU → Easy / Medium / Hard), press **Start**.
+2. Put `Garden Map - Fu.jpeg` next to the TV. **First look:** does it immediately look like the reference — the framing, the camera angle, the arena filling the same share of the screen, the lavender walls and mustard barricades, the boulders with the two blue portals, the levers, the trees in the corners? Note anything that does not.
+3. **Characters:** can you tell the four apart and read their faces and animation at couch distance (waddle, dash stretch, slash spin, throw wind-up, death, the champion's hop)? Are the colour ring and name enough to find yourself?
+4. **Collision matches what you see:** walk into every kind of wall, along corridors, around corners and boulders; does anything block you that looks open, or let you through something solid?
+5. **Combat in the corridors:** throw down a lane and around a corner; watch the boomerang **return along the walls**; deflect one; use Twin Throw, Blast and Shield; take a Book (`?powerups=fast` shows them quickly; `&enable=PHASE_DASH` makes every Book a Phase Dash) and **Phase Dash through a wall**. Are the golden slash crescents, the clank, the blast radius and the shield readable? Does a wall fading when it hides someone feel right, or distracting?
+6. **CPUs:** Easy, Medium and Hard (the Slice 7 calibration, unchanged) in Garden's corridors: do they get stuck, loop, or hesitate oddly?
+7. **Books** (the blue book with the red bookmark): is it clearly a mystery until taken, and clearly visible in the grass?
+8. **Portals and levers:** they are decoration in this slice. Do they look right, and do you read them as non-functional or as a promise?
+9. **Performance:** is it smooth on your TV and phones? Anything that stutters during a six-player fight?
+10. Play a whole Free For All to 14 (`?kills=3` for a quick one) with rematch and return to lobby.
+
+Report anything that does not look like the reference, with where it is.
+
 ## State (`FuState`, plain data)
 
 `config` · `round` · `phase` (`PLAYING` | `ROUND_OVER`) · `elapsed` · `world` (game-core bodies = player positions) · `players` (`id`, `slot`, `alive`, `facing`, `slash`, `dash`, `fatigue`) · `boomerangs` (one per player: `ownerId`, `state`, `position`, `direction`, `travelled`) · `roundOver` (`winnerId` or undefined for a draw, `resetInSeconds`).
