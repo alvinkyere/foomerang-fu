@@ -21,7 +21,7 @@ How it got there:
 
 What the pass does **not** establish: balance with more than two players, or with players of different skill; long-session feel; Safari/iOS behaviour or other phone models (the physical devices used are not recorded here); and anything beyond Slice 1's scope. No Slice 2 work has started, and none will without separate authorization.
 
-## Slice 2: Arena Combat (engineering complete, **not yet played**)
+## Slice 2: Arena Combat (engineering complete; **first playtest found one defect, fixed below; not yet PASS**)
 
 Slice 2 asks one question: *does deliberate arena geometry make the existing combat substantially deeper and more fun?* It adds geometry and nothing else: no new abilities, no new tuning.
 
@@ -40,13 +40,33 @@ Slice 2 asks one question: *does deliberate arena geometry make the existing com
 
 **Players vs walls.** Living players are solid against walls, resolved by the same deterministic separation that handles player-vs-player (`rules/collision.ts`): a circle is pushed straight out of a rectangle (away from its nearest point; out by the nearest face if its centre got inside). Only the contact normal is corrected, so a player **slides** along a wall at full tangential speed, rounds a convex corner smoothly, and is held by a concave one. Walls are fixed and win over player shoves, so a shove can never put anyone inside one. Movement still runs in sub-steps no longer than the fixed step, so no accepted `dt` tunnels. Walls must be at least one player radius thick (validated), so nothing pushed by contact can end up on the far side of one. Dead players are not solid (unchanged).
 
-**Boomerangs vs walls.** A **THROWN** boomerang is swept along its step against the walls (cut into pieces no longer than its radius, then bisected to the touching point): it stops flush against the wall, turns **RETURNING** on that very step, and never penetrates, bounces, ricochets or tunnels. A throw made pressed against a wall starts as close to its owner as the wall allows and turns straight back.
+**Boomerangs vs walls.** Solid geometry blocks a boomerang in **both** states. A **THROWN** boomerang is swept along its step against the walls (cut into pieces no longer than its radius, then bisected to the touching point): it stops flush against the wall, turns **RETURNING** on that very step, and never penetrates, bounces, ricochets or tunnels. A throw made pressed against a wall starts as close to its owner as the wall allows and turns straight back.
+
+### The return-wall algorithm (`rules/homing.ts`)
+
+*Human-play decision (Slice 2 playtest #1): a RETURNING boomerang must not phase through cover, including when its owner moves behind cover after throwing.* Solid geometry now blocks a boomerang in **both** THROWN and RETURNING; THROWN + impact → RETURNING is unchanged. Slice 1's open-arena return is byte-for-byte the old straight line (an arena with no walls takes the old code path).
+
+Each simulation step, a RETURNING boomerang has `returnSpeed × dt` of travel. That is cut into **pieces of at most 10 world units** (so a long accepted `dt` steers as finely as a short one). For each piece, aiming at the owner's *current* position:
+
+1. **Try the straight heading.** Sweep the boomerang's circle towards the owner (the same sweep a thrown boomerang uses: pieces no longer than its radius, then bisected to the touching point). If nothing is in the way, move, and **let go of any wall** (`follow = 0`).
+2. **If a wall is in the way:** move up flush against it, then **slide** along it with the rest of the piece. The slide direction is the wall's tangent: the contact normal turned a quarter turn by `follow` (±1). The first time it meets a wall `follow` takes the sign that makes the slide point at least partly towards the owner (an exact tie takes **+1**). It then **keeps that hand** until its heading is free again; this memory is what stops it jittering back and forth over a wall the owner is directly behind, and it makes the boomerang hug a wall round a convex corner. Up to three contacts are handled per piece (sequential contacts).
+3. **If the slide is wedged** (no movement at all: a concave corner, or the arena's edge clamping the slide to nothing) the hand is **flipped once** and the other way tried; if that is wedged too that piece goes nowhere.
+
+It only ever moves to places the sweep says are free, so it cannot penetrate, tunnel or teleport. Lethality, the catch radius (50), and "never kills its owner" are unchanged. Catching is judged on the boomerang's real position; because walls are at least one body thick, a boomerang pressed to one face cannot be "caught" by an owner pressed to the other.
+
+**The failsafe (deterministic, explicit, new config `returnWallSeconds = 3`).** The boomerang carries a clock (`wallSeconds`) that advances only on steps where it slid along a wall. If it reaches 3 s without arriving, the boomerang is **recalled**: it ends the trip in its owner's hand, a `RECALLED` event is emitted (drawn like a catch), and the owner has their weapon again. Nothing is moved through geometry; the trip simply ends. The clock never runs in open ground, so it cannot affect Slice 1 play. **In the primitive arena it never fires:** a test flies a boomerang from ~150 points across the arena to every spawn point (>500 flights, also at the longest accepted `dt`), every one gets home, none is recalled, and the slowest takes well under the limit. It exists for arenas (and positions) where wall-following cannot reach the owner, e.g. an owner sealed in a box, which a test uses to prove it ends at 3 s without entering any wall.
+
+**Edge cases and honest limits.**
+- Wall-following is *local*: the route it finds around a big obstacle may be the longer one (a head-on tie always goes the same way: down), and the owner can change which way is shorter while it travels. It always continues with the hand it chose until its heading is free.
+- A boomerang can still be slow around complicated cover while the owner keeps moving; the failsafe bounds that at 3 s of sliding.
+- If the failsafe fires you have lost nothing but the throw: you are re-armed.
+- Not covered: arenas with non-rectangular or overlapping-with-boundary geometry (validation forbids walls thinner than a body).
 
 **Decisions made (each a hypothesis for the playtest, none of it retuning):**
 
 | Decision | Choice | Alternatives not taken |
 | --- | --- | --- |
-| **RETURNING near geometry** | **Flies straight at its owner's current position and passes through walls**, exactly as in Slice 1, still lethal on the way. | *Blocked on the way home* (needs pathfinding or a stuck rule); *retrace the outbound path* (changes Slice 1's homing). Chosen because it is the smallest rule that needs no navigation and keeps Slice 1's return untouched. Consequence to judge: a wall protects you from the throw but **not** from the return, and a boomerang can come home through cover. |
+| **RETURNING near geometry** | **Bound by walls exactly like THROWN, and homes on its owner with local wall-following (see the algorithm below).** *Changed after Human Playtest, Slice 2 #1: the first version let it fly through cover, which felt unfair.* | Pathfinding / navmeshes (not needed in this arena, demonstrated by test); retracing the outbound path (changes Slice 1's homing). |
 | Slash vs walls | A slash needs a **clear line** between the two centres; a wall between attacker and victim blocks it (a line that merely touches a wall's edge is blocked). Reach, arc and timings are unchanged. | A slash that cuts through walls would have made cover meaningless against it. |
 | Boomerang kills vs walls | Unchanged: a boomerang kills by proximity at its own position; a stopped THROWN boomerang is a wall's thickness away from anyone behind it. | — |
 | Shoving into walls | A shove cannot push a player into or through a wall; the pusher is held behind them. | — |
@@ -185,7 +205,7 @@ Equivalent mutants (no observable difference): duplicate ids and a too-small are
 - One movement joystick per manifest (protocol limitation, unchanged). There is no aim stick.
 - The simulation runs in the host browser: a console reload restarts the round state (host-loss policy: see CONSOLE.md).
 - Collision is circle-vs-circle between living players only. Boomerangs and slashes pass through bodies exactly as before.
-- Geometry is axis-aligned rectangles; a RETURNING boomerang ignores it (see Slice 2 decisions).
+- Geometry is axis-aligned rectangles. A RETURNING boomerang uses local wall-following, not a map: it is deterministic and tested to get home from everywhere in the primitive arena, but in an arena with a sealed-off owner it would be recalled by the failsafe (see below).
 - A boomerang in flight at round end freezes in the rules until the reset (the renderer fades it out; the state itself is not advanced).
 - The slash numbers and the SLASH/THROW button layout were played by one human (Playtest #2) and passed as the baseline; they have not been measured, and more players, other devices and longer sessions are untested.
 - **Not built, on purpose:** slashing an incoming boomerang (deflect / destroy / redirect / parry). It could become the deepest interaction in the game, but only after the simpler loop has been played.
