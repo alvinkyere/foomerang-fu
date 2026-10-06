@@ -1,5 +1,5 @@
 import { FIXED_TIMESTEP_SECONDS as DT, MAX_STEP_SECONDS } from '@foomerang/game-core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
   PRIMITIVE_ARENA,
@@ -11,6 +11,10 @@ import {
   type FuState,
   type Rect,
 } from '../src/rules';
+
+// These files run thousands of simulation steps; on a cold, loaded checkout a few took longer than vitest's
+// 5 s default. This only gives them room; no assertion depends on it.
+vi.setConfig({ testTimeout: 60_000 });
 
 // ------------------------------------------------------------------------------------------
 // A RETURNING boomerang is bound by solid geometry exactly like a THROWN one. It keeps homing on
