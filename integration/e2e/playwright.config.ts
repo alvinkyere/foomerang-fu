@@ -18,7 +18,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chrome',
-      testIgnore: ['**/webkit.e2e.ts'],
+      testIgnore: [
+        '**/webkit.e2e.ts',
+        ...(process.env['FOOMERANG_E2E_SIX'] === '1' ? [] : ['**/six-players.e2e.ts']),
+      ],
       use: {
         // The system Chrome: no browser download. (Not Safari — see docs/DEVICE_TESTING.md.)
         channel: 'chrome',

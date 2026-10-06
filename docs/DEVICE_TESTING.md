@@ -35,6 +35,18 @@ These steps were written from the tools' documented behavior; they have **not** 
 
 `pnpm dev:demo --host <laptop-address>`, then open the printed console URL. Good for checking the flow; it does not satisfy the HTTPS requirement.
 
+## Record everything in one place
+
+Fill in [MILESTONE_1_VALIDATION.md](MILESTONE_1_VALIDATION.md) as you go; it is the report skeleton (setup, ten QR→control timings, interruption matrix, performance, Phaser load, video latency, defects, acceptance table). The checklist below is the short version.
+
+## Tools that need no code changes
+
+- **Where the QR→interactive time goes:** on a Mac, enable Safari → Settings → Advanced → "Show features for web developers", and on the iPhone Settings → Safari → Advanced → Web Inspector. Plug the phone in, then Safari → Develop → *your iPhone* → the controller page → Network/Timelines.
+- **Android:** `chrome://inspect` on a desktop Chrome with USB debugging.
+- **Phaser load on the host:** the host browser's Network panel while pressing Start.
+- **Six players on hardware you don't have:** `pnpm e2e:six` runs six simulated players (real controller SDK, random thumbs) against the production console; set `FOOMERANG_E2E_SIX_SECONDS` for the duration. It is not a phone test.
+- **Port problems:** if `dev:demo` says a port is in use, an earlier run is still going: `pkill -f scripts/dev.mjs; pkill -f vite; pkill -f "tsx src/main.ts"`.
+
 ## Checklist to run and record
 
 - [ ] Scan → controller loads → name → Join: how long did it feel? (count seconds with a stopwatch; QR-to-interactive is an *unmeasured* hypothesis today)
@@ -58,4 +70,5 @@ Recorded for engineering, **not** a substitute for the above — all on one Appl
 
 - The journey passes in Chrome over HTTP and over HTTPS/WSS (throwaway certificate trusted by its public-key hash), and the console + a controller pass in Playwright's WebKit engine (opt-in `pnpm e2e:webkit`). WebKit via Playwright is **not iOS Safari** and the WebKit run used a mouse, not a touch screen.
 - Production-build console, two controllers moving for ~9 s, debug overlay read afterwards: FPS 60, frame time 16.7 ms mean / 17.0 ms max, 545 simulation steps, 12 catch-up frames, 0 ms discarded, console⇄server RTT 2 ms, host receive → sim step 10.5 ms last / 9.6 ms mean / 31.6 ms max (74 samples; dominated by waiting for the next frame). Loopback, headless, no real network, no real GPU load: these say the software is not the bottleneck in that setting and **nothing about phones**.
+- Six **simulated** players (real controller SDK in Node, random thumbs; not phones) against the production console for 300 s: FPS median 60 (min 58 over 150 samples), 3 catch-up frames, 0 ms discarded; full table in MILESTONE_1_VALIDATION.md section 5.
 - **Not observed:** physical iPhone, Safari, a real network, HTTPS on a phone, phone lock/background behavior, thermal/battery behavior, true input-to-photon latency, haptics.

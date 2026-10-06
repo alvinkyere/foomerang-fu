@@ -109,9 +109,21 @@ Playwright reads authoritative state through one read-only function that returns
 ## Reload and failure behavior
 
 - **Console reload** reclaims the same room (join code + rotating host credential in `sessionStorage`). Players stay seated. **The arena simulation restarts** (circles return to their spawn points) because the simulation lives in the browser; that is a documented limitation.
-- **Host-loss policy is unresolved:** what should players see while the host is gone for a long time, and when should a room close? Today the room survives the host's absence per the room-engine policy (docs/ROOM_ENGINE.md), the controllers show "reconnecting", and nothing is decided about a *permanently* gone host.
+- **Host loss:** see the policy table below; its two gaps are known and unimplemented.
 - Losing the console's own connection shows a banner, keeps the roster visible, retries with backoff for 70 s, then ends with an explanation.
 - A renderer that cannot start (no WebGL) shows a message; the simulation keeps running.
+
+## Host-loss policy (approved at the Slice 8 review; partly NOT implemented yet)
+
+Separate **ownership survival** from **gameplay survival**. While the simulation runs in the host browser, *host browser = authoritative simulation*, and we do not pretend to support match recovery.
+
+| Situation | Approved policy | What the code does today |
+| --- | --- | --- |
+| Host loses its server connection, page and simulation still alive | **Pause** the match, show "Reconnecting…", keep the local `WorldState`, reconnect the host, **resume**. Room, memberships and host ownership survive. | Banner shown and the host reconnects. The simulation is **not truly paused**: frames keep stepping, but movement stops arriving, so circles go neutral within the 500 ms freshness window. Controllers are not told the host is away. |
+| Host page reloads / browser dies (simulation lost) | Recover **room ownership**, **return to the lobby**, **tell the players the match ended**, allow a new match. Never reconstruct the old match. | Ownership is recovered, but the console sees the room still `PLAYING` and **silently restarts the arena at the spawn points**; players are not told. **Gap.** |
+| Host gone for a long time | Never keep zombie rooms. Hypothesis: absent < 60 s → preserve; ≥ 60 s → eligible for closure. | Room survives the host's absence indefinitely (room-engine: host loss never closes a room). **Not implemented, and the number is deliberately not set before physical testing** (laptop sleep and Safari/Chrome background behaviour will inform it). |
+
+The two gaps need a way for a match to end back to the lobby and for controllers to be told (a room-engine transition plus a protocol message). That is a design change, not a Milestone-1 patch, and is not started. Moving the authoritative simulation to the server later changes all of this.
 
 ## Known rendering caveat
 

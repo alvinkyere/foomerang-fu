@@ -138,7 +138,7 @@ Releasing a seat flips `membership` to RELEASED; the participant stays in `room.
 The host holds no seat. Host loss **never** closes the room, releases a seat, migrates or elects a host, or touches any player. Only the host's `connection` status progresses (RECONNECTING → DISCONNECTED, same inclusive window) and the host reconnects by credential to the same `HostId`, rotating the host credential. Players' clocks and the host's clock are independent.
 
 ## Unresolved policies (deliberately not decided)
-1. **What host loss means for a running match.** In Milestone 1 the simulation runs in the host browser, so *host lost ⇒ simulation lost*. Pause, recover, or restart the round? Server-authoritative simulation changes the answer. Also: should a host that stays gone eventually close the room (and when)? Product decision pending.
+1. **What host loss means for a running match.** (_Policy now decided — see docs/CONSOLE.md, "Host-loss policy"; the expiry duration remains a measured hypothesis._) In Milestone 1 the simulation runs in the host browser, so *host lost ⇒ simulation lost*. Pause, recover, or restart the round? Server-authoritative simulation changes the answer. Also: should a host that stays gone eventually close the room (and when)? Product decision pending.
 2. **Whether match start should count reserved-but-disconnected players.** Currently only CONNECTED seat-holders count toward `minPlayers`.
 3. **Late-join / mid-match join** (currently LOBBY only) and whether a released player may re-enter mid-match.
 4. **Retention of released participants** (history bound).

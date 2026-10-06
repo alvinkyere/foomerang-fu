@@ -17,7 +17,8 @@
     "e2e": "pnpm --filter @foomerang/integration e2e",
     "dev:demo": "node scripts/dev.mjs",
     "e2e:tls": "pnpm --filter @foomerang/integration e2e:tls",
-    "e2e:webkit": "pnpm --filter @foomerang/integration e2e:webkit"
+    "e2e:webkit": "pnpm --filter @foomerang/integration e2e:webkit",
+    "e2e:six": "pnpm --filter @foomerang/integration e2e:six"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
