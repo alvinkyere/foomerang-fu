@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * What the UI is allowed to ask of the controller session. React components depend on THIS, not on
- * sockets or on the SDK class: they say join(), setControlValue(), neutralize(); the SDK owns the
+ * sockets or on the SDK class: they say join(), setControlValue(), setButton(), neutralize(); the SDK owns the
  * protocol, sequence numbers, sampling and reconnection.
  */
 export interface SessionPort {
@@ -12,6 +12,7 @@ export interface SessionPort {
   join(joinCode: string, displayName: string): void;
   leave(): void;
   setControlValue(controlId: string, value: Point): void;
+  setButton(controlId: string, pressed: boolean): void;
   neutralize(): void;
 }
 

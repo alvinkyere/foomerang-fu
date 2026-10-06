@@ -12,7 +12,9 @@ const manifest = (overrides: Partial<ControllerManifest> = {}): ControllerManife
 
 describe('ControlRenderer: the controller is rendered FROM the manifest', () => {
   it('renders the joystick the manifest asks for', () => {
-    render(<ControlRenderer manifest={manifest()} onControlChange={vi.fn()} />);
+    render(
+      <ControlRenderer manifest={manifest()} onControlChange={vi.fn()} onButtonChange={vi.fn()} />,
+    );
     expect(screen.getAllByRole('group')).toHaveLength(1);
     expect(screen.getByRole('group', { name: /move/i })).toBeTruthy();
   });
@@ -27,6 +29,7 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
           ],
         })}
         onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
       />,
     );
     expect(screen.getByRole('group', { name: /steer/i })).toBeTruthy();
@@ -35,7 +38,11 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
 
   it('has no per-game logic: the same controls render the same for any game', () => {
     const a = render(
-      <ControlRenderer manifest={manifest({ gameId: 'foomerang-fu' })} onControlChange={vi.fn()} />,
+      <ControlRenderer
+        manifest={manifest({ gameId: 'foomerang-fu' })}
+        onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
+      />,
     );
     const htmlA = a.container.innerHTML;
     a.unmount();
@@ -43,6 +50,7 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
       <ControlRenderer
         manifest={manifest({ gameId: 'a-totally-different-game' })}
         onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
       />,
     );
     expect(b.container.innerHTML).toBe(htmlA);
@@ -53,28 +61,60 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
       <ControlRenderer
         manifest={manifest({ controls: [{ id: 'STEER', type: 'joystick' }] })}
         onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
       />,
     );
     expect(view.queryByRole('group', { name: /move/i })).toBeNull();
     expect(view.getByRole('group', { name: /steer/i })).toBeTruthy();
   });
 
+  it('renders a button when the manifest asks for one, with no knowledge of the game', () => {
+    const onButtonChange = vi.fn();
+    render(
+      <ControlRenderer
+        manifest={manifest({
+          gameId: 'any-game-at-all',
+          controls: [
+            { id: 'MOVE', type: 'joystick' },
+            { id: 'THROW', type: 'button', action: 'PRIMARY' },
+          ],
+        })}
+        onControlChange={vi.fn()}
+        onButtonChange={onButtonChange}
+      />,
+    );
+    expect(screen.getByRole('group', { name: /move/i })).toBeTruthy();
+    const button = screen.getByRole('button', { name: /throw/i });
+    fireEvent.pointerDown(button, { pointerId: 1 });
+    expect(onButtonChange).toHaveBeenLastCalledWith('THROW', true);
+    fireEvent.pointerUp(button, { pointerId: 1 });
+    expect(onButtonChange).toHaveBeenLastCalledWith('THROW', false);
+  });
+
   it('ignores control types this build cannot render instead of breaking (forward compatibility)', () => {
     const future = manifest({
       controls: [
         { id: 'MOVE', type: 'joystick' },
-        { id: 'THROW', type: 'button' as never },
+        { id: 'DIAL', type: 'dial' as never },
       ],
     });
     expect(() =>
-      render(<ControlRenderer manifest={future} onControlChange={vi.fn()} />),
+      render(
+        <ControlRenderer manifest={future} onControlChange={vi.fn()} onButtonChange={vi.fn()} />,
+      ),
     ).not.toThrow();
     expect(screen.getAllByRole('group')).toHaveLength(1);
   });
 
   it('reports a control’s value together with the control’s id', () => {
     const onControlChange = vi.fn();
-    render(<ControlRenderer manifest={manifest()} onControlChange={onControlChange} />);
+    render(
+      <ControlRenderer
+        manifest={manifest()}
+        onControlChange={onControlChange}
+        onButtonChange={vi.fn()}
+      />,
+    );
     const zone = screen.getByRole('group', { name: /move/i });
     zone.getBoundingClientRect = () =>
       ({
@@ -94,11 +134,14 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
   });
 
   it('re-renders for a new manifest without leaking the old controls', () => {
-    const view = render(<ControlRenderer manifest={manifest()} onControlChange={vi.fn()} />);
+    const view = render(
+      <ControlRenderer manifest={manifest()} onControlChange={vi.fn()} onButtonChange={vi.fn()} />,
+    );
     view.rerender(
       <ControlRenderer
         manifest={manifest({ controls: [{ id: 'STEER', type: 'joystick' }] })}
         onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
       />,
     );
     expect(screen.queryByRole('group', { name: /move/i })).toBeNull();

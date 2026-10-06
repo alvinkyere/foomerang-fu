@@ -16,8 +16,8 @@ const manifest = {
 const parse = (value: unknown) => controllerManifestSchema.safeParse(value);
 
 describe('controller manifest (what the controller should render — never hard-coded per game)', () => {
-  it('currently knows exactly one control type: only what the controller actually implements', () => {
-    expect([...CONTROL_TYPES]).toEqual(['joystick']);
+  it('knows exactly the control types the controller implements: joystick and button', () => {
+    expect([...CONTROL_TYPES]).toEqual(['joystick', 'button']);
     expect([...CONTROLLER_ORIENTATIONS]).toEqual(['landscape', 'portrait', 'any']);
   });
 
@@ -40,8 +40,59 @@ describe('controller manifest (what the controller should render — never hard-
     expect(parse(many).success).toBe(true);
   });
 
+  it('accepts a button, which names the generic action it sends (Foomerang Fu: MOVE joystick + THROW button)', () => {
+    const fu = {
+      ...manifest,
+      controls: [
+        { id: 'MOVE', type: 'joystick' },
+        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+      ],
+    };
+    expect(parse(fu).success).toBe(true);
+  });
+
+  it('accepts two buttons that send different actions', () => {
+    const two = {
+      ...manifest,
+      controls: [
+        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+        { id: 'DASH', type: 'button', action: 'SECONDARY' },
+      ],
+    };
+    expect(parse(two).success).toBe(true);
+  });
+
   it.each([
-    ['an unimplemented control type', { ...manifest, controls: [{ id: 'THROW', type: 'button' }] }],
+    ['a button with no action', { ...manifest, controls: [{ id: 'THROW', type: 'button' }] }],
+    [
+      'a button with an unknown action',
+      { ...manifest, controls: [{ id: 'THROW', type: 'button', action: 'TERTIARY' }] },
+    ],
+    [
+      'a button with a lowercase action',
+      { ...manifest, controls: [{ id: 'THROW', type: 'button', action: 'primary' }] },
+    ],
+    [
+      'two buttons sending the same action (the game could not tell them apart)',
+      {
+        ...manifest,
+        controls: [
+          { id: 'THROW', type: 'button', action: 'PRIMARY' },
+          { id: 'DASH', type: 'button', action: 'PRIMARY' },
+        ],
+      },
+    ],
+    [
+      'a joystick that claims an action',
+      { ...manifest, controls: [{ id: 'MOVE', type: 'joystick', action: 'PRIMARY' }] },
+    ],
+    [
+      'a button with an unknown field',
+      {
+        ...manifest,
+        controls: [{ id: 'THROW', type: 'button', action: 'PRIMARY', color: 'red' }],
+      },
+    ],
     [
       'an unknown control type',
       { ...manifest, controls: [{ id: 'MOVE', type: 'steering-wheel' }] },

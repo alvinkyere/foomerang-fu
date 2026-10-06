@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App';
-import { FakeSession, IDLE, MOVE_MANIFEST, READY } from './support/fakeSession';
+import { FakeSession, FU_MANIFEST, IDLE, MOVE_MANIFEST, READY } from './support/fakeSession';
 
 function installMatchMedia(isPortrait: boolean) {
   const listeners = new Set<() => void>();
@@ -145,6 +145,31 @@ describe('the thumb reaches the session through the manifest-rendered control', 
     expect(session.called('setControlValue').at(-1)?.args).toEqual(['MOVE', { x: 0, y: 1 }]);
     fireEvent.pointerUp(zone, { pointerId: 1 });
     expect(session.called('setControlValue').at(-1)?.args).toEqual(['MOVE', { x: 0, y: 0 }]);
+  });
+});
+
+describe('the throw button reaches the session through the manifest-rendered control', () => {
+  it('pressing and releasing THROW calls setButton with the control id', () => {
+    const session = new FakeSession({ ...READY, manifest: FU_MANIFEST });
+    render(<App session={session} initialRoom={undefined} />);
+    const button = screen.getByRole('button', { name: /throw/i });
+    fireEvent.pointerDown(button, { pointerId: 1 });
+    expect(session.called('setButton').at(-1)?.args).toEqual(['THROW', true]);
+    fireEvent.pointerUp(button, { pointerId: 1 });
+    expect(session.called('setButton').at(-1)?.args).toEqual(['THROW', false]);
+  });
+
+  it('the joystick and the button work at the same time (two thumbs)', () => {
+    const session = new FakeSession({ ...READY, manifest: FU_MANIFEST });
+    render(<App session={session} initialRoom={undefined} />);
+    const zone = zoneOf();
+    fireEvent.pointerDown(zone, { pointerId: 1, clientX: 200, clientY: 150 });
+    fireEvent.pointerMove(zone, { pointerId: 1, clientX: 290, clientY: 150 });
+    const button = screen.getByRole('button', { name: /throw/i });
+    fireEvent.pointerDown(button, { pointerId: 2 });
+    fireEvent.pointerMove(zone, { pointerId: 1, clientX: 200, clientY: 240 });
+    expect(session.called('setControlValue').at(-1)?.args).toEqual(['MOVE', { x: 0, y: 1 }]);
+    expect(session.called('setButton').at(-1)?.args).toEqual(['THROW', true]);
   });
 });
 

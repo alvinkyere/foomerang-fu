@@ -24,7 +24,10 @@ describe('controller manifest delivery', () => {
     expect(phone.last('CONTROLLER_MANIFEST')?.payload).toEqual({
       gameId: 'foomerang-fu',
       orientation: 'landscape',
-      controls: [{ id: 'MOVE', type: 'joystick' }],
+      controls: [
+        { id: 'MOVE', type: 'joystick' },
+        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+      ],
     });
   });
 

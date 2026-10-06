@@ -295,6 +295,31 @@ p {
   background: var(--color-accent);
 }
 
+/* A big press-and-release button; the manifest decides which one exists. Placeholder visuals. */
+.action-button {
+  min-height: var(--tap-target);
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition:
+    transform 60ms ease,
+    filter 60ms ease;
+}
+
+.action-button[data-pressed='true'] {
+  transform: scale(0.96);
+  filter: brightness(0.8);
+}
+
 /* Dim, but never block: the thumb stays usable while the connection heals. */
 .reconnecting-veil {
   position: absolute;

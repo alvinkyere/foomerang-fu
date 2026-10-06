@@ -83,7 +83,7 @@ export const settle = (): Promise<void> => new Promise((resolve) => setTimeout(r
 // A scripted server and the transports that talk to it.
 // ------------------------------------------------------------------------------------------
 
-type Sent = { type: string; seq?: number; payload?: Record<string, unknown> };
+type Sent = { type: string; seq?: number; eventId?: string; payload?: Record<string, unknown> };
 
 export class FakeTransport implements ControllerTransport {
   readonly sent: Sent[] = [];

@@ -36,13 +36,20 @@ export interface GameDefinition {
 }
 
 export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
-  // The primitive prototype controller: one joystick. Foomerang Fu will advertise more later.
+  // Foomerang Fu, combat skeleton: MOVE (joystick) and THROW (button -> the PRIMARY action).
   'foomerang-fu': {
     minPlayers: 2,
     maxPlayers: 6,
-    controller: { orientation: 'landscape', controls: [{ id: 'MOVE', type: 'joystick' }] },
+    controller: {
+      orientation: 'landscape',
+      controls: [
+        { id: 'MOVE', type: 'joystick' },
+        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+      ],
+    },
   },
-  // The input-proof arena: circles that follow thumbs. One player is enough to try it on a phone.
+  // TEST / INTEGRATION INFRASTRUCTURE, not a game: circles that follow thumbs, so one phone can
+  // prove the platform. It must never appear in a consumer game catalogue.
   'primitive-arena': {
     minPlayers: 1,
     maxPlayers: 6,

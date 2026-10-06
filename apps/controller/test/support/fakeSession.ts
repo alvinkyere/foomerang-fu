@@ -8,6 +8,15 @@ export const MOVE_MANIFEST: ControllerManifest = {
   controls: [{ id: 'MOVE', type: 'joystick' }],
 };
 
+export const FU_MANIFEST: ControllerManifest = {
+  gameId: 'foomerang-fu',
+  orientation: 'landscape',
+  controls: [
+    { id: 'MOVE', type: 'joystick' },
+    { id: 'THROW', type: 'button', action: 'PRIMARY' },
+  ],
+};
+
 export const IDLE: ControllerState = {
   phase: 'IDLE',
   joinCode: undefined,
@@ -52,6 +61,8 @@ export class FakeSession implements SessionPort {
     void this.calls.push({ method: 'join', args: [joinCode, displayName] });
   leave = (): void => void this.calls.push({ method: 'leave', args: [] });
   neutralize = (): void => void this.calls.push({ method: 'neutralize', args: [] });
+  setButton = (id: string, pressed: boolean): void =>
+    void this.calls.push({ method: 'setButton', args: [id, pressed] });
   setControlValue = (id: string, value: Point): void =>
     void this.calls.push({ method: 'setControlValue', args: [id, value] });
 

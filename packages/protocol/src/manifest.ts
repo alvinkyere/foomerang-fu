@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ACTIONS } from './controller';
 import { plainEnvelope } from './envelope';
 
 /**
@@ -8,20 +9,36 @@ import { plainEnvelope } from './envelope';
  * racing game something entirely different, with no change to the controller architecture.
  *
  * V1 deliberately knows only the control types the controller actually implements. Adding a
- * type (e.g. 'button') is an additive protocol change made together with its implementation.
+ * type is an additive protocol change made together with its implementation.
+ *
+ * - `joystick` drives the one movement message (`INPUT_MOVE`). Temporary protocol limitation: the
+ *   FIRST joystick in a manifest is the one that moves; a second needs its own message.
+ * - `button` sends the generic action it names (`PRIMARY` / `SECONDARY`) as `INPUT_EVENT`s
+ *   (pressed / released). What the action MEANS (throw, dash, ...) is the game's business, and the
+ *   control's `id` is only a label for the player.
  */
-export const CONTROL_TYPES = ['joystick'] as const;
+export const CONTROL_TYPES = ['joystick', 'button'] as const;
 export type ControlType = (typeof CONTROL_TYPES)[number];
 
 /** The game's preference. A controller must still work in the other orientation. */
 export const CONTROLLER_ORIENTATIONS = ['landscape', 'portrait', 'any'] as const;
 export type ControllerOrientation = (typeof CONTROLLER_ORIENTATIONS)[number];
 
-const controlSchema = z.strictObject({
-  /** The game's name for the control, e.g. MOVE. The platform attaches no meaning beyond routing. */
-  id: z.string().regex(/^[A-Z][A-Z0-9_]{0,31}$/),
-  type: z.enum(CONTROL_TYPES),
-});
+const controlId = z.string().regex(/^[A-Z][A-Z0-9_]{0,31}$/);
+
+const controlSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    /** The game's name for the control, e.g. MOVE. The platform attaches no meaning beyond routing. */
+    id: controlId,
+    type: z.literal('joystick'),
+  }),
+  z.strictObject({
+    id: controlId,
+    type: z.literal('button'),
+    /** The generic action this button sends. */
+    action: z.enum(ACTIONS),
+  }),
+]);
 export type ControlDescriptor = z.infer<typeof controlSchema>;
 
 export const controllerManifestSchema = z
@@ -35,6 +52,13 @@ export const controllerManifestSchema = z
     {
       message: 'control ids must be unique',
     },
+  )
+  .refine(
+    (manifest) => {
+      const actions = manifest.controls.flatMap((c) => (c.type === 'button' ? [c.action] : []));
+      return new Set(actions).size === actions.length;
+    },
+    { message: 'two buttons must not send the same action' },
   );
 export type ControllerManifest = z.infer<typeof controllerManifestSchema>;
 

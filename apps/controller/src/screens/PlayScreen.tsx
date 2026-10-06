@@ -37,6 +37,7 @@ export function PlayScreen({
         <ControlRenderer
           manifest={state.manifest}
           onControlChange={(controlId, value) => session.setControlValue(controlId, value)}
+          onButtonChange={(controlId, pressed) => session.setButton(controlId, pressed)}
         />
       ) : null}
       {/* Purely visual: the badge above is the one live status for assistive technology. */}

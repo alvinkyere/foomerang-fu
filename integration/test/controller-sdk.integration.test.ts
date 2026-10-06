@@ -45,7 +45,10 @@ describe('joining', () => {
     expect(state.manifest).toEqual({
       gameId: 'foomerang-fu',
       orientation: 'landscape',
-      controls: [{ id: 'MOVE', type: 'joystick' }],
+      controls: [
+        { id: 'MOVE', type: 'joystick' },
+        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+      ],
     });
     const roster = await host.next('ROOM_UPDATED', (m) => m.payload.players.length === 1);
     expect(roster.payload.players[0]).toMatchObject({
@@ -276,5 +279,60 @@ describe('leaving', () => {
       (m) => m.payload.players[0]?.connection === 'RECONNECTING',
     );
     expect(roster.payload.players).toHaveLength(1);
+  });
+});
+
+describe('the THROW button, end to end over real sockets', () => {
+  const actions = (playerId: string) =>
+    host.inputs(playerId).flatMap((p) => (p.input.kind === 'ACTION' ? [p.input] : []));
+
+  it('a press and a release arrive at the host as one pressed and one released action, with distinct ids', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    controller.session.setButton('THROW', true);
+    controller.session.setButton('THROW', false);
+    await sleep(200);
+    const received = actions(id);
+    expect(received.map((a) => [a.action, a.phase])).toEqual([
+      ['PRIMARY', 'pressed'],
+      ['PRIMARY', 'released'],
+    ]);
+    expect(new Set(received.map((a) => a.eventId)).size).toBe(2);
+  });
+
+  it('holding the button for a long time still sends exactly one press', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    controller.session.setButton('THROW', true);
+    for (let i = 0; i < 30; i += 1) controller.session.setButton('THROW', true); // a nervous thumb / repeated events
+    await sleep(900); // longer than the sampler's refresh and the heartbeat
+    expect(actions(id).filter((a) => a.phase === 'pressed')).toHaveLength(1);
+  });
+
+  it('a hostile client re-sending the same press (same event id) cannot make the host see it twice', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    const transport = controller.transports.at(-1);
+    const event = {
+      type: 'INPUT_EVENT',
+      seq: 100,
+      eventId: 'replayed-event-1',
+      payload: { action: 'PRIMARY', phase: 'pressed' },
+    };
+    for (let i = 0; i < 5; i += 1) transport?.send({ ...event, seq: 100 + i });
+    await sleep(300);
+    expect(actions(id).filter((a) => a.eventId === 'replayed-event-1')).toHaveLength(1);
+  });
+
+  it('a press made while the connection is down is not delivered later', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    controller.transports.at(-1)?.close();
+    await controller.waitForPhase('RECONNECTING');
+    controller.session.setButton('THROW', true);
+    controller.session.setButton('THROW', false);
+    await controller.waitForPhase('READY');
+    await sleep(300);
+    expect(actions(id)).toEqual([]);
   });
 });

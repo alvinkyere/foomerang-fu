@@ -55,6 +55,12 @@ export interface ControllerSessionOptions {
   /** Default 2000 ms. A separate concern from movement. */
   readonly heartbeatIntervalMs?: number;
   readonly reconnect?: { readonly timeoutMs?: number; readonly backoffMs?: readonly number[] };
+  /**
+   * Makes the unique id each button event carries (the server deduplicates on it). Default: a
+   * random per-session prefix plus a counter, so ids are unique across reloads without needing
+   * crypto.randomUUID (absent in insecure contexts such as plain-HTTP LAN testing).
+   */
+  readonly newEventId?: () => string;
 }
 
 const IDLE_STATE: ControllerState = Object.freeze({
@@ -116,6 +122,9 @@ export class ControllerSession {
   #disposed = false;
 
   #movementSeq = 0;
+  #eventSeq = 0;
+  readonly #heldButtons = new Set<string>();
+  readonly #newEventId: () => string;
   #heartbeatSeq = 0;
   readonly #heartbeatSentAt = new Map<number, number>();
   #cancelSampler: Cancel | undefined;
@@ -140,6 +149,9 @@ export class ControllerSession {
     this.#reconnectTimeoutMs = options.reconnect?.timeoutMs ?? 70_000;
     this.#backoffMs = options.reconnect?.backoffMs ?? DEFAULT_BACKOFF_MS;
     this.#sampler = new MovementSampler({ ...DEFAULT_SAMPLER_CONFIG, ...options.sampler });
+    const prefix = Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+    let counter = 0;
+    this.#newEventId = options.newEventId ?? ((): string => `${prefix}-${(counter += 1)}`);
   }
 
   // --- what the UI reads ------------------------------------------------------------------
@@ -221,6 +233,31 @@ export class ControllerSession {
   }
 
   /**
+   * A button went down (`true`) or up (`false`). The manifest says which generic action the button
+   * sends; the game decides what it means. Each CHANGE sends exactly one event with a fresh id:
+   *
+   * - holding sends nothing more (no auto-repeat), so a held button cannot act twice;
+   * - there is no retry and no queue — an event that cannot be sent right now (the connection is
+   *   down) is dropped, because firing a stale THROW seconds later would be worse than losing it;
+   * - ordering and delivery are the connection's (Socket.IO over TCP), and the server drops any id
+   *   it has already seen.
+   */
+  setButton(controlId: string, pressed: boolean): void {
+    if (this.#disposed || this.#state.phase !== 'READY') return;
+    const control = this.#state.manifest?.controls.find((c) => c.id === controlId);
+    if (control?.type !== 'button') return;
+    if (this.#heldButtons.has(controlId) === pressed) return;
+    if (pressed) this.#heldButtons.add(controlId);
+    else this.#heldButtons.delete(controlId);
+    this.#send({
+      type: 'INPUT_EVENT',
+      seq: this.#eventSeq++,
+      eventId: this.#newEventId(),
+      payload: { action: control.action, phase: pressed ? 'pressed' : 'released' },
+    });
+  }
+
+  /**
    * Neutral NOW, for interruptions (page hidden, pointer cancelled, window blurred). Sent
    * immediately rather than waiting for the next tick, because a hidden page's timers may be
    * throttled; it goes through the same sampler, so there is no second input path.
@@ -229,6 +266,7 @@ export class ControllerSession {
     if (this.#disposed) return;
     this.#sampler.neutralize();
     if (this.#state.phase === 'READY') this.#sampleAndSend();
+    for (const controlId of [...this.#heldButtons]) this.setButton(controlId, false);
   }
 
   /** Voluntarily leave: forget the credential and return to IDLE. */
@@ -466,6 +504,8 @@ export class ControllerSession {
     this.#cancelRetry = undefined;
     // A new epoch: sequences restart, and the sampler re-announces the current state.
     this.#movementSeq = 0;
+    this.#eventSeq = 0;
+    this.#heldButtons.clear();
     this.#heartbeatSeq = 0;
     this.#heartbeatSentAt.clear();
     this.#sampler.reset();
