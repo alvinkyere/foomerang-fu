@@ -182,6 +182,14 @@ describe('starting', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
   });
 
+  it('Start is unavailable while the console’s own connection is down', async () => {
+    const { network } = await inLobby();
+    network.refuseConnections = true;
+    act(() => network.last.serverDrops());
+    await flush();
+    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(true);
+  });
+
   it('the arena renderer is NOT loaded while people are in the lobby', async () => {
     const { network, loadRenderer } = await inLobby();
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);

@@ -134,6 +134,25 @@ describe('HostSession: starting the match', () => {
     expect(session.getState().notice).toBeUndefined();
   });
 
+  it('a refusal is forgotten once the room moves on to another state', async () => {
+    const { network, session } = await created();
+    network.startError = 'NOT_ENOUGH_PLAYERS';
+    session.startMatch();
+    await settle();
+    expect(session.getState().notice).toBe('NOT_ENOUGH_PLAYERS');
+    network.roomUpdated(network.last, 'PLAYING', roster({ playerId: 'p1', displayName: 'Alvin' }));
+    await settle();
+    expect(session.getState().notice).toBeUndefined();
+  });
+
+  it('does not send MATCH_START before the room exists, even mid-connection', async () => {
+    const { network, session } = setup();
+    session.createRoom('primitive-arena'); // CONNECTING
+    session.startMatch();
+    await settle();
+    expect(network.allSent('MATCH_START')).toEqual([]);
+  });
+
   it('does nothing before the room exists', () => {
     const { network, session } = setup();
     session.startMatch();
@@ -163,7 +182,7 @@ describe('HostSession: player input', () => {
       type: 'PLAYER_INPUT',
       payload: {
         playerId: 'p1',
-        input: { kind: 'ACTION', eventId: 'e1', action: 'PRIMARY', phase: 'PRESS' },
+        input: { kind: 'ACTION', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' },
       },
     });
     await settle();

@@ -196,13 +196,44 @@ describe('GameRuntime: input → fixed-step game-core simulation', () => {
       expect(runtime.metrics().inputToSim.lastMs).toBeCloseTo(10, 6);
     });
 
-    it('ignores a frame timestamp that goes backwards', () => {
+    it('ignores a frame timestamp that goes backwards: it neither counts as a frame nor skews the numbers', () => {
       const runtime = new GameRuntime();
       runtime.start(players, 1000);
       runtime.frame(1017);
       runtime.frame(900);
       runtime.frame(1034);
-      expect(Number.isFinite(runtime.metrics().fps ?? 0)).toBe(true);
+      const m = runtime.metrics();
+      expect(m.frameMs).toBeCloseTo(17, 6);
+      expect(m.frameMaxMs).toBeCloseTo(17, 6);
+      expect(m.fps).toBeCloseTo(1000 / 17, 6);
+    });
+
+    it('measures from the match’s own start, however long the page had been open', () => {
+      const runtime = new GameRuntime();
+      runtime.start(players, 600_000);
+      runtime.frame(600_000 + 1000 / 60);
+      expect(runtime.metrics()).toMatchObject({
+        simulationSteps: 1,
+        catchUpFrames: 0,
+        discardEvents: 0,
+      });
+    });
+
+    it('does not report input from non-players as a measurement', () => {
+      const runtime = new GameRuntime();
+      runtime.start(players, 0);
+      runtime.receiveInput('ghost', 1, 0, 0);
+      runtime.frame(17);
+      expect(runtime.metrics().inputToSim.samples).toBe(0);
+    });
+
+    it('FPS describes the recent past, not the whole session', () => {
+      const runtime = new GameRuntime();
+      runtime.start(players, 0);
+      let now = 0;
+      for (let i = 0; i < 500; i += 1) runtime.frame((now += 100)); // a slow start: 10 fps
+      for (let i = 0; i < 500; i += 1) runtime.frame((now += 10)); // then 100 fps
+      expect(runtime.metrics().fps).toBeCloseTo(100, 0);
     });
 
     it('counts the players in the match', () => {

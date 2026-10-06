@@ -72,6 +72,23 @@ describe('createConsoleRuntime: server → session → director → game-core', 
   });
 });
 
+describe('createConsoleRuntime: time', () => {
+  it('stamps each movement with the host clock at the moment it arrives, so a fresh thumb is not mistaken for a stale one', async () => {
+    const { network, runtime, setNow } = await started();
+    setNow(60_000);
+    network.roomUpdated(network.last, 'PLAYING', roster({ playerId: 'a', displayName: 'A' }));
+    await settle();
+    network.last.deliver({
+      type: 'PLAYER_INPUT',
+      payload: { playerId: 'a', input: { kind: 'MOVE', seq: 0, x: 1, y: 0 } },
+    });
+    await settle();
+    setNow(60_017);
+    runtime.frame(60_017);
+    expect(bodyOf(runtime, 'a')?.x).toBeGreaterThan(spawnPosition(0).x);
+  });
+});
+
 describe('FrameLoop: one requestAnimationFrame at a time, and nothing left behind', () => {
   function fakeRaf() {
     let next = 1;

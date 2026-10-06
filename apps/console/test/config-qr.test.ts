@@ -55,6 +55,16 @@ describe('console configuration (explicit and validated — the LAN address is n
     if (!config.ok) expect(config.problems).toHaveLength(2);
   });
 
+  it('rejects a server URL with a path (the server lives at the root of its origin)', () => {
+    const config = resolveConsoleConfig({
+      ...page,
+      controllerUrl: undefined,
+      serverUrl: 'https://api.example.com/v1',
+    });
+    expect(config.ok).toBe(false);
+    if (!config.ok) expect(config.problems.join(' ')).toContain('path');
+  });
+
   it('keeps a path on the controller base URL (a deployment may live under /play)', () => {
     const config = resolveConsoleConfig({
       ...page,
@@ -142,9 +152,23 @@ describe('QR matrix (qrcode-generator, rendered by us — no library markup is i
     );
   });
 
-  it('uses medium error correction (readable on a TV from across a room, even slightly dirty)', () => {
-    // A higher version for the same text would mean more modules; M keeps a ~40-char URL small.
-    expect(createQrMatrix(url).size).toBeLessThanOrEqual(33);
+  it('declares MEDIUM error correction in its format information (ISO 18004: L=01, M=00, Q=11, H=10)', () => {
+    const { size, dark } = createQrMatrix(url);
+    const cell = (r: number, c: number) => (dark[r]?.[c] ? 1 : 0);
+    // The vertical copy of the 15 format bits: rows 0-5 and 7-8 of column 8, then the bottom 7 rows.
+    let bits = 0;
+    for (let i = 0; i < 15; i += 1) {
+      const row = i < 6 ? i : i < 8 ? i + 1 : size - 15 + i;
+      bits |= cell(row, 8) << i;
+    }
+    const data = (bits ^ 0x5412) >> 10; // 5 bits: 2 of error-correction level, 3 of mask pattern
+    expect(data >> 3).toBe(0b00);
+    // and it is a genuine BCH(15,5) codeword for that data (so the matrix is not transposed or corrupted)
+    let remainder = data << 10;
+    for (let shift = 4; shift >= 0; shift -= 1) {
+      if ((remainder >> (shift + 10)) & 1) remainder ^= 0b10100110111 << shift;
+    }
+    expect(((data << 10) | remainder) ^ 0x5412).toBe(bits);
   });
 
   it('turns into an SVG path with a 4-module quiet zone, and one rect per dark module', () => {
