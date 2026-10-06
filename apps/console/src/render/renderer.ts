@@ -24,6 +24,8 @@ export interface ArenaRenderer {
   drawnSystems?(): SystemsViewModel | undefined;
   /** The walls currently on screen (games without geometry return none). */
   drawnWalls(): readonly WallView[];
+  /** DEVELOPMENT ONLY (the showcase and its capture script): take the renderer's clock away from the browser and hand back a function that advances it to a virtual time, so frames are deterministic. */
+  driveClock?(): (virtualMs: number) => void;
   destroy(): void;
 }
 

@@ -54,23 +54,17 @@ Six spawns, one per slot, chosen by search on a navigation grid (`scripts/garden
 
 ## 5. Rendering approach
 
-No new dependency and no image asset: Garden is drawn with **Phaser 2D vector graphics through its own camera maths**. Every ground shape, wall face and boulder is projected point by point (`project(x, y, z)`), so walls lean and the near edge widens exactly as in the reference. Code lives in `apps/console/src/render/phaser/garden/` and loads as its own chunk that only Garden players download; the rules package knows nothing of it.
+**Master fidelity pass (supersedes the first vector-only renderer).** `foomerang-fu gameplay.mp4` is the master reference for the whole game's look; `Garden Map - Fu.jpeg` still owns only Garden's layout. The analysis is in `docs/VISUAL_REFERENCE.md`, the derived frames in `docs/reference/video/`.
 
-* **Ground:** a bright yellow-green with a soft brightening toward the middle, darker shade under and beyond the trees, pale sandy patches, the dashed boundary drawn *on the ground* in perspective.
-* **Walls:** each wall is cut into ≤ 110-unit chunks; each chunk is a lit lavender top (rounded at real ends, with a highlight edge and a seam), a darker south face and, for walls off the camera's column, a side face; soft shadows fall to the lower right. Olive barricades are mustard.
-* **Boulders:** lumpy extruded octagons (a nudge per corner from the rock's name), a tapered top with a lit facet, darker lower body.
-* **Exterior:** autumn trees with white birch trunks, deep foliage, the two outside boulders, dark corner bushes. **Interior:** leafy plants, grass tufts, lever structures, portals.
-* **Depth:** painter's order by the screen row of each object's ground edge, so characters pass in front of and behind walls correctly.
+Garden is now **painted once at scene start into Canvas2D textures** and Phaser only places and animates them (`paint.ts` toolkit, `environment.ts` ground/walls/rocks/trees/portals/vignette, `charArt.ts` plush characters, `vfx.ts` effects). Nothing is downloaded and nothing is a reference image: every texture is generated from code; no frame of the video or the map is used as a background, overlay or sprite. One key light from the upper left gives every solid a lit top, a shaded flank, a cool rim and a long soft shadow to the lower right; ambient-occlusion bands darken the ground where walls meet it. The fitted camera (`camera.ts`) and the rules geometry are unchanged. No new dependency. Code lives in `apps/console/src/render/phaser/garden/` and loads as its own lazy chunk.
 
 ## 6. Characters (Bread Slice, Coffee Cup, Orange, Green Fruit)
 
-`characters.ts`: four little vector toys — Bread Slice (crust, crumb, two bumps), Coffee Cup (rim, coffee, handle), the pumpkin-like Orange (ridges, leaf, stem) and the Green Fruit (stem, two leaves, highlight) — each with a face (dot eyes with a glint, blush, mouth), little feet and arms. **Which character a player is is cosmetic and follows their seat** (seats 1–4: Bread, Coffee, Orange, Fruit; seats 5–6 repeat Bread and Coffee, told apart by their colour ring and name). **Every character is the same gameplay body**: the rules never hear of them, no hitbox changed. A selection screen is not part of Slice 9.
-
-**Animation** (presentation only; it never feeds back): idle breathing; a waddle with a hop and walking feet, scaled by actual speed; DASH (stretch and lean); SLASH (a spin); THROW (a wind-up squash); death (flattened, X eyes); victory (hops, happy eyes, arms up) for the match champion.
+`charArt.ts` bakes four plush toys (2x supersampled): soft-shaded bodies, glossy eyes, blush, stubby limbs. `characters.ts` animates them with Phaser transforms only (squash and stretch while running, lean into the movement, a hop on the throw, a wind-up and swing on the slash, a flattened death pose) and gives each a soft contact shadow, a colour ring, a facing chevron and a name. **Which character a player is is cosmetic and follows their seat** (seats 1-4: Bread, Coffee, Orange, Fruit; seats 5-6 repeat Bread and Coffee, told apart by their colour ring and name). **Every character is the same gameplay body**: the rules never hear of them, no hitbox changed.
 
 ## 7. Combat presentation
 
-The approved effects are unchanged in meaning and now lie *on the ground in perspective*: the shared effect code was moved out of the primitive renderer (`effects.ts`) and Garden draws it through a **ground pen** that projects circles into ellipses and arcs into curves. So THROW rings, CAUGHT, HIT flashes, DEFLECT clanks, DASH bursts, BLAST radius, SHIELD break, PHASE rings, FATIGUE rings and Book pickups read exactly as before. Added for Garden: **golden sweeping crescents** along the real swing (the wedge beneath is still the truth), a **colour ring and a facing chevron** at each player's feet (the body's true footprint; solid when armed), a **shield bubble**, a tired ring and sweat, the three power badges, and a **toy boomerang** that spins in the air with a ground shadow and a trail. The **Book** is the same mystery blue book with the red bookmark and a "?", bobbing, with a shadow; it still names nothing until taken.
+`vfx.ts`, in the video's language (flat saturated shapes, short, over everything): **slash** = a faint truthful wedge (exactly the rules' arc and reach) under a feathered orange/gold crescent with a white-hot core and sparks; **hit** = a star flash, a shock ring and the victim bursting into its own colours (bread crumbs, coffee-cup china and beans, pumpkin and fruit pieces) that tumble with shadows; **CLANK** = a big star, two rings and sparks thrown the way the boomerang was knocked; **blast** = a hot disc to exactly the rules' radius, an edge ring, a scorch, a ring of dark debris, then specks; **dash** = streak sparks and dust; **shield/phase/pickup/fatigue/spawn** = rings and sparks in their colours. Effects follow events and never decide anything.
 
 ## 8. Readability: the occlusion rule
 
@@ -92,7 +86,7 @@ The Slice 7 calibration is untouched. CPUs plan on the rules' wall list, so Gard
 
 These numbers say the **large shapes, framing and proportions line up**; they say nothing about whether it looks like the reference. **The project owner makes the visual judgement.**
 
-**Known visual discrepancies:** the boulders are lumpy prisms, not the reference's softly modelled stacked boulders; wall edges are crisper and more regular than the reference's slightly broken stone; trees and plants are simplified (no leaf detail); the ground's tonal variation is a smooth gradient plus blobs, not the reference's painted patches; lighting is flat-shaded with a soft cast shadow, not the reference's diffuse global lighting; the characters are vector toys with no real shading; the three non-requested creatures in the reference (the eggplant, the teal bud, the second bread) are not drawn; the portals' recess is a flat dark ellipse; the slash crescents are three strokes, not the reference's feathered fire.
+**Superseded list (first renderer):** the boulders are lumpy prisms, not the reference's softly modelled stacked boulders; wall edges are crisper and more regular than the reference's slightly broken stone; trees and plants are simplified (no leaf detail); the ground's tonal variation is a smooth gradient plus blobs, not the reference's painted patches; lighting is flat-shaded with a soft cast shadow, not the reference's diffuse global lighting; the characters are vector toys with no real shading; the three non-requested creatures in the reference (the eggplant, the teal bud, the second bread) are not drawn; the portals' recess is a flat dark ellipse; the slash crescents are three strokes, not the reference's feathered fire.
 
 ## 11. Tests and evidence
 
@@ -114,3 +108,11 @@ CPU decisions on Garden: 21,900 in a minute, **mean 0.010 ms, worst 8.4 ms** (on
 ## 13. Physical playtest
 
 See the Slice 9 section of `docs/FOOMERANG_FU.md`.
+
+## 14. Master fidelity pass: evidence and honest limits
+
+- Reference analysis: `docs/VISUAL_REFERENCE.md`; frames: `docs/reference/video/` (derived JPEGs; the MP4 is untouched).
+- Capture: dev-only showcase (`apps/console/showcase.html`, scripted scenarios through the real rules and renderer on a virtual 30 fps clock); `FOOMERANG_GARDEN_MOTION=1 pnpm --filter @foomerang/integration exec playwright test -c e2e/playwright.config.ts e2e/garden.motion.e2e.ts` (frames to the git-ignored `docs/garden/motion/`; `FOOMERANG_GARDEN_ONLY=a,b` limits it).
+- Comparison: `python3 scripts/garden/motion_strips.py` writes strips and reference-above-ours pairs to `docs/garden/compare/`. They are for eyes; no similarity number is claimed.
+- 6 Hard CPUs on Garden, 60 s: 60.02 median fps, 16.66 ms mean frame, worst window 24.4 ms.
+- Remaining discrepancies: our world is calmer and more saturated green than the video's pastel sandy ground; the video's grain/painterly smear is only approximated; blast debris is smaller and less chunky than the video's; character animation is transform-based, not frame-by-frame; the HUD is restrained but still the DOM HUD.

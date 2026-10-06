@@ -1,11 +1,5 @@
 import * as Phaser from 'phaser';
-import {
-  GARDEN_ROCKS,
-  GARDEN_WALLS,
-  GARDEN_HEIGHT,
-  GARDEN_WIDTH,
-  type PowerKind,
-} from '@foomerang/foomerang-fu';
+import { GARDEN_HEIGHT, GARDEN_WIDTH, type PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaRenderer, DrawnCircle } from '../../renderer';
 import type {
   ArenaView,
@@ -16,24 +10,14 @@ import type {
   ViewEvent,
   WallView,
 } from '../../viewModel';
-import { EXTERIOR_ROCKS } from '../../garden/gardenArt';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, groundScale, project } from '../../garden/camera';
 import { hidingSolids } from '../../garden/occlusion';
-import { POWER_STYLE, spawnEffect, toNumber, type Effect } from '../effects';
-import { CharacterSprite, characterForNumber } from './characters';
-import { groundPen } from './groundPen';
-import {
-  drawExteriorRock,
-  drawGround,
-  drawLevers,
-  drawPlants,
-  drawPortals,
-  drawShadows,
-  drawTrees,
-  rockChunk,
-  wallChunks,
-  type Chunk,
-} from './scenery';
+import { POWER_STYLE, toNumber } from '../effects';
+import { Vfx } from './vfx';
+import { bakeCharacters } from './charArt';
+import { characterForNumber } from './characterKinds';
+import { CharacterSprite } from './characters';
+import { buildEnvironment, type Environment } from './environment';
 
 /**
  * Garden's renderer. It draws an ArenaView through a camera fitted to the reference image; it holds no simulation state and
@@ -192,20 +176,14 @@ class BookArt {
   }
 }
 
-interface WallObject {
-  readonly g: Phaser.GameObjects.Graphics;
-  readonly chunk: Chunk;
-  alpha: number;
-}
-
 class GardenScene extends Phaser.Scene {
   readonly #sprites = new Map<string, CharacterSprite>();
   readonly #previous = new Map<string, { x: number; y: number; t: number }>();
   readonly #boomerangs = new Map<string, BoomerangArt>();
   readonly #books = new Map<number, BookArt>();
-  readonly #solids: WallObject[] = [];
-  #effects: Effect[] = [];
-  #portals: Phaser.GameObjects.Graphics | undefined;
+  #env: Environment | undefined;
+  #chars: ReturnType<typeof bakeCharacters> | undefined;
+  #vfx: Vfx | undefined;
   #banner: Phaser.GameObjects.Text | undefined;
   #ready: (() => void) | undefined;
   #view: ArenaView | undefined;
@@ -217,29 +195,12 @@ class GardenScene extends Phaser.Scene {
   }
 
   create(): void {
-    const still = (draw: (g: Phaser.GameObjects.Graphics) => void, depth: number) => {
-      const g = this.add.graphics().setDepth(depth);
-      draw(g);
-      return g;
-    };
-    still(drawGround, -100);
-    still((g) => drawShadows(g, GARDEN_WALLS, GARDEN_ROCKS), -90);
-    still((g) => {
-      for (const r of EXTERIOR_ROCKS) drawExteriorRock(g, r);
-    }, -80);
-    still(drawTrees, -70);
-    still(drawPlants, 120);
-    still(drawLevers, 125);
-    const chunks: Chunk[] = [...GARDEN_WALLS.flatMap(wallChunks), ...GARDEN_ROCKS.map(rockChunk)];
-    for (const chunk of chunks) {
-      const g = this.add.graphics().setDepth(chunk.depth);
-      chunk.draw(g);
-      this.#solids.push({ g, chunk, alpha: 1 });
-    }
-    // each portal sits on the face of a rock: above that rock, below anyone standing in front of it
-    this.#portals = this.add
-      .graphics()
-      .setDepth(Math.max(...GARDEN_ROCKS.map((r) => rockChunk(r).depth)) + 0.1);
+    this.#env = buildEnvironment(this);
+    this.#chars = bakeCharacters(this);
+    this.#vfx = new Vfx(this, (id) => {
+      const circle = this.#view?.circles.find((q) => q.id === id);
+      return circle === undefined ? undefined : characterForNumber(circle.number);
+    });
     this.#banner = this.add
       .text(CANVAS_WIDTH / 2, 64, '', {
         fontFamily: 'system-ui, sans-serif',
@@ -268,7 +229,11 @@ class GardenScene extends Phaser.Scene {
       present.add(circle.id);
       let sprite = this.#sprites.get(circle.id);
       if (sprite === undefined) {
-        sprite = new CharacterSprite(this, characterForNumber(circle.number));
+        sprite = new CharacterSprite(
+          this,
+          this.#baked().art[characterForNumber(circle.number)],
+          this.#baked().shadow,
+        );
         this.#sprites.set(circle.id, sprite);
       }
       this.#placeCharacter(sprite, circle, now, champion === circle.id);
@@ -316,13 +281,23 @@ class GardenScene extends Phaser.Scene {
     this.#banner?.setText(view.banner ?? '').setVisible(view.banner !== undefined);
   }
 
+  #baked(): ReturnType<typeof bakeCharacters> {
+    if (this.#chars === undefined) throw new Error('the characters have not been painted yet');
+    return this.#chars;
+  }
+
   #placeCharacter(sprite: CharacterSprite, c: CircleView, now: number, victorious: boolean): void {
     const p = project(c.x, c.y);
     const s = groundScale(c.x, c.y);
     const prev = this.#previous.get(c.id);
     let speed = 0;
-    if (prev !== undefined && now > prev.t)
+    let heading = { x: 0, y: 0 };
+    if (prev !== undefined && now > prev.t) {
       speed = (Math.hypot(c.x - prev.x, c.y - prev.y) / (now - prev.t)) * 1000;
+      const before = project(prev.x, prev.y);
+      const d = Math.hypot(p.x - before.x, p.y - before.y);
+      if (d > 0.01) heading = { x: (p.x - before.x) / d, y: (p.y - before.y) / d };
+    }
     this.#previous.set(c.id, { x: c.x, y: c.y, t: now });
     sprite.update(
       {
@@ -333,6 +308,7 @@ class GardenScene extends Phaser.Scene {
         ringRy: c.radius * s.sy,
         facing: c.facing ?? { x: 0, y: 1 },
         speed,
+        heading,
         dead: c.dead,
         armed: c.armed,
         dashing: c.dashing !== undefined,
@@ -355,46 +331,7 @@ class GardenScene extends Phaser.Scene {
       this.#sprites.get(event.actor)?.act('THROW', now);
     if (event.type === 'SLASHED' && event.actor !== undefined)
       this.#sprites.get(event.actor)?.act('SLASH', now);
-    if (event.type === 'SLASHED' && event.swing !== undefined) this.#crescents(event, event.swing);
-    spawnEffect(this, event, this.#effects, {
-      pen: groundPen(this.add.graphics().setDepth(5000)),
-      at: (x, y) => project(x, y),
-    });
-  }
-
-  /** The slash's golden crescents: three sweeping arcs along the swing the rules resolved (a look; the wedge beneath is the truth). */
-  #crescents(event: ViewEvent, swing: NonNullable<ViewEvent['swing']>): void {
-    const pen = groundPen(this.add.graphics().setDepth(5100));
-    const centre = Math.atan2(swing.direction.y, swing.direction.x);
-    const start = centre - swing.arc / 2;
-    this.#effects.push({
-      graphics: pen,
-      born: this.time.now,
-      duration: 360,
-      update: (g, progress) => {
-        g.clear();
-        const sweep = Math.min(1, progress / 0.45);
-        const fade = progress < 0.45 ? 1 : 1 - (progress - 0.45) / 0.55;
-        const tail = 0.55;
-        for (const [k, width, color] of [
-          [1, 12, 0xfff3b0],
-          [0.82, 9, 0xffc43a],
-          [0.64, 6, 0xff9a1f],
-        ] as const) {
-          g.lineStyle(width, color, 0.95 * fade);
-          g.beginPath();
-          g.arc(
-            event.x,
-            event.y,
-            swing.reach * k,
-            start + swing.arc * Math.max(0, sweep - tail),
-            start + swing.arc * sweep,
-            false,
-          );
-          g.strokePath();
-        }
-      },
-    });
+    this.#vfx?.event(event, POWER_STYLE.BLAST_BOOMERANG.color);
   }
 
   /**
@@ -403,41 +340,29 @@ class GardenScene extends Phaser.Scene {
    * disappears behind cover without being seen.
    */
   #fadeWhatHidesSomeone(): void {
+    const solids = this.#env?.solids ?? [];
     const people = [...this.#sprites]
       .filter(([id]) => this.#view?.circles.find((q) => q.id === id)?.dead === false)
       .map(([, sprite]) => ({ depth: sprite.screen.y, box: sprite.box }));
-    const hiding = hidingSolids(
-      this.#solids.map((w) => w.chunk),
-      people,
-    );
-    this.#solids.forEach((w, i) => {
+    const hiding = hidingSolids(solids, people);
+    solids.forEach((w, i) => {
       const target = hiding[i] === true ? FADE_ALPHA : 1;
       w.alpha += (target - w.alpha) * 0.3;
       if (Math.abs(w.alpha - target) < 0.01) w.alpha = target;
-      w.g.setAlpha(w.alpha);
+      w.image.setAlpha(w.alpha);
     });
   }
 
   /** Walls (and rocks) currently faded because they hide someone: for tests and the visual gate. */
   fadedSolids(): number {
-    return this.#solids.filter((w) => w.alpha < 0.99).length;
+    return (this.#env?.solids ?? []).filter((w) => w.alpha < 0.99).length;
   }
 
   override update(time: number): void {
-    if (this.#portals !== undefined) drawPortals(this.#portals, time);
+    this.#env?.update(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     for (const b of this.#books.values()) b.bob(time);
-    this.#effects = this.#effects.filter((effect) => {
-      const progress = (time - effect.born) / effect.duration;
-      if (progress >= 1) {
-        effect.graphics.destroy();
-        effect.extra?.destroy();
-        return false;
-      }
-      effect.update(effect.graphics, progress);
-      effect.extra?.setAlpha(Math.min(1, 2.2 * (1 - progress))).setY(effect.extra.y - 0.35);
-      return true;
-    });
+    this.#vfx?.update(time);
   }
 
   drawn(): readonly DrawnCircle[] {
@@ -473,6 +398,14 @@ export function createGardenArena(container: HTMLElement): Promise<ArenaRenderer
         drawnPickups: () => scene.drawnPickups(),
         drawnWalls: () => scene.drawnWalls(),
         drawnSystems: () => scene.drawnSystems(),
+        driveClock: () => {
+          game?.loop.stop(); // the browser's animation frame no longer drives Phaser: whoever calls the returned function does
+          let last = 0;
+          return (virtualMs: number) => {
+            game?.step(virtualMs, Math.max(0, virtualMs - last));
+            last = virtualMs;
+          };
+        },
         destroy: () => game?.destroy(true),
       });
     });
