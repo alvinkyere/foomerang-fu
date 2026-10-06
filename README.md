@@ -24,16 +24,28 @@ pnpm install
 pnpm validate
 ```
 
-Do not use `sudo` to get tooling working. `pnpm validate` runs format check, lint, typecheck and tests; it must pass before any change is considered done.
+Do not use `sudo` to get tooling working. `pnpm validate` runs format check, lint, typecheck, tests, the build (with bundle budgets) and the Playwright end-to-end suite; it must pass before any change is considered done. The browser tests use your installed **Google Chrome** (Playwright channel `chrome`); no browser download is needed.
 
 ## Scripts
 
-| Script                              | What it does                                  |
-| ----------------------------------- | --------------------------------------------- |
-| `pnpm validate`                     | format:check + lint + typecheck + test        |
-| `pnpm test` / `pnpm typecheck`      | per-package, orchestrated by Turborepo        |
-| `pnpm lint`                         | ESLint, including architecture boundary rules |
-| `pnpm format` / `pnpm format:check` | Prettier                                      |
+| Script                              | What it does                                                   |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `pnpm validate`                     | format:check + lint + typecheck + test + build + e2e           |
+| `pnpm e2e`                          | Playwright: real server + console + two phones (system Chrome) |
+| `pnpm e2e:tls` / `pnpm e2e:webkit`  | the same over https/wss / a WebKit engine check (opt-in)       |
+| `pnpm dev:demo [--host <addr>]`     | run server + controller + console together                     |
+| `pnpm test` / `pnpm typecheck`      | per-package, orchestrated by Turborepo                         |
+| `pnpm lint`                         | ESLint, including architecture boundary rules                  |
+| `pnpm format` / `pnpm format:check` | Prettier                                                       |
+
+## Try the whole thing
+
+```bash
+pnpm dev:demo                       # this computer only
+pnpm dev:demo --host 192.168.1.20   # phones on your Wi-Fi: the address THEY use to reach this computer
+```
+
+Open the console URL it prints, press **Create room**, scan the QR code (or enter the room code at the controller), press **Start**, and move your thumb. You choose the address phones use; nothing guesses it. For https and real-device testing see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md); for the design see [docs/CONSOLE.md](docs/CONSOLE.md).
 
 ## Try the controller on a phone
 

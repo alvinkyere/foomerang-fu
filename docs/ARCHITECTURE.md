@@ -20,7 +20,7 @@ Games plug in via the game SDK; the platform never imports a game.
 ## Repository
 ```
 apps/
-  console/      Vite + React + Phaser. The machine that runs the game. React renders chrome only; it never drives the game loop.
+  console/      Vite + React + Phaser. The machine that runs the game. React renders chrome only; it never drives the game loop. See CONSOLE.md.
   controller/   Vite + React. Must be extremely lean (QR scan → interactive is a tracked metric).
   server/       Node + TypeScript realtime server
 website/        (future) Next.js marketing/discovery site — a different product, not part of M1
@@ -75,7 +75,8 @@ The player-facing metric is **finger movement → visible response** (input-to-p
 ```
 game-core        PURE SIMULATION PRIMITIVES (no Phaser, DOM, network, framework)
 games/foomerang-fu/src/rules   GAME RULES (depends on game-core + protocol only)
-games/foomerang-fu/src/render  PHASER — reads state, draws it (the only Phaser-allowed zone)
+games/foomerang-fu/src/render  PHASER — reads state, draws it (Foomerang Fu's renderer)
+apps/console/src/render/phaser  PHASER — the console's primitive-arena renderer; the only other Phaser-allowed zone (lint-enforced, lazy-loaded)
 ```
 `simulation.step(...)` produces state; `renderer.render(simulation.state)` draws it. Phaser never enters `game-core` or game rules. If Phaser vanished, only the renderer changes. React is chrome only.
 

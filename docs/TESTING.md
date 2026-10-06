@@ -30,3 +30,12 @@ Strict `tsc`, lint, unit+integration on every change; E2E on PR; performance che
 - **`integration/`** (test-only workspace): the real `controller-sdk` against the real server over real Socket.IO.
 - **Real browser engine, ad hoc:** the controller was driven in headless Chrome (iPhone user agent, emulated touch) against the real server through the DevTools protocol. This is a manual verification, not a gate, and it is **not** Safari or a phone.
 - **Bundle budget:** `pnpm build` fails if the controller exceeds its gzip budget.
+
+## Layers added in Slice 8
+- **Unit/component (console):** accumulator, input freshness, slots, game runtime, view model, config/QR (including the QR's ISO 18004 format information), `HostSession` against a scripted fake server with manual time, `MatchDirector`, React screens with a fake renderer.
+- **Playwright (`pnpm e2e`, part of `pnpm validate`):** the real server, the real console and the real controller as Vite dev servers on **ephemeral ports**, system Chrome, one console context and two iPhone-sized touch contexts driven by real touch events (Chrome DevTools protocol). Proves: create room → two controllers join → lobby → start → independent movement and isolation → release stops at once → **input freshness** (uplink cut while the thumb is held: the circle stops, nobody is disconnected, it resumes when refreshes return) → controller reload and console reload reclaim identity → network loss and reconnect keep the same player, slot, body and position → Phaser is not downloaded in the lobby → no console errors anywhere. Teardown signals every process group, awaits it, and **fails the run** if a process or port is left behind.
+- **Production black-box (`production.e2e.ts`):** the same journey against `vite build` output, where there is no debug hook: the circle is read from the canvas **pixels**.
+- **`pnpm e2e:tls`:** the whole suite over https/wss with a throwaway certificate; the browser is told to trust that one public key only. Not part of `validate`.
+- **`pnpm e2e:webkit`:** console + controller in Playwright's WebKit build (mouse-driven). Opt-in; needs `playwright install webkit`. **Not iOS Safari.**
+- **Mutation testing** of the console modules and of the E2E suite itself (inject a real defect; the right test must fail) — survivors became tests.
+- **Still not covered by any automated test:** a physical iPhone, Safari, a real network, input-to-photon latency (DEVICE_TESTING.md).

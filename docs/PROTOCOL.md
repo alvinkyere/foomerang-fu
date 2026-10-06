@@ -58,6 +58,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `HEARTBEAT`        | heartbeat | —                                                                | any ACTIVE connection |
 | `ROOM_CREATE`      | plain     | `{ gameId }` (`[a-z0-9-]`, ≤64)                                  | console without a room |
 | `HOST_RECONNECT`   | plain     | `{ joinCode, hostToken }`                                        | console without a room |
+| `MATCH_START`      | plain     | `{}` (strict) — begins the match: `LOBBY → STARTING → PLAYING`; answers `NOT_ENOUGH_PLAYERS` / `INVALID_STATE` if it cannot | the room's host |
 | `ROOM_JOIN`        | plain     | `{ joinCode, displayName }` (wire-bounded ≤64; domain applies the real rules) | controller without an identity |
 | `PLAYER_RECONNECT` | plain     | `{ joinCode, reconnectToken }`                                   | controller without an identity |
 | `INPUT_MOVE`       | state     | `{ x, y }`, each finite in `[-1, 1]`                             | joined player |
@@ -106,6 +107,8 @@ Stable machine identifiers; renaming or removing is a breaking change, adding is
 `INVALID_MESSAGE`, `UNSUPPORTED_PROTOCOL`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `INVALID_RECONNECT_TOKEN`, `RATE_LIMITED`, `UNAUTHORIZED`.
 
 Added in Slice 6 (additive), each because the server's translation layer needed a distinct answer: `ROOM_NOT_JOINABLE`, `INVALID_DISPLAY_NAME`, `SEAT_RELEASED`, `ROOM_CLOSING`, `UNKNOWN_GAME`, `HANDSHAKE_REQUIRED` (anything but a handshake first, or no handshake in time), `INTERNAL_ERROR` (a server fault; never carries details).
+
+Added in Slice 8 (additive): `NOT_ENOUGH_PLAYERS` (the host asked to start with fewer players than the game needs) and `INVALID_STATE` (the room cannot make that transition now).
 
 ## Identity (_planned_, designed in ARCHITECTURE)
 

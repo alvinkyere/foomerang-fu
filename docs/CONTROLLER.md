@@ -24,7 +24,7 @@ A native app later provides its own `ControllerTransport` (and UI) against the s
 
 The server sends `CONTROLLER_MANIFEST { gameId, orientation, controls[] }` after `ROOM_JOINED` / `PLAYER_RECONNECTED`, taken from the **game's** definition (validated when the server starts). The controller renders what it says; there is no `if (gameId === ...)` anywhere (a test proves two games with the same controls render identically). A control type this build cannot draw is skipped, never fatal.
 
-V1 knows exactly one control type, `joystick`, because that is all the controller implements. Adding `button` is an additive protocol change made together with its implementation. Today the **first joystick** drives movement whatever the game calls it (the protocol has one movement message); other joysticks are ignored until the protocol has messages for them. Foomerang Fu's prototype manifest is `MOVE → joystick`; THROW/DASH come with the game.
+V1 knows exactly one control type, `joystick`, because that is all the controller implements. Adding `button` is an additive protocol change made together with its implementation. **Temporary protocol limitation, not a design decision:** the protocol has exactly one movement message (`INPUT_MOVE`), so the **first joystick in a manifest** drives movement, whatever the game calls it; any other joystick is ignored until the protocol has messages for it (e.g. an `INPUT_AIM`). Do not build a game that depends on a second analogue control before that protocol change is made and reviewed. Foomerang Fu's prototype manifest is `MOVE → joystick`; THROW/DASH come with the game.
 
 ## Coordinates (a permanent convention)
 
@@ -95,7 +95,7 @@ Production build: **JS 111.6 kB gzip, CSS 1.6 kB gzip** (budget 130 kB / 10 kB, 
 
 1. QR-scan → interactive time is unmeasured; the bundle is dominated by React and zod.
 2. Real iPhone Safari behavior (gestures, page lifecycle, bfcache, socket suspension on lock) is untested.
-3. Only the first joystick is wired; a second needs a protocol message (e.g. `INPUT_AIM`).
+3. **Temporary protocol limitation:** only the first joystick is wired (one movement message); a second needs a protocol message (e.g. `INPUT_AIM`).
 4. A hidden page's timers may be throttled, so the heartbeat and refresh can slow while backgrounded; the neutral on hide is immediate, but the server's view of a backgrounded phone is "quiet", not "gone", until Socket.IO's ping decides.
 5. Reconnect gives up after 70 s, just past the 60 s seat hold; both are configurable hypotheses.
 6. `?server=` and the dev host are development tools only.
