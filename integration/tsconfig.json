@@ -1,5 +1,7 @@
 {
   "extends": "@foomerang/config/tsconfig/web.json",
-  "compilerOptions": { "types": ["node"] },
-  "include": ["test"]
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["test", "e2e"]
 }

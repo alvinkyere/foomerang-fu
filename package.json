@@ -12,8 +12,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "build": "turbo run build"
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e",
+    "build": "turbo run build",
+    "e2e": "pnpm --filter @foomerang/integration e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -22,4 +22,7 @@ jobs:
       # pnpm is pinned by "packageManager" in package.json and provided by Corepack (see README).
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      # The browser tests drive the system Chrome (Playwright channel "chrome"). This step makes
+      # sure the runner has it; it has not been exercised on GitHub Actions yet (no remote exists).
+      - run: pnpm --filter @foomerang/integration exec playwright install --with-deps chrome
       - run: pnpm validate

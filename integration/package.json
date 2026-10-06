@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Test-only workspace: exercises the real packages together over real sockets (browser end-to-end tests join it in Slice 8). Nothing may depend on it.",
+  "description": "Test-only workspace: exercises the real packages together over real sockets, and the real console and controller in a real browser (Playwright). Nothing may depend on it.",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@foomerang/config": "workspace:*",
