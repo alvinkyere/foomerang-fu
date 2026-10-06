@@ -34,6 +34,8 @@ export interface Snapshot {
           alive: boolean;
           facing: { x: number; y: number };
           slash: 'READY' | 'ACTIVE' | 'RECOVERING';
+          dash: 'READY' | 'DASHING';
+          fatigue: { dashes: number; recoverIn: number; fatigued: boolean };
         }[];
         boomerangs: {
           ownerId: string;
@@ -253,13 +255,18 @@ export class Phone {
     await this.holdButton('SLASH', 60);
   }
 
+  /** A quick tap on the DASH button. */
+  async tapDash(): Promise<void> {
+    await this.holdButton('DASH', 60);
+  }
+
   /** Puts a finger on THROW, keeps it there for `ms`, then lifts it. A held button must still send ONE press. */
   async holdThrow(ms: number): Promise<void> {
     await this.holdButton('THROW', ms);
   }
 
   /** Puts a finger on a button, keeps it there for `ms`, then lifts it. */
-  async holdButton(name: 'THROW' | 'SLASH', ms: number): Promise<void> {
+  async holdButton(name: 'THROW' | 'SLASH' | 'DASH', ms: number): Promise<void> {
     const at = await this.buttonCenter(name);
     await this.cdp.send('Input.dispatchTouchEvent', {
       type: 'touchStart',

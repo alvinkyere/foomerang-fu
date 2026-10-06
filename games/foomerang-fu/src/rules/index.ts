@@ -12,6 +12,8 @@ export { deflectionDirection } from './deflect';
 export type { Boomerang, BoomerangState } from './boomerang';
 
 export type { SlashState } from './slash';
+export { isFatigued } from './dash';
+export type { DashState, Fatigue } from './dash';
 
 export { MAX_PLAYERS, createFuMatch, spawnPosition } from './state';
 export type { FuPhase, FuPlayer, FuPlayerSpec, FuRoundOver, FuState } from './state';

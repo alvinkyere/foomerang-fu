@@ -120,7 +120,7 @@ const parseEvent = (value: unknown) => inputEventMessageSchema.safeParse(value);
 
 describe('INPUT_EVENT (event: reliable, deduplicated by eventId)', () => {
   it('defines the generic actions and phases', () => {
-    expect([...ACTIONS]).toEqual(['PRIMARY', 'SECONDARY']);
+    expect([...ACTIONS]).toEqual(['PRIMARY', 'SECONDARY', 'TERTIARY']);
     expect([...ACTION_PHASES]).toEqual(['pressed', 'released']);
   });
 
@@ -150,7 +150,7 @@ describe('INPUT_EVENT (event: reliable, deduplicated by eventId)', () => {
     ['eventId number', action({ eventId: 12345678 })],
     ['missing seq', without('seq')],
     ['seq invalid', action({ seq: -3 })],
-    ['unknown action', action({ payload: { action: 'TERTIARY', phase: 'pressed' } })],
+    ['unknown action', action({ payload: { action: 'QUATERNARY', phase: 'pressed' } })],
     ['lowercase action', action({ payload: { action: 'primary', phase: 'pressed' } })],
     ['unknown phase', action({ payload: { action: 'PRIMARY', phase: 'held' } })],
     ['uppercase phase', action({ payload: { action: 'PRIMARY', phase: 'PRESSED' } })],

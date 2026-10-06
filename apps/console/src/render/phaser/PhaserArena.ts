@@ -19,6 +19,10 @@ const WALL_SIDE = 0x1b2432;
 const WALL_FACE = 0x56688a;
 const WALL_EDGE = 0xcfd9ea;
 const TRAIL_LENGTH = 9;
+/** How many past positions a dashing player's streak remembers. A look, not a rule. */
+const DASH_STREAK_LENGTH = 8;
+/** How long the burst at the start of a dash is on screen. */
+const DASH_BURST_MS = 300;
 /** How long a spent (round-over) projectile takes to fade away. */
 const SPENT_FADE_MS = 320;
 /** How long the swoosh is on screen: the sweep, then a fade. A look, not a rule. */
@@ -35,11 +39,19 @@ class PlayerSprite {
   readonly #mark: Phaser.GameObjects.Graphics;
   readonly #number: Phaser.GameObjects.Text;
   readonly #name: Phaser.GameObjects.Text;
+  /** The dash streak lives in world space (not in the container, which moves with the player). */
+  readonly #streak: Phaser.GameObjects.Graphics;
+  /** A pulsing amber ring while the rules say the player is FATIGUED. A look, not a rule. */
+  readonly #tired: Phaser.GameObjects.Graphics;
+  #isTired = false;
+  readonly #streakPoints: { x: number; y: number }[] = [];
   #styleKey = '';
   #aimKey = '';
 
   constructor(scene: Phaser.Scene) {
+    this.#streak = scene.add.graphics().setDepth(-1); // under the player, over the floor and walls
     this.#shape = scene.add.graphics();
+    this.#tired = scene.add.graphics().setVisible(false);
     this.#aim = scene.add.graphics();
     this.#mark = scene.add.graphics();
     this.#number = scene.add
@@ -60,6 +72,7 @@ class PlayerSprite {
       })
       .setOrigin(0.5, 0);
     this.container = scene.add.container(0, 0, [
+      this.#tired,
       this.#shape,
       this.#aim,
       this.#number,
@@ -71,6 +84,22 @@ class PlayerSprite {
   apply(circle: CircleView): void {
     this.container.setPosition(circle.x, circle.y);
     this.container.setAlpha(circle.dimmed ? DIMMED_ALPHA : 1);
+    this.#drawStreak(circle);
+    const tired = circle.fatigued === true;
+    if (tired !== this.#isTired) {
+      this.#isTired = tired;
+      this.#tired.clear();
+      if (tired) {
+        this.#tired.lineStyle(9, 0xffb020, 1);
+        this.#tired.strokeCircle(0, 0, circle.radius + 14);
+        this.#tired.lineStyle(4, 0x000000, 0.6);
+        this.#tired.strokeCircle(0, 0, circle.radius + 21);
+        // three "sweat" drops falling off the top edge
+        this.#tired.fillStyle(0x9fd8ff, 1);
+        for (const dx of [-16, 0, 16]) this.#tired.fillCircle(dx, -circle.radius - 30, 6);
+      }
+      this.#tired.setVisible(tired);
+    }
 
     const key = `${circle.shape}|${circle.color}|${circle.radius}|${circle.number}|${circle.label}`;
     if (key !== this.#styleKey) {
@@ -88,6 +117,41 @@ class PlayerSprite {
       this.#drawAim(circle);
       this.#drawMark(circle);
     }
+  }
+
+  /** While the rules say the player is dashing: ghosts of where they just were, and a bright streak joining them. */
+  /** Called every frame: the tired ring breathes, so it cannot be mistaken for a static outline. */
+  pulse(time: number): void {
+    if (this.#isTired) this.#tired.setAlpha(0.55 + 0.4 * Math.sin(time / 130));
+  }
+
+  #drawStreak(circle: CircleView): void {
+    const g = this.#streak;
+    if (circle.dashing === undefined) {
+      if (this.#streakPoints.length > 0) {
+        this.#streakPoints.length = 0;
+        g.clear();
+      }
+      return;
+    }
+    const last = this.#streakPoints.at(-1);
+    if (last === undefined || last.x !== circle.x || last.y !== circle.y) {
+      this.#streakPoints.push({ x: circle.x, y: circle.y });
+      if (this.#streakPoints.length > DASH_STREAK_LENGTH) this.#streakPoints.shift();
+    }
+    g.clear();
+    const colour = toNumber(circle.color);
+    const count = this.#streakPoints.length;
+    const first = this.#streakPoints[0];
+    if (first !== undefined) {
+      g.lineStyle(circle.radius * 1.2, colour, 0.35);
+      g.lineBetween(first.x, first.y, circle.x, circle.y);
+    }
+    this.#streakPoints.forEach((point, index) => {
+      const t = (index + 1) / count;
+      g.fillStyle(colour, 0.5 * t);
+      g.fillCircle(point.x, point.y, circle.radius * (0.55 + 0.4 * t));
+    });
   }
 
   #drawAim(circle: CircleView): void {
@@ -179,6 +243,7 @@ class PlayerSprite {
   }
 
   destroy(): void {
+    this.#streak.destroy();
     this.container.destroy();
   }
 }
@@ -396,6 +461,7 @@ class ArenaScene extends Phaser.Scene {
 
   override update(time: number): void {
     for (const sprite of this.#boomerangs.values()) sprite.spin(time);
+    for (const sprite of this.#sprites.values()) sprite.pulse(time);
     this.#effects = this.#effects.filter((effect) => {
       const progress = (time - effect.born) / effect.duration;
       if (progress >= 1) {
@@ -494,6 +560,66 @@ class ArenaScene extends Phaser.Scene {
         });
         break;
       }
+      case 'DASHED': {
+        // A burst where it began: a ring and a few speed lines trailing back, away from the way it went.
+        const way = event.direction ?? { x: 1, y: 0 };
+        this.#effects.push({
+          graphics,
+          born,
+          duration: DASH_BURST_MS,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.lineStyle(8 * fade + 1, color, fade);
+            g.strokeCircle(event.x, event.y, 30 + progress * 60);
+            g.lineStyle(6 * fade + 1, 0xffffff, 0.9 * fade);
+            for (const offset of [-0.35, 0, 0.35]) {
+              const angle = Math.atan2(-way.y, -way.x) + offset;
+              g.lineBetween(
+                event.x + Math.cos(angle) * 40,
+                event.y + Math.sin(angle) * 40,
+                event.x + Math.cos(angle) * (70 + progress * 110),
+                event.y + Math.sin(angle) * (70 + progress * 110),
+              );
+            }
+          },
+        });
+        break;
+      }
+      case 'FATIGUED': {
+        // Becoming tired: an amber ring that collapses onto the player, then the persistent tired ring stays.
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 520,
+          update: (g, progress) => {
+            g.clear();
+            g.lineStyle(14 * (1 - progress) + 2, 0xffb020, 1 - progress);
+            g.strokeCircle(event.x, event.y, 150 - progress * 100);
+            g.lineStyle(6 * (1 - progress) + 1, 0x9fd8ff, 1 - progress);
+            for (const dx of [-30, 0, 30]) {
+              g.lineBetween(event.x + dx, event.y - 70, event.x + dx, event.y - 70 + progress * 60);
+            }
+          },
+        });
+        break;
+      }
+      case 'RECOVERED':
+        // Full mobility is back: a bright green flash and a ring that opens outward.
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 560,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.fillStyle(0x7dff9b, 0.6 * fade * fade);
+            g.fillCircle(event.x, event.y, 40 + progress * 40);
+            g.lineStyle(12 * fade + 2, 0x7dff9b, fade);
+            g.strokeCircle(event.x, event.y, 50 + progress * 110);
+          },
+        });
+        break;
       case 'SLASHED':
         if (event.swing !== undefined) {
           this.#effects.push({

@@ -13,7 +13,7 @@ import { plainEnvelope } from './envelope';
  *
  * - `joystick` drives the one movement message (`INPUT_MOVE`). Temporary protocol limitation: the
  *   FIRST joystick in a manifest is the one that moves; a second needs its own message.
- * - `button` sends the generic action it names (`PRIMARY` / `SECONDARY`) as `INPUT_EVENT`s
+ * - `button` sends the generic action it names (`PRIMARY` / `SECONDARY` / `TERTIARY`) as `INPUT_EVENT`s
  *   (pressed / released). What the action MEANS (throw, dash, ...) is the game's business, and the
  *   control's `id` is only a label for the player.
  */

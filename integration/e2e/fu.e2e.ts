@@ -205,6 +205,10 @@ test('Foomerang Fu: holding THROW throws once, and sends exactly one press and o
   expect((await host.snapshot()).diagnostics.actionsReceived - before).toBe(2); // pressed + released, nothing else
 });
 
+const dashOf = async (host: Host, id: string) =>
+  (await host.fu()).players.find((p) => p.id === id)?.dash;
+const fatigueOf = async (host: Host, id: string) =>
+  (await host.fu()).players.find((p) => p.id === id)?.fatigue;
 const slashOf = async (host: Host, id: string) =>
   (await host.fu()).players.find((p) => p.id === id)?.slash;
 
@@ -590,4 +594,204 @@ test('Foomerang Fu: performance of ordinary two-player combat (recorded, with a 
   expect(metrics.fps ?? 0).toBeGreaterThan(30); // a loose floor; the figure above is the evidence
   expect(await host.body(aliceId)).toBeDefined();
   expect(await host.body(bobId)).toBeDefined();
+});
+
+// ---------------------------------------------------------------------------------------------
+// Slice 4: DASH, through the real controller → server → console → rules path.
+// ---------------------------------------------------------------------------------------------
+
+const DASH_DISTANCE = 1100 * 0.16; // DEFAULT_FU_CONFIG.dashSpeed × dashSeconds
+const PLAYER_RADIUS = 36;
+
+/** Alice's thumb points straight down for a moment (facing down, barely moving), then lifts. */
+const faceDown = async (alice: Phone) => aim(alice, { x: 0, y: 0 }, { x: 0, y: 100 });
+
+test('Foomerang Fu: the DASH button is rendered from the manifest, and one tap is one burst of exactly the configured distance', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const code = await host.createRoom();
+  const alice = await newPhone();
+  const bob = await newPhone();
+  await alice.join(code, 'Alice');
+  await bob.join(code, 'Bob');
+  await expect(alice.page.getByRole('button', { name: 'DASH' })).toBeVisible();
+  await host.start();
+  await host.waitForDrawn(2);
+  const aliceId = await host.playerId('Alice');
+
+  await faceDown(alice);
+  const before = await host.settled(aliceId);
+  const actions = (await host.snapshot()).diagnostics.actionsReceived;
+
+  // Watch the dash from the outside: how many times it starts, and that nothing else happens.
+  let starts = 0;
+  let last: string | undefined = 'READY';
+  let extras = 0;
+  const watcher = (async () => {
+    const until = Date.now() + 1_200;
+    while (Date.now() < until) {
+      const fu = await host.fu();
+      const me = fu.players.find((p) => p.id === aliceId);
+      if (last === 'READY' && me?.dash === 'DASHING') starts += 1;
+      last = me?.dash;
+      if (
+        me?.slash !== 'READY' ||
+        fu.boomerangs.find((b) => b.ownerId === aliceId)?.state !== 'HELD'
+      )
+        extras += 1;
+      await sleep(4);
+    }
+  })();
+  await alice.holdButton('DASH', 700); // a long hold must not repeat the dash
+  await watcher;
+  expect(starts).toBe(1);
+  expect(extras, 'DASH never slashes or throws').toBe(0);
+  expect((await host.snapshot()).diagnostics.actionsReceived - actions).toBe(2); // one press, one release
+
+  const after = await host.body(aliceId);
+  expect(after.x).toBeCloseTo(before.x, 3);
+  expect(after.y - before.y).toBeCloseTo(DASH_DISTANCE, 3);
+  const drawn = (await host.snapshot()).drawn?.find((d) => d.id === aliceId);
+  expect(drawn?.y).toBeCloseTo(after.y, 3); // Phaser has her where the rules do
+
+  // No cooldown: a second tap straight away dashes again (spamming is allowed; fatigue is the limit).
+  expect(await dashOf(host, aliceId)).toBe('READY');
+  await alice.tapDash();
+  await expect
+    .poll(async () => (await host.body(aliceId)).y, { timeout: 2_000 })
+    .toBeGreaterThan(after.y + DASH_DISTANCE - 1);
+  expect((await fatigueOf(host, aliceId))?.dashes).toBe(2);
+});
+
+test('Foomerang Fu: a dash stops flush against a wall — it never goes into or through it', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  // The left corridor's outer wall is x 200–250, y 300–600. Stand in the lane in front of it, facing it.
+  await walk(host, alice, aliceId, [{ to: { x: 110, y: 450 }, within: 12 }]);
+  await aim(alice, { x: 0, y: 0 }, { x: 100, y: 0 });
+  const start = await host.settled(aliceId);
+  const room = 200 - PLAYER_RADIUS - start.x; // how far she can go before touching the wall
+  expect(room).toBeGreaterThanOrEqual(0); // she is in front of it...
+  expect(room).toBeLessThan(DASH_DISTANCE); // ...and a whole dash would carry her into it
+  let deepest = 0;
+  const watcher = (async () => {
+    const until = Date.now() + 900;
+    while (Date.now() < until) {
+      deepest = Math.max(deepest, (await host.body(aliceId)).x);
+      await sleep(3);
+    }
+  })();
+  await alice.tapDash();
+  await watcher;
+  const stopped = await host.body(aliceId);
+  expect(deepest).toBeLessThanOrEqual(200 - PLAYER_RADIUS + 1e-6);
+  expect(stopped.x).toBeCloseTo(200 - PLAYER_RADIUS, 3);
+  expect(stopped.y).toBeCloseTo(start.y, 3);
+  expect(stopped.x - start.x).toBeLessThan(DASH_DISTANCE);
+});
+
+test('Foomerang Fu: a dash cannot go through another player — it stops in contact and shoves nobody', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId, bobId } = await setUp(host, newPhone);
+  const bobBefore = await host.body(bobId);
+  // Along the bottom lane to about 200 from Bob (less than one dash), facing him.
+  await walk(host, alice, aliceId, [
+    { to: { x: 110, y: 790 }, within: 20 },
+    { to: () => host.body(bobId), within: 200 },
+  ]);
+  const start = await host.settled(aliceId);
+  const gapBefore = dist(start, bobBefore);
+  expect(gapBefore).toBeLessThan(2 * PLAYER_RADIUS + DASH_DISTANCE); // she could reach him...
+  expect(gapBefore).toBeGreaterThan(2 * PLAYER_RADIUS + 20); // ...but is not already touching
+  let closest = Number.POSITIVE_INFINITY;
+  const watcher = (async () => {
+    const until = Date.now() + 900;
+    while (Date.now() < until) {
+      closest = Math.min(closest, dist(await host.body(aliceId), await host.body(bobId)));
+      await sleep(3);
+    }
+  })();
+  await alice.tapDash();
+  await watcher;
+  expect(closest).toBeGreaterThan(2 * PLAYER_RADIUS - 0.5); // never overlapped
+  const gapAfter = dist(await host.body(aliceId), await host.body(bobId));
+  expect(gapAfter).toBeLessThan(2 * PLAYER_RADIUS + 3); // got right up to him
+  expect(await host.body(bobId)).toEqual(bobBefore); // nobody was shoved
+  const fu = await host.fu();
+  expect(fu.players.every((p) => p.alive)).toBe(true); // and a dash is not an attack
+  expect(fu.phase).toBe('PLAYING');
+});
+
+test('Foomerang Fu: DASH is refused while swinging, and SLASH is refused while dashing — the commitment is real', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  await faceDown(alice);
+  await host.settled(aliceId);
+  const start = await host.body(aliceId);
+
+  await alice.tapSlash();
+  await alice.tapDash(); // 60 ms later: the swing is still on
+  await sleep(100);
+  expect(await dashOf(host, aliceId)).toBe('READY');
+  expect(await host.body(aliceId)).toEqual(start);
+  await expect.poll(async () => slashOf(host, aliceId), { timeout: 3_000 }).toBe('READY');
+
+  await alice.tapDash();
+  await expect.poll(async () => dashOf(host, aliceId), { intervals: [4] }).toBe('DASHING');
+  await alice.tapSlash(); // mid-dash: refused, and not remembered
+  await sleep(300);
+  expect(await slashOf(host, aliceId)).toBe('READY');
+  expect((await host.body(aliceId)).y - start.y).toBeCloseTo(DASH_DISTANCE, 3);
+});
+
+test('Foomerang Fu: spamming DASH is allowed — the 9th successful dash makes you FATIGUED, DASH keeps working, and 5 s without one restores you', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  await faceDown(alice);
+  await host.settled(aliceId);
+  const actions = (await host.snapshot()).diagnostics.actionsReceived;
+
+  // Eight dashes: every one is free and the player is never fatigued.
+  for (let n = 1; n <= 8; n += 1) {
+    await alice.tapDash();
+    await expect
+      .poll(async () => (await fatigueOf(host, aliceId))?.dashes, { timeout: 3_000 })
+      .toBe(n);
+    await expect.poll(async () => dashOf(host, aliceId), { timeout: 3_000 }).toBe('READY');
+    expect((await fatigueOf(host, aliceId))?.fatigued, `after dash ${n}`).toBe(false);
+  }
+  // The ninth tips them over; the console shows it (the tired ring is a Phaser object: the rules are what we read).
+  await alice.tapDash();
+  await expect
+    .poll(async () => (await fatigueOf(host, aliceId))?.fatigued, { timeout: 3_000 })
+    .toBe(true);
+  expect((await fatigueOf(host, aliceId))?.dashes).toBe(9);
+  await expect.poll(async () => dashOf(host, aliceId), { timeout: 3_000 }).toBe('READY');
+
+  // Still dashing, still fatigued (one more dash, which also restarts the 5 s).
+  await alice.tapDash();
+  await expect
+    .poll(async () => (await fatigueOf(host, aliceId))?.dashes, { timeout: 3_000 })
+    .toBe(10);
+  expect((await fatigueOf(host, aliceId))?.fatigued).toBe(true);
+  await expect.poll(async () => dashOf(host, aliceId), { timeout: 3_000 }).toBe('READY');
+  expect((await host.snapshot()).diagnostics.actionsReceived - actions).toBe(20); // every tap reached the console
+
+  // Five continuous seconds without a successful dash: rested, and the count starts again.
+  await expect
+    .poll(async () => (await fatigueOf(host, aliceId))?.fatigued, {
+      timeout: 8_000,
+      intervals: [100],
+    })
+    .toBe(false);
+  expect(await fatigueOf(host, aliceId)).toMatchObject({ dashes: 0, fatigued: false });
 });

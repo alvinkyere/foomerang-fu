@@ -28,6 +28,7 @@ describe('controller manifest delivery', () => {
         { id: 'MOVE', type: 'joystick' },
         { id: 'SLASH', type: 'button', action: 'PRIMARY' },
         { id: 'THROW', type: 'button', action: 'SECONDARY' },
+        { id: 'DASH', type: 'button', action: 'TERTIARY' },
       ],
     });
   });

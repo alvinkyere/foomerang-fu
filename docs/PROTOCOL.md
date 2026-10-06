@@ -62,7 +62,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `ROOM_JOIN`        | plain     | `{ joinCode, displayName }` (wire-bounded ≤64; domain applies the real rules) | controller without an identity |
 | `PLAYER_RECONNECT` | plain     | `{ joinCode, reconnectToken }`                                   | controller without an identity |
 | `INPUT_MOVE`       | state     | `{ x, y }`, each finite in `[-1, 1]`                             | joined player |
-| `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY, phase: pressed\|released }` (the sender's `eventId` makes it deduplicable; a manifest `button` sends exactly one pressed and one released per press) | joined player |
+| `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY\|TERTIARY, phase: pressed\|released }` (the sender's `eventId` makes it deduplicable; a manifest `button` sends exactly one pressed and one released per press) | joined player |
 
 `clientType`: `console` \| `controller` \| `native-controller` (a native controller is authorized exactly like a controller). The "who may send it" column is enforced by the server's session layer (`UNAUTHORIZED` otherwise), not by the parser.
 

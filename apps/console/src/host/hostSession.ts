@@ -66,7 +66,7 @@ export type MovementHandler = (playerId: string, x: number, y: number) => void;
 export interface PlayerAction {
   readonly playerId: string;
   readonly eventId: string;
-  readonly action: 'PRIMARY' | 'SECONDARY';
+  readonly action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
   readonly phase: 'pressed' | 'released';
 }
 export type ActionHandler = (action: PlayerAction) => void;

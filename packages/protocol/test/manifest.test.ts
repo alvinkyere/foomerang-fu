@@ -51,6 +51,18 @@ describe('controller manifest (what the controller should render — never hard-
     expect(parse(fu).success).toBe(true);
   });
 
+  it('accepts three buttons that send three different actions (Foomerang Fu: SLASH, THROW, DASH)', () => {
+    const three = {
+      ...manifest,
+      controls: [
+        { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+        { id: 'THROW', type: 'button', action: 'SECONDARY' },
+        { id: 'DASH', type: 'button', action: 'TERTIARY' },
+      ],
+    };
+    expect(parse(three).success).toBe(true);
+  });
+
   it('accepts two buttons that send different actions', () => {
     const two = {
       ...manifest,
@@ -66,7 +78,7 @@ describe('controller manifest (what the controller should render — never hard-
     ['a button with no action', { ...manifest, controls: [{ id: 'THROW', type: 'button' }] }],
     [
       'a button with an unknown action',
-      { ...manifest, controls: [{ id: 'THROW', type: 'button', action: 'TERTIARY' }] },
+      { ...manifest, controls: [{ id: 'THROW', type: 'button', action: 'QUATERNARY' }] },
     ],
     [
       'a button with a lowercase action',

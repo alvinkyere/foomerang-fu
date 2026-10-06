@@ -42,10 +42,19 @@ export function ControlRenderer({
         ]
       : [],
   );
+  // Three action buttons need a different arrangement of the same thumb area. A fact about the actions
+  // the manifest asks for, never about which game asked.
+  const hasTertiary = manifest.controls.some(
+    (control) => control.type === 'button' && control.action === 'TERTIARY',
+  );
   return (
     <div className="controls">
       {sticks}
-      {buttons.length > 0 && <div className="button-cluster">{buttons}</div>}
+      {buttons.length > 0 && (
+        <div className="button-cluster" data-layout={hasTertiary ? 'tertiary' : undefined}>
+          {buttons}
+        </div>
+      )}
     </div>
   );
 }

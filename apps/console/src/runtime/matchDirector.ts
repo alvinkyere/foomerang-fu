@@ -1,14 +1,19 @@
 import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
-import { FuRuntime } from './fuRuntime';
 import { GameRuntime } from './gameRuntime';
+import { LazyFuRuntime, warmUpFu } from './lazyFuRuntime';
 import type { MatchRuntime } from './matchRuntime';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
 export function createRuntimeFor(gameId: string): MatchRuntime {
-  return gameId === 'foomerang-fu' ? new FuRuntime() : new GameRuntime();
+  return gameId === 'foomerang-fu' ? new LazyFuRuntime() : new GameRuntime();
+}
+
+/** Fetches what a game will need while players are still in the lobby (a no-op for games with nothing to fetch). */
+export function warmUpFor(gameId: string): void {
+  if (gameId === 'foomerang-fu') warmUpFu();
 }
 
 /**
@@ -34,8 +39,14 @@ export class MatchDirector {
 
   readonly #createRuntime: (gameId: string) => MatchRuntime;
 
-  constructor(createRuntime: (gameId: string) => MatchRuntime = createRuntimeFor) {
+  readonly #warmUp: (gameId: string) => void;
+
+  constructor(
+    createRuntime: (gameId: string) => MatchRuntime = createRuntimeFor,
+    warmUp: (gameId: string) => void = createRuntime === createRuntimeFor ? warmUpFor : () => {},
+  ) {
     this.#createRuntime = createRuntime;
+    this.#warmUp = warmUp;
     this.runtime.setActivity((playerId) => this.#connected.has(playerId));
   }
 
@@ -53,6 +64,7 @@ export class MatchDirector {
 
     if (roomState !== 'PLAYING') {
       this.#inMatch = false;
+      this.#warmUp(gameId);
       return;
     }
     if (this.#inMatch) return;

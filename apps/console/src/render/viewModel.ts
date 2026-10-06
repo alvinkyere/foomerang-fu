@@ -22,6 +22,10 @@ export interface CircleView {
   readonly facing?: Vec2;
   /** Their boomerang is in hand, ready to throw. */
   readonly armed: boolean;
+  /** Present only while the player is mid-dash (a rules fact): the way they are going. A streak is the renderer's. */
+  readonly dashing?: { readonly direction: Vec2 };
+  /** Present (true) only while the player is FATIGUED (a rules fact): slower walking and weaker dashes. */
+  readonly fatigued?: true;
 }
 
 export interface BoomerangView {
@@ -37,12 +41,23 @@ export interface BoomerangView {
 
 /** A one-shot thing that just happened, for the renderer to make a brief effect of. */
 export interface ViewEvent {
-  readonly type: 'THROWN' | 'HIT' | 'CAUGHT' | 'SLASHED' | 'DEFLECTED' | 'ROUND_START';
+  readonly type:
+    | 'THROWN'
+    | 'HIT'
+    | 'CAUGHT'
+    | 'SLASHED'
+    | 'DEFLECTED'
+    | 'DASHED'
+    | 'FATIGUED'
+    | 'RECOVERED'
+    | 'ROUND_START';
   readonly x: number;
   readonly y: number;
   readonly color: string;
   /** For DEFLECTED: where the boomerang was sent (unit vector), so the effect can point the way it went. */
   readonly knock?: Vec2;
+  /** For DASHED: the way the dash goes (unit vector), so the burst can be drawn pointing along it. */
+  readonly direction?: Vec2;
   /** For SLASHED: the swing exactly as the rules resolve it, so it can be drawn but never decided. */
   readonly swing?: {
     readonly direction: Vec2;

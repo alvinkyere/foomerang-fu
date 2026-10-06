@@ -11,7 +11,7 @@ import { tick } from '../haptics';
 export interface ActionButtonProps {
   /** The manifest's id for this control. It is the label; the game gives the action its meaning. */
   readonly controlId: string;
-  /** The generic action the manifest says this button sends. Only the layout reads it (PRIMARY is the big one). */
+  /** The generic action the manifest says this button sends. Only the layout reads it (PRIMARY is the big one, TERTIARY sits beside SECONDARY). */
   readonly action?: string;
   /** `true` when it goes down, `false` when it comes up. Called once per change, never repeated. */
   readonly onChange: (pressed: boolean) => void;

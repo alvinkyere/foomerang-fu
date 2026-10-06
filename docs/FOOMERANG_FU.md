@@ -89,7 +89,10 @@ It only ever moves to places the sweep says are free, so it cannot penetrate, tu
 
 **The playtest will answer:** is chasing around cover fun? are chokepoints interesting? does body-blocking become useful? are corridors too restrictive? does SLASH get more interesting around corners? does THROW gain risk/reward around cover? are returning-boomerang trajectories understandable? do walls create strategy rather than annoyance?
 
-## Slice 3: Defensive Mastery (engineering complete, **not yet played**)
+## Slice 3: Defensive Mastery — **PASS**
+
+**Fu Slice 3: Defensive Mastery — PASS**, on a physical human playtest (the project owner, real controllers, 2026-10-06): the deflection mechanic works well and feels good in real play. Slices 1–3 together are the **approved gameplay baseline**. `deflectRange` and `maxDeflections` (and the other values Slice 3 introduced) are the approved *current* baseline but remain **playtest-derived candidates, not immutable constants**.
+
 
 Slice 3 asks one question: *can a skilled player actively defend against an incoming boomerang through timing, while keeping the controls as simple as they are?* It adds exactly one interaction and **no new button**: **an ACTIVE SLASH deflects an enemy boomerang.** SLASH still kills players; now the same action has a second use.
 
@@ -160,9 +163,89 @@ MOVE (joystick)  +  SLASH (button)  +  THROW (button)
 
 Deviation to note: Fu's drawing lives in the console's existing Phaser module (shared with the primitive arena, which uses the same circles and labels) rather than `games/foomerang-fu/src/render`. The boundary is the same (view model in, pixels out). Moving Fu-specific drawing into the game package later is a mechanical change.
 
+## Slice 4: Mobility — DASH (engineering complete, **not yet played**; an experiment that may be deleted)
+
+Slice 4 asks one question: *does a short, skillful burst of movement make combat better without making positioning, walls, throws and deflections less important?* **DASH is an experiment, not a feature. If it turns the game into everybody constantly zooming around, it is deleted.** Nothing here is validated: every number is a tuning hypothesis, and no Slice 1–3 value was changed to make room for it.
+
+**Controls.** One new manifest-driven button, `DASH` (generic action `TERTIARY`, a protocol addition: `ACTIONS` is now `PRIMARY | SECONDARY | TERTIARY`; nothing that sent the old two changes). The controller has no Fu code: with a TERTIARY button present it lays the cluster out as SLASH across the top, THROW bottom-left, DASH bottom-right (a generic fact about the actions in the manifest; manifests without one keep the old layout). The server advertises it and the console maps it through the one shared table (`FU_BUTTONS`), pinned by the contract test.
+
+```
+            MOVE joystick          ┌───────── SLASH ─────────┐
+                                   │  THROW   │      DASH    │
+```
+
+**The state machine** (`rules/dash.ts`, a `dash` field on every player):
+
+```
+READY ──press──► DASHING ──time is up, or blocked by a living player──► READY
+```
+
+| Phase | Meaning |
+| --- | --- |
+| READY | A press starts a dash. **There is no cooldown**: after a burst a press dashes again on the very next step. |
+| DASHING `{ direction, remaining, speed }` | The player is carried along `direction` at `speed`. Direction is **locked**: the thumb neither steers nor turns the player. SLASH, THROW and a new DASH are refused. |
+
+**Fatigue replaces the cooldown (playtest change, 2026-10-06).** *Players may spam DASH; repeated use is controlled by fatigue, not by refusing the press.* It is deterministic gameplay state (`fatigue: { dashes, recoverIn }` on every player, `rules/dash.ts`), counted by the rules and nowhere else: not by the controller, the server or the console. No stamina points, no stamina bar, no charges, no multi-second cooldown.
+
+- `dashes` counts **successful** dashes: ones the rules actually started. Button presses, duplicate or stale events, presses refused by the rules (mid-dash, mid-swing, losing to a same-step SLASH or THROW, a dead player), and presses the console dropped never count. A dash that is blocked the moment it starts (against a wall or body) still started, so it counts.
+- The first `dashFreeCount` (**8**) dashes are normal. **The 9th triggers FATIGUED** and is itself already a fatigued dash (we read "triggers FATIGUED" as: entering the state at that dash). Dash 10 and beyond are allowed, and fatigued.
+- While FATIGUED: **walking is 70%** of normal (`fatiguedMoveFactor`; it multiplies with the slash slowdown while swinging) and **dashes are 70%** (`fatiguedDashFactor`): a fatigued dash lasts as long but goes 70% as fast, so 70% as far. DASH is never disabled. Collision and vulnerability are unchanged.
+- **Recovery**: every successful dash restarts a **5 s** clock (`fatigueRecoverySeconds`), counted from the start of the step the dash began in (so it never depends on how time was cut into steps). When it runs out the player is rested: fatigue clears and `dashes` resets to 0. Walking normally does not interrupt it; the next successful dash does. A press on the very step recovery completes counts as dash number 1, at full power.
+- Death and a new round reset fatigue. A round ending mid-dash shows everyone READY; fatigue is kept until the reset.
+- Events: `FATIGUED` (once, on the dash that tips them over) and `RECOVERED` (when a fatigued player's recovery completes).
+
+**Initial tuning (all unvalidated playtest hypotheses, not balance constants):** `dashSpeed` **1100** u/s · `dashSeconds` **0.16** s (a full-power dash covers **176** units, about 4.9 player radii, 1.35× a slash's reach, a third of a throw; a fatigued one **123**) · `dashFreeCount` **8** · `fatigueRecoverySeconds` **5** · `fatiguedMoveFactor` **0.7** · `fatiguedDashFactor` **0.7**. A dash is 10 steps at 60/s (the last partial). Configuration is validated: speeds and times positive and finite; `dashFreeCount` a positive integer; both factors in (0, 1]; `dashSpeed × step < playerRadius` (a dash is swept in steps shorter than a body, so it cannot tunnel); and `(boomerang speed + dashSpeed) × step < reach` (a boomerang and a dashing player cannot jump past each other between two steps).
+
+**Direction.** The thumb's meaningful direction when the press arrives (outside the dead zone); otherwise the player's current facing; if neither exists (which no real player has) **right**, deterministically. A thumb direction also becomes the facing, exactly as walking does.
+
+**No invulnerability.** A dashing player is hit by boomerangs and by an ACTIVE slash exactly like a walking one, on the same end-of-step positions. Dashing into a boomerang's path, or into an active slash, is a death. A dash can dodge a boomerang only by *being somewhere else* when it arrives. There is no dodge-roll, no stamina, no second charge, and a dash does no damage and no knock-back to anybody.
+
+**Action resolution** (one step; the state at the start of the step decides; nothing depends on the order inputs arrived in):
+
+| Situation | Result |
+| --- | --- |
+| SLASH + DASH on one step | **SLASH wins**; the dash is dropped, not delayed. |
+| THROW + DASH on one step | **THROW wins**; the dash is dropped. |
+| SLASH + THROW + DASH | SLASH only (SLASH, then THROW, then DASH). |
+| A SLASH or THROW that *could not* happen (boomerang away; a swing in progress) + DASH | The dash happens: an action that cannot happen costs nothing. |
+| DASH while the boomerang is away | Allowed; the boomerang flies on, and a returning one still comes home to its (moving) owner and never kills them. |
+| DASH while a slash is ACTIVE or RECOVERING | **Refused** (so a swing stays a commitment and DASH cannot cancel its recovery). Accepted on the very step the recovery ends. |
+| SLASH or THROW while DASHING | **Refused** for the burst (no dash-attacks); fine the step after. |
+| DASH immediately after a THROW | Allowed (the next step). Immediately after a SLASH: refused until it has recovered. |
+| Repeated presses while DASHING | Nothing: not queued, not extended, not counted. A held button sends one press (the controller never repeats). Between dashes there is nothing to wait for: the next press dashes. |
+| Both players DASH on one step | Both dash, independently. |
+| Death during a dash | The dash ends on that very step (state READY); the dead are not solid and do not move. |
+| The round ends during a dash | Everybody is shown READY (no half-finished burst frozen on screen); the next round starts all READY and rested at the spawns. |
+
+**Collision** (a dash obeys the geometry walking obeys; nobody is teleported):
+
+- It is carried in sub-steps no longer than the fixed step (so a large accepted `dt`, up to 0.1 s, cannot make it skip anything), each moving a body less than its radius; the distance covered is `dashSpeed × time spent dashing`, whatever way time was cut.
+- **Walls**: the same push-out as walking, so a dash at a wall ends flush against it, and one at an angle slides along it. A wall at least one radius thick (the arena's rule) cannot be crossed. The burst's timer keeps running while pinned.
+- **Arena boundary**: clamped per axis (slides, like walking).
+- **Living players**: a dash stops the instant it would touch one (contact, not overlap), the burst ends, and **nobody is shoved**. A dash that starts already touching a player and pointing at them goes nowhere; pointing away is free. The dead are not solid.
+- **Two dashers at each other**: each is judged against the same snapshot of positions, so neither is favoured and who is first in the match never matters; they end in contact, symmetric about the midpoint, never overlapping.
+- A player who walks into a dasher is separated by the ordinary equal-bodies rule; nobody overlaps or passes through.
+- **Known limit:** hits are judged on end-of-step positions, as for everything in Fu. At the fixed step (what the console runs) a dash moves 18 units per step, far less than a body, so nothing can be skipped; at a large test-only `dt` a dash could cross an ACTIVE slash's region between two steps without being seen. The console never runs a larger step.
+
+**Not trivializing the arena — what fatigue does and does not do (measured).** Corridors stay one body wide, walls stop a dash, bodies stop it; a dash is a burst, not a lane change, and costs 0.16 s of being unable to steer, slash or throw. **But the fatigue model, as specified, does not cap spamming; it only taxes everything except spamming.** Measured in open ground along a lane (a thumb held forward):
+
+| | walking only | spamming DASH the moment it is possible |
+| --- | --- | --- |
+| 2 s | 840 u | 1,901 u (12 dashes) |
+| 5 s | 2,100 u | 4,118 u (30 dashes) |
+| 10 s | 4,200 u | 7,814 u (60 dashes) |
+
+Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to back) against 420 u/s walking, and 294 u/s if they stop dashing and walk while tired. So fatigue punishes the *pauses*, not the spam: after the first 8 dashes the best play is to keep dashing. Whether that is the intended design is the question the playtest should answer. If it turns the game into everybody zooming, the levers are a lower `fatiguedDashFactor`, a dash-to-dash gap, fatigue that lengthens the lock-out, or deleting DASH. Nothing was changed to address this; it is as specified.
+
+**Presentation (primitive, no production VFX or audio).** A burst (a ring and three speed lines trailing back) where the dash begins, and while the rules say a player is DASHING, a streak of fading ghosts behind them in their colour. **Fatigue**: when it begins, an amber ring collapses onto the player with falling blue drops, and while the player is FATIGUED a **pulsing amber ring with three sweat drops** stays on them; when they recover, a **green flash and an opening ring** play. All of it is drawn from the rules' state and events (`fatigued`, `FATIGUED`, `RECOVERED`), and decides nothing. No controller feedback beyond the existing button-press tick (the platform has no console→controller state channel; adding one would be a protocol change for a cosmetic), and the controller keeps accepting DASH while you are fatigued.
+
+**Not in this slice:** invincibility frames, dodge-roll, stamina, multiple charges, dash attacks, wall jumping, wall phasing, powerups, hazards, new arenas, production art or audio, CPU players, Slice 5.
+
+**The playtest will answer:** does DASH make *you* feel more skilful, or is it just a button you hold down? Do you still need cover, corridors and chokepoints? Do you dash to commit to a kill or to flee, and which one wins? Do you ever die *because* of a dash (into a slash, into a boomerang) and does it feel fair? Is the 0.16 s lock-out (no slash, throw or steering) a real price? Do 8 free dashes feel like a burst you save for something? When the amber ring appears, do you stop dashing, or keep going because it is still the fastest thing you can do? Is 5 s the right wait, and does one late dash that restarts it feel fair or like a trap? Can you tell, without looking for it, when you are tired and when you are back? Does the arena get *smaller*? Would you miss it if it were gone? (If not, delete it.)
+
 ## State (`FuState`, plain data)
 
-`config` · `round` · `phase` (`PLAYING` | `ROUND_OVER`) · `elapsed` · `world` (game-core bodies = player positions) · `players` (`id`, `slot`, `alive`, `facing`, `slash`) · `boomerangs` (one per player: `ownerId`, `state`, `position`, `direction`, `travelled`) · `roundOver` (`winnerId` or undefined for a draw, `resetInSeconds`).
+`config` · `round` · `phase` (`PLAYING` | `ROUND_OVER`) · `elapsed` · `world` (game-core bodies = player positions) · `players` (`id`, `slot`, `alive`, `facing`, `slash`, `dash`, `fatigue`) · `boomerangs` (one per player: `ownerId`, `state`, `position`, `direction`, `travelled`) · `roundOver` (`winnerId` or undefined for a draw, `resetInSeconds`).
 
 Death is the rules fact `alive: false`. How it looks (dimming, the cross, rings) is the renderer's business and is never read back.
 
@@ -178,7 +261,8 @@ The hit region is a circular sector from the attacker's centre along `direction`
 
 ## Step order (`stepFu(state, inputs, dt) → { state, events }`)
 
-1. **Movement and facing** (alive players only; game-core moves the bodies). A player who is swinging or recovering walks at `slashMoveFactor` of normal speed.
+0. **Plan the actions** from the state at the start of the step: SLASH, then THROW, then DASH (Slice 4; see above). A refused action is dropped, never remembered.
+1. **Movement and facing** (alive players only; game-core moves the walkers; a DASHING player is carried along their locked direction instead and takes no thumb steering). A player who is swinging or recovering walks at `slashMoveFactor` of normal speed.
 2. **Slash timers advance, new slashes start, then throws.** A slash starts only from READY with the boomerang HELD, for the boolean `true`, for a living player. A throw works only from HELD, for the boolean `true`, for a living player, **and not during an ACTIVE swing**. The boomerang starts just outside its owner, in their facing direction.
 3. **Flight**: a boomerang thrown this step does not also move this step.
 4. **Hits** — boomerangs and ACTIVE slashes alike — resolved *simultaneously* against end-of-step positions.
@@ -254,6 +338,7 @@ Equivalent mutants (no observable difference): duplicate ids and a too-small are
 
 ## Known limits (deliberate)
 
+- DASH (Slice 4) is an unvalidated experiment; see its section for the numbers and the one big risk (spamming DASH sustains about 1.8–1.9× walking speed indefinitely; fatigue does not cap it).
 - One movement joystick per manifest (protocol limitation, unchanged). There is no aim stick.
 - The simulation runs in the host browser: a console reload restarts the round state (host-loss policy: see CONSOLE.md).
 - Collision is circle-vs-circle between living players only. Boomerangs and slashes pass through bodies exactly as before.

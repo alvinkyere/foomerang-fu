@@ -1,5 +1,6 @@
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
+import { DASH_READY, RESTED, type DashState, type Fatigue } from './dash';
 import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
 import { spawnPosition } from './spawn';
@@ -17,6 +18,10 @@ export interface FuPlayer {
   readonly facing: Vec2;
   /** The melee swing: READY, or ACTIVE (can hurt) / RECOVERING (cannot) with its locked direction and time left. */
   readonly slash: SlashState;
+  /** Slice 4: the burst of movement — READY, DASHING (locked direction, time left) or COOLDOWN. */
+  readonly dash: DashState;
+  /** Slice 4: how many successful dashes in this burst and how long until rested; see `isFatigued`. */
+  readonly fatigue: Fatigue;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER';
@@ -104,6 +109,8 @@ export function startRound(
       alive: true,
       facing: normalized({ x: centre.x - at.x, y: centre.y - at.y }),
       slash: SLASH_READY,
+      dash: DASH_READY,
+      fatigue: RESTED,
     });
   });
 

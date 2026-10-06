@@ -1,4 +1,4 @@
-import type { FuEvent, FuState } from '@foomerang/foomerang-fu';
+import { isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { SlotAllocator } from '../runtime/slots';
 import {
@@ -39,6 +39,12 @@ export function buildFuView(
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),
       armed: !dead && boomerang?.state === 'HELD',
+      ...(!dead && player?.dash.phase === 'DASHING'
+        ? { dashing: { direction: player.dash.direction } }
+        : {}),
+      ...(!dead && player !== undefined && isFatigued(player.fatigue, state.config)
+        ? { fatigued: true as const }
+        : {}),
     };
   });
 
@@ -74,6 +80,24 @@ export function buildFuView(
               arc: state.config.slashArc,
               seconds: state.config.slashActiveSeconds + state.config.slashRecoverySeconds,
             },
+          },
+        ];
+      case 'DASHED':
+        return [
+          {
+            type: 'DASHED',
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+            direction: event.direction,
+          },
+        ];
+      case 'FATIGUED':
+      case 'RECOVERED': // where the player is now: the tired ring starts / the full-mobility flash
+        return [
+          {
+            type: event.type,
+            ...positionOf(event.playerId),
+            color: styleOf(event.playerId, slots).color,
           },
         ];
       case 'DEFLECTED':

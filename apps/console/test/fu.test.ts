@@ -23,7 +23,7 @@ const press = (
   playerId: string,
   eventId: string,
   phase: 'pressed' | 'released' = 'pressed',
-  action: 'PRIMARY' | 'SECONDARY' = 'SECONDARY', // Fu: SECONDARY is THROW, PRIMARY is SLASH
+  action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' = 'SECONDARY', // Fu: SECONDARY is THROW, PRIMARY is SLASH, TERTIARY is DASH
 ) => ({
   playerId,
   eventId,
@@ -153,7 +153,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(
-        press('a', 'event-0001', 'pressed', 'TERTIARY' as unknown as 'PRIMARY'), // an action Fu does not use
+        press('a', 'event-0001', 'pressed', 'QUATERNARY' as unknown as 'PRIMARY'), // an action nobody uses
       );
       runtime.receiveAction(press('ghost', 'event-0002'));
       runtime.receiveAction(press('ghost', 'event-0002')); // not a player: not even worth remembering
@@ -249,12 +249,14 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       return {
         swung: me?.slash.phase !== 'READY',
         thrown: boom(runtime, id)?.state !== 'HELD',
+        dashed: me?.dash.phase !== 'READY',
       };
     };
 
     it.each([
-      ['SLASH', { swung: true, thrown: false }],
-      ['THROW', { swung: false, thrown: true }],
+      ['SLASH', { swung: true, thrown: false, dashed: false }],
+      ['THROW', { swung: false, thrown: true, dashed: false }],
+      ['DASH', { swung: false, thrown: false, dashed: true }],
     ] as const)('pressing the %s control does that, and not the other', (label, expected) => {
       const control = buttons.find((c) => c.id === label);
       expect(control, `${label} is advertised`).toBeDefined();
@@ -263,7 +265,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       runtime.receiveAction(press('a', 'event-0001', 'pressed', control?.action ?? 'PRIMARY'));
       run(runtime, 0, 2);
       expect(effect(runtime, 'a')).toEqual(expected);
-      expect(effect(runtime, 'b')).toEqual({ swung: false, thrown: false }); // nobody else did anything
+      expect(effect(runtime, 'b')).toEqual({ swung: false, thrown: false, dashed: false }); // nobody else did anything
     });
 
     it('every advertised button does something, and no two buttons do the same thing', () => {
@@ -274,7 +276,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
         runtime.receiveAction(press('a', 'event-0001', 'pressed', control.action));
         run(runtime, 0, 2);
         const e = effect(runtime, 'a');
-        expect(e.swung || e.thrown, control.id).toBe(true);
+        expect(e.swung || e.thrown || e.dashed, control.id).toBe(true);
         seen.add(JSON.stringify(e));
       }
       expect(seen.size).toBe(buttons.length);
@@ -392,6 +394,221 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       }
       expect(alive(runtime, 'b')).toBe(false);
       expect(s(runtime).roundOver?.winnerId).toBe('a');
+    });
+  });
+
+  describe('dashing from a button (Slice 4)', () => {
+    const dash = (playerId: string, eventId: string, phase: 'pressed' | 'released' = 'pressed') =>
+      press(playerId, eventId, phase, 'TERTIARY');
+    const dashOf = (r: FuRuntime, id: string) => s(r).players.find((p) => p.id === id)?.dash;
+    const at = (r: FuRuntime, id: string) => s(r).world.bodies.find((b) => b.id === id)?.position;
+    const started = (): FuRuntime => {
+      const runtime = new FuRuntime(OPEN);
+      runtime.start(players, 0);
+      return runtime;
+    };
+
+    it('a TERTIARY press dashes on the next step; a release does not', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001', 'released'));
+      run(runtime, 0, 2);
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY');
+      runtime.receiveAction(dash('a', 'event-0002'));
+      run(runtime, 100, 1);
+      expect(dashOf(runtime, 'a')?.phase).toBe('DASHING');
+      expect(dashOf(runtime, 'b')?.phase).toBe('READY'); // nobody else did
+    });
+
+    it('dashes the way the thumb is pointing when the press arrives, and the way the player faces otherwise', () => {
+      const withThumb = started();
+      const before = at(withThumb, 'a');
+      withThumb.receiveInput('a', 0, 1, 10);
+      withThumb.receiveAction(dash('a', 'event-0001'));
+      withThumb.frame(10 + FRAME);
+      expect(dashOf(withThumb, 'a')).toMatchObject({ phase: 'DASHING', direction: { x: 0, y: 1 } });
+      expect(at(withThumb, 'a')?.x).toBeCloseTo(before?.x ?? 0, 9);
+
+      const bare = started();
+      const facing = s(bare).players[0]?.facing;
+      bare.receiveAction(dash('a', 'event-0001'));
+      run(bare, 0, 1);
+      expect(dashOf(bare, 'a')).toMatchObject({ phase: 'DASHING', direction: facing });
+    });
+
+    it('moves a whole dash distance through the real loop, once, however long the finger stays down', () => {
+      const runtime = started();
+      const before = at(runtime, 'a');
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 0, 12);
+      const after = at(runtime, 'a');
+      const facing = s(runtime).players[0]?.facing ?? { x: 0, y: 0 };
+      const distance = DEFAULT_FU_CONFIG.dashSpeed * DEFAULT_FU_CONFIG.dashSeconds;
+      expect((after?.x ?? 0) - (before?.x ?? 0)).toBeCloseTo(facing.x * distance, 4);
+      expect((after?.y ?? 0) - (before?.y ?? 0)).toBeCloseTo(facing.y * distance, 4);
+    });
+
+    it('a duplicate event id can never dash twice, even long after the first dash is over', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 0, 200); // the dash is long over
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY');
+      expect(s(runtime).players[0]?.fatigue.dashes).toBe(1);
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 4000, 3);
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY');
+      expect(s(runtime).players[0]?.fatigue.dashes).toBe(1); // a duplicate adds no fatigue
+      expect(runtime.duplicatesIgnored).toBe(1);
+    });
+
+    describe('fatigue is counted by the rules, from successful dashes only', () => {
+      const fatigueOf = (r: FuRuntime, id = 'a') => s(r).players.find((p) => p.id === id)?.fatigue;
+
+      it('the 9th successful dash makes the player FATIGUED; dashing keeps working after that', () => {
+        const runtime = started();
+        let now = 0;
+        for (let n = 1; n <= 12; n += 1) {
+          runtime.receiveAction(dash('a', `event-${1000 + n}`));
+          now = run(runtime, now, 12); // the dash, then a couple of idle steps
+          expect(fatigueOf(runtime)?.dashes, `after press ${n}`).toBe(n);
+          const view = runtime.view(roster(), slotsFor(roster()));
+          expect(view?.circles[0]?.fatigued === true, `after press ${n}`).toBe(n >= 9);
+        }
+      });
+
+      it('duplicates, presses during a dash and releases add nothing', () => {
+        const runtime = started();
+        runtime.receiveAction(dash('a', 'event-0001'));
+        runtime.receiveAction(dash('a', 'event-0001')); // duplicate id
+        runtime.receiveAction(dash('a', 'event-0002', 'released')); // a release
+        let now = run(runtime, 0, 2);
+        runtime.receiveAction(dash('a', 'event-0003')); // arrives mid-dash: refused by the rules
+        now = run(runtime, now, 1);
+        expect(dashOf(runtime, 'a')?.phase).toBe('DASHING');
+        now = run(runtime, now, 20);
+        expect(fatigueOf(runtime)?.dashes).toBe(1);
+        expect(runtime.duplicatesIgnored).toBe(1);
+        expect(now).toBeGreaterThan(0);
+      });
+
+      it('a press dropped because the player is reconnecting adds nothing', () => {
+        const runtime = started();
+        runtime.setActivity(() => false);
+        runtime.receiveAction(dash('a', 'event-0001'));
+        run(runtime, 0, 5);
+        expect(fatigueOf(runtime)).toEqual({ dashes: 0, recoverIn: 0 });
+      });
+
+      it('reports the fatigue in the read-only debug snapshot', () => {
+        const runtime = started();
+        runtime.receiveAction(dash('a', 'event-0001'));
+        run(runtime, 0, 2);
+        const players = (
+          runtime.debugState() as {
+            players: { fatigue: { dashes: number; recoverIn: number; fatigued: boolean } }[];
+          }
+        ).players;
+        expect(players[0]?.fatigue).toMatchObject({ dashes: 1, fatigued: false });
+        expect(players[1]?.fatigue).toEqual({ dashes: 0, recoverIn: 0, fatigued: false });
+      });
+    });
+
+    it('a press made while active is dropped if the player becomes inactive before the step runs', () => {
+      const runtime = started();
+      let active = true;
+      runtime.setActivity(() => active);
+      runtime.receiveAction(dash('a', 'event-0001'));
+      active = false;
+      run(runtime, 0, 3);
+      active = true;
+      run(runtime, 500, 3);
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY'); // not remembered and fired later
+    });
+
+    it('a player who is reconnecting cannot dash (the press is dropped, never remembered)', () => {
+      const runtime = started();
+      runtime.setActivity(() => false);
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 0, 3);
+      runtime.setActivity(() => true);
+      run(runtime, 500, 3);
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY');
+    });
+
+    it('a controller coming back (reload / reconnect) manufactures no dash', () => {
+      const runtime = started();
+      run(runtime, 0, 30);
+      expect(dashOf(runtime, 'a')?.phase).toBe('READY');
+    });
+
+    it('SLASH, THROW and DASH all reaching the console before one step: the rules choose — slash, then throw, then dash — never the arrival order', () => {
+      const presses = [
+        press('a', 'event-0001', 'pressed', 'PRIMARY'),
+        press('a', 'event-0002', 'pressed', 'SECONDARY'),
+        dash('a', 'event-0003'),
+      ];
+      for (const order of [presses, [...presses].reverse(), [presses[1], presses[2], presses[0]]]) {
+        const runtime = started();
+        for (const action of order) if (action) runtime.receiveAction(action);
+        run(runtime, 0, 1);
+        const me = s(runtime).players[0];
+        expect(me?.slash.phase).toBe('ACTIVE');
+        expect(boom(runtime, 'a')?.state).toBe('HELD');
+        expect(me?.dash.phase).toBe('READY');
+      }
+    });
+
+    it('THROW and DASH together: the throw wins, whichever arrived first', () => {
+      for (const order of ['throw-first', 'dash-first'] as const) {
+        const runtime = started();
+        const th = press('a', 'event-0001');
+        const da = dash('a', 'event-0002');
+        for (const action of order === 'throw-first' ? [th, da] : [da, th])
+          runtime.receiveAction(action);
+        run(runtime, 0, 1);
+        expect(boom(runtime, 'a')?.state, order).toBe('THROWN');
+        expect(dashOf(runtime, 'a')?.phase, order).toBe('READY');
+      }
+    });
+
+    it('a dash and a slash from different players before one step both happen', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001'));
+      runtime.receiveAction(press('b', 'event-0002', 'pressed', 'PRIMARY'));
+      run(runtime, 0, 1);
+      expect(dashOf(runtime, 'a')?.phase).toBe('DASHING');
+      expect(s(runtime).players[1]?.slash.phase).toBe('ACTIVE');
+    });
+
+    it('delivers a one-shot DASHED event to the renderer, once', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 0, 3);
+      const first = runtime.view(roster(), slotsFor(roster()));
+      expect(first?.events.filter((e) => e.type === 'DASHED')).toHaveLength(1);
+      expect(runtime.view(roster(), slotsFor(roster()))?.events).toEqual([]);
+    });
+
+    it('shows the player as dashing only while the burst lasts', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001'));
+      let now = run(runtime, 0, 2);
+      const mid = runtime.view(roster(), slotsFor(roster()));
+      expect(mid?.circles[0]?.dashing).toBeDefined();
+      expect(mid?.circles[1]?.dashing).toBeUndefined();
+      now = run(runtime, now, 20);
+      expect(runtime.view(roster(), slotsFor(roster()))?.circles[0]?.dashing).toBeUndefined();
+      expect(now).toBeGreaterThan(0);
+    });
+
+    it('reports the dash in the read-only debug snapshot', () => {
+      const runtime = started();
+      runtime.receiveAction(dash('a', 'event-0001'));
+      run(runtime, 0, 2);
+      const players = (runtime.debugState() as { players: { id: string; dash: string }[] }).players;
+      expect(players.map((p) => [p.id, p.dash])).toEqual([
+        ['a', 'DASHING'],
+        ['b', 'READY'],
+      ]);
     });
   });
 
@@ -618,6 +835,101 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.events[0]).toMatchObject({ x: 10, y: 20, color: SLOT_STYLES[0]?.color });
     expect(view.events[1]).toMatchObject({ x: 30, y: 40, color: SLOT_STYLES[1]?.color }); // the victim's colour
     expect(view.events[2]).toMatchObject({ color: SLOT_STYLES[0]?.color });
+  });
+
+  it('draws a dashing player as dashing (with the direction), and turns a DASHED event into a drawable one', () => {
+    const { state, entries, slots } = playing();
+    const dashing = {
+      ...state,
+      players: state.players.map((p, i) =>
+        i === 0
+          ? {
+              ...p,
+              dash: {
+                phase: 'DASHING' as const,
+                direction: { x: 0, y: 1 },
+                remaining: 0.1,
+                speed: 1100,
+              },
+            }
+          : p,
+      ),
+    };
+    const view = buildFuView(
+      dashing,
+      [{ type: 'DASHED', playerId: 'a', position: { x: 5, y: 6 }, direction: { x: 0, y: 1 } }],
+      entries,
+      slots,
+    );
+    expect(view.circles[0]?.dashing).toEqual({ direction: { x: 0, y: 1 } });
+    expect(view.circles[1]?.dashing).toBeUndefined();
+    expect(view.events).toEqual([
+      {
+        type: 'DASHED',
+        x: 5,
+        y: 6,
+        color: SLOT_STYLES[0]?.color,
+        direction: { x: 0, y: 1 },
+      },
+    ]);
+  });
+
+  it('draws a FATIGUED player as fatigued from the 9th dash on, and only then; the dead never', () => {
+    const { state, entries, slots } = playing();
+    const withDashes = (dashes: number, alive = true): FuState => ({
+      ...state,
+      players: state.players.map((p, i) =>
+        i === 0 ? { ...p, alive, fatigue: { dashes, recoverIn: 3 } } : p,
+      ),
+    });
+    expect(buildFuView(withDashes(0), [], entries, slots).circles[0]?.fatigued).toBeUndefined();
+    expect(buildFuView(withDashes(8), [], entries, slots).circles[0]?.fatigued).toBeUndefined();
+    expect(buildFuView(withDashes(9), [], entries, slots).circles[0]?.fatigued).toBe(true);
+    expect(buildFuView(withDashes(30), [], entries, slots).circles[0]?.fatigued).toBe(true);
+    expect(buildFuView(withDashes(9), [], entries, slots).circles[1]?.fatigued).toBeUndefined();
+    expect(
+      buildFuView(withDashes(9, false), [], entries, slots).circles[0]?.fatigued,
+    ).toBeUndefined();
+  });
+
+  it('turns FATIGUED and RECOVERED events into drawable ones at the player, in their colour', () => {
+    const { state, entries, slots } = playing();
+    const at = state.world.bodies[1]?.position;
+    const view = buildFuView(
+      state,
+      [
+        { type: 'FATIGUED', playerId: 'b' },
+        { type: 'RECOVERED', playerId: 'b' },
+      ],
+      entries,
+      slots,
+    );
+    expect(view.events).toEqual([
+      { type: 'FATIGUED', x: at?.x, y: at?.y, color: SLOT_STYLES[1]?.color },
+      { type: 'RECOVERED', x: at?.x, y: at?.y, color: SLOT_STYLES[1]?.color },
+    ]);
+  });
+
+  it('a dead player is never drawn dashing', () => {
+    const { state, entries, slots } = playing();
+    const dead = {
+      ...state,
+      players: state.players.map((p, i) =>
+        i === 0
+          ? {
+              ...p,
+              alive: false,
+              dash: {
+                phase: 'DASHING' as const,
+                direction: { x: 1, y: 0 },
+                remaining: 0.1,
+                speed: 1100,
+              },
+            }
+          : p,
+      ),
+    };
+    expect(buildFuView(dead, [], entries, slots).circles[0]?.dashing).toBeUndefined();
   });
 
   it('hands the renderer everything it needs to draw a swing, so it never decides what was hit', () => {

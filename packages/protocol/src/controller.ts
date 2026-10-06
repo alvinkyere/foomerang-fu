@@ -15,8 +15,11 @@ export const movePayloadSchema = z.strictObject({ x: axisSchema, y: axisSchema }
 export const inputMoveMessageSchema = stateEnvelope('INPUT_MOVE', movePayloadSchema);
 export type InputMoveMessage = z.infer<typeof inputMoveMessageSchema>;
 
-/** Generic action ids; each game decides what they mean (throw, dash, accelerate, ...). */
-export const ACTIONS = ['PRIMARY', 'SECONDARY'] as const;
+/**
+ * Generic action ids; each game decides what they mean (throw, dash, accelerate, ...). TERTIARY was
+ * added (additively: nothing that sent PRIMARY or SECONDARY changes) for Foomerang Fu's DASH.
+ */
+export const ACTIONS = ['PRIMARY', 'SECONDARY', 'TERTIARY'] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export const ACTION_PHASES = ['pressed', 'released'] as const;

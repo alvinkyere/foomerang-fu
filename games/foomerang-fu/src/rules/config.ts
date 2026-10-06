@@ -41,6 +41,18 @@ export interface FuConfig {
    * ends). It never counts in open ground, so it cannot affect open-arena play.
    */
   readonly returnWallSeconds: number;
+  /** Slice 4 (an unvalidated hypothesis): how fast a dash moves, world units per second. */
+  readonly dashSpeed: number;
+  /** Slice 4: how long a dash lasts, seconds. Its distance is `dashSpeed × dashSeconds`. */
+  readonly dashSeconds: number;
+  /** Slice 4: how many successful dashes in a row are free; the next one (and each after) is FATIGUED. */
+  readonly dashFreeCount: number;
+  /** Slice 4: seconds without a successful dash after which fatigue clears and the dash count resets. */
+  readonly fatigueRecoverySeconds: number;
+  /** Slice 4: walking speed while FATIGUED, as a fraction of normal (1 = no penalty). */
+  readonly fatiguedMoveFactor: number;
+  /** Slice 4: dash speed (so distance) while FATIGUED, as a fraction of normal (1 = no penalty). */
+  readonly fatiguedDashFactor: number;
   /** How long the round-over state is shown before the next round starts, seconds. */
   readonly roundEndSeconds: number;
 }
@@ -61,6 +73,12 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   deflectRange: 300,
   maxDeflections: 3,
   returnWallSeconds: 3,
+  dashSpeed: 1100,
+  dashSeconds: 0.16,
+  dashFreeCount: 8,
+  fatigueRecoverySeconds: 5,
+  fatiguedMoveFactor: 0.7,
+  fatiguedDashFactor: 0.7,
   roundEndSeconds: 2.5,
 });
 
@@ -85,6 +103,11 @@ export function assertValidConfig(config: FuConfig): void {
     ['slashMoveFactor', config.slashMoveFactor],
     ['deflectRange', config.deflectRange],
     ['returnWallSeconds', config.returnWallSeconds],
+    ['dashSpeed', config.dashSpeed],
+    ['dashSeconds', config.dashSeconds],
+    ['fatigueRecoverySeconds', config.fatigueRecoverySeconds],
+    ['fatiguedMoveFactor', config.fatiguedMoveFactor],
+    ['fatiguedDashFactor', config.fatiguedDashFactor],
     ['roundEndSeconds', config.roundEndSeconds],
   ];
   for (const [name, value] of numbers) {
@@ -93,6 +116,12 @@ export function assertValidConfig(config: FuConfig): void {
   if (config.slashArc > Math.PI * 2) throw new RangeError('slashArc cannot exceed a full circle');
   if (!Number.isInteger(config.maxDeflections) || config.maxDeflections < 0) {
     throw new RangeError('maxDeflections must be a non-negative integer');
+  }
+  if (!Number.isInteger(config.dashFreeCount) || config.dashFreeCount < 1) {
+    throw new RangeError('dashFreeCount must be a positive integer');
+  }
+  if (config.fatiguedMoveFactor > 1 || config.fatiguedDashFactor > 1) {
+    throw new RangeError('fatigue cannot make a player faster');
   }
   if (config.slashMoveFactor > 1) throw new RangeError('slashMoveFactor cannot exceed 1');
   if (arena.width < config.playerRadius * 4 || arena.height < config.playerRadius * 4) {
@@ -113,9 +142,23 @@ export function assertValidConfig(config: FuConfig): void {
   if (config.playerSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a player moves farther than their radius in one step');
   }
+  // A dash is swept in steps no longer than the fixed step, so it must not move a player farther than
+  // their radius in one of them (it could not otherwise be stopped by a wall or a body).
+  if (config.dashSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
+    throw new RangeError('a dash moves farther than a radius in one step');
+  }
   // A boomerang must not be able to jump over a player between two steps.
   const reach = config.playerRadius + config.boomerangRadius;
   if (Math.max(config.throwSpeed, config.returnSpeed) * FIXED_TIMESTEP_SECONDS >= reach) {
     throw new RangeError('a boomerang moves farther than a player is wide in one step');
+  }
+  // ...not even one running at it while it is dashing the other way.
+  if (
+    (Math.max(config.throwSpeed, config.returnSpeed) + config.dashSpeed) * FIXED_TIMESTEP_SECONDS >=
+    reach
+  ) {
+    throw new RangeError(
+      'a boomerang and a dashing player close faster than a player is wide in one step',
+    );
   }
 }

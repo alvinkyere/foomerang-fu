@@ -143,6 +143,60 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
     expect(screen.getByRole('group', { name: /move/i }).parentElement).not.toBe(one.parentElement);
   });
 
+  it('renders three buttons (SLASH, THROW, DASH) from the manifest alone, each with its own id and action, all holdable at once', () => {
+    const onButtonChange = vi.fn();
+    render(
+      <ControlRenderer
+        manifest={manifest({
+          gameId: 'any-game-at-all',
+          controls: [
+            { id: 'MOVE', type: 'joystick' },
+            { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+            { id: 'THROW', type: 'button', action: 'SECONDARY' },
+            { id: 'DASH', type: 'button', action: 'TERTIARY' },
+          ],
+        })}
+        onControlChange={vi.fn()}
+        onButtonChange={onButtonChange}
+      />,
+    );
+    const dash = screen.getByRole('button', { name: 'DASH' });
+    expect(dash.getAttribute('data-action')).toBe('TERTIARY');
+    const cluster = dash.parentElement;
+    expect(cluster?.classList.contains('button-cluster')).toBe(true);
+    expect(cluster?.querySelectorAll('button')).toHaveLength(3);
+    // The cluster says which layout it needs (a generic fact about the actions present, never a game).
+    expect(cluster?.getAttribute('data-layout')).toBe('tertiary');
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'SLASH' }), { pointerId: 1 });
+    fireEvent.pointerDown(dash, { pointerId: 2 });
+    expect(onButtonChange.mock.calls).toEqual([
+      ['SLASH', true],
+      ['DASH', true],
+    ]);
+    fireEvent.pointerUp(dash, { pointerId: 2 });
+    expect(onButtonChange).toHaveBeenLastCalledWith('DASH', false);
+  });
+
+  it('keeps the two-button layout when no button sends TERTIARY (nothing changes for other games)', () => {
+    render(
+      <ControlRenderer
+        manifest={manifest({
+          gameId: 'any-game-at-all',
+          controls: [
+            { id: 'MOVE', type: 'joystick' },
+            { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+            { id: 'THROW', type: 'button', action: 'SECONDARY' },
+          ],
+        })}
+        onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: 'SLASH' }).parentElement?.hasAttribute('data-layout'),
+    ).toBe(false);
+  });
+
   it('ignores control types this build cannot render instead of breaking (forward compatibility)', () => {
     const future = manifest({
       controls: [

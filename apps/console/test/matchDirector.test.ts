@@ -1,6 +1,6 @@
 import type { RosterEntry } from '@foomerang/protocol';
 import { describe, expect, it } from 'vitest';
-import { FuRuntime } from '../src/runtime/fuRuntime';
+import { LazyFuRuntime, loadFuRuntime } from '../src/runtime/lazyFuRuntime';
 import { GameRuntime } from '../src/runtime/gameRuntime';
 import { MatchDirector } from '../src/runtime/matchDirector';
 import { spawnPosition } from '../src/runtime/arena';
@@ -115,11 +115,12 @@ describe('MatchDirector: room participants → game bodies', () => {
 describe('MatchDirector: which game runs', () => {
   const r = [entry('a', 'Alvin'), entry('b', 'David')];
 
-  it('starts the Foomerang Fu rules for a foomerang-fu room, with every participant a combatant', () => {
+  it('starts the Foomerang Fu rules for a foomerang-fu room, with every participant a combatant', async () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
-    expect(d.runtime).toBeInstanceOf(FuRuntime);
-    expect((d.runtime as FuRuntime).state?.players.map((p) => p.id)).toEqual(['a', 'b']);
+    await loadFuRuntime(); // the rules are a lazily loaded chunk
+    expect(d.runtime).toBeInstanceOf(LazyFuRuntime);
+    expect((d.runtime as LazyFuRuntime).state?.players.map((p) => p.id)).toEqual(['a', 'b']);
   });
 
   it('starts the primitive arena for anything else (it is test infrastructure)', () => {
@@ -128,7 +129,7 @@ describe('MatchDirector: which game runs', () => {
     expect(d.runtime).toBeInstanceOf(GameRuntime);
   });
 
-  it('routes a throw (SECONDARY) press to the Fu runtime, and ignores it outside a match', () => {
+  it('routes a throw (SECONDARY) press to the Fu runtime, and ignores it outside a match', async () => {
     const d = new MatchDirector();
     const press = {
       playerId: 'a',
@@ -138,15 +139,17 @@ describe('MatchDirector: which game runs', () => {
     };
     d.onAction(press); // lobby: nothing running, nothing happens
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction(press);
     d.frame(17);
-    const state = (d.runtime as FuRuntime).state;
+    const state = (d.runtime as LazyFuRuntime).state;
     expect(state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe('THROWN');
   });
 
-  it('a reconnecting participant cannot throw, and their dropped press is not remembered', () => {
+  it('a reconnecting participant cannot throw, and their dropped press is not remembered', async () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onRoom(
       'PLAYING',
       [entry('a', 'Alvin', { connection: 'RECONNECTING' }), entry('b', 'David')],
@@ -156,25 +159,27 @@ describe('MatchDirector: which game runs', () => {
     d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.onRoom('PLAYING', r, 10, 'foomerang-fu');
     d.frame(30);
-    expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
-      'HELD',
-    );
+    expect(
+      (d.runtime as LazyFuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state,
+    ).toBe('HELD');
   });
 
-  it('does not restart the match when the same room reports PLAYING again', () => {
+  it('does not restart the match when the same room reports PLAYING again', async () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.frame(17);
     d.onRoom('PLAYING', r, 20, 'foomerang-fu');
-    expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
-      'THROWN',
-    );
+    expect(
+      (d.runtime as LazyFuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state,
+    ).toBe('THROWN');
   });
 
-  it('builds the view from the running game (boomerangs and all)', () => {
+  it('builds the view from the running game (boomerangs and all)', async () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.frame(17);
     const view = d.arenaView();

@@ -50,6 +50,7 @@ describe('joining', () => {
         { id: 'MOVE', type: 'joystick' },
         { id: 'SLASH', type: 'button', action: 'PRIMARY' },
         { id: 'THROW', type: 'button', action: 'SECONDARY' },
+        { id: 'DASH', type: 'button', action: 'TERTIARY' },
       ],
     });
     const roster = await host.next('ROOM_UPDATED', (m) => m.payload.players.length === 1);
@@ -302,7 +303,7 @@ describe('the SLASH and THROW buttons, end to end over real sockets', () => {
     expect(new Set(received.map((a) => a.eventId)).size).toBe(2);
   });
 
-  it.each(['SLASH', 'THROW'] as const)(
+  it.each(['SLASH', 'THROW', 'DASH'] as const)(
     'pressing the %s control the controller shows sends the action the game defines for it, over the real server',
     async (label) => {
       const controller = await joined('Alice');

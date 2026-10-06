@@ -37,7 +37,7 @@ export interface GameDefinition {
 
 export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
   // Foomerang Fu: MOVE (joystick), SLASH (the PRIMARY action: the close-range panic button, which
-  // controllers make biggest) and THROW (the SECONDARY action). The server stays game-agnostic and
+  // controllers make biggest), THROW (the SECONDARY action) and DASH (the TERTIARY action). The server stays game-agnostic and
   // cannot import the game package, so this literal is checked against the game's own table
   // (FU_CONTROLS, which the console uses) by integration/test/fu-contract.integration.test.ts.
   'foomerang-fu': {
@@ -49,6 +49,7 @@ export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.fr
         { id: 'MOVE', type: 'joystick' },
         { id: 'SLASH', type: 'button', action: 'PRIMARY' },
         { id: 'THROW', type: 'button', action: 'SECONDARY' },
+        { id: 'DASH', type: 'button', action: 'TERTIARY' },
       ],
     },
   },

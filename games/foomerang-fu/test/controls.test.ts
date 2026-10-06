@@ -2,16 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { FU_BUTTONS, FU_CONTROLS } from '../src';
 
 describe('Foomerang Fu’s controller contract (one definition, shared by everyone who needs it)', () => {
-  it('is MOVE (joystick), SLASH (button) and THROW (button), in that order', () => {
+  it('is MOVE (joystick), SLASH, THROW and DASH (buttons), in that order', () => {
     expect(FU_CONTROLS.map((c) => [c.id, c.type])).toEqual([
       ['MOVE', 'joystick'],
       ['SLASH', 'button'],
       ['THROW', 'button'],
+      ['DASH', 'button'],
     ]);
   });
 
-  it('gives SLASH and THROW different generic actions (the platform forbids two buttons sharing one)', () => {
-    expect(FU_BUTTONS.SLASH).not.toBe(FU_BUTTONS.THROW);
+  it('gives every button a different generic action (the platform forbids two buttons sharing one)', () => {
+    const actions = Object.values(FU_BUTTONS);
+    expect(new Set(actions).size).toBe(actions.length);
+    expect(FU_BUTTONS).toEqual({ SLASH: 'PRIMARY', THROW: 'SECONDARY', DASH: 'TERTIARY' });
   });
 
   it('advertises exactly the action each button is defined to mean', () => {

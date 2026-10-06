@@ -12,7 +12,19 @@ import { lineIsClear, sweepCircle, wallsOf } from './arena';
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
 import { separateBodies } from './collision';
-import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
+import {
+  DASH_READY,
+  RESTED,
+  advanceDashing,
+  advanceFatigue,
+  countDash,
+  distanceToCircle,
+  isFatigued,
+  startDash,
+  type DashState,
+  type Fatigue,
+} from './dash';
+import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import { startRound, type FuPlayer, type FuState } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
 
@@ -24,6 +36,8 @@ export interface FuPlayerInput {
   readonly throw?: boolean;
   /** A slash was requested since the last step. Only the boolean `true` counts. */
   readonly slash?: boolean;
+  /** A dash was requested since the last step. Only the boolean `true` counts. */
+  readonly dash?: boolean;
 }
 export type FuInputs = ReadonlyMap<string, FuPlayerInput>;
 
@@ -41,6 +55,17 @@ export type FuEvent =
       readonly position: Vec2;
       readonly direction: Vec2;
     }
+  /** Slice 4: a dash began. `position` is where it started, `direction` the way it goes. */
+  | {
+      readonly type: 'DASHED';
+      readonly playerId: string;
+      readonly position: Vec2;
+      readonly direction: Vec2;
+    }
+  /** Slice 4: this player's dash count passed `dashFreeCount`; they are FATIGUED until they recover. */
+  | { readonly type: 'FATIGUED'; readonly playerId: string }
+  /** Slice 4: a FATIGUED player's recovery completed; full mobility is back and the dash count is reset. */
+  | { readonly type: 'RECOVERED'; readonly playerId: string }
   | { readonly type: 'CAUGHT'; readonly playerId: string }
   /** Slice 3: an active slash knocked an enemy boomerang off course. `direction` is where it is now flying. */
   | {
@@ -86,12 +111,81 @@ function slowedMove(move: MovementInput, deadZone: number, factor: number): Move
   return { x: (v.x / magnitude) * length, y: (v.y / magnitude) * length };
 }
 
+/** A dash with no thumb and no facing (which no real player has) still goes somewhere, deterministically. */
+const DEFAULT_DASH_DIRECTION: Vec2 = Object.freeze({ x: 1, y: 0 });
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
 function clampToArena(at: Vec2, config: FuConfig): Vec2 {
   const r = config.boomerangRadius;
   return { x: clamp(at.x, r, config.arena.width - r), y: clamp(at.y, r, config.arena.height - r) };
+}
+
+/**
+ * Carries every DASHING player one sub-step along their locked direction. All of them are judged
+ * against the SAME snapshot of positions (so who is first in the match never matters): a living player
+ * in the way stops the dasher at contact and ends the burst (blocked), nobody is shoved, and the arena
+ * boundary slides like walking. Walls are the caller's separation pass — the same push-out as walking,
+ * which cannot be tunnelled because a sub-step never moves a player farther than their radius.
+ */
+function carryDashers(
+  world: FuState['world'],
+  players: readonly FuPlayer[],
+  dashes: readonly DashState[],
+  solid: ReadonlySet<string>,
+  h: number,
+): { readonly world: FuState['world']; readonly blocked: ReadonlySet<string> } {
+  const blocked = new Set<string>();
+  const arrivals = new Map<string, Vec2>();
+  players.forEach((player, index) => {
+    const dash = dashes[index] as DashState;
+    if (dash.phase !== 'DASHING') return;
+    const body = world.bodies.find((b) => b.id === player.id);
+    if (body === undefined) return;
+    const distance = dash.speed * Math.min(h, dash.remaining);
+    let travel = distance;
+    for (const other of world.bodies) {
+      if (other.id === player.id || !solid.has(other.id)) continue;
+      travel = Math.min(
+        travel,
+        distanceToCircle(
+          body.position,
+          dash.direction,
+          distance,
+          body.radius,
+          other.position,
+          other.radius,
+        ),
+      );
+    }
+    if (travel < distance) blocked.add(player.id);
+    arrivals.set(player.id, {
+      x: clamp(
+        body.position.x + dash.direction.x * travel,
+        body.radius,
+        world.arena.width - body.radius,
+      ),
+      y: clamp(
+        body.position.y + dash.direction.y * travel,
+        body.radius,
+        world.arena.height - body.radius,
+      ),
+    });
+  });
+  if (arrivals.size === 0) return { world, blocked };
+  return {
+    world: Object.freeze({
+      ...world,
+      bodies: Object.freeze(
+        world.bodies.map((body) => {
+          const to = arrivals.get(body.id);
+          return to === undefined ? body : Object.freeze({ ...body, position: Object.freeze(to) });
+        }),
+      ),
+    }),
+    blocked,
+  };
 }
 
 /**
@@ -103,8 +197,14 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  * and iteration order never depends on the Map's insertion order.
  *
  * Order within a PLAYING step (every rule uses the player order the match was created with):
- *   1. movement + facing (alive players only; game-core moves the bodies, then living players are
- *      separated from one another — see collision.ts)
+ *   0. the step's actions are PLANNED from the state at its start, with one priority: SLASH, then THROW,
+ *      then DASH — an action that actually happens wins, one that could not happen costs nothing, and a
+ *      refused action is dropped, never remembered. While DASHING, SLASH, THROW and a new DASH are all
+ *      refused; DASH is also refused unless the slash is READY (so not while swinging or recovering)
+ *   1. movement + facing (alive players only; game-core moves the walkers, dashers are carried along
+ *      their locked direction — stopped by living players, bounded by the arena, pushed out of walls
+ *      like anyone — then living players are separated from one another — see collision.ts). Dashing
+ *      players take no part in thumb steering or facing
  *   2. slash timers advance, then new slashes start (only from READY with the boomerang HELD,
  *      only for the boolean `true`), then throws (only from HELD, and never during an ACTIVE swing —
  *      so when THROW and SLASH arrive on the same step the SLASH wins and the throw is dropped,
@@ -169,30 +269,118 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
 
-  // 1. Movement and facing -------------------------------------------------------------------
-  const frame = new Map<string, MovementInput>();
+  // 0. Plan the actions, from the state at the start of the step ---------------------------------
   const entries = state.players.map((player) => {
     const raw = inputs.get(player.id);
     return isObject(raw) ? (raw as FuPlayerInput) : undefined;
   });
+  const dashingAtStart = state.players.map((p) => p.alive && p.dash.phase === 'DASHING');
+
+  // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.
   const moved: FuPlayer[] = state.players.map((player, index) => {
     const move = entries[index]?.move;
-    if (!player.alive || !isObject(move)) return player;
-    frame.set(
-      player.id,
-      player.slash.phase === 'READY' ? move : slowedMove(move, deadZone, config.slashMoveFactor), // committed to the swing
-    );
+    if (!player.alive || dashingAtStart[index] === true || !isObject(move)) return player;
     const direction = normalized(normalizeMovementInput(move, deadZone));
     if (direction.x === 0 && direction.y === 0) return player; // not a meaningful direction
     return Object.freeze({ ...player, facing: direction });
   });
+
+  // 1b. Who does what this step. Priority SLASH > THROW > DASH; an action that could not happen does
+  // not block a lower one. (Slash timers are advanced here only to judge readiness; step 2 stores them.)
+  const slashAfter = state.players.map((p) =>
+    p.alive ? advanceSlash(p.slash, dt, config) : SLASH_READY,
+  );
+  // The recovery clock runs down first, so a press on the step it completes counts as dash number 1.
+  const restedAfter = state.players.map((p) => (p.alive ? advanceFatigue(p.fatigue, dt) : RESTED));
+  state.players.forEach((p, index) => {
+    if (
+      p.alive &&
+      isFatigued(p.fatigue, config) &&
+      !isFatigued(restedAfter[index] as Fatigue, config)
+    ) {
+      events.push({ type: 'RECOVERED', playerId: p.id });
+    }
+  });
+  const plans = moved.map((player, index) => {
+    const entry = entries[index];
+    const committed = dashingAtStart[index] === true; // mid-dash: no slash, throw or new dash
+    const hasFacing = player.facing.x !== 0 || player.facing.y !== 0;
+    const slashes =
+      player.alive &&
+      !committed &&
+      entry?.slash === true &&
+      (slashAfter[index] as SlashState).phase === 'READY' &&
+      (state.boomerangs[index] as Boomerang).state === 'HELD' &&
+      hasFacing;
+    const throws =
+      player.alive &&
+      !committed &&
+      entry?.throw === true &&
+      !slashes && // a same-step SLASH always wins
+      (slashAfter[index] as SlashState).phase !== 'ACTIVE' && // the weapon is mid-swing
+      canTransition((state.boomerangs[index] as Boomerang).state, 'THROWN') &&
+      hasFacing;
+    const dashes =
+      player.alive &&
+      !committed &&
+      entry?.dash === true &&
+      !slashes &&
+      !throws &&
+      (slashAfter[index] as SlashState).phase === 'READY'; // not while swinging or recovering
+    return { slashes, throws, dashes };
+  });
+
+  // 1c. Movement. Walkers go through game-core; dashers are carried along their locked direction.
+  const frame = new Map<string, MovementInput>();
+  const dashDirection = (player: FuPlayer): Vec2 =>
+    player.facing.x !== 0 || player.facing.y !== 0 ? player.facing : DEFAULT_DASH_DIRECTION;
+  const fatigue: Fatigue[] = [...restedAfter];
+  const dashes: DashState[] = state.players.map((player, index) => {
+    if ((plans[index] as { dashes: boolean }).dashes) {
+      // A successful dash: it counts, the recovery clock starts again, and the 9th (default) is the first tired one.
+      const direction = dashDirection(moved[index] as FuPlayer);
+      fatigue[index] = countDash(fatigue[index] as Fatigue, config, dt);
+      const tired = isFatigued(fatigue[index] as Fatigue, config);
+      if ((fatigue[index] as Fatigue).dashes === config.dashFreeCount + 1) {
+        events.push({ type: 'FATIGUED', playerId: player.id });
+      }
+      events.push({
+        type: 'DASHED',
+        playerId: player.id,
+        position: state.world.bodies.find((b) => b.id === player.id)?.position ?? ZERO,
+        direction,
+      });
+      return startDash(direction, config, tired);
+    }
+    return state.players[index]?.alive ? (player.dash as DashState) : DASH_READY;
+  });
+  moved.forEach((player, index) => {
+    const move = entries[index]?.move;
+    if (!player.alive || (dashes[index] as DashState).phase === 'DASHING' || !isObject(move))
+      return;
+    // Slowed while committed to a swing and while fatigued (the two multiply); untouched otherwise.
+    const factor =
+      (player.slash.phase === 'READY' ? 1 : config.slashMoveFactor) *
+      (isFatigued(fatigue[index] as Fatigue, config) ? config.fatiguedMoveFactor : 1);
+    frame.set(player.id, factor === 1 ? move : slowedMove(move, deadZone, factor));
+  });
   // Move in sub-steps no longer than the fixed step, separating living players after each, so that no
-  // supported dt can carry one player through another. (dt = the fixed step is exactly one sub-step.)
+  // supported dt can carry one player through another or through a wall. (dt = the fixed step is exactly
+  // one sub-step.)
   const solid = new Set(state.players.filter((p) => p.alive).map((p) => p.id));
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
+  const h = dt / subSteps;
   let world = state.world;
   for (let i = 0; i < subSteps; i += 1) {
-    world = separateBodies(stepWorld(world, frame, dt / subSteps), (id) => solid.has(id), walls);
+    world = stepWorld(world, frame, h);
+    const carried = carryDashers(world, state.players, dashes, solid, h);
+    world = carried.world;
+    for (let j = 0; j < dashes.length; j += 1) {
+      const dash = dashes[j] as DashState;
+      if (dash.phase !== 'DASHING') continue;
+      dashes[j] = advanceDashing(dash, h, carried.blocked.has((state.players[j] as FuPlayer).id));
+    }
+    world = separateBodies(world, (id) => solid.has(id), walls);
   }
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
@@ -206,15 +394,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
 
   // 2. Slashes, then throws ---------------------------------------------------------------------
   const players: FuPlayer[] = moved.map((player, index) => {
-    let slash = player.alive ? advanceSlash(player.slash, dt, config) : SLASH_READY;
+    let slash = slashAfter[index] as SlashState;
     const facing = player.facing;
-    if (
-      player.alive &&
-      entries[index]?.slash === true &&
-      slash.phase === 'READY' &&
-      (boomerangs[index] as Boomerang).state === 'HELD' &&
-      (facing.x !== 0 || facing.y !== 0)
-    ) {
+    if ((plans[index] as { slashes: boolean }).slashes) {
       slash = startSlash(facing, config);
       events.push({
         type: 'SLASHED',
@@ -223,21 +405,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         direction: facing,
       });
     }
-    return slash === player.slash ? player : Object.freeze({ ...player, slash });
+    const dash = dashes[index] as DashState;
+    const rested = fatigue[index] as Fatigue;
+    return slash === player.slash && dash === player.dash && rested === player.fatigue
+      ? player
+      : Object.freeze({ ...player, slash, dash, fatigue: rested });
   });
 
   const thrownNow = new Set<string>();
   boomerangs = boomerangs.map((b, index) => {
     const player = players[index] as FuPlayer;
-    if (
-      !player.alive ||
-      entries[index]?.throw !== true ||
-      player.slash.phase === 'ACTIVE' || // the weapon is mid-swing; a same-step SLASH always wins
-      !canTransition(b.state, 'THROWN')
-    )
-      return b;
+    if (!(plans[index] as { throws: boolean }).throws) return b;
     const facing = player.facing;
-    if (facing.x === 0 && facing.y === 0) return b;
     const gap = config.playerRadius + config.boomerangRadius + 1; // starts just outside its owner
     const owner = positionOf(player.id);
     // Pressed against a wall, the boomerang starts as close to the owner as the wall allows; it then
@@ -448,7 +627,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const byId = killedBy.get(player.id);
     if (byId === undefined) return player;
     events.push({ type: 'HIT', byId, victimId: player.id, position: positionOf(player.id) });
-    return Object.freeze({ ...player, alive: false, slash: SLASH_READY });
+    return Object.freeze({
+      ...player,
+      alive: false,
+      slash: SLASH_READY,
+      dash: DASH_READY,
+      fatigue: RESTED,
+    });
   });
 
   // 5. Round end ------------------------------------------------------------------------------
@@ -462,7 +647,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       ...state,
       elapsed: state.elapsed + dt,
       world,
-      players: Object.freeze(survivors),
+      // A round that has just ended shows no half-finished burst or cooldown: everyone is READY until the reset.
+      players: Object.freeze(
+        roundEnds
+          ? survivors.map((p) =>
+              p.dash.phase === 'READY' ? p : Object.freeze({ ...p, dash: DASH_READY }),
+            )
+          : survivors,
+      ),
       boomerangs: Object.freeze(boomerangs),
       phase: roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds
