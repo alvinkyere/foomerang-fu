@@ -27,6 +27,7 @@ import { pushOutOfRect, type Rect } from './arena';
  * along at half speed rather than being stopped dead.
  */
 
+const NO_BODIES: ReadonlySet<string> = new Set();
 const MAX_PASSES = 64;
 /** Below this, an overlap is rounding noise and is left alone. */
 const TOLERANCE = 1e-9;
@@ -35,6 +36,8 @@ export function separateBodies(
   world: WorldState,
   isSolid: (id: string) => boolean,
   walls: readonly Rect[] = [],
+  /** Slice 5: bodies that are being carried through walls by a Phase Dash and so skip the wall push-out. */
+  throughWalls: ReadonlySet<string> = NO_BODIES,
 ): WorldState {
   const bodies = world.bodies;
   const solid: number[] = [];
@@ -87,6 +90,7 @@ export function separateBodies(
       );
     }
     for (const index of solid) {
+      if (throughWalls.has((bodies[index] as Body).id)) continue; // phasing: walls do not push this body now
       const r = (bodies[index] as Body).radius;
       for (const wall of walls) {
         const out = pushOutOfRect(xs[index] as number, ys[index] as number, r, wall, TOLERANCE);

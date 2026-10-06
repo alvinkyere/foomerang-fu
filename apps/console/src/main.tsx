@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
+import { parsePowerupsParam } from './runtime/powerupMode';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
 import { loadPhaserRenderer } from './render/phaser/loadPhaserRenderer';
@@ -39,6 +40,7 @@ if (!config.ok) {
   const runtime = createConsoleRuntime({
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
+    powerups: parsePowerupsParam(window.location.search),
   });
 
   // A reload reclaims the same room (the arena simulation itself restarts; see docs/CONSOLE.md).

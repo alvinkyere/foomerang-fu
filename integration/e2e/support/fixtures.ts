@@ -18,6 +18,8 @@ export interface Snapshot {
   bodies: { id: string; x: number; y: number }[];
   drawn: { id: string; x: number; y: number }[] | undefined;
   drawnBoomerangs: { id: string; x: number; y: number }[] | undefined;
+  /** The pickups Phaser has on screen. */
+  drawnPickups: { id: string; x: number; y: number }[] | undefined;
   /** The walls Phaser has on screen. */
   drawnWalls: { x: number; y: number; width: number; height: number }[] | undefined;
   /** Foomerang Fu's own state (undefined for the primitive arena). */
@@ -35,9 +37,21 @@ export interface Snapshot {
           facing: { x: number; y: number };
           slash: 'READY' | 'ACTIVE' | 'RECOVERING';
           dash: 'READY' | 'DASHING';
+          /** Slice 5: mid Phase Dash, and whether the body is in a wall right now. */
+          phasing: boolean;
+          inWall: boolean;
+          powers: {
+            overdrive: number;
+            blast: boolean;
+            guard: boolean;
+            twin: boolean;
+            phase: number;
+          };
           fatigue: { dashes: number; recoverIn: number; fatigued: boolean };
         }[];
+        pickups: { id: number; kind: string; x: number; y: number }[];
         boomerangs: {
+          blast: boolean;
           ownerId: string;
           state: 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED';
           x: number;
@@ -301,6 +315,8 @@ interface Fixtures {
   host: Host;
   /** The console opened for Foomerang Fu (the default game). */
   fuHost: Host;
+  /** The Foomerang Fu console with pickups appearing every second (`?powerups=fast`), so every power can be tried in seconds. */
+  powerHost: Host;
   /** The console from `vite build`: no debug hook, so tests can only look at what a person sees. */
   productionHost: Host;
   newPhone: () => Promise<Phone>;
@@ -325,12 +341,23 @@ export const test = base.extend<Fixtures>({
     await context.close();
   },
 
+  // The Slice 1–4 journeys are played with no pickups (`?powerups=off`), exactly as they were written.
   fuHost: async ({ browser, stack }, use) => {
     const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-    const host = new Host(await context.newPage(), stack.consoleUrl);
+    const host = new Host(await context.newPage(), `${stack.consoleUrl}/?powerups=off`);
     await host.open();
     await use(host);
     expect(host.errors, 'no console errors or uncaught exceptions on the Fu console').toEqual([]);
+    await context.close();
+  },
+  powerHost: async ({ browser, stack }, use) => {
+    const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const host = new Host(await context.newPage(), `${stack.consoleUrl}/?powerups=fast`);
+    await host.open();
+    await use(host);
+    expect(host.errors, 'no console errors or uncaught exceptions on the power console').toEqual(
+      [],
+    );
     await context.close();
   },
 

@@ -1,4 +1,5 @@
 import type { Vec2, WorldState } from '@foomerang/game-core';
+import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import { SLOT_STYLES, type SlotAllocator, type SlotStyle } from '../runtime/slots';
 
@@ -26,9 +27,25 @@ export interface CircleView {
   readonly dashing?: { readonly direction: Vec2 };
   /** Present (true) only while the player is FATIGUED (a rules fact): slower walking and weaker dashes. */
   readonly fatigued?: true;
+  /** The powerups they hold now (a rules fact), in a fixed order; empty for games without them. */
+  readonly powers: readonly PowerKind[];
+  /** Present only during a Phase Dash: they may cross walls right now. */
+  readonly phasing?: { readonly inWall: boolean };
+}
+
+/** A powerup lying in the arena. */
+export interface PickupView {
+  readonly id: number;
+  readonly kind: PowerKind;
+  readonly x: number;
+  readonly y: number;
 }
 
 export interface BoomerangView {
+  /** Unique among the boomerangs on screen: the owner's id, or `<owner>#2` for their twin. */
+  readonly id: string;
+  /** Armed with BLAST_BOOMERANG (a rules fact). */
+  readonly blast: boolean;
   readonly ownerId: string;
   readonly x: number;
   readonly y: number;
@@ -50,6 +67,13 @@ export interface ViewEvent {
     | 'DASHED'
     | 'FATIGUED'
     | 'RECOVERED'
+    | 'SPAWNED'
+    | 'PICKUP'
+    | 'EXPIRED'
+    | 'BLASTED'
+    | 'GUARD_BLOCKED'
+    | 'PHASE_ENTERED'
+    | 'PHASE_EXITED'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;
@@ -58,6 +82,12 @@ export interface ViewEvent {
   readonly knock?: Vec2;
   /** For DASHED: the way the dash goes (unit vector), so the burst can be drawn pointing along it. */
   readonly direction?: Vec2;
+  /** For DASHED: a Phase Dash (may cross walls). */
+  readonly phasing?: true;
+  /** For SPAWNED / PICKUP / EXPIRED: which powerup. */
+  readonly kind?: PowerKind;
+  /** For BLASTED: the blast radius, exactly as the rules resolve it. */
+  readonly radius?: number;
   /** For SLASHED: the swing exactly as the rules resolve it, so it can be drawn but never decided. */
   readonly swing?: {
     readonly direction: Vec2;
@@ -83,6 +113,8 @@ export interface ArenaView {
   readonly walls: readonly WallView[];
   readonly circles: readonly CircleView[];
   readonly boomerangs: readonly BoomerangView[];
+  /** Powerups lying in the arena. */
+  readonly pickups: readonly PickupView[];
   readonly events: readonly ViewEvent[];
   /** Text to show big while a round is over (winner or draw). */
   readonly banner: string | undefined;
@@ -141,8 +173,10 @@ export function buildArenaView(
       ...identityOf(body.id, roster, slots),
       dead: false,
       armed: false,
+      powers: [],
     })),
     boomerangs: [],
+    pickups: [],
     events: [],
     banner: undefined,
     round: undefined,

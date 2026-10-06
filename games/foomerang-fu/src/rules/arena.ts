@@ -133,6 +133,21 @@ export function segmentHitsRect(a: Vec2, b: Vec2, rect: Rect): boolean {
   return true;
 }
 
+/**
+ * Line of sight to a VICTIM: like `lineIsClear`, except that a wall the victim's own body overlaps
+ * (a player part-way through a Phase Dash) is not cover for them. A player is never immune merely
+ * because they are inside a wall; a player who is not in one is sheltered by it as ever.
+ */
+export const lineClearTo = (
+  from: Vec2,
+  victim: Vec2,
+  radius: number,
+  walls: readonly Rect[],
+): boolean =>
+  !walls.some(
+    (wall) => distanceToRect(victim, wall) >= radius && segmentHitsRect(from, victim, wall),
+  );
+
 export const lineIsClear = (a: Vec2, b: Vec2, walls: readonly Rect[]): boolean =>
   !walls.some((wall) => segmentHitsRect(a, b, wall));
 

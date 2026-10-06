@@ -2,9 +2,11 @@ import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
   FU_BUTTONS,
   PRIMITIVE_ARENA,
+  PRIMITIVE_POWERUPS,
   createFuMatch,
   isFatigued,
   type FuArena,
+  type FuConfig,
   stepFu,
   type FuEvent,
   type FuPlayerInput,
@@ -15,6 +17,7 @@ import type { PlayerAction } from '../host';
 import { buildFuView } from '../render/fuView';
 import type { ArenaView } from '../render/viewModel';
 import { FrameStepper } from './frameStepper';
+import type { PowerupMode } from './powerupMode';
 import { InputBuffer } from './inputBuffer';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { SlotAllocator } from './slots';
@@ -49,8 +52,17 @@ export class FuRuntime implements MatchRuntime {
   /** Which arena to play in: the primitive test arena, unless a test wants the open Slice 1 one. */
   readonly #arena: FuArena;
 
-  constructor(arena: FuArena = PRIMITIVE_ARENA) {
+  /** Pickups appear only in the primitive test arena (the one with places to put them). */
+  readonly #powerups: FuConfig['powerups'];
+
+  constructor(arena: FuArena = PRIMITIVE_ARENA, powerups: PowerupMode = 'normal') {
     this.#arena = arena;
+    this.#powerups =
+      arena !== PRIMITIVE_ARENA || powerups === 'off'
+        ? undefined
+        : powerups === 'fast'
+          ? { ...PRIMITIVE_POWERUPS, firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 }
+          : PRIMITIVE_POWERUPS;
   }
 
   #stepper = new FrameStepper();
@@ -71,7 +83,7 @@ export class FuRuntime implements MatchRuntime {
     // The rules' default is the open Slice 1 arena; the game people play is the primitive test arena.
     this.state = createFuMatch(
       players.map((p) => ({ id: p.playerId, slot: p.slot })),
-      { arena: this.#arena },
+      { arena: this.#arena, ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }) },
     );
     this.#stepper.start(nowMs);
     this.#inputs = new InputBuffer();
@@ -178,13 +190,23 @@ export class FuRuntime implements MatchRuntime {
         facing: { ...p.facing },
         slash: p.slash.phase,
         dash: p.dash.phase,
+        phasing: p.dash.phase === 'DASHING' && p.dash.phasing !== undefined,
+        inWall: p.dash.phase === 'DASHING' && p.dash.phasing?.inside === true,
+        powers: { ...p.powers },
         fatigue: {
           dashes: p.fatigue.dashes,
           recoverIn: p.fatigue.recoverIn,
           fatigued: isFatigued(p.fatigue, state.config),
         },
       })),
-      boomerangs: state.boomerangs.map((b) => ({
+      pickups: state.pickups.map((p) => ({
+        id: p.id,
+        kind: p.kind,
+        x: p.position.x,
+        y: p.position.y,
+      })),
+      boomerangs: [...state.boomerangs, ...state.extraBoomerangs].map((b) => ({
+        blast: b.blast,
         ownerId: b.ownerId,
         state: b.state,
         x: b.position.x,

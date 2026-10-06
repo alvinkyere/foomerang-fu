@@ -25,6 +25,8 @@ export interface DebugSnapshot {
   readonly drawn: readonly { id: string; x: number; y: number }[] | undefined;
   /** Where the renderer has each flying boomerang (undefined until Phaser is up). */
   readonly drawnBoomerangs: readonly { id: string; x: number; y: number }[] | undefined;
+  /** The pickups the renderer has on screen (undefined until Phaser is up). */
+  readonly drawnPickups: readonly { id: string; x: number; y: number }[] | undefined;
   /** The walls the renderer has on screen (undefined until Phaser is up). */
   readonly drawnWalls:
     readonly { x: number; y: number; width: number; height: number }[] | undefined;
@@ -69,6 +71,9 @@ export function installDebugHook(
           .map((d) => ({ ...d })),
         drawnBoomerangs: getRenderer()
           ?.drawnBoomerangs()
+          .map((d) => ({ ...d })),
+        drawnPickups: getRenderer()
+          ?.drawnPickups?.()
           .map((d) => ({ ...d })),
         drawnWalls: getRenderer()
           ?.drawnWalls()

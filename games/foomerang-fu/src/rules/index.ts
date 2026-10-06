@@ -20,3 +20,14 @@ export type { FuPhase, FuPlayer, FuPlayerSpec, FuRoundOver, FuState } from './st
 
 export { stepFu } from './step';
 export type { FuEvent, FuInputs, FuPlayerInput, FuStepResult } from './step';
+
+export {
+  POWER_COMBINATIONS,
+  POWER_KINDS,
+  NO_POWERS,
+  heldKinds,
+  isPowerKind,
+  spawnKind,
+} from './powerups';
+export type { Pickup, PickupClock, PowerKind, PowerupConfig, Powers } from './powerups';
+export { PRIMITIVE_POWERUPS } from './config';

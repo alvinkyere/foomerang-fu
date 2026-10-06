@@ -4,6 +4,7 @@ import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
 import type { FuRuntime } from './fuRuntime';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
+import type { PowerupMode } from './powerupMode';
 import type { SlotAllocator } from './slots';
 
 /** The game's rules, runtime and view model are a separate chunk: the lobby never downloads them. */
@@ -40,6 +41,12 @@ const NOT_LOADED: RuntimeMetrics = {
  */
 export class LazyFuRuntime implements MatchRuntime {
   #real: FuRuntime | undefined;
+  readonly #powerups: PowerupMode | undefined;
+
+  constructor(powerups?: PowerupMode) {
+    this.#powerups = powerups;
+  }
+
   #isActive: (playerId: string) => boolean = () => true;
   #thumbs = new Map<string, { x: number; y: number; nowMs: number }>();
   #presses: PlayerAction[] = [];
@@ -56,7 +63,7 @@ export class LazyFuRuntime implements MatchRuntime {
   start(players: readonly MatchPlayer[], nowMs: number): void {
     void loadFuRuntime().then(
       ({ FuRuntime: Real }) => {
-        const real = new Real();
+        const real = new Real(undefined, this.#powerups);
         real.setActivity((playerId) => this.#isActive(playerId));
         real.start(players, nowMs);
         for (const [id, t] of this.#thumbs) real.receiveInput(id, t.x, t.y, t.nowMs);

@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
-import { assertValidSpawns, assertValidWalls, type FuArena } from './arena';
+import { assertValidSpawns, assertValidWalls, distanceToRect, type FuArena } from './arena';
+import { isPowerKind, type PowerKind, type PowerupConfig } from './powerups';
 import { spawnPosition } from './spawn';
 
 /**
@@ -53,6 +54,20 @@ export interface FuConfig {
   readonly fatiguedMoveFactor: number;
   /** Slice 4: dash speed (so distance) while FATIGUED, as a fraction of normal (1 = no penalty). */
   readonly fatiguedDashFactor: number;
+  /** Slice 5 (unvalidated): how long OVERDRIVE lasts, seconds. */
+  readonly overdriveSeconds: number;
+  /** Slice 5: walking speed multiplier while OVERDRIVE is on (it multiplies with fatigue and the slash slowdown). */
+  readonly overdriveMoveFactor: number;
+  /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under OVERDRIVE (multiplies with fatigue). */
+  readonly overdriveDashFactor: number;
+  /** Slice 5: BLAST_BOOMERANG's blast radius, centre to body centre, world units. */
+  readonly blastRadius: number;
+  /** Slice 5: how many Phase Dashes one PHASE_DASH pickup gives. */
+  readonly phaseDashCharges: number;
+  /** Slice 5: where and when pickups appear. Absent: no powerups (Slices 1–4 exactly). */
+  readonly powerups?: PowerupConfig;
+  /** Slice 5: pairs of powers one player may NOT hold together (default none; every pair is allowed). */
+  readonly exclusivePairs?: readonly (readonly [PowerKind, PowerKind])[];
   /** How long the round-over state is shown before the next round starts, seconds. */
   readonly roundEndSeconds: number;
 }
@@ -79,7 +94,29 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fatigueRecoverySeconds: 5,
   fatiguedMoveFactor: 0.7,
   fatiguedDashFactor: 0.7,
+  overdriveSeconds: 8,
+  overdriveMoveFactor: 1.4,
+  overdriveDashFactor: 1.3,
+  blastRadius: 170,
+  phaseDashCharges: 2,
   roundEndSeconds: 2.5,
+});
+
+/**
+ * Pickups for the primitive test arena: four open places (clear of every wall), first one after 6 s,
+ * then one every 8 s while fewer than three are lying around. A hypothesis, like every number here.
+ */
+export const PRIMITIVE_POWERUPS: PowerupConfig = Object.freeze({
+  spots: Object.freeze([
+    Object.freeze({ x: 800, y: 295 }),
+    Object.freeze({ x: 800, y: 605 }),
+    Object.freeze({ x: 460, y: 450 }),
+    Object.freeze({ x: 1140, y: 450 }),
+  ]),
+  firstSeconds: 6,
+  intervalSeconds: 8,
+  maxOnField: 3,
+  pickupRadius: 28,
 });
 
 const positive = (value: number): boolean => Number.isFinite(value) && value > 0;
@@ -108,6 +145,10 @@ export function assertValidConfig(config: FuConfig): void {
     ['fatigueRecoverySeconds', config.fatigueRecoverySeconds],
     ['fatiguedMoveFactor', config.fatiguedMoveFactor],
     ['fatiguedDashFactor', config.fatiguedDashFactor],
+    ['overdriveSeconds', config.overdriveSeconds],
+    ['overdriveMoveFactor', config.overdriveMoveFactor],
+    ['overdriveDashFactor', config.overdriveDashFactor],
+    ['blastRadius', config.blastRadius],
     ['roundEndSeconds', config.roundEndSeconds],
   ];
   for (const [name, value] of numbers) {
@@ -120,6 +161,18 @@ export function assertValidConfig(config: FuConfig): void {
   if (!Number.isInteger(config.dashFreeCount) || config.dashFreeCount < 1) {
     throw new RangeError('dashFreeCount must be a positive integer');
   }
+  if (config.overdriveMoveFactor < 1 || config.overdriveDashFactor < 1) {
+    throw new RangeError('overdrive cannot make a player slower');
+  }
+  if (!Number.isInteger(config.phaseDashCharges) || config.phaseDashCharges < 1) {
+    throw new RangeError('phaseDashCharges must be a positive integer');
+  }
+  for (const entry of config.exclusivePairs ?? []) {
+    if (!Array.isArray(entry) || entry.length !== 2 || !entry.every(isPowerKind)) {
+      throw new RangeError('exclusivePairs must be pairs of power kinds');
+    }
+  }
+  if (config.powerups !== undefined) assertValidPowerups(config);
   if (config.fatiguedMoveFactor > 1 || config.fatiguedDashFactor > 1) {
     throw new RangeError('fatigue cannot make a player faster');
   }
@@ -139,12 +192,19 @@ export function assertValidConfig(config: FuConfig): void {
     config.playerRadius,
     slots.length,
   );
+  if (
+    config.playerSpeed * config.overdriveMoveFactor * FIXED_TIMESTEP_SECONDS >=
+    config.playerRadius
+  ) {
+    throw new RangeError('an overdriven player moves farther than their radius in one step');
+  }
   if (config.playerSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a player moves farther than their radius in one step');
   }
   // A dash is swept in steps no longer than the fixed step, so it must not move a player farther than
   // their radius in one of them (it could not otherwise be stopped by a wall or a body).
-  if (config.dashSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
+  const fastestDash = config.dashSpeed * config.overdriveDashFactor;
+  if (fastestDash * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a dash moves farther than a radius in one step');
   }
   // A boomerang must not be able to jump over a player between two steps.
@@ -154,11 +214,46 @@ export function assertValidConfig(config: FuConfig): void {
   }
   // ...not even one running at it while it is dashing the other way.
   if (
-    (Math.max(config.throwSpeed, config.returnSpeed) + config.dashSpeed) * FIXED_TIMESTEP_SECONDS >=
+    (Math.max(config.throwSpeed, config.returnSpeed) + fastestDash) * FIXED_TIMESTEP_SECONDS >=
     reach
   ) {
     throw new RangeError(
       'a boomerang and a dashing player close faster than a player is wide in one step',
     );
   }
+}
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** A bad pickup schedule is a programming error (RangeError), never a game state. */
+function assertValidPowerups(config: FuConfig): void {
+  const p = config.powerups as PowerupConfig;
+  const { arena } = config;
+  if (!Array.isArray(p.spots) || p.spots.length === 0) {
+    throw new RangeError('powerups need at least one pickup spot');
+  }
+  for (const [name, value] of [
+    ['powerups.firstSeconds', p.firstSeconds],
+    ['powerups.intervalSeconds', p.intervalSeconds],
+    ['powerups.pickupRadius', p.pickupRadius],
+  ] as const) {
+    if (!positive(value)) throw new RangeError(`${name} must be a positive, finite number`);
+  }
+  if (!Number.isInteger(p.maxOnField) || p.maxOnField < 1) {
+    throw new RangeError('powerups.maxOnField must be a positive integer');
+  }
+  const walls = arena.walls ?? [];
+  p.spots.forEach((spot, index) => {
+    if (!finite(spot?.x) || !finite(spot?.y))
+      throw new RangeError(`pickup spot ${index} is not a point`);
+    if (spot.x < 0 || spot.y < 0 || spot.x > arena.width || spot.y > arena.height) {
+      throw new RangeError(`pickup spot ${index} is not inside the arena`);
+    }
+    if (walls.some((w) => distanceToRect(spot, w) < p.pickupRadius)) {
+      throw new RangeError(`pickup spot ${index} is in or against a wall`);
+    }
+    if (p.spots.some((other, j) => j > index && other.x === spot.x && other.y === spot.y)) {
+      throw new RangeError('pickup spots must be distinct');
+    }
+  });
 }

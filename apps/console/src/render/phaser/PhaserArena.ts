@@ -1,7 +1,15 @@
 import * as Phaser from 'phaser';
 import { AIM_BASE_OFFSET, AIM_TIP_OFFSET, nameOffset } from '../layout';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
-import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
+import type { PowerKind } from '@foomerang/foomerang-fu';
+import type {
+  ArenaView,
+  BoomerangView,
+  CircleView,
+  PickupView,
+  ViewEvent,
+  WallView,
+} from '../viewModel';
 
 /**
  * THE Phaser module. It is the only file that imports Phaser (lint-enforced) and it is loaded
@@ -32,6 +40,90 @@ const DEFLECT_MS = 380;
 
 const toNumber = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16);
 
+/** Each powerup has its own colour, glyph and word, so no two are ever confused. Original placeholders. */
+const POWER_STYLE: Readonly<Record<PowerKind, { readonly color: number; readonly label: string }>> =
+  {
+    OVERDRIVE: { color: 0xffd23f, label: 'OVERDRIVE' },
+    BLAST_BOOMERANG: { color: 0xff5a36, label: 'BLAST' },
+    GUARD: { color: 0x4fd8ff, label: 'GUARD' },
+    TWIN_THROW: { color: 0x8be45b, label: 'TWIN' },
+    PHASE_DASH: { color: 0xb36bff, label: 'PHASE' },
+  };
+/** The violet used for everything about walking through walls. */
+const PHASE_COLOR = POWER_STYLE.PHASE_DASH.color;
+
+/** A powerup's glyph, centred on (0, 0), about `r` across. */
+function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: number): void {
+  const { color } = POWER_STYLE[kind];
+  const V = (x: number, y: number) => new Phaser.Math.Vector2(x * r, y * r);
+  g.fillStyle(color, 1);
+  g.lineStyle(Math.max(2, r * 0.22), color, 1);
+  switch (kind) {
+    case 'OVERDRIVE': // a lightning bolt
+      g.fillPoints(
+        [V(0.2, -1), V(-0.6, 0.1), V(-0.05, 0.1), V(-0.3, 1), V(0.6, -0.15), V(0.05, -0.15)],
+        true,
+      );
+      break;
+    case 'BLAST_BOOMERANG': {
+      // a spiky burst
+      const pts: Phaser.Math.Vector2[] = [];
+      for (let i = 0; i < 16; i += 1) {
+        const a = (Math.PI / 8) * i;
+        pts.push(V(Math.cos(a) * (i % 2 === 0 ? 1 : 0.45), Math.sin(a) * (i % 2 === 0 ? 1 : 0.45)));
+      }
+      g.fillPoints(pts, true);
+      break;
+    }
+    case 'GUARD': // a ring round a core
+      g.strokeCircle(0, 0, r * 0.85);
+      g.fillCircle(0, 0, r * 0.4);
+      break;
+    case 'TWIN_THROW': // two chevrons
+      g.lineBetween(-0.9 * r, -0.7 * r, -0.2 * r, 0);
+      g.lineBetween(-0.2 * r, 0, -0.9 * r, 0.7 * r);
+      g.lineBetween(0.1 * r, -0.7 * r, 0.8 * r, 0);
+      g.lineBetween(0.8 * r, 0, 0.1 * r, 0.7 * r);
+      break;
+    case 'PHASE_DASH': // a dashed diamond
+      g.strokePoints([V(0, -1), V(1, 0), V(0, 1), V(-1, 0)], true);
+      g.lineBetween(-0.45 * r, 0, 0.45 * r, 0);
+      break;
+  }
+}
+
+/** A powerup lying in the arena: a dark disc with its colour ring, its glyph and its name. */
+class PickupSprite {
+  readonly container: Phaser.GameObjects.Container;
+  constructor(scene: Phaser.Scene, view: PickupView) {
+    const { color, label } = POWER_STYLE[view.kind];
+    const base = scene.add.graphics();
+    base.fillStyle(0x0c1118, 0.92);
+    base.fillCircle(0, 0, 34);
+    base.lineStyle(6, color, 1);
+    base.strokeCircle(0, 0, 34);
+    const glyph = scene.add.graphics();
+    drawGlyph(glyph, view.kind, 20);
+    const text = scene.add
+      .text(0, 52, label, {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '22px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.container = scene.add.container(view.x, view.y, [base, glyph, text]).setDepth(2);
+  }
+  bob(time: number): void {
+    this.container.setScale(1 + 0.08 * Math.sin(time / 220));
+  }
+  destroy(): void {
+    this.container.destroy();
+  }
+}
+
 class PlayerSprite {
   readonly container: Phaser.GameObjects.Container;
   readonly #shape: Phaser.GameObjects.Graphics;
@@ -44,6 +136,11 @@ class PlayerSprite {
   /** A pulsing amber ring while the rules say the player is FATIGUED. A look, not a rule. */
   readonly #tired: Phaser.GameObjects.Graphics;
   #isTired = false;
+  /** Small glyphs of every power held, under the name; a ring round the body for GUARD; a dashed one while phasing. */
+  readonly #badges: Phaser.GameObjects.Graphics;
+  readonly #guard: Phaser.GameObjects.Graphics;
+  readonly #phase: Phaser.GameObjects.Graphics;
+  #powersKey = '';
   readonly #streakPoints: { x: number; y: number }[] = [];
   #styleKey = '';
   #aimKey = '';
@@ -52,6 +149,9 @@ class PlayerSprite {
     this.#streak = scene.add.graphics().setDepth(-1); // under the player, over the floor and walls
     this.#shape = scene.add.graphics();
     this.#tired = scene.add.graphics().setVisible(false);
+    this.#badges = scene.add.graphics();
+    this.#guard = scene.add.graphics().setVisible(false);
+    this.#phase = scene.add.graphics().setVisible(false);
     this.#aim = scene.add.graphics();
     this.#mark = scene.add.graphics();
     this.#number = scene.add
@@ -72,6 +172,9 @@ class PlayerSprite {
       })
       .setOrigin(0.5, 0);
     this.container = scene.add.container(0, 0, [
+      this.#guard,
+      this.#phase,
+      this.#badges,
       this.#tired,
       this.#shape,
       this.#aim,
@@ -83,7 +186,17 @@ class PlayerSprite {
 
   apply(circle: CircleView): void {
     this.container.setPosition(circle.x, circle.y);
-    this.container.setAlpha(circle.dimmed ? DIMMED_ALPHA : 1);
+    // a player part-way through a Phase Dash is drawn see-through, so it is plain they are passing a wall
+    this.container.setAlpha(
+      circle.dimmed
+        ? DIMMED_ALPHA
+        : circle.phasing === undefined
+          ? 1
+          : circle.phasing.inWall
+            ? 0.4
+            : 0.65,
+    );
+    this.#drawPowers(circle);
     this.#drawStreak(circle);
     const tired = circle.fatigued === true;
     if (tired !== this.#isTired) {
@@ -120,6 +233,44 @@ class PlayerSprite {
   }
 
   /** While the rules say the player is dashing: ghosts of where they just were, and a bright streak joining them. */
+  #drawPowers(circle: CircleView): void {
+    const key = `${circle.powers.join(',')}|${circle.phasing === undefined ? '' : 'p'}|${circle.radius}`;
+    if (key === this.#powersKey) return;
+    this.#powersKey = key;
+    const g = this.#badges;
+    g.clear();
+    const row = circle.powers;
+    row.forEach((kind, i) => {
+      const x = (i - (row.length - 1) / 2) * 34;
+      const y = nameOffset(circle.radius) + 56;
+      g.fillStyle(0x0c1118, 0.85);
+      g.fillCircle(x, y, 15);
+      g.lineStyle(3, POWER_STYLE[kind].color, 1);
+      g.strokeCircle(x, y, 15);
+      g.save();
+      g.translateCanvas(x, y);
+      drawGlyph(g, kind, 8);
+      g.restore();
+    });
+    this.#guard.clear();
+    const guarded = row.includes('GUARD');
+    if (guarded) {
+      this.#guard.lineStyle(7, POWER_STYLE.GUARD.color, 0.95);
+      this.#guard.strokeCircle(0, 0, circle.radius + 9);
+    }
+    this.#guard.setVisible(guarded);
+    this.#phase.clear();
+    if (circle.phasing !== undefined) {
+      this.#phase.lineStyle(6, PHASE_COLOR, 1);
+      for (let i = 0; i < 12; i += 2) {
+        this.#phase.beginPath();
+        this.#phase.arc(0, 0, circle.radius + 8, (Math.PI / 6) * i, (Math.PI / 6) * (i + 1), false);
+        this.#phase.strokePath();
+      }
+    }
+    this.#phase.setVisible(circle.phasing !== undefined);
+  }
+
   /** Called every frame: the tired ring breathes, so it cannot be mistaken for a static outline. */
   pulse(time: number): void {
     if (this.#isTired) this.#tired.setAlpha(0.55 + 0.4 * Math.sin(time / 130));
@@ -262,6 +413,8 @@ class BoomerangSprite {
   #pendingSpent = false;
   /** A deflected boomerang trails white, so it is plain whose weapon is flying wrong. */
   #deflected = false;
+  /** Armed with BLAST_BOOMERANG: a red-orange ring round it, so it is plain which one will explode. */
+  #blast = false;
 
   constructor(scene: Phaser.Scene) {
     this.#trail = scene.add.graphics();
@@ -272,6 +425,7 @@ class BoomerangSprite {
   apply(view: BoomerangView): void {
     this.#pendingSpent = view.spent;
     this.#deflected = view.state === 'DEFLECTED';
+    this.#blast = view.blast;
     if (!view.spent) {
       this.#spentAt = undefined;
       this.container.setAlpha(1);
@@ -280,7 +434,7 @@ class BoomerangSprite {
     this.container.setPosition(view.x, view.y);
     this.#color = toNumber(view.color);
     this.#radius = view.radius;
-    const key = `${view.color}|${view.radius}`;
+    const key = `${view.color}|${view.radius}|${view.blast}`;
     if (key !== this.#drawnKey) {
       this.#drawnKey = key;
       this.#drawBody();
@@ -316,6 +470,10 @@ class BoomerangSprite {
     const g = this.#body;
     const r = this.#radius * 1.7;
     g.clear();
+    if (this.#blast) {
+      g.lineStyle(7, POWER_STYLE.BLAST_BOOMERANG.color, 1);
+      g.strokeCircle(0, 0, this.#radius * 2.3);
+    }
     g.lineStyle(this.#radius * 0.95 + 6, OUTLINE, 1);
     g.lineBetween(-r * 0.7, -r * 0.9, 0, 0);
     g.lineBetween(0, 0, -r * 0.7, r * 0.9);
@@ -351,6 +509,7 @@ interface Effect {
 class ArenaScene extends Phaser.Scene {
   readonly #sprites = new Map<string, PlayerSprite>();
   readonly #boomerangs = new Map<string, BoomerangSprite>();
+  readonly #pickups = new Map<number, PickupSprite>();
   #effects: Effect[] = [];
   #walls: Phaser.GameObjects.Graphics | undefined;
   #wallsKey = '';
@@ -410,11 +569,11 @@ class ArenaScene extends Phaser.Scene {
 
     const flying = new Set<string>();
     for (const boomerang of view.boomerangs) {
-      flying.add(boomerang.ownerId);
-      let sprite = this.#boomerangs.get(boomerang.ownerId);
+      flying.add(boomerang.id);
+      let sprite = this.#boomerangs.get(boomerang.id);
       if (sprite === undefined) {
         sprite = new BoomerangSprite(this);
-        this.#boomerangs.set(boomerang.ownerId, sprite);
+        this.#boomerangs.set(boomerang.id, sprite);
       }
       sprite.apply(boomerang);
     }
@@ -422,6 +581,19 @@ class ArenaScene extends Phaser.Scene {
       if (!flying.has(id)) {
         sprite.destroy();
         this.#boomerangs.delete(id);
+      }
+    }
+
+    const lying = new Set<number>();
+    for (const pickup of view.pickups) {
+      lying.add(pickup.id);
+      if (!this.#pickups.has(pickup.id))
+        this.#pickups.set(pickup.id, new PickupSprite(this, pickup));
+    }
+    for (const [id, sprite] of this.#pickups) {
+      if (!lying.has(id)) {
+        sprite.destroy();
+        this.#pickups.delete(id);
       }
     }
 
@@ -462,6 +634,7 @@ class ArenaScene extends Phaser.Scene {
   override update(time: number): void {
     for (const sprite of this.#boomerangs.values()) sprite.spin(time);
     for (const sprite of this.#sprites.values()) sprite.pulse(time);
+    for (const sprite of this.#pickups.values()) sprite.bob(time);
     this.#effects = this.#effects.filter((effect) => {
       const progress = (time - effect.born) / effect.duration;
       if (progress >= 1) {
@@ -476,6 +649,14 @@ class ArenaScene extends Phaser.Scene {
   drawn(): readonly DrawnCircle[] {
     return [...this.#sprites].map(([id, sprite]) => ({
       id,
+      x: sprite.container.x,
+      y: sprite.container.y,
+    }));
+  }
+
+  drawnPickups(): readonly DrawnCircle[] {
+    return [...this.#pickups].map(([id, sprite]) => ({
+      id: String(id),
       x: sprite.container.x,
       y: sprite.container.y,
     }));
@@ -562,7 +743,9 @@ class ArenaScene extends Phaser.Scene {
       }
       case 'DASHED': {
         // A burst where it began: a ring and a few speed lines trailing back, away from the way it went.
+        // A Phase Dash's burst is violet, the colour of everything that goes through walls.
         const way = event.direction ?? { x: 1, y: 0 };
+        const burst = event.phasing === true ? PHASE_COLOR : color;
         this.#effects.push({
           graphics,
           born,
@@ -570,7 +753,7 @@ class ArenaScene extends Phaser.Scene {
           update: (g, progress) => {
             g.clear();
             const fade = 1 - progress;
-            g.lineStyle(8 * fade + 1, color, fade);
+            g.lineStyle(8 * fade + 1, burst, fade);
             g.strokeCircle(event.x, event.y, 30 + progress * 60);
             g.lineStyle(6 * fade + 1, 0xffffff, 0.9 * fade);
             for (const offset of [-0.35, 0, 0.35]) {
@@ -582,6 +765,108 @@ class ArenaScene extends Phaser.Scene {
                 event.y + Math.sin(angle) * (70 + progress * 110),
               );
             }
+          },
+        });
+        break;
+      }
+      case 'SPAWNED':
+        this.#effects.push({ graphics, born, duration: 420, update: ring(70, 20, 7) });
+        break;
+      case 'PICKUP': {
+        // taken: a ring in the power's own colour (and the player's) closing on the player
+        const power = POWER_STYLE[event.kind ?? 'GUARD'].color;
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 480,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.lineStyle(12 * fade + 2, power, fade);
+            g.strokeCircle(event.x, event.y, 120 - progress * 80);
+            g.lineStyle(5 * fade + 1, color, fade);
+            g.strokeCircle(event.x, event.y, 150 - progress * 90);
+          },
+        });
+        break;
+      }
+      case 'EXPIRED':
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 380,
+          update: (g, progress) => {
+            g.clear();
+            g.lineStyle(8 * (1 - progress) + 1, POWER_STYLE.OVERDRIVE.color, 0.8 * (1 - progress));
+            g.strokeCircle(event.x, event.y, 40 + progress * 60);
+          },
+        });
+        break;
+      case 'BLASTED': {
+        // the explosion, to exactly the radius the rules resolved: a flash, then the edge of the blast
+        const radius = event.radius ?? 170;
+        const fire = POWER_STYLE.BLAST_BOOMERANG.color;
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 560,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            const reach = radius * Math.min(1, progress * 3);
+            g.fillStyle(fire, 0.45 * fade);
+            g.fillCircle(event.x, event.y, reach);
+            g.fillStyle(0xffffff, 0.8 * fade * fade);
+            g.fillCircle(event.x, event.y, 40 + progress * 40);
+            g.lineStyle(10 * fade + 2, fire, fade);
+            g.strokeCircle(event.x, event.y, reach);
+            g.lineStyle(4, color, fade);
+            g.strokeCircle(event.x, event.y, radius);
+          },
+        });
+        break;
+      }
+      case 'GUARD_BLOCKED': {
+        // the guard shatters: spokes flying outward in its own cyan
+        const guard = POWER_STYLE.GUARD.color;
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 440,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.lineStyle(10 * fade + 2, guard, fade);
+            g.strokeCircle(event.x, event.y, 46 + progress * 50);
+            g.lineStyle(7 * fade + 1, 0xffffff, fade);
+            for (let i = 0; i < 6; i += 1) {
+              const a = (Math.PI / 3) * i + 0.3;
+              g.lineBetween(
+                event.x + Math.cos(a) * (50 + progress * 40),
+                event.y + Math.sin(a) * (50 + progress * 40),
+                event.x + Math.cos(a) * (80 + progress * 90),
+                event.y + Math.sin(a) * (80 + progress * 90),
+              );
+            }
+          },
+        });
+        break;
+      }
+      case 'PHASE_ENTERED':
+      case 'PHASE_EXITED': {
+        // a violet portal ring at the wall: closing where the player goes in, opening where they come out
+        const entering = event.type === 'PHASE_ENTERED';
+        this.#effects.push({
+          graphics,
+          born,
+          duration: 420,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.lineStyle(12 * fade + 2, PHASE_COLOR, fade);
+            g.strokeCircle(event.x, event.y, entering ? 90 - progress * 60 : 30 + progress * 70);
+            g.fillStyle(PHASE_COLOR, 0.35 * fade);
+            g.fillCircle(event.x, event.y, entering ? 50 - progress * 30 : 20 + progress * 40);
           },
         });
         break;
@@ -697,6 +982,7 @@ export function createPhaserArena(
         render: (view) => scene.show(view),
         drawn: () => scene.drawn(),
         drawnBoomerangs: () => scene.drawnBoomerangs(),
+        drawnPickups: () => scene.drawnPickups(),
         drawnWalls: () => scene.drawnWalls(),
         destroy: () => game?.destroy(true),
       });

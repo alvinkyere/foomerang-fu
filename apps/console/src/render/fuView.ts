@@ -1,4 +1,4 @@
-import { isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
+import { heldKinds, isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { SlotAllocator } from '../runtime/slots';
 import {
@@ -39,6 +39,18 @@ export function buildFuView(
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),
       armed: !dead && boomerang?.state === 'HELD',
+      powers:
+        player === undefined || dead
+          ? []
+          : heldKinds(
+              player.powers,
+              [...state.boomerangs, ...state.extraBoomerangs].some(
+                (b) => b.ownerId === body.id && b.blast,
+              ),
+            ),
+      ...(!dead && player?.dash.phase === 'DASHING' && player.dash.phasing !== undefined
+        ? { phasing: { inWall: player.dash.phasing.inside } }
+        : {}),
       ...(!dead && player?.dash.phase === 'DASHING'
         ? { dashing: { direction: player.dash.direction } }
         : {}),
@@ -48,20 +60,27 @@ export function buildFuView(
     };
   });
 
-  const boomerangs = state.boomerangs.flatMap((b): BoomerangView[] =>
-    b.state === 'HELD'
-      ? []
-      : [
-          {
-            ownerId: b.ownerId,
-            x: b.position.x,
-            y: b.position.y,
-            radius: state.config.boomerangRadius,
-            color: styleOf(b.ownerId, slots).color,
-            state: b.state,
-            spent: state.phase === 'ROUND_OVER',
-          },
-        ],
+  const seenOwner = new Map<string, number>();
+  const boomerangs = [...state.boomerangs, ...state.extraBoomerangs].flatMap(
+    (b): BoomerangView[] => {
+      const n = (seenOwner.get(b.ownerId) ?? 0) + 1;
+      seenOwner.set(b.ownerId, n);
+      return b.state === 'HELD'
+        ? []
+        : [
+            {
+              id: n === 1 ? b.ownerId : `${b.ownerId}#${n}`,
+              blast: b.blast,
+              ownerId: b.ownerId,
+              x: b.position.x,
+              y: b.position.y,
+              radius: state.config.boomerangRadius,
+              color: styleOf(b.ownerId, slots).color,
+              state: b.state,
+              spent: state.phase === 'ROUND_OVER',
+            },
+          ];
+    },
   );
 
   const viewEvents = events.flatMap((event): ViewEvent[] => {
@@ -89,7 +108,46 @@ export function buildFuView(
             ...event.position,
             color: styleOf(event.playerId, slots).color,
             direction: event.direction,
+            ...(event.phasing === true ? { phasing: true as const } : {}),
           },
+        ];
+      case 'POWERUP_SPAWNED':
+        return [{ type: 'SPAWNED', ...event.position, color: '#FFFFFF', kind: event.kind }];
+      case 'PICKED_UP':
+        return [
+          {
+            type: 'PICKUP',
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+            kind: event.kind,
+          },
+        ];
+      case 'POWER_EXPIRED':
+        return [
+          {
+            type: 'EXPIRED',
+            ...positionOf(event.playerId),
+            color: styleOf(event.playerId, slots).color,
+            kind: event.kind,
+          },
+        ];
+      case 'BLASTED':
+        return [
+          {
+            type: 'BLASTED',
+            ...event.position,
+            color: styleOf(event.ownerId, slots).color,
+            radius: event.radius,
+          },
+        ];
+      case 'GUARD_BLOCKED':
+        return [
+          { type: 'GUARD_BLOCKED', ...event.position, color: styleOf(event.playerId, slots).color },
+        ];
+      case 'PHASE_ENTERED':
+      case 'PHASE_EXITED':
+        return [
+          { type: event.type, ...event.position, color: styleOf(event.playerId, slots).color },
         ];
       case 'FATIGUED':
       case 'RECOVERED': // where the player is now: the tired ring starts / the full-mobility flash
@@ -149,6 +207,12 @@ export function buildFuView(
     walls: state.config.arena.walls ?? [],
     circles,
     boomerangs,
+    pickups: state.pickups.map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      x: p.position.x,
+      y: p.position.y,
+    })),
     events: viewEvents,
     banner,
     round: state.round,

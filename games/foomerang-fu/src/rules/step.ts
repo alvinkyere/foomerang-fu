@@ -6,9 +6,16 @@ import {
   type MovementInput,
   type Vec2,
 } from '@foomerang/game-core';
-import { canTransition, transition, type Boomerang } from './boomerang';
+import { transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
-import { lineIsClear, sweepCircle, wallsOf } from './arena';
+import {
+  circleHitsWalls,
+  lineClearTo,
+  lineIsClear,
+  sweepCircle,
+  wallsOf,
+  type Rect,
+} from './arena';
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
 import { separateBodies } from './collision';
@@ -25,6 +32,19 @@ import {
   type Fatigue,
 } from './dash';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
+import {
+  NO_POWERS,
+  canCollect,
+  grant,
+  heldKinds,
+  isPowerKind,
+  spawnKind,
+  spawnSpot,
+  type Pickup,
+  type PowerKind,
+  type Powers,
+} from './powerups';
+import { lastValidAlong, planPhaseDash } from './phase';
 import { startRound, type FuPlayer, type FuState } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
 
@@ -61,7 +81,43 @@ export type FuEvent =
       readonly playerId: string;
       readonly position: Vec2;
       readonly direction: Vec2;
+      /** Slice 5: present (true) for a dash by a holder of PHASE_DASH that may cross walls. */
+      readonly phasing?: true;
     }
+  /** Slice 5: a pickup appeared. */
+  | {
+      readonly type: 'POWERUP_SPAWNED';
+      readonly pickupId: number;
+      readonly kind: PowerKind;
+      readonly position: Vec2;
+    }
+  | {
+      readonly type: 'PICKED_UP';
+      readonly playerId: string;
+      readonly kind: PowerKind;
+      readonly pickupId: number;
+      readonly position: Vec2;
+    }
+  /** Slice 5: a timed power ended (OVERDRIVE). */
+  | { readonly type: 'POWER_EXPIRED'; readonly playerId: string; readonly kind: PowerKind }
+  /** Slice 5: an armed boomerang exploded at `position`; `victims` were inside the blast with a clear line (before any guard). */
+  | {
+      readonly type: 'BLASTED';
+      readonly ownerId: string;
+      readonly position: Vec2;
+      readonly radius: number;
+      readonly victims: readonly string[];
+    }
+  /** Slice 5: a GUARD absorbed `byId`'s lethal contact and is spent. */
+  | {
+      readonly type: 'GUARD_BLOCKED';
+      readonly playerId: string;
+      readonly byId: string;
+      readonly position: Vec2;
+    }
+  /** Slice 5: a Phase Dash body started / stopped overlapping a wall. */
+  | { readonly type: 'PHASE_ENTERED'; readonly playerId: string; readonly position: Vec2 }
+  | { readonly type: 'PHASE_EXITED'; readonly playerId: string; readonly position: Vec2 }
   /** Slice 4: this player's dash count passed `dashFreeCount`; they are FATIGUED until they recover. */
   | { readonly type: 'FATIGUED'; readonly playerId: string }
   /** Slice 4: a FATIGUED player's recovery completed; full mobility is back and the dash count is reset. */
@@ -122,45 +178,85 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
   return { x: clamp(at.x, r, config.arena.width - r), y: clamp(at.y, r, config.arena.height - r) };
 }
 
+/** What carrying the dashers (and the overdriven walkers) one sub-step produced. */
+interface Carried {
+  readonly world: FuState['world'];
+  /** Dashers whose burst ends now: a living player stopped them, or a Phase Dash reached its planned end. */
+  readonly ends: ReadonlySet<string>;
+  /** Phase dashers: how far they have now gone, and whether they now overlap a wall. */
+  readonly progress: ReadonlyMap<string, { readonly travelled: number; readonly inside: boolean }>;
+}
+
+const moveBodies = (world: FuState['world'], to: ReadonlyMap<string, Vec2>): FuState['world'] =>
+  to.size === 0
+    ? world
+    : Object.freeze({
+        ...world,
+        bodies: Object.freeze(
+          world.bodies.map((body) => {
+            const next = to.get(body.id);
+            return next === undefined
+              ? body
+              : Object.freeze({ ...body, position: Object.freeze(next) });
+          }),
+        ),
+      });
+
 /**
- * Carries every DASHING player one sub-step along their locked direction. All of them are judged
- * against the SAME snapshot of positions (so who is first in the match never matters): a living player
- * in the way stops the dasher at contact and ends the burst (blocked), nobody is shoved, and the arena
- * boundary slides like walking. Walls are the caller's separation pass — the same push-out as walking,
- * which cannot be tunnelled because a sub-step never moves a player farther than their radius.
+ * Carries every DASHING player one sub-step along their locked direction, and every OVERDRIVEN walker
+ * along their thumb (game-core cannot exceed its own top speed). All of them are judged against the
+ * SAME snapshot of positions (so who is first in the match never matters). A living player in the way
+ * stops a dasher at contact and ends the burst, nobody is shoved; the arena boundary slides like
+ * walking. A normal dash meets walls in the caller's separation pass (the same push-out as walking,
+ * which cannot be tunnelled because a sub-step never moves a player farther than their radius). A
+ * PHASE dash is carried straight along its planned line instead, up to its planned `limit`, and its
+ * body is excluded from the wall push-out while it lasts.
  */
-function carryDashers(
+function carryBodies(
   world: FuState['world'],
   players: readonly FuPlayer[],
   dashes: readonly DashState[],
+  boosted: ReadonlyMap<string, Vec2>,
   solid: ReadonlySet<string>,
   h: number,
-): { readonly world: FuState['world']; readonly blocked: ReadonlySet<string> } {
-  const blocked = new Set<string>();
+  config: FuConfig,
+  walls: readonly Rect[],
+): Carried {
+  const ends = new Set<string>();
+  const progress = new Map<string, { travelled: number; inside: boolean }>();
   const arrivals = new Map<string, Vec2>();
+  const others = (id: string) => world.bodies.filter((b) => b.id !== id && solid.has(b.id));
   players.forEach((player, index) => {
-    const dash = dashes[index] as DashState;
-    if (dash.phase !== 'DASHING') return;
     const body = world.bodies.find((b) => b.id === player.id);
     if (body === undefined) return;
-    const distance = dash.speed * Math.min(h, dash.remaining);
-    let travel = distance;
-    for (const other of world.bodies) {
-      if (other.id === player.id || !solid.has(other.id)) continue;
+    const dash = dashes[index] as DashState;
+    const velocity = boosted.get(player.id);
+    if (dash.phase !== 'DASHING' && velocity !== undefined) {
+      arrivals.set(player.id, {
+        x: clamp(body.position.x + velocity.x * h, body.radius, world.arena.width - body.radius),
+        y: clamp(body.position.y + velocity.y * h, body.radius, world.arena.height - body.radius),
+      });
+      return;
+    }
+    if (dash.phase !== 'DASHING') return;
+    const intended = dash.speed * Math.min(h, dash.remaining);
+    const run = dash.phasing;
+    let travel = run === undefined ? intended : Math.min(intended, run.limit - run.travelled);
+    for (const other of others(player.id)) {
       travel = Math.min(
         travel,
         distanceToCircle(
           body.position,
           dash.direction,
-          distance,
+          travel,
           body.radius,
           other.position,
           other.radius,
         ),
       );
     }
-    if (travel < distance) blocked.add(player.id);
-    arrivals.set(player.id, {
+    const blocked = travel < intended;
+    const at = {
       x: clamp(
         body.position.x + dash.direction.x * travel,
         body.radius,
@@ -171,21 +267,17 @@ function carryDashers(
         body.radius,
         world.arena.height - body.radius,
       ),
-    });
+    };
+    arrivals.set(player.id, at);
+    if (run === undefined) {
+      if (blocked) ends.add(player.id);
+      return;
+    }
+    const travelled = run.travelled + travel;
+    progress.set(player.id, { travelled, inside: circleHitsWalls(at, body.radius, walls) });
+    if (blocked || travelled >= run.limit - 1e-9) ends.add(player.id);
   });
-  if (arrivals.size === 0) return { world, blocked };
-  return {
-    world: Object.freeze({
-      ...world,
-      bodies: Object.freeze(
-        world.bodies.map((body) => {
-          const to = arrivals.get(body.id);
-          return to === undefined ? body : Object.freeze({ ...body, position: Object.freeze(to) });
-        }),
-      ),
-    }),
-    blocked,
-  };
+  return { world: moveBodies(world, arrivals), ends, progress };
 }
 
 /**
@@ -261,13 +353,30 @@ interface Flight {
   readonly caught: boolean;
   /** Returned to the owner's hand by the wall-following failsafe rather than caught. */
   readonly recalled?: boolean;
+  /** THROWN/DEFLECTED and it stopped against a wall or the arena edge this step (not merely at the end of its range). */
+  readonly wallImpact?: boolean;
 }
+
+/** Where a lethal contact came from, in the order a guard absorbs them. */
+interface Contact {
+  readonly attacker: number;
+  readonly rank: number; // 0 boomerang / blast, 1 slash
+  readonly weapon: number; // index into the weapon list, -1 for a slash
+  readonly source: 'BOOMERANG' | 'BLAST' | 'SLASH';
+}
+
+const EMPTY: readonly string[] = Object.freeze([]);
+/** A pickup is taken within this of the body when the config has no schedule of its own (hand-placed pickups). */
+const DEFAULT_PICKUP_RADIUS = 28;
 
 function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult {
   const { config } = state;
   const walls = wallsOf(config.arena);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
+  const R = config.playerRadius;
+  const count = state.players.length;
+  const ownerOf = new Map(state.players.map((p, index) => [p.id, index]));
 
   // 0. Plan the actions, from the state at the start of the step ---------------------------------
   const entries = state.players.map((player) => {
@@ -275,6 +384,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return isObject(raw) ? (raw as FuPlayerInput) : undefined;
   });
   const dashingAtStart = state.players.map((p) => p.alive && p.dash.phase === 'DASHING');
+  const powers: Powers[] = state.players.map((p) => p.powers);
+  const overdriven = state.players.map((p) => p.alive && p.powers.overdrive > EPSILON);
+  // Every boomerang in one list: each player's own (same order as the players), then the twins. A twin
+  // whose owner is not in the match is an impossible state and is dropped, never obeyed.
+  const startExtras = state.extraBoomerangs.filter((b) => ownerOf.has(b.ownerId));
+  const startWeapons = [...state.boomerangs, ...startExtras];
+  const heldAny = state.players.map((p) =>
+    startWeapons.some((w) => w.ownerId === p.id && w.state === 'HELD'),
+  );
 
   // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.
   const moved: FuPlayer[] = state.players.map((player, index) => {
@@ -305,12 +423,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const entry = entries[index];
     const committed = dashingAtStart[index] === true; // mid-dash: no slash, throw or new dash
     const hasFacing = player.facing.x !== 0 || player.facing.y !== 0;
+    const held = heldAny[index] === true; // at least one boomerang in hand
     const slashes =
       player.alive &&
       !committed &&
       entry?.slash === true &&
       (slashAfter[index] as SlashState).phase === 'READY' &&
-      (state.boomerangs[index] as Boomerang).state === 'HELD' &&
+      held &&
       hasFacing;
     const throws =
       player.alive &&
@@ -318,7 +437,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       entry?.throw === true &&
       !slashes && // a same-step SLASH always wins
       (slashAfter[index] as SlashState).phase !== 'ACTIVE' && // the weapon is mid-swing
-      canTransition((state.boomerangs[index] as Boomerang).state, 'THROWN') &&
+      held &&
       hasFacing;
     const dashes =
       player.alive &&
@@ -330,8 +449,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return { slashes, throws, dashes };
   });
 
-  // 1c. Movement. Walkers go through game-core; dashers are carried along their locked direction.
+  // 1c. Movement. Walkers go through game-core; dashers (and overdriven walkers) are carried.
   const frame = new Map<string, MovementInput>();
+  const boosted = new Map<string, Vec2>();
   const dashDirection = (player: FuPlayer): Vec2 =>
     player.facing.x !== 0 || player.facing.y !== 0 ? player.facing : DEFAULT_DASH_DIRECTION;
   const fatigue: Fatigue[] = [...restedAfter];
@@ -344,13 +464,36 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       if ((fatigue[index] as Fatigue).dashes === config.dashFreeCount + 1) {
         events.push({ type: 'FATIGUED', playerId: player.id });
       }
+      const origin = state.world.bodies.find((b) => b.id === player.id)?.position ?? ZERO;
+      const boostedDash = overdriven[index] === true;
+      // A holder of PHASE_DASH, starting from valid (non-wall) space, dashes along a planned straight line.
+      let plan: { origin: Vec2; limit: number } | undefined;
+      if ((powers[index] as Powers).phase > 0 && !circleHitsWalls(origin, R, walls)) {
+        const speed =
+          config.dashSpeed *
+          (tired ? config.fatiguedDashFactor : 1) *
+          (boostedDash ? config.overdriveDashFactor : 1);
+        const limit = planPhaseDash(
+          origin,
+          direction,
+          speed * config.dashSeconds,
+          R,
+          walls,
+          config.arena,
+          state.world.bodies.filter(
+            (b) => b.id !== player.id && state.players.some((p) => p.id === b.id && p.alive),
+          ),
+        );
+        plan = { origin, limit };
+      }
       events.push({
         type: 'DASHED',
         playerId: player.id,
-        position: state.world.bodies.find((b) => b.id === player.id)?.position ?? ZERO,
+        position: origin,
         direction,
+        ...(plan === undefined ? {} : { phasing: true }),
       });
-      return startDash(direction, config, tired);
+      return startDash(direction, config, tired, boostedDash, plan);
     }
     return state.players[index]?.alive ? (player.dash as DashState) : DASH_READY;
   });
@@ -358,11 +501,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const move = entries[index]?.move;
     if (!player.alive || (dashes[index] as DashState).phase === 'DASHING' || !isObject(move))
       return;
-    // Slowed while committed to a swing and while fatigued (the two multiply); untouched otherwise.
+    // Slowed while committed to a swing and while fatigued, sped up under OVERDRIVE (they multiply).
     const factor =
       (player.slash.phase === 'READY' ? 1 : config.slashMoveFactor) *
-      (isFatigued(fatigue[index] as Fatigue, config) ? config.fatiguedMoveFactor : 1);
-    frame.set(player.id, factor === 1 ? move : slowedMove(move, deadZone, factor));
+      (isFatigued(fatigue[index] as Fatigue, config) ? config.fatiguedMoveFactor : 1) *
+      (overdriven[index] === true ? config.overdriveMoveFactor : 1);
+    if (factor > 1) {
+      // faster than game-core's top speed: carried here (same arithmetic: direction × speed × time)
+      const v = normalizeMovementInput(move, deadZone);
+      boosted.set(player.id, {
+        x: v.x * config.playerSpeed * factor,
+        y: v.y * config.playerSpeed * factor,
+      });
+    } else frame.set(player.id, factor === 1 ? move : slowedMove(move, deadZone, factor));
   });
   // Move in sub-steps no longer than the fixed step, separating living players after each, so that no
   // supported dt can carry one player through another or through a wall. (dt = the fixed step is exactly
@@ -371,28 +522,136 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
   const h = dt / subSteps;
   let world = state.world;
+  const settle = (index: number, ended: DashState): void => {
+    // A Phase Dash that ends must end in valid space: back to the last valid place on its line if need be.
+    if (ended.phase !== 'DASHING' || ended.phasing === undefined) return;
+    const player = state.players[index] as FuPlayer;
+    const body = world.bodies.find((b) => b.id === player.id);
+    if (body === undefined) return;
+    const run = ended.phasing;
+    const t = lastValidAlong(run.origin, ended.direction, run.travelled, R, walls);
+    const to = {
+      x: run.origin.x + ended.direction.x * t,
+      y: run.origin.y + ended.direction.y * t,
+    };
+    if (to.x !== body.position.x || to.y !== body.position.y) {
+      world = moveBodies(world, new Map([[player.id, to]]));
+    }
+    if (run.inside) events.push({ type: 'PHASE_EXITED', playerId: player.id, position: to });
+  };
   for (let i = 0; i < subSteps; i += 1) {
     world = stepWorld(world, frame, h);
-    const carried = carryDashers(world, state.players, dashes, solid, h);
+    const carried = carryBodies(world, state.players, dashes, boosted, solid, h, config, walls);
     world = carried.world;
     for (let j = 0; j < dashes.length; j += 1) {
-      const dash = dashes[j] as DashState;
+      let dash = dashes[j] as DashState;
       if (dash.phase !== 'DASHING') continue;
-      dashes[j] = advanceDashing(dash, h, carried.blocked.has((state.players[j] as FuPlayer).id));
+      const id = (state.players[j] as FuPlayer).id;
+      const seen = carried.progress.get(id);
+      if (seen !== undefined && dash.phasing !== undefined) {
+        const position = world.bodies.find((b) => b.id === id)?.position ?? ZERO;
+        if (seen.inside && !dash.phasing.inside) {
+          // entering a wall spends the charge (one per crossing) and is announced
+          powers[j] = Object.freeze({
+            ...(powers[j] as Powers),
+            phase: (powers[j] as Powers).phase - 1,
+          });
+          events.push({ type: 'PHASE_ENTERED', playerId: id, position });
+        } else if (!seen.inside && dash.phasing.inside) {
+          events.push({ type: 'PHASE_EXITED', playerId: id, position });
+        }
+        dash = Object.freeze({
+          ...dash,
+          phasing: Object.freeze({
+            ...dash.phasing,
+            travelled: seen.travelled,
+            inside: seen.inside,
+          }),
+        });
+      }
+      const next = advanceDashing(dash, h, carried.ends.has(id));
+      if (next.phase === 'READY') settle(j, dash);
+      dashes[j] = next;
     }
-    world = separateBodies(world, (id) => solid.has(id), walls);
+    const phasingNow = new Set(
+      dashes.flatMap((d, j) =>
+        d.phase === 'DASHING' && d.phasing !== undefined ? [(state.players[j] as FuPlayer).id] : [],
+      ),
+    );
+    world = separateBodies(world, (id) => solid.has(id), walls, phasingNow);
   }
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
     return body === undefined ? ZERO : body.position;
   };
 
-  // HELD boomerangs ride along with their owners.
-  let boomerangs: Boomerang[] = state.boomerangs.map((b) =>
+  // 2. Pickups are collected on the end-of-movement positions, before anything is thrown or hit ---
+  // Pickups are visited in id order; each goes to the NEAREST eligible player (a tie goes to the earlier
+  // player in the match); a player takes at most one per step. A pickup is out of reach behind a wall.
+  const armedOwners = new Set(
+    startWeapons.flatMap((w) => (w.blast ? [ownerOf.get(w.ownerId) as number] : [])),
+  );
+  const reachSquared = (R + (config.powerups?.pickupRadius ?? DEFAULT_PICKUP_RADIUS)) ** 2;
+  const took = new Set<number>();
+  const newTwins: Boomerang[] = [];
+  const lying: Pickup[] = [];
+  for (const pickup of [...state.pickups].sort((a, b) => a.id - b.id)) {
+    if (!isPowerKind(pickup.kind)) continue; // an impossible pickup is dropped, never obeyed
+    let best: number | undefined;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    state.players.forEach((p, index) => {
+      if (!p.alive || took.has(index)) return;
+      const where = positionOf(p.id);
+      const d = distanceSquared(where, pickup.position);
+      if (d >= reachSquared || d >= bestDistance) return;
+      if (!lineIsClear(where, pickup.position, walls)) return;
+      if (
+        !canCollect(heldKinds(powers[index] as Powers, armedOwners.has(index)), pickup.kind, config)
+      )
+        return;
+      best = index;
+      bestDistance = d;
+    });
+    if (best === undefined) {
+      lying.push(pickup);
+      continue;
+    }
+    const taker = state.players[best] as FuPlayer;
+    took.add(best);
+    powers[best] = grant(powers[best] as Powers, pickup.kind, config);
+    events.push({
+      type: 'PICKED_UP',
+      playerId: taker.id,
+      kind: pickup.kind,
+      pickupId: pickup.id,
+      position: pickup.position,
+    });
+    if (pickup.kind === 'TWIN_THROW') {
+      newTwins.push(
+        Object.freeze({
+          ownerId: taker.id,
+          state: 'HELD',
+          position: positionOf(taker.id),
+          direction: ZERO,
+          travelled: 0,
+          follow: 0,
+          wallSeconds: 0,
+          deflections: 0,
+          deflectedBy: undefined,
+          blast: false,
+          absorbed: EMPTY,
+        } satisfies Boomerang),
+      );
+    }
+  }
+
+  // The weapon list for the rest of the step. HELD boomerangs ride along with their owners.
+  let weapons: Boomerang[] = [...startWeapons, ...newTwins].map((b) =>
     b.state === 'HELD' ? Object.freeze({ ...b, position: positionOf(b.ownerId) }) : b,
   );
+  const ownerIdx: number[] = weapons.map((w) => ownerOf.get(w.ownerId) as number);
 
-  // 2. Slashes, then throws ---------------------------------------------------------------------
+  // 3. Slashes, then throws ---------------------------------------------------------------------
   const players: FuPlayer[] = moved.map((player, index) => {
     let slash = slashAfter[index] as SlashState;
     const facing = player.facing;
@@ -412,10 +671,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       : Object.freeze({ ...player, slash, dash, fatigue: rested });
   });
 
-  const thrownNow = new Set<string>();
-  boomerangs = boomerangs.map((b, index) => {
+  // One THROW press throws ONE boomerang: the player's own first, then the twin.
+  const thrownNow = new Set<number>();
+  state.players.forEach((_p, index) => {
+    if (!(plans[index] as { throws: boolean }).throws) return;
+    const k = weapons.findIndex((w, i) => ownerIdx[i] === index && w.state === 'HELD');
+    if (k < 0) return;
+    const b = weapons[k] as Boomerang;
     const player = players[index] as FuPlayer;
-    if (!(plans[index] as { throws: boolean }).throws) return b;
     const facing = player.facing;
     const gap = config.playerRadius + config.boomerangRadius + 1; // starts just outside its owner
     const owner = positionOf(player.id);
@@ -427,16 +690,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       config.boomerangRadius,
       walls,
     ).position;
-    thrownNow.add(b.ownerId);
+    thrownNow.add(k);
+    // A BLAST charge arms the next boomerang thrown, and is spent on the throw.
+    const arm = (powers[index] as Powers).blast;
+    if (arm) powers[index] = Object.freeze({ ...(powers[index] as Powers), blast: false });
     events.push({ type: 'THROWN', playerId: player.id, position, direction: facing });
-    return transition(b, 'THROWN', { position, direction: facing, travelled: 0 });
+    weapons[k] = transition(b, 'THROWN', { position, direction: facing, travelled: 0, blast: arm });
   });
 
-  // 3. Flight ---------------------------------------------------------------------------------
+  // 4. Flight ---------------------------------------------------------------------------------
   const reach = config.playerRadius + config.boomerangRadius;
-  const flights: Flight[] = boomerangs.map((b) => {
+  const flights: Flight[] = weapons.map((b, k) => {
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
-    if (thrownNow.has(b.ownerId)) return { boomerang: b, lethalAt: b.position, caught: false };
+    if (thrownNow.has(k)) return { boomerang: b, lethalAt: b.position, caught: false };
 
     if (b.state === 'THROWN' || b.state === 'DEFLECTED') {
       // A deflected boomerang flies just like a thrown one — straight, at throw speed, stopped by walls —
@@ -462,9 +728,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
             follow: 0,
             wallSeconds: 0,
             deflectedBy: undefined,
+            absorbed: EMPTY,
           }),
           lethalAt: position,
           caught: false,
+          wallImpact: hitWall,
         };
       }
       return {
@@ -489,6 +757,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
               wallSeconds: 0,
               deflections: 0,
               deflectedBy: undefined,
+              absorbed: EMPTY,
             })
           : Object.freeze({ ...b, position, ...extra }),
         lethalAt: position,
@@ -532,30 +801,39 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       recalled,
     );
   });
-  const flownFrom = boomerangs; // where each boomerang was before it flew this step
-  boomerangs = flights.map((f) => f.boomerang);
-  flights.forEach((f, index) => {
-    if (f.caught) {
-      const playerId = (players[index] as FuPlayer).id;
-      events.push({ type: f.recalled === true ? 'RECALLED' : 'CAUGHT', playerId });
+  const flownFrom = weapons; // where each boomerang was before it flew this step
+  weapons = flights.map((f) => f.boomerang);
+  flights.forEach((f, k) => {
+    if (!f.caught) return;
+    const owner = ownerIdx[k] as number;
+    events.push({
+      type: f.recalled === true ? 'RECALLED' : 'CAUGHT',
+      playerId: (players[owner] as FuPlayer).id,
+    });
+    if ((weapons[k] as Boomerang).blast) {
+      // an armed boomerang that comes home unused gives the charge back
+      weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
+      if ((players[owner] as FuPlayer).alive) {
+        powers[owner] = Object.freeze({ ...(powers[owner] as Powers), blast: true });
+      }
     }
   });
 
-  // 3b. Deflection (Slice 3) ---------------------------------------------------------------------
+  // 4b. Deflection (Slice 3) ---------------------------------------------------------------------
   // A boomerang inside an ENEMY'S ACTIVE slash region (with a clear line to it) is knocked off course
   // instead of being lethal this step. Judged on end-of-step positions, before anyone is killed, so a
   // slash pressed on the very step a boomerang would have killed still saves. At most one defender per
   // boomerang per step: the nearest to it, and on an exact tie the earliest in player order — never the
   // order inputs arrived in. A boomerang cannot be deflected by whoever just deflected it (until it has
-  // turned RETURNING), nor more than `maxDeflections` times per throw.
+  // turned RETURNING), nor more than `maxDeflections` times per throw. (Slice 5: it also cannot
+  // detonate that step, and each boomerang of a pair is judged on its own.)
   const lethalAt: (Vec2 | undefined)[] = flights.map((f) => f.lethalAt);
-  boomerangs = [...boomerangs];
-  boomerangs.forEach((b, index) => {
+  weapons.forEach((b, k) => {
     if (b.state === 'HELD' || b.deflections >= config.maxDeflections) return;
     let best: number | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
     players.forEach((defender, j) => {
-      if (j === index || !defender.alive || defender.id === b.deflectedBy) return;
+      if (j === ownerIdx[k] || !defender.alive || defender.id === b.deflectedBy) return;
       const swing = defender.slash;
       if (swing.phase !== 'ACTIVE') return;
       const from = positionOf(defender.id);
@@ -571,11 +849,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const defender = players[best] as FuPlayer;
     const swing = defender.slash;
     if (swing.phase !== 'ACTIVE') return; // (narrowing: it is ACTIVE by construction)
-    const before = (flownFrom[index] as Boomerang).position;
-    const moved = Math.hypot(b.position.x - before.x, b.position.y - before.y);
+    const before = (flownFrom[k] as Boomerang).position;
+    const movedBy = Math.hypot(b.position.x - before.x, b.position.y - before.y);
     const toOwner = positionOf(b.ownerId);
     const incoming =
-      moved > 1e-9
+      movedBy > 1e-9
         ? normalized({ x: b.position.x - before.x, y: b.position.y - before.y })
         : b.direction.x !== 0 || b.direction.y !== 0
           ? b.direction
@@ -584,15 +862,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       incoming.x === 0 && incoming.y === 0 ? swing.direction : incoming,
       swing.direction,
     );
-    boomerangs[index] = transition(b, 'DEFLECTED', {
+    weapons[k] = transition(b, 'DEFLECTED', {
       direction: out,
       travelled: 0,
       follow: 0,
       wallSeconds: 0,
       deflections: b.deflections + 1,
       deflectedBy: defender.id,
+      absorbed: EMPTY,
     });
-    lethalAt[index] = undefined; // the clank absorbs it: it kills nobody on the step it is deflected
+    lethalAt[k] = undefined; // the clank absorbs it: it kills nobody on the step it is deflected
     events.push({
       type: 'DEFLECTED',
       byId: defender.id,
@@ -602,31 +881,105 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   });
 
-  // 4. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------
-  const killedBy = new Map<string, string>(); // victim → first attacker in player order
-  flights.forEach((_flight, index) => {
-    const at = lethalAt[index];
-    const attacker = players[index] as FuPlayer;
-    const flying = boomerangs[index] as Boomerang;
-    const swing = attacker.slash;
-    for (const victim of players) {
-      if (!victim.alive || victim.id === attacker.id || killedBy.has(victim.id)) continue;
-      const where = positionOf(victim.id);
-      // Whoever just knocked a boomerang away is safe from it for that leg of its flight.
-      const immune = flying.state === 'DEFLECTED' && flying.deflectedBy === victim.id;
-      const byBoomerang = !immune && at !== undefined && distanceSquared(at, where) < reach * reach;
-      const from = positionOf(attacker.id);
-      const bySlash =
-        swing.phase === 'ACTIVE' &&
-        inSlashRegion(from, swing.direction, where, config) &&
-        lineIsClear(from, where, walls); // a wall is cover: no cutting through it
-      if (byBoomerang || bySlash) killedBy.set(victim.id, attacker.id);
+  // 5. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------
+  // Every lethal contact is collected first, per victim, in a fixed order (attacker's place in the match,
+  // then boomerangs/blasts before the slash, then the weapon); then a GUARD takes the FIRST one and the
+  // rest kill. An armed boomerang's first contact (or wall impact) is an explosion instead: everyone
+  // (not its owner, not whoever just deflected it) within `blastRadius` with a clear line is a victim.
+  const contacts: Contact[][] = players.map(() => []);
+  const blastRadiusSquared = config.blastRadius * config.blastRadius;
+  weapons.forEach((w, k) => {
+    const at = lethalAt[k];
+    if (at === undefined) return;
+    const a = ownerIdx[k] as number;
+    const immuneTo = (victim: FuPlayer): boolean =>
+      (w.state === 'DEFLECTED' && w.deflectedBy === victim.id) || w.absorbed.includes(victim.id);
+    const touched: number[] = [];
+    players.forEach((victim, v) => {
+      if (v === a || !victim.alive || immuneTo(victim)) return;
+      if (distanceSquared(at, positionOf(victim.id)) < reach * reach) touched.push(v);
+    });
+    if (w.blast && (touched.length > 0 || flights[k]?.wallImpact === true)) {
+      const hit = new Set(touched);
+      players.forEach((victim, v) => {
+        if (v === a || !victim.alive || immuneTo(victim)) return;
+        const where = positionOf(victim.id);
+        if (distanceSquared(at, where) < blastRadiusSquared && lineClearTo(at, where, R, walls))
+          hit.add(v);
+      });
+      const ordered = [...hit].sort((x, y) => x - y);
+      for (const v of ordered)
+        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BLAST' });
+      weapons[k] = Object.freeze({ ...w, blast: false }); // spent: it flies on as a plain boomerang
+      events.push({
+        type: 'BLASTED',
+        ownerId: w.ownerId,
+        position: at,
+        radius: config.blastRadius,
+        victims: ordered.map((v) => (players[v] as FuPlayer).id),
+      });
+    } else {
+      for (const v of touched)
+        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG' });
     }
   });
-  const survivors: FuPlayer[] = players.map((player) => {
+  const swings: FuPlayer[] = [...players];
+  players.forEach((attacker, a) => {
+    const swing = attacker.slash;
+    if (swing.phase !== 'ACTIVE') return;
+    const from = positionOf(attacker.id);
+    players.forEach((victim, v) => {
+      if (v === a || !victim.alive || swing.spared?.includes(victim.id) === true) return;
+      const where = positionOf(victim.id);
+      if (
+        inSlashRegion(from, swing.direction, where, config) &&
+        lineClearTo(from, where, R, walls)
+      ) {
+        contacts[v]?.push({ attacker: a, rank: 1, weapon: -1, source: 'SLASH' }); // a wall is cover: no cutting through it
+      }
+    });
+  });
+  const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
+  players.forEach((victim, v) => {
+    if (!victim.alive) return;
+    const list = (contacts[v] as Contact[]).sort(
+      (x, y) => x.attacker - y.attacker || x.rank - y.rank || x.weapon - y.weapon,
+    );
+    if (list.length === 0) return;
+    if ((powers[v] as Powers).guard) {
+      // A guard absorbs exactly ONE lethal contact and is spent; the weapon cannot hit them again this leg/swing.
+      const first = list.shift() as Contact;
+      powers[v] = Object.freeze({ ...(powers[v] as Powers), guard: false });
+      events.push({
+        type: 'GUARD_BLOCKED',
+        playerId: victim.id,
+        byId: (players[first.attacker] as FuPlayer).id,
+        position: positionOf(victim.id),
+      });
+      if (first.source !== 'SLASH') {
+        const w = weapons[first.weapon] as Boomerang;
+        weapons[first.weapon] = Object.freeze({ ...w, absorbed: [...w.absorbed, victim.id] });
+      } else if (first.source === 'SLASH') {
+        const attacker = swings[first.attacker] as FuPlayer;
+        if (attacker.slash.phase === 'ACTIVE') {
+          swings[first.attacker] = Object.freeze({
+            ...attacker,
+            slash: Object.freeze({
+              ...attacker.slash,
+              spared: [...(attacker.slash.spared ?? []), victim.id],
+            }),
+          });
+        }
+      }
+    }
+    const [killing] = list;
+    if (killing !== undefined) killedBy.set(victim.id, (players[killing.attacker] as FuPlayer).id);
+  });
+  const survivors: FuPlayer[] = swings.map((player, index) => {
     const byId = killedBy.get(player.id);
     if (byId === undefined) return player;
     events.push({ type: 'HIT', byId, victimId: player.id, position: positionOf(player.id) });
+    powers[index] = NO_POWERS;
     return Object.freeze({
       ...player,
       alive: false,
@@ -636,26 +989,76 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   });
 
-  // 5. Round end ------------------------------------------------------------------------------
+  // 6. Timers, then the pickup schedule -------------------------------------------------------------
+  // OVERDRIVE runs down by this step's time (a power taken this step starts running next step).
+  survivors.forEach((player, index) => {
+    if (!player.alive || overdriven[index] !== true) return;
+    const left = (powers[index] as Powers).overdrive - dt;
+    const over = left <= EPSILON;
+    powers[index] = Object.freeze({ ...(powers[index] as Powers), overdrive: over ? 0 : left });
+    if (over) events.push({ type: 'POWER_EXPIRED', playerId: player.id, kind: 'OVERDRIVE' });
+  });
+
+  // 7. Round end ------------------------------------------------------------------------------
   const alive = survivors.filter((p) => p.alive);
   const roundEnds = survivors.length >= 2 && alive.length <= 1;
   const winnerId = alive.length === 1 ? (alive[0] as FuPlayer).id : undefined;
   if (roundEnds) events.push({ type: 'ROUND_OVER', winnerId });
+
+  // A new pickup appears after everything else (so it cannot be taken the step it appears); the clock
+  // only runs while there is room for one and the round is on.
+  let pickups: Pickup[] = lying;
+  let clock = state.pickupClock;
+  const schedule = config.powerups;
+  if (schedule !== undefined && !roundEnds && pickups.length < schedule.maxOnField) {
+    const spawnIn = clock.spawnIn - dt;
+    if (spawnIn > EPSILON) clock = Object.freeze({ spawnIn, spawned: clock.spawned });
+    else {
+      const spot = spawnSpot(
+        clock.spawned,
+        state.round,
+        schedule,
+        pickups.map((p) => p.position),
+      );
+      if (spot === undefined)
+        clock = Object.freeze({ spawnIn: 0, spawned: clock.spawned }); // wait for a free spot
+      else {
+        const pickup: Pickup = Object.freeze({
+          id: clock.spawned,
+          kind: spawnKind(clock.spawned, state.round),
+          position: spot,
+        });
+        pickups = [...pickups, pickup];
+        clock = Object.freeze({ spawnIn: schedule.intervalSeconds, spawned: clock.spawned + 1 });
+        events.push({
+          type: 'POWERUP_SPAWNED',
+          pickupId: pickup.id,
+          kind: pickup.kind,
+          position: spot,
+        });
+      }
+    }
+  }
+
+  const finalPlayers = survivors.map((p, index) => {
+    const base =
+      roundEnds && p.dash.phase !== 'READY' ? Object.freeze({ ...p, dash: DASH_READY }) : p;
+    // the dead hold nothing, however they came to be dead
+    const held = p.alive ? (powers[index] as Powers) : NO_POWERS;
+    return base.powers === held ? base : Object.freeze({ ...base, powers: held });
+  });
 
   return {
     state: Object.freeze({
       ...state,
       elapsed: state.elapsed + dt,
       world,
-      // A round that has just ended shows no half-finished burst or cooldown: everyone is READY until the reset.
-      players: Object.freeze(
-        roundEnds
-          ? survivors.map((p) =>
-              p.dash.phase === 'READY' ? p : Object.freeze({ ...p, dash: DASH_READY }),
-            )
-          : survivors,
-      ),
-      boomerangs: Object.freeze(boomerangs),
+      // A round that has just ended shows no half-finished burst: everyone is READY until the reset.
+      players: Object.freeze(finalPlayers),
+      boomerangs: Object.freeze(weapons.slice(0, count)),
+      extraBoomerangs: Object.freeze(weapons.slice(count)),
+      pickups: Object.freeze(pickups),
+      pickupClock: clock,
       phase: roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds
         ? Object.freeze({ winnerId, resetInSeconds: config.roundEndSeconds })

@@ -18,6 +18,8 @@ export interface ArenaRenderer {
   drawn(): readonly DrawnCircle[];
   /** The boomerangs currently on screen (games without them return none). */
   drawnBoomerangs(): readonly DrawnCircle[];
+  /** The powerup pickups currently on screen (games without them return none). */
+  drawnPickups?(): readonly DrawnCircle[];
   /** The walls currently on screen (games without geometry return none). */
   drawnWalls(): readonly WallView[];
   destroy(): void;

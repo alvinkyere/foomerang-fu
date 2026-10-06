@@ -1,6 +1,7 @@
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
 import { DASH_READY, RESTED, type DashState, type Fatigue } from './dash';
+import { NO_POWERS, type Pickup, type PickupClock, type Powers } from './powerups';
 import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
 import { spawnPosition } from './spawn';
@@ -22,6 +23,8 @@ export interface FuPlayer {
   readonly dash: DashState;
   /** Slice 4: how many successful dashes in this burst and how long until rested; see `isFatigued`. */
   readonly fatigue: Fatigue;
+  /** Slice 5: the powerups this player holds (see `Powers`). */
+  readonly powers: Powers;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER';
@@ -47,8 +50,14 @@ export interface FuState {
   readonly world: WorldState;
   /** In creation order, which is the order every rule uses to break ties. */
   readonly players: readonly FuPlayer[];
-  /** One per player, in the same order. */
+  /** One per player, in the same order: each player's own boomerang. */
   readonly boomerangs: readonly Boomerang[];
+  /** Slice 5: the second boomerang of each player holding TWIN_THROW, in the order they took it. Empty otherwise. */
+  readonly extraBoomerangs: readonly Boomerang[];
+  /** Slice 5: pickups lying in the arena, in spawn order. */
+  readonly pickups: readonly Pickup[];
+  /** Slice 5: the pickup schedule for this round. */
+  readonly pickupClock: PickupClock;
   readonly roundOver: FuRoundOver | undefined;
 }
 
@@ -111,6 +120,7 @@ export function startRound(
       slash: SLASH_READY,
       dash: DASH_READY,
       fatigue: RESTED,
+      powers: NO_POWERS,
     });
   });
 
@@ -125,6 +135,8 @@ export function startRound(
       wallSeconds: 0,
       deflections: 0,
       deflectedBy: undefined,
+      blast: false,
+      absorbed: Object.freeze([]),
     }),
   );
 
@@ -136,6 +148,9 @@ export function startRound(
     world,
     players: Object.freeze(players),
     boomerangs: Object.freeze(boomerangs),
+    extraBoomerangs: Object.freeze([]),
+    pickups: Object.freeze([]),
+    pickupClock: Object.freeze({ spawnIn: config.powerups?.firstSeconds ?? 0, spawned: 0 }),
     roundOver: undefined,
   });
 }

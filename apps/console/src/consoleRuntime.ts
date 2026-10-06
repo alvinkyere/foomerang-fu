@@ -1,6 +1,7 @@
 import type { SessionEnvironment } from '@foomerang/controller-sdk';
 import { HostSession, type HostStore, type HostTransportFactory } from './host';
-import { MatchDirector } from './runtime/matchDirector';
+import { MatchDirector, createRuntimeFor, warmUpFor } from './runtime/matchDirector';
+import type { PowerupMode } from './runtime/powerupMode';
 
 export interface ConsoleRuntimeOptions {
   readonly transportFactory: HostTransportFactory;
@@ -8,6 +9,8 @@ export interface ConsoleRuntimeOptions {
   readonly environment?: SessionEnvironment;
   /** The host's own monotonic clock, in ms. */
   readonly now?: () => number;
+  /** How quickly Foomerang Fu's pickups appear (the page address's `?powerups=`); default normal. */
+  readonly powerups?: PowerupMode;
 }
 
 export interface ConsoleRuntime {
@@ -27,7 +30,10 @@ export interface ConsoleRuntime {
  */
 export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRuntime {
   const now = options.now ?? ((): number => performance.now());
-  const director = new MatchDirector();
+  const director = new MatchDirector(
+    (gameId) => createRuntimeFor(gameId, options.powerups),
+    warmUpFor,
+  );
   const session = new HostSession({
     transportFactory: options.transportFactory,
     ...(options.store ? { store: options.store } : {}),
