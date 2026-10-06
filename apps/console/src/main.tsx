@@ -11,7 +11,7 @@ import {
 } from './runtime/powerupMode';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
-import { loadPhaserRenderer } from './render/phaser/loadPhaserRenderer';
+import { phaserRendererFor } from './render/phaser/loadPhaserRenderer';
 import { App } from './ui/App';
 import { ConfigError } from './ui/ConfigError';
 import './styles.css';
@@ -78,7 +78,7 @@ if (!config.ok) {
         controllerBaseUrl={config.controllerBaseUrl}
         serverUrl={config.serverUrl}
         warnings={config.warnings}
-        loadRenderer={loadPhaserRenderer}
+        loadRenderer={phaserRendererFor(parseArenaParam(window.location.search))}
         onRenderer={onRenderer}
       />
     </StrictMode>,

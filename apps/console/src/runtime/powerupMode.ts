@@ -47,7 +47,13 @@ export function parseKillsParam(search: string): number | undefined {
   return n >= 1 && n <= 14 && n !== 14 ? n : undefined;
 }
 
-/** Which experimental arena to play (`?arena=systems`): the Slice 6 arena with gates, platforms and hazards; anything else is the baseline arena. */
-export type ArenaChoice = 'primitive' | 'systems';
-export const parseArenaParam = (search: string): ArenaChoice =>
-  new URLSearchParams(search).get('arena') === 'systems' ? 'systems' : 'primitive';
+/**
+ * Which arena to play (`?arena=`): `garden` (the default, the Slice 9 production arena), `systems` (the Slice 6 experimental
+ * arena with gates, platforms and a hazard) or `primitive` (the Slice 2 test arena the earlier slices were played in).
+ * Anything else is Garden.
+ */
+export type ArenaChoice = 'primitive' | 'systems' | 'garden';
+export const parseArenaParam = (search: string): ArenaChoice => {
+  const value = new URLSearchParams(search).get('arena');
+  return value === 'systems' || value === 'primitive' ? value : 'garden';
+};

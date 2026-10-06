@@ -876,6 +876,7 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
         x: 5,
         y: 6,
         color: SLOT_STYLES[0]?.color,
+        actor: 'a',
         direction: { x: 0, y: 1 },
       },
     ]);
@@ -960,6 +961,7 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
         x: 50,
         y: 60,
         color: SLOT_STYLES[0]?.color,
+        actor: 'a',
         swing: {
           direction: { x: 0, y: 1 },
           reach: DEFAULT_FU_CONFIG.slashReach,

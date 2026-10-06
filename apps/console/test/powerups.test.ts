@@ -279,6 +279,7 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         x: 1,
         y: 2,
         color: SLOT_STYLES[0]?.color,
+        actor: 'a',
         direction: { x: 1, y: 0 },
         phasing: true,
       },

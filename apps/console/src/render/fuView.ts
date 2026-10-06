@@ -1,4 +1,5 @@
 import {
+  GARDEN_ARENA,
   isFatigued,
   roundLabel,
   systemsView,
@@ -88,13 +89,21 @@ export function buildFuView(
   const viewEvents = events.flatMap((event): ViewEvent[] => {
     switch (event.type) {
       case 'THROWN':
-        return [{ type: 'THROWN', ...event.position, color: styleOf(event.playerId, slots).color }];
+        return [
+          {
+            type: 'THROWN',
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+            actor: event.playerId,
+          },
+        ];
       case 'SLASHED':
         return [
           {
             type: 'SLASHED',
             ...event.position,
             color: styleOf(event.playerId, slots).color,
+            actor: event.playerId,
             swing: {
               direction: event.direction,
               reach: state.config.slashReach,
@@ -109,6 +118,7 @@ export function buildFuView(
             type: 'DASHED',
             ...event.position,
             color: styleOf(event.playerId, slots).color,
+            actor: event.playerId,
             direction: event.direction,
             ...(event.phasing === true ? { phasing: true as const } : {}),
           },
@@ -177,7 +187,14 @@ export function buildFuView(
           },
         ];
       case 'HIT':
-        return [{ type: 'HIT', ...event.position, color: styleOf(event.victimId, slots).color }];
+        return [
+          {
+            type: 'HIT',
+            ...event.position,
+            color: styleOf(event.victimId, slots).color,
+            actor: event.victimId,
+          },
+        ];
       case 'CAUGHT':
       case 'RECALLED': // the wall-following failsafe: shown like a catch, at the owner
         return [
@@ -277,5 +294,6 @@ export function buildFuView(
     banner,
     round: state.round,
     hud,
+    ...(state.config.arena === GARDEN_ARENA ? { arenaId: 'garden' as const } : {}),
   };
 }

@@ -390,7 +390,10 @@ export const test = base.extend<Fixtures>({
   // The Slice 1–4 journeys are played with no pickups (`?powerups=off`), exactly as they were written.
   fuHost: async ({ browser, stack }, use) => {
     const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-    const host = new Host(await context.newPage(), `${stack.consoleUrl}/?powerups=off`);
+    const host = new Host(
+      await context.newPage(),
+      `${stack.consoleUrl}/?arena=primitive&powerups=off`,
+    );
     await host.open();
     await use(host);
     expect(host.errors, 'no console errors or uncaught exceptions on the Fu console').toEqual([]);
@@ -427,7 +430,7 @@ export const test = base.extend<Fixtures>({
     const opened: { host: Host; close: () => Promise<void> }[] = [];
     await use(async (enable) => {
       const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-      const query = `?powerups=fast${enable === undefined ? '' : `&enable=${enable}`}`;
+      const query = `?arena=primitive&powerups=fast${enable === undefined ? '' : `&enable=${enable}`}`;
       const host = new Host(await context.newPage(), `${stack.consoleUrl}/${query}`);
       await host.open();
       opened.push({ host, close: () => context.close() });

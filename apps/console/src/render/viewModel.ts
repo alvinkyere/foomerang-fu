@@ -77,6 +77,8 @@ export interface ViewEvent {
   readonly x: number;
   readonly y: number;
   readonly color: string;
+  /** Who the event is about (the thrower, the swinger, the victim of a HIT...): lets a presentation animate that player. */
+  readonly actor?: string;
   /** For DEFLECTED: where the boomerang was sent (unit vector), so the effect can point the way it went. */
   readonly knock?: Vec2;
   /** For DASHED: the way the dash goes (unit vector), so the burst can be drawn pointing along it. */
@@ -195,6 +197,8 @@ export interface ArenaView {
   readonly round: number | undefined;
   /** The kill race (Free For All); absent for the primitive arena. */
   readonly hud?: HudView;
+  /** Which production arena this is (Garden), or absent for the primitive test arenas. */
+  readonly arenaId?: 'garden';
 }
 
 const FALLBACK: SlotStyle = { color: '#9AA0A6', number: 0, shape: 'circle', marker: '○' };

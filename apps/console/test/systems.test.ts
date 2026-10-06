@@ -30,11 +30,13 @@ const slots = () => {
   return s;
 };
 
-describe('?arena= (a page-address choice between the baseline arena and the Slice 6 arena)', () => {
-  it('knows exactly "systems"; anything else is the baseline arena', () => {
+describe('?arena= (a page-address choice between Garden, the Slice 6 arena and the baseline test arena)', () => {
+  it('knows exactly "systems" and "primitive"; anything else is Garden, the production arena', () => {
     expect(parseArenaParam('?arena=systems')).toBe('systems');
-    for (const junk of ['', '?arena=', '?arena=SYSTEMS', '?arena=primitive', '?arenas=systems']) {
-      expect(parseArenaParam(junk), junk).toBe('primitive');
+    expect(parseArenaParam('?arena=primitive')).toBe('primitive');
+    expect(parseArenaParam('?arena=garden')).toBe('garden');
+    for (const junk of ['', '?arena=', '?arena=SYSTEMS', '?arena=Primitive', '?arenas=systems']) {
+      expect(parseArenaParam(junk), junk).toBe('garden');
     }
   });
 

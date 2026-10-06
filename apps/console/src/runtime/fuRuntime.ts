@@ -2,6 +2,8 @@ import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
   CpuController,
   FREE_FOR_ALL,
+  GARDEN_ARENA,
+  GARDEN_BOOK_SPOTS,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
@@ -54,7 +56,7 @@ const MAX_PENDING_EVENTS = 256;
  * When several arrive before one step the RULES decide (SLASH, then THROW, then DASH), never the
  * order they arrived in.
  */
-export { SYSTEMS_ARENA };
+export { SYSTEMS_ARENA, GARDEN_ARENA };
 
 export class FuRuntime implements MatchRuntime {
   state: FuState | undefined;
@@ -92,7 +94,9 @@ export class FuRuntime implements MatchRuntime {
         ? PRIMITIVE_POWERUPS.spots
         : arena === SYSTEMS_ARENA
           ? SYSTEMS_POWERUP_SPOTS
-          : undefined; // an arena with no places to put Books has none
+          : arena === GARDEN_ARENA
+            ? GARDEN_BOOK_SPOTS
+            : undefined; // an arena with no places to put Books has none
     this.#powerups =
       spots === undefined || powerups === 'off'
         ? undefined
