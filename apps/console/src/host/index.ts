@@ -9,5 +9,7 @@ export type {
   HostState,
   HostTransport,
   HostTransportFactory,
+  ActionHandler,
   MovementHandler,
+  PlayerAction,
 } from './hostSession';

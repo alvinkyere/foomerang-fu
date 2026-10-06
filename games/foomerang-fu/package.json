@@ -14,5 +14,9 @@
     "@foomerang/config": "workspace:*",
     "typescript": "~5.9.3",
     "vitest": "^5.0.3"
+  },
+  "description": "Foomerang Fu: game rules (pure, deterministic, under src/rules) and \u2014 later \u2014 its renderer (src/render, the only Phaser zone in this package).",
+  "dependencies": {
+    "@foomerang/game-core": "workspace:*"
   }
 }

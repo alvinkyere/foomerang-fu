@@ -1,7 +1,15 @@
 import type { RosterEntry } from '@foomerang/protocol';
-import { buildArenaView, type ArenaView } from '../render/viewModel';
+import type { PlayerAction } from '../host';
+import type { ArenaView } from '../render/viewModel';
+import { FuRuntime } from './fuRuntime';
 import { GameRuntime } from './gameRuntime';
+import type { MatchRuntime } from './matchRuntime';
 import { SlotAllocator } from './slots';
+
+/** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
+export function createRuntimeFor(gameId: string): MatchRuntime {
+  return gameId === 'foomerang-fu' ? new FuRuntime() : new GameRuntime();
+}
 
 /**
  * Coordinates the room's PARTICIPANTS with the game's BODIES. It owns neither the network nor
@@ -12,21 +20,31 @@ import { SlotAllocator } from './slots';
  *   Later roster changes (reconnecting, leaving) change whether a body is ACTIVE, never whether
  *   it exists, and a late arrival never conjures a body.
  *
- * "Frozen while reconnecting" is this primitive arena's rule, set here; it is not a rule of
- * game-core and future games decide for themselves.
+ * "Inactive while reconnecting" (neutral input, no throws; same body, same place, resumes later)
+ * is set here for the games we have; it is not a rule of game-core, and future games decide for
+ * themselves.
  */
 export class MatchDirector {
-  readonly runtime = new GameRuntime();
+  /** The game currently (or last) running. Before the first match it is an idle placeholder. */
+  runtime: MatchRuntime = new GameRuntime();
   readonly slots = new SlotAllocator();
   #roster: readonly RosterEntry[] = [];
   #connected = new Set<string>();
   #inMatch = false;
 
-  constructor() {
+  readonly #createRuntime: (gameId: string) => MatchRuntime;
+
+  constructor(createRuntime: (gameId: string) => MatchRuntime = createRuntimeFor) {
+    this.#createRuntime = createRuntime;
     this.runtime.setActivity((playerId) => this.#connected.has(playerId));
   }
 
-  onRoom(roomState: string, roster: readonly RosterEntry[], nowMs: number): void {
+  onRoom(
+    roomState: string,
+    roster: readonly RosterEntry[],
+    nowMs: number,
+    gameId = 'primitive-arena',
+  ): void {
     this.#roster = roster;
     this.#connected = new Set(
       roster.filter((r) => r.connection === 'CONNECTED').map((r) => r.playerId),
@@ -39,6 +57,8 @@ export class MatchDirector {
     }
     if (this.#inMatch) return;
     this.#inMatch = true;
+    this.runtime = this.#createRuntime(gameId);
+    this.runtime.setActivity((playerId) => this.#connected.has(playerId));
     const bodies: { playerId: string; slot: number }[] = [];
     for (const r of roster) {
       const slot = this.slots.slotOf(r.playerId);
@@ -51,14 +71,17 @@ export class MatchDirector {
     if (this.#inMatch) this.runtime.receiveInput(playerId, x, y, nowMs);
   }
 
+  onAction(action: PlayerAction): void {
+    if (this.#inMatch) this.runtime.receiveAction(action);
+  }
+
   frame(nowMs: number): void {
     if (this.#inMatch) this.runtime.frame(nowMs);
   }
 
   /** What to draw, or undefined when no match is running. */
   arenaView(): ArenaView | undefined {
-    const world = this.runtime.world;
-    if (!this.#inMatch || world === undefined) return undefined;
-    return buildArenaView(world, this.#roster, this.slots);
+    if (!this.#inMatch) return undefined;
+    return this.runtime.view(this.#roster, this.slots);
   }
 }

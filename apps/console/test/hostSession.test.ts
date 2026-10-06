@@ -71,7 +71,35 @@ describe('HostSession: create a room', () => {
 
   it('stores the room and credential so a reload can reclaim the room', async () => {
     const { store } = await created();
-    expect(store.value).toEqual({ joinCode: 'K7M4PX', hostToken: 'host-token-1' });
+    expect(store.value).toEqual({
+      joinCode: 'K7M4PX',
+      hostToken: 'host-token-1',
+      gameId: 'primitive-arena',
+    });
+  });
+});
+
+describe('HostSession: which game this room is', () => {
+  it('knows the game it created, and shows it in its state', async () => {
+    const { session } = await created();
+    expect(session.getState().gameId).toBe('primitive-arena');
+  });
+
+  it('a reload knows the game again (it is stored with the room)', async () => {
+    const store = new MemoryHostStore();
+    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
+    const { session } = setup({ store });
+    session.resume();
+    expect(session.getState().gameId).toBe('foomerang-fu');
+  });
+
+  it('keeps the game through a reconnect (and after the rotated credential is stored)', async () => {
+    const { clock, network, session, store } = await created();
+    network.last.serverDrops();
+    clock.advance(250);
+    await settle();
+    expect(session.getState().gameId).toBe('primitive-arena');
+    expect(store.value?.gameId).toBe('primitive-arena');
   });
 });
 
@@ -203,6 +231,60 @@ describe('HostSession: player input', () => {
   });
 });
 
+describe('HostSession: player actions (buttons)', () => {
+  const action = (playerId: string, eventId: string, phase = 'pressed') => ({
+    type: 'PLAYER_INPUT',
+    payload: { playerId, input: { kind: 'ACTION', eventId, action: 'PRIMARY', phase } },
+  });
+
+  it('forwards an authenticated action with who sent it, the event id, the action and the phase', async () => {
+    const { network, session } = await created();
+    const seen: unknown[] = [];
+    session.onAction((a) => seen.push(a));
+    network.last.deliver(action('p1', 'event-0001'));
+    network.last.deliver(action('p1', 'event-0002', 'released'));
+    await settle();
+    expect(seen).toEqual([
+      { playerId: 'p1', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' },
+      { playerId: 'p1', eventId: 'event-0002', action: 'PRIMARY', phase: 'released' },
+    ]);
+    expect(session.diagnostics().actionsReceived).toBe(2);
+  });
+
+  it('actions do not reach movement handlers, and movement does not reach action handlers', async () => {
+    const { network, session } = await created();
+    const moves = vi.fn();
+    const actions = vi.fn();
+    session.onMovement(moves);
+    session.onAction(actions);
+    network.last.deliver(action('p1', 'event-0001'));
+    network.last.deliver({
+      type: 'PLAYER_INPUT',
+      payload: { playerId: 'p1', input: { kind: 'MOVE', seq: 0, x: 1, y: 0 } },
+    });
+    await settle();
+    expect(actions).toHaveBeenCalledTimes(1);
+    expect(moves).toHaveBeenCalledTimes(1);
+  });
+
+  it('a throwing action handler cannot break the session, and unsubscribing works', async () => {
+    const { network, session } = await created();
+    const later = vi.fn();
+    session.onAction(() => {
+      throw new Error('boom');
+    });
+    const off = session.onAction(later);
+    network.last.deliver(action('p1', 'event-0001'));
+    await settle();
+    expect(session.getState().phase).toBe('ACTIVE');
+    expect(later).toHaveBeenCalledTimes(1);
+    off();
+    network.last.deliver(action('p1', 'event-0002'));
+    await settle();
+    expect(later).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('HostSession: heartbeat (same-clock round trip only)', () => {
   it('measures RTT from its own request and the server’s ack', async () => {
     const { clock, session } = await created();
@@ -302,7 +384,7 @@ describe('HostSession: losing and regaining the connection', () => {
 describe('HostSession: reload', () => {
   it('resume() reclaims a stored room instead of creating a new one', async () => {
     const store = new MemoryHostStore();
-    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0' };
+    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
     const { network, session } = setup({ store });
     expect(session.resume()).toBe(true);
     await settle();
@@ -318,7 +400,7 @@ describe('HostSession: reload', () => {
 
   it('a stale stored credential ends in a clean failure and clears storage', async () => {
     const store = new MemoryHostStore();
-    store.value = { joinCode: 'K7M4PX', hostToken: 'old' };
+    store.value = { joinCode: 'K7M4PX', hostToken: 'old', gameId: 'foomerang-fu' };
     const { network, session } = setup({ store });
     network.validToken = 'different';
     session.resume();

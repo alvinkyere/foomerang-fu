@@ -14,7 +14,7 @@ class MemoryStorage {
   }
 }
 
-const host = { joinCode: 'K7M4PX', hostToken: 'secret-token' };
+const host = { joinCode: 'K7M4PX', hostToken: 'secret-token', gameId: 'foomerang-fu' };
 
 describe('host store (what survives a console reload)', () => {
   it('round-trips the room and credential', () => {
@@ -31,7 +31,7 @@ describe('host store (what survives a console reload)', () => {
     expect(store.load()).toBeUndefined();
   });
 
-  it('stores exactly the two fields, nothing else', () => {
+  it('stores exactly the three fields, nothing else', () => {
     const storage = new MemoryStorage();
     createHostStore(storage).save({ ...host, extra: 'x' } as typeof host);
     expect(JSON.parse([...storage.items.values()][0] ?? '{}')).toEqual(host);
@@ -41,9 +41,11 @@ describe('host store (what survives a console reload)', () => {
     ['not json', 'not json'],
     ['null', 'null'],
     ['a string', '"x"'],
-    ['missing token', '{"joinCode":"K7M4PX"}'],
-    ['empty token', '{"joinCode":"K7M4PX","hostToken":""}'],
-    ['empty code', '{"joinCode":"","hostToken":"t"}'],
+    ['missing token', '{"joinCode":"K7M4PX","gameId":"foomerang-fu"}'],
+    ['empty token', '{"joinCode":"K7M4PX","hostToken":"","gameId":"foomerang-fu"}'],
+    ['empty code', '{"joinCode":"","hostToken":"t","gameId":"foomerang-fu"}'],
+    ['missing game (an older record)', '{"joinCode":"K7M4PX","hostToken":"t"}'],
+    ['empty game', '{"joinCode":"K7M4PX","hostToken":"t","gameId":""}'],
     ['wrong types', '{"joinCode":1,"hostToken":2}'],
   ])('treats corrupt storage (%s) as nothing stored', (_name, raw) => {
     const storage = new MemoryStorage();

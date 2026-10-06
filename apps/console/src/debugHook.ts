@@ -23,6 +23,12 @@ export interface DebugSnapshot {
   readonly bodies: readonly { id: string; x: number; y: number }[];
   /** Where the renderer actually has each circle (undefined until Phaser is up). */
   readonly drawn: readonly { id: string; x: number; y: number }[] | undefined;
+  /** Where the renderer has each flying boomerang (undefined until Phaser is up). */
+  readonly drawnBoomerangs: readonly { id: string; x: number; y: number }[] | undefined;
+  /** The running game's own state (Foomerang Fu: round, phase, who is alive, boomerangs). */
+  readonly game: unknown;
+  /** Counters from the console's own session (no credentials). */
+  readonly diagnostics: ReturnType<ConsoleRuntime['session']['diagnostics']>;
   readonly slots: Readonly<Record<string, number>>;
   readonly metrics: ReturnType<ConsoleRuntime['director']['runtime']['metrics']>;
 }
@@ -58,6 +64,11 @@ export function installDebugHook(
         drawn: getRenderer()
           ?.drawn()
           .map((d) => ({ ...d })),
+        drawnBoomerangs: getRenderer()
+          ?.drawnBoomerangs()
+          .map((d) => ({ ...d })),
+        game: runtime.director.runtime.debugState(),
+        diagnostics: runtime.session.diagnostics(),
         slots,
         metrics: runtime.director.runtime.metrics(),
       };

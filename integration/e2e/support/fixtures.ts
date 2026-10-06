@@ -17,13 +17,34 @@ export interface Snapshot {
   roster: { playerId: string; displayName: string; connection: string; seat: string }[];
   bodies: { id: string; x: number; y: number }[];
   drawn: { id: string; x: number; y: number }[] | undefined;
+  drawnBoomerangs: { id: string; x: number; y: number }[] | undefined;
+  /** Foomerang Fu's own state (undefined for the primitive arena). */
+  game:
+    | {
+        round: number;
+        phase: 'PLAYING' | 'ROUND_OVER';
+        winnerId: string | undefined;
+        players: { id: string; slot: number; alive: boolean; facing: { x: number; y: number } }[];
+        boomerangs: {
+          ownerId: string;
+          state: 'HELD' | 'THROWN' | 'RETURNING';
+          x: number;
+          y: number;
+          travelled: number;
+        }[];
+        duplicatesIgnored: number;
+      }
+    | undefined;
+  diagnostics: { actionsReceived: number; movementReceived: number; reconnects: number };
   slots: Record<string, number>;
   metrics: {
     staleNeutralizations: number;
     simulationSteps: number;
     catchUpFrames: number;
     discardEvents: number;
+    discardedSimulationMs: number;
     fps: number | undefined;
+    frameMs: number | undefined;
   };
 }
 
@@ -76,6 +97,13 @@ export class Host {
     const body = (await this.snapshot()).bodies.find((b) => b.id === id);
     if (body === undefined) throw new Error(`no body ${id}`);
     return { x: body.x, y: body.y };
+  }
+
+  /** The Fu state; throws if this is not a Foomerang Fu match. */
+  async fu(): Promise<NonNullable<Snapshot['game']>> {
+    const { game } = await this.snapshot();
+    if (game === undefined) throw new Error('no Foomerang Fu match is running');
+    return game;
   }
 
   async start(): Promise<void> {
@@ -194,6 +222,28 @@ export class Phone {
     this.point = undefined;
   }
 
+  private async buttonCenter(): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByRole('button', { name: 'THROW' }).boundingBox();
+    if (box === null) throw new Error('no THROW button on screen');
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  /** A quick tap on the THROW button (real touch → real pointer events). */
+  async tapThrow(): Promise<void> {
+    await this.holdThrow(60);
+  }
+
+  /** Puts a finger on THROW, keeps it there for `ms`, then lifts it. A held button must still send ONE press. */
+  async holdThrow(ms: number): Promise<void> {
+    const at = await this.buttonCenter();
+    await this.cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: at.x, y: at.y, id: 2 }],
+    });
+    await sleep(ms);
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+
   /** Movement from the phone stops reaching the server; the connection itself stays up. */
   dropUplink(dropped: boolean): void {
     this.uplinkDropped = dropped;
@@ -217,6 +267,8 @@ export class Phone {
 interface Fixtures {
   stack: StackInfo;
   host: Host;
+  /** The console opened for Foomerang Fu (the default game). */
+  fuHost: Host;
   /** The console from `vite build`: no debug hook, so tests can only look at what a person sees. */
   productionHost: Host;
   newPhone: () => Promise<Phone>;
@@ -233,16 +285,29 @@ export const test = base.extend<Fixtures>({
 
   host: async ({ browser, stack }, use) => {
     const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-    const host = new Host(await context.newPage(), stack.consoleUrl);
+    // The PLATFORM tests use the primitive arena (test infrastructure), asked for by name.
+    const host = new Host(await context.newPage(), `${stack.consoleUrl}/?game=primitive-arena`);
     await host.open();
     await use(host);
     expect(host.errors, 'no console errors or uncaught exceptions on the console').toEqual([]);
     await context.close();
   },
 
+  fuHost: async ({ browser, stack }, use) => {
+    const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const host = new Host(await context.newPage(), stack.consoleUrl);
+    await host.open();
+    await use(host);
+    expect(host.errors, 'no console errors or uncaught exceptions on the Fu console').toEqual([]);
+    await context.close();
+  },
+
   productionHost: async ({ browser, stack }, use) => {
     const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-    const host = new Host(await context.newPage(), stack.productionConsoleUrl);
+    const host = new Host(
+      await context.newPage(),
+      `${stack.productionConsoleUrl}/?game=primitive-arena`,
+    );
     await host.open();
     await use(host);
     expect(

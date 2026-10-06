@@ -196,6 +196,9 @@ importers:
       '@foomerang/controller-sdk':
         specifier: workspace:*
         version: link:../../packages/controller-sdk
+      '@foomerang/foomerang-fu':
+        specifier: workspace:*
+        version: link:../../games/foomerang-fu
       '@foomerang/game-core':
         specifier: workspace:*
         version: link:../../packages/game-core
@@ -333,6 +336,10 @@ importers:
         version: 5.0.3(@types/node@24.19.1)(jsdom@30.1.2)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15))
 
   games/foomerang-fu:
+    dependencies:
+      '@foomerang/game-core':
+        specifier: workspace:*
+        version: link:../../packages/game-core
     devDependencies:
       '@foomerang/config':
         specifier: workspace:*

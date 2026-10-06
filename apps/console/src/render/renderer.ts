@@ -16,6 +16,8 @@ export interface ArenaRenderer {
   render(view: ArenaView): void;
   /** What is currently on screen, for evidence that drawing follows the authoritative state. */
   drawn(): readonly DrawnCircle[];
+  /** The boomerangs currently on screen (games without them return none). */
+  drawnBoomerangs(): readonly DrawnCircle[];
   destroy(): void;
 }
 

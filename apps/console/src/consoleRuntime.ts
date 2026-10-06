@@ -21,7 +21,7 @@ export interface ConsoleRuntime {
 /**
  * The composition root of the console's non-visual half:
  *
- *   server ─► HostSession ─► MatchDirector ─► GameRuntime ─► game-core
+ *   server ─► HostSession ─► MatchDirector ─► (GameRuntime | FuRuntime) ─► game-core / Fu rules
  *
  * It is the only place that wires them together, and it knows nothing about React or Phaser.
  */
@@ -35,9 +35,10 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
   });
 
   session.onMovement((playerId, x, y) => director.onMovement(playerId, x, y, now()));
+  session.onAction((action) => director.onAction(action));
   session.subscribe(() => {
-    const { roomState, roster } = session.getState();
-    if (roomState !== undefined) director.onRoom(roomState, roster, now());
+    const { roomState, roster, gameId } = session.getState();
+    if (roomState !== undefined) director.onRoom(roomState, roster, now(), gameId);
   });
 
   return {

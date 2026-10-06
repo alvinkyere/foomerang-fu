@@ -33,6 +33,8 @@ type RoomState = 'LOBBY' | 'STARTING' | 'PLAYING' | 'RESULTS' | 'CLOSING' | 'CLO
 export interface HostState {
   readonly phase: HostPhase;
   readonly joinCode: string | undefined;
+  /** Which game this room runs (e.g. 'foomerang-fu'). */
+  readonly gameId: string | undefined;
   readonly roomState: RoomState | undefined;
   readonly roster: readonly RosterEntry[];
   readonly failure: HostFailure | undefined;
@@ -45,6 +47,7 @@ export interface HostDiagnostics {
   readonly rttMs: number | undefined;
   readonly reconnects: number;
   readonly movementReceived: number;
+  readonly actionsReceived: number;
   readonly ignoredInbound: number;
 }
 
@@ -59,9 +62,19 @@ export interface HostSessionOptions {
 
 export type MovementHandler = (playerId: string, x: number, y: number) => void;
 
+/** An authenticated button event. `eventId` is the sender's unique id for it. */
+export interface PlayerAction {
+  readonly playerId: string;
+  readonly eventId: string;
+  readonly action: 'PRIMARY' | 'SECONDARY';
+  readonly phase: 'pressed' | 'released';
+}
+export type ActionHandler = (action: PlayerAction) => void;
+
 const IDLE: HostState = Object.freeze({
   phase: 'IDLE',
   joinCode: undefined,
+  gameId: undefined,
   roomState: undefined,
   roster: Object.freeze([]) as readonly RosterEntry[],
   failure: undefined,
@@ -107,6 +120,7 @@ export class HostSession {
   readonly #backoffMs: readonly number[];
   readonly #listeners = new Set<() => void>();
   readonly #movementHandlers = new Set<MovementHandler>();
+  readonly #actionHandlers = new Set<ActionHandler>();
 
   #state: HostState = IDLE;
   #hostToken: string | undefined;
@@ -126,6 +140,7 @@ export class HostSession {
   #rttMs: number | undefined;
   #reconnects = 0;
   #movementReceived = 0;
+  #actionsReceived = 0;
   #ignoredInbound = 0;
 
   constructor(options: HostSessionOptions) {
@@ -155,6 +170,7 @@ export class HostSession {
       rttMs: this.#rttMs,
       reconnects: this.#reconnects,
       movementReceived: this.#movementReceived,
+      actionsReceived: this.#actionsReceived,
       ignoredInbound: this.#ignoredInbound,
     };
   }
@@ -167,12 +183,20 @@ export class HostSession {
     };
   }
 
+  /** Authenticated button events (the server has already deduplicated them). Returns an unsubscribe function. */
+  onAction(handler: ActionHandler): () => void {
+    this.#actionHandlers.add(handler);
+    return () => {
+      this.#actionHandlers.delete(handler);
+    };
+  }
+
   // --- what the UI does ---------------------------------------------------------------------
 
   createRoom(gameId: string): void {
     if (this.#disposed || this.#state.phase !== 'IDLE') return;
     this.#gameId = gameId;
-    this.#set({ ...IDLE, phase: 'CONNECTING' });
+    this.#set({ ...IDLE, phase: 'CONNECTING', gameId });
     this.#open('CREATE');
   }
 
@@ -182,7 +206,8 @@ export class HostSession {
     const stored = this.#store?.load();
     if (stored === undefined) return false;
     this.#hostToken = stored.hostToken;
-    this.#set({ ...IDLE, phase: 'RECONNECTING', joinCode: stored.joinCode });
+    this.#gameId = stored.gameId;
+    this.#set({ ...IDLE, phase: 'RECONNECTING', joinCode: stored.joinCode, gameId: stored.gameId });
     this.#reconnectStartedAt = this.#env.now();
     this.#attempt = 0;
     this.#open('RECONNECT');
@@ -211,6 +236,7 @@ export class HostSession {
     this.#disposed = true;
     this.#listeners.clear();
     this.#movementHandlers.clear();
+    this.#actionHandlers.clear();
   }
 
   // --- connection management ----------------------------------------------------------------
@@ -357,6 +383,7 @@ export class HostSession {
         this.#store?.save({
           joinCode: message.payload.joinCode,
           hostToken: message.payload.hostToken,
+          gameId: this.#gameId ?? '',
         });
         this.#enterActive(message.payload.joinCode);
         return;
@@ -377,8 +404,21 @@ export class HostSession {
 
       case 'PLAYER_INPUT': {
         const { playerId, input } = message.payload;
-        if (input.kind !== 'MOVE') {
-          this.#ignoredInbound += 1;
+        if (input.kind === 'ACTION') {
+          this.#actionsReceived += 1;
+          const action: PlayerAction = {
+            playerId,
+            eventId: input.eventId,
+            action: input.action,
+            phase: input.phase,
+          };
+          for (const handler of [...this.#actionHandlers]) {
+            try {
+              handler(action);
+            } catch {
+              // one bad consumer must not break the session
+            }
+          }
           return;
         }
         this.#movementReceived += 1;

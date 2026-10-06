@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildJoinUrl, resolveConsoleConfig } from '../src/config';
+import { buildJoinUrl, parseGameParam, resolveConsoleConfig } from '../src/config';
 import { createQrMatrix, qrPath } from '../src/qr';
 
 const page = { protocol: 'http:', hostname: '192.168.1.20' };
@@ -190,4 +190,29 @@ describe('QR matrix (qrcode-generator, rendered by us — no library markup is i
       expect(() => createQrMatrix(text)).not.toThrow();
     }
   });
+});
+
+describe('which game the console creates', () => {
+  it('is Foomerang Fu by default', () => {
+    expect(parseGameParam('')).toBe('foomerang-fu');
+    expect(parseGameParam('?something=else')).toBe('foomerang-fu');
+  });
+
+  it('the primitive arena is reachable only by asking for it by exact name (platform test infrastructure)', () => {
+    expect(parseGameParam('?game=primitive-arena')).toBe('primitive-arena');
+  });
+
+  it.each([
+    '?game=',
+    '?game=foomerang-fu',
+    '?game=Primitive-Arena',
+    '?game=../etc',
+    '?game=primitive-arena-2',
+    '?game=<script>',
+  ])(
+    'anything else (%s) is Foomerang Fu — a link cannot make the console create an arbitrary game',
+    (search) => {
+      expect(parseGameParam(search)).toBe('foomerang-fu');
+    },
+  );
 });

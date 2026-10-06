@@ -1,16 +1,17 @@
+import type { GameId } from '../config';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import type { ArenaRenderer, ArenaRendererLoader } from '../render/renderer';
 import type { FrameLoop } from '../runtime/frameLoop';
 import { ArenaScreen } from './ArenaScreen';
 import { failureCopy } from './copy';
+import { titleOf } from './games';
 import { Lobby } from './Lobby';
 import { useHostState } from './useStore';
 
-/** One primitive test game is enough for this milestone; there is deliberately no catalogue. */
-export const PRIMITIVE_GAME_ID = 'primitive-arena';
-
 export interface AppProps {
   readonly runtime: ConsoleRuntime;
+  /** The game "Create room" makes. */
+  readonly gameId: GameId;
   readonly controllerBaseUrl: string;
   /** Shown in connection errors so a wrong address is obvious. */
   readonly serverUrl: string;
@@ -29,8 +30,8 @@ export function App(props: AppProps) {
   if (state.phase === 'IDLE') {
     return (
       <main className="screen home">
-        <h1>Foomerang</h1>
-        <p className="muted">Primitive arena</p>
+        <h1>{titleOf(props.gameId).title}</h1>
+        <p className="muted">{titleOf(props.gameId).subtitle}</p>
         {state.failure !== undefined && (
           <p className="notice" role="alert">
             {failureCopy(state.failure, props.serverUrl)}
@@ -39,7 +40,7 @@ export function App(props: AppProps) {
         <button
           type="button"
           className="primary"
-          onClick={() => runtime.session.createRoom(PRIMITIVE_GAME_ID)}
+          onClick={() => runtime.session.createRoom(props.gameId)}
         >
           Create room
         </button>
@@ -50,7 +51,7 @@ export function App(props: AppProps) {
   if (state.phase === 'CONNECTING' || state.phase === 'CREATING') {
     return (
       <main className="screen home">
-        <h1>Foomerang</h1>
+        <h1>{titleOf(props.gameId).title}</h1>
         <p role="status">Creating a room…</p>
       </main>
     );
@@ -59,7 +60,7 @@ export function App(props: AppProps) {
   if (state.phase === 'ENDED') {
     return (
       <main className="screen home">
-        <h1>Foomerang</h1>
+        <h1>{titleOf(state.gameId ?? props.gameId).title}</h1>
         <p className="notice" role="alert">
           {state.failure === undefined
             ? 'This room has ended.'

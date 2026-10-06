@@ -1,10 +1,11 @@
 /**
- * What survives a console reload so the host can reclaim its room: the join code and the (rotating)
- * host credential. The credential is a secret; it lives only here, in per-tab storage.
+ * What survives a console reload so the host can reclaim its room: the join code, the (rotating)
+ * host credential, and which game the room is (the server does not repeat that in roster updates). The credential is a secret; it lives only here, in per-tab storage.
  */
 export interface StoredHost {
   readonly joinCode: string;
   readonly hostToken: string;
+  readonly gameId: string;
 }
 
 export interface HostStore {
@@ -27,9 +28,9 @@ export function createHostStore(
         if (raw === null || raw === undefined) return undefined;
         const value = JSON.parse(raw) as Record<string, unknown> | null;
         if (typeof value !== 'object' || value === null) return undefined;
-        const { joinCode, hostToken } = value;
-        if (!nonEmpty(joinCode) || !nonEmpty(hostToken)) return undefined;
-        return { joinCode, hostToken };
+        const { joinCode, hostToken, gameId } = value;
+        if (!nonEmpty(joinCode) || !nonEmpty(hostToken) || !nonEmpty(gameId)) return undefined;
+        return { joinCode, hostToken, gameId };
       } catch {
         return undefined;
       }
@@ -38,7 +39,11 @@ export function createHostStore(
       try {
         storage?.setItem(
           KEY,
-          JSON.stringify({ joinCode: host.joinCode, hostToken: host.hostToken }),
+          JSON.stringify({
+            joinCode: host.joinCode,
+            hostToken: host.hostToken,
+            gameId: host.gameId,
+          }),
         );
       } catch {
         // Not being able to persist must never break hosting.

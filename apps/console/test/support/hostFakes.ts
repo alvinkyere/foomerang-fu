@@ -204,11 +204,11 @@ export class FakeHostNetwork {
 }
 
 export class MemoryHostStore {
-  value: { joinCode: string; hostToken: string } | undefined;
+  value: { joinCode: string; hostToken: string; gameId: string } | undefined;
   load() {
     return this.value;
   }
-  save(value: { joinCode: string; hostToken: string }) {
+  save(value: { joinCode: string; hostToken: string; gameId: string }) {
     this.value = value;
   }
   clear() {

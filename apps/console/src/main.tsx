@@ -1,7 +1,7 @@
 import { createSocketIOTransportFactory } from '@foomerang/controller-sdk';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { resolveConsoleConfig } from './config';
+import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
@@ -60,6 +60,7 @@ if (!config.ok) {
     <StrictMode>
       <App
         runtime={runtime}
+        gameId={parseGameParam(window.location.search)}
         controllerBaseUrl={config.controllerBaseUrl}
         serverUrl={config.serverUrl}
         warnings={config.warnings}

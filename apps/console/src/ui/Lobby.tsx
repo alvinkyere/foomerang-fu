@@ -2,6 +2,7 @@ import type { ConsoleRuntime } from '../consoleRuntime';
 import { buildJoinUrl } from '../config';
 import { SLOT_STYLES } from '../runtime/slots';
 import { noticeCopy } from './copy';
+import { titleOf } from './games';
 import { QrCode } from './QrCode';
 import { useHostState } from './useStore';
 
@@ -28,8 +29,8 @@ export function Lobby({
   return (
     <main className="screen lobby">
       <header>
-        <h1>Foomerang</h1>
-        <p className="muted">Primitive arena</p>
+        <h1>{titleOf(state.gameId).title}</h1>
+        <p className="muted">{titleOf(state.gameId).subtitle}</p>
       </header>
 
       {warnings.map((warning) => (

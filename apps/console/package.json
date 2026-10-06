@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@foomerang/controller-sdk": "workspace:*",
+    "@foomerang/foomerang-fu": "workspace:*",
     "@foomerang/game-core": "workspace:*",
     "@foomerang/protocol": "workspace:*",
     "phaser": "4.2.1",

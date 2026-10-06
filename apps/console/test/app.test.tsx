@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createConsoleRuntime } from '../src/consoleRuntime';
+import type { GameId } from '../src/config';
 import type { ArenaRenderer } from '../src/render/renderer';
 import type { ArenaView } from '../src/render/viewModel';
 import { FrameLoop } from '../src/runtime/frameLoop';
@@ -43,12 +44,19 @@ class FakeRenderer implements ArenaRenderer {
   drawn() {
     return (this.views.at(-1)?.circles ?? []).map(({ id, x, y }) => ({ id, x, y }));
   }
+  drawnBoomerangs() {
+    return (this.views.at(-1)?.boomerangs ?? []).map(({ ownerId, x, y }) => ({
+      id: ownerId,
+      x,
+      y,
+    }));
+  }
   destroy() {
     this.destroyed = true;
   }
 }
 
-function setup(options: { warnings?: string[]; debug?: boolean } = {}) {
+function setup(options: { warnings?: string[]; debug?: boolean; gameId?: GameId } = {}) {
   const clock = createClock();
   const network = new FakeHostNetwork();
   const store = new MemoryHostStore();
@@ -68,6 +76,7 @@ function setup(options: { warnings?: string[]; debug?: boolean } = {}) {
       controllerBaseUrl={CONTROLLER}
       warnings={options.warnings ?? []}
       serverUrl="http://192.168.1.20:3001"
+      gameId={options.gameId ?? 'primitive-arena'}
       loadRenderer={loadRenderer}
       createLoop={raf.createLoop}
       now={() => hostNow}
@@ -138,6 +147,33 @@ describe('console flow: home → lobby', () => {
   it('warns when the QR could not work from a phone', async () => {
     await inLobby({ warnings: ['The controller URL points at this computer'] });
     expect(screen.getByRole('alert').textContent).toMatch(/points at this computer/);
+  });
+});
+
+describe('which game the Create button makes', () => {
+  it('creates the game the console was opened for', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await flush();
+    expect(network.last.of('ROOM_CREATE')[0]?.payload).toEqual({ gameId: 'foomerang-fu' });
+  });
+
+  it('presents Foomerang Fu as the game, and the arena as a platform test', async () => {
+    const fu = setup({ gameId: 'foomerang-fu' });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Foomerang Fu');
+    fu.view.unmount();
+    setup({ gameId: 'primitive-arena' });
+    expect(document.body.textContent).toMatch(/Primitive arena/);
+    expect(document.body.textContent).toMatch(/platform test/i);
+  });
+
+  it('the lobby names the game the room is', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    await flush();
+    network.roomUpdated(network.last, 'LOBBY', []);
+    await flush();
+    expect(screen.getAllByRole('heading', { level: 1 })[0]?.textContent).toBe('Foomerang Fu');
   });
 });
 

@@ -1,5 +1,7 @@
 import type { RosterEntry } from '@foomerang/protocol';
 import { describe, expect, it } from 'vitest';
+import { FuRuntime } from '../src/runtime/fuRuntime';
+import { GameRuntime } from '../src/runtime/gameRuntime';
 import { MatchDirector } from '../src/runtime/matchDirector';
 import { spawnPosition } from '../src/runtime/arena';
 
@@ -107,5 +109,76 @@ describe('MatchDirector: room participants → game bodies', () => {
     d.onRoom('LOBBY', [entry('a', 'A'), entry('b', 'B')], 0);
     d.onRoom('LOBBY', [entry('b', 'B'), entry('a', 'A')], 1);
     expect([d.slots.slotOf('a'), d.slots.slotOf('b')]).toEqual([0, 1]);
+  });
+});
+
+describe('MatchDirector: which game runs', () => {
+  const r = [entry('a', 'Alvin'), entry('b', 'David')];
+
+  it('starts the Foomerang Fu rules for a foomerang-fu room, with every participant a combatant', () => {
+    const d = new MatchDirector();
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    expect(d.runtime).toBeInstanceOf(FuRuntime);
+    expect((d.runtime as FuRuntime).state?.players.map((p) => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('starts the primitive arena for anything else (it is test infrastructure)', () => {
+    const d = new MatchDirector();
+    d.onRoom('PLAYING', r, 0, 'primitive-arena');
+    expect(d.runtime).toBeInstanceOf(GameRuntime);
+  });
+
+  it('routes a throw press to the Fu runtime, and ignores it outside a match', () => {
+    const d = new MatchDirector();
+    const press = {
+      playerId: 'a',
+      eventId: 'event-0001',
+      action: 'PRIMARY' as const,
+      phase: 'pressed' as const,
+    };
+    d.onAction(press); // lobby: nothing running, nothing happens
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    d.onAction(press);
+    d.frame(17);
+    const state = (d.runtime as FuRuntime).state;
+    expect(state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe('THROWN');
+  });
+
+  it('a reconnecting participant cannot throw, and their dropped press is not remembered', () => {
+    const d = new MatchDirector();
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    d.onRoom(
+      'PLAYING',
+      [entry('a', 'Alvin', { connection: 'RECONNECTING' }), entry('b', 'David')],
+      5,
+      'foomerang-fu',
+    );
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.onRoom('PLAYING', r, 10, 'foomerang-fu');
+    d.frame(30);
+    expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
+      'HELD',
+    );
+  });
+
+  it('does not restart the match when the same room reports PLAYING again', () => {
+    const d = new MatchDirector();
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.frame(17);
+    d.onRoom('PLAYING', r, 20, 'foomerang-fu');
+    expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
+      'THROWN',
+    );
+  });
+
+  it('builds the view from the running game (boomerangs and all)', () => {
+    const d = new MatchDirector();
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.frame(17);
+    const view = d.arenaView();
+    expect(view?.boomerangs.map((b) => b.ownerId)).toEqual(['a']);
+    expect(view?.events.map((e) => e.type)).toEqual(['THROWN']);
   });
 });

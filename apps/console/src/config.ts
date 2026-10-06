@@ -103,3 +103,17 @@ export function buildJoinUrl(controllerBaseUrl: string, roomCode: string): strin
   url.searchParams.set('room', roomCode);
   return url.toString();
 }
+
+export type GameId = 'foomerang-fu' | 'primitive-arena';
+
+/**
+ * Which game "Create room" makes. Foomerang Fu, always — except that the primitive arena (test and
+ * integration infrastructure, never part of any catalogue) can be asked for by its exact name in
+ * the page address, so that automated tests and a one-phone platform check can use it. Anything else
+ * in the address is ignored: a link cannot make the console create an arbitrary game.
+ */
+export function parseGameParam(search: string): GameId {
+  return new URLSearchParams(search).get('game') === 'primitive-arena'
+    ? 'primitive-arena'
+    : 'foomerang-fu';
+}
