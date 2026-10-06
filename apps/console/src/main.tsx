@@ -61,6 +61,7 @@ if (!config.ok) {
       <App
         runtime={runtime}
         controllerBaseUrl={config.controllerBaseUrl}
+        serverUrl={config.serverUrl}
         warnings={config.warnings}
         loadRenderer={loadPhaserRenderer}
         onRenderer={onRenderer}

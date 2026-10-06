@@ -12,6 +12,8 @@ export const PRIMITIVE_GAME_ID = 'primitive-arena';
 export interface AppProps {
   readonly runtime: ConsoleRuntime;
   readonly controllerBaseUrl: string;
+  /** Shown in connection errors so a wrong address is obvious. */
+  readonly serverUrl: string;
   readonly warnings: readonly string[];
   readonly loadRenderer: ArenaRendererLoader;
   readonly createLoop?: () => FrameLoop;
@@ -31,7 +33,7 @@ export function App(props: AppProps) {
         <p className="muted">Primitive arena</p>
         {state.failure !== undefined && (
           <p className="notice" role="alert">
-            {failureCopy(state.failure)}
+            {failureCopy(state.failure, props.serverUrl)}
           </p>
         )}
         <button
@@ -59,7 +61,9 @@ export function App(props: AppProps) {
       <main className="screen home">
         <h1>Foomerang</h1>
         <p className="notice" role="alert">
-          {state.failure === undefined ? 'This room has ended.' : failureCopy(state.failure)}
+          {state.failure === undefined
+            ? 'This room has ended.'
+            : failureCopy(state.failure, props.serverUrl)}
         </p>
         <button type="button" className="primary" onClick={() => runtime.session.leave()}>
           Start over

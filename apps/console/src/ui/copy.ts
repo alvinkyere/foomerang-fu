@@ -20,10 +20,12 @@ const SERVER_COPY: Record<ErrorCode, string> = {
   INVALID_STATE: 'The game cannot start right now.',
 };
 
-export function failureCopy(failure: HostFailure): string {
+export function failureCopy(failure: HostFailure, serverUrl?: string): string {
   switch (failure.kind) {
     case 'CONNECTION_FAILED':
-      return 'Cannot reach the game server. Check that it is running and that the address is right.';
+      return serverUrl === undefined
+        ? 'Cannot reach the game server. Check that it is running and that the address is right.'
+        : `Cannot reach the game server at ${serverUrl}. Check that it is running and that this address is one this computer can reach.`;
     case 'CONNECTION_LOST':
       return 'Lost the connection to the game server and could not get it back.';
     case 'SERVER':

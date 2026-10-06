@@ -67,6 +67,7 @@ function setup(options: { warnings?: string[]; debug?: boolean } = {}) {
       runtime={runtime}
       controllerBaseUrl={CONTROLLER}
       warnings={options.warnings ?? []}
+      serverUrl="http://192.168.1.20:3001"
       loadRenderer={loadRenderer}
       createLoop={raf.createLoop}
       now={() => hostNow}
@@ -129,6 +130,8 @@ describe('console flow: home → lobby', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
     await flush();
     expect(screen.getByRole('alert').textContent).toMatch(/Cannot reach the game server/);
+    // It says WHICH address it tried, so a wrong --host is obvious at a glance.
+    expect(screen.getByRole('alert').textContent).toContain('http://192.168.1.20:3001');
     expect(screen.getByRole('button', { name: 'Create room' })).toBeTruthy();
   });
 
