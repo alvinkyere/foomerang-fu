@@ -188,6 +188,16 @@ describe('a CPU is a player: the architecture', () => {
       'dashMisuse',
       'slashEager',
       'usePlatforms',
+      // Slice 7 recalibration: more decision quality, still no physics
+      'commitTicks',
+      'hesitate',
+      'hesitateTicks',
+      'routeNoise',
+      'throwHold',
+      'throwGap',
+      'aimLapse',
+      'returnAwareness',
+      'dashGap',
     ].sort();
     for (const d of DIFFICULTIES) expect(Object.keys(PROFILES[d]).sort()).toEqual(allowedKeys);
     expect(DIFFICULTIES).toEqual(['EASY', 'MEDIUM', 'HARD']);
@@ -195,11 +205,11 @@ describe('a CPU is a player: the architecture', () => {
 });
 
 describe('perception and reaction: it sees a delayed world, never the present or the future', () => {
-  it("each difficulty's reaction time is drawn from its band (Easy 400–650 ms, Medium 200–350 ms, Hard 100–180 ms) and the bands are ordered", () => {
+  it("each difficulty's reaction time is drawn from its band (Easy 550–850 ms, Medium 300–450 ms, Hard 180–280 ms) and the bands are ordered", () => {
     const bands: Record<Difficulty, [number, number]> = {
-      EASY: [400, 650],
-      MEDIUM: [200, 350],
-      HARD: [100, 180],
+      EASY: [550, 850],
+      MEDIUM: [300, 450],
+      HARD: [180, 280],
     };
     const seen: Record<Difficulty, number[]> = { EASY: [], MEDIUM: [], HARD: [] };
     for (const d of DIFFICULTIES) {
@@ -234,7 +244,7 @@ describe('perception and reaction: it sees a delayed world, never the present or
           ],
           arena: OPEN,
           seed: 12,
-          steps: T0 + 90,
+          steps: T0 + 240, // (a slow CPU commits to a heading for up to a second before it can change it)
           keepInputs: true,
           start: (s) => place(place(s, 'a', 100, 100), 'b', 1500, 800),
         });
@@ -457,14 +467,15 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
     const hard = outcomes('HARD');
     console.warn(`DEFLECT ${JSON.stringify({ easy, medium, hard })}\n`);
     expect(hard.deflected).toBeGreaterThan(easy.deflected);
-    expect(hard.deflected).toBeGreaterThanOrEqual(medium.deflected - 0.1);
     expect(hard.deflected).toBeLessThan(1);
-    // how often each tries follows its profile (Easy 12%, Medium 50%, Hard 85% of 80): never zero, never certain
-    expect(easy.tries).toBeLessThanOrEqual(20);
-    expect(medium.tries).toBeGreaterThan(25);
-    expect(medium.tries).toBeLessThan(55);
-    expect(hard.tries).toBeGreaterThan(55);
+    // how often each tries follows its profile (Easy 6%, Medium 30%, Hard 55% of the 80, but only of the shots it saw in time: a
+    // slow CPU sees a 900-per-second boomerang from 500 away too late to try). Never zero for Medium, never certain for Hard.
+    expect(easy.tries).toBeLessThanOrEqual(10);
+    expect(medium.tries).toBeGreaterThan(0);
+    expect(medium.tries).toBeLessThan(35);
+    expect(hard.tries).toBeGreaterThan(30);
     expect(hard.tries).toBeLessThan(80);
+    expect(hard.deflected).toBeGreaterThan(medium.deflected);
     expect(easy.killed).toBeGreaterThan(hard.killed);
     expect(easy.triedAndDied + medium.triedAndDied + hard.triedAndDied).toBeGreaterThan(0); // mistimed defence happens
   });
@@ -556,7 +567,7 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
       if (player(r.state, 'a').alive) survived += 1;
     }
     expect(deflects).toBe(0);
-    expect(survived).toBeGreaterThan(20);
+    expect(survived).toBeGreaterThan(8); // Hard dodges (70%) but not always
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CpuController, DEFAULT_FU_CONFIG, SYSTEMS_ARENA, seedFor, type Difficulty } from '../src';
 import { playMatch } from './support/cpuMatch';
-import { createFuMatch, type FuPlayerInput, type FuState } from '../src';
+import { DIFFICULTIES, PROFILES, createFuMatch, type FuPlayerInput, type FuState } from '../src';
 import { patchPlayer, place } from './support/fixtures';
 
 // Each test pins one measurable difference between the difficulties (found missing by mutation testing the
@@ -51,8 +51,9 @@ describe('aim error is part of every difficulty', () => {
     );
     expect(easy).toBeGreaterThan(medium);
     expect(medium).toBeGreaterThan(hard);
-    expect(hard).toBeGreaterThan(0.015);
-    expect(hard).toBeLessThan(0.08);
+    expect(medium).toBeGreaterThan(0.27); // 0.2 rad, and one throw in seven is badly aimed
+    expect(hard).toBeGreaterThan(0.03);
+    expect(hard).toBeLessThan(0.16); // 0.08 rad, and one throw in sixteen is badly aimed
   });
 });
 
@@ -63,8 +64,8 @@ describe('each CPU is its own seeded self', () => {
     const reactions = seeds.map((s) => new CpuController('x', 'HARD', s).reactionTicks);
     expect(new Set(reactions).size).toBeGreaterThan(1);
     for (const r of reactions) {
-      expect(r).toBeGreaterThanOrEqual(6);
-      expect(r).toBeLessThanOrEqual(11);
+      expect(r).toBeGreaterThanOrEqual(11); // Hard: 180–280 ms
+      expect(r).toBeLessThanOrEqual(17);
     }
   });
 });
@@ -194,5 +195,229 @@ describe('Books', () => {
     expect(hard).toBeLessThan(-0.4);
     expect(medium).toBeLessThan(easy);
     expect(easy).toBeGreaterThan(hard);
+  });
+});
+
+describe('decision commitment, hesitation and tempo', () => {
+  // b is far to the east, its boomerang away: a has nothing to do but walk toward it, so every change of heading is a decision
+  const chase = (): FuState => {
+    const s = place(place(world(OPEN), 'a', 100, 450), 'b', 1500, 450);
+    return {
+      ...s,
+      boomerangs: s.boomerangs.map((x) =>
+        x.ownerId === 'b'
+          ? {
+              ...x,
+              state: 'THROWN' as const,
+              position: { x: 1500, y: 100 },
+              direction: { x: 0, y: -1 },
+              travelled: 0,
+            }
+          : x,
+      ),
+    };
+  };
+  const runs = (difficulty: Difficulty, seed: number): number[] => {
+    const inputs = drive(difficulty, chase(), 600, seed).slice(60);
+    const lengths: number[] = [];
+    let length = 0;
+    let prev = '';
+    for (const i of inputs) {
+      const key = JSON.stringify(i.move);
+      if (key === prev) length += 1;
+      else {
+        if (length > 0) lengths.push(length);
+        length = 1;
+        prev = key;
+      }
+    }
+    return lengths.slice(1); // (the first run is cut by the window)
+  };
+
+  it('a CPU keeps a heading for its whole commitment: no run of one heading is shorter than the profile’s shortest commitment or hesitation, and slower CPUs commit longer', () => {
+    const medianRun: Record<Difficulty, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    for (const d of DIFFICULTIES) {
+      const all: number[] = [];
+      for (let seed = 1; seed <= 20; seed += 1) all.push(...runs(d, seed));
+      all.sort((a, b) => a - b);
+      medianRun[d] = all[Math.floor(all.length * 0.75)] ?? 0; // (the longer runs: the commitments themselves, not the brief hesitations and lapses between them)
+      const p = PROFILES[d];
+      // (a lapse can end a run early, so look at the 10th percentile, not the minimum)
+      expect(all[Math.floor(all.length / 10)] ?? 0, d).toBeGreaterThanOrEqual(
+        Math.min(p.commitTicks[0], p.hesitateTicks[0]) - 2,
+      );
+    }
+    console.warn(`75th-PERCENTILE HEADING RUN (ticks) ${JSON.stringify(medianRun)}\n`);
+    expect(medianRun.EASY).toBeGreaterThan(medianRun.MEDIUM);
+    expect(medianRun.MEDIUM).toBeGreaterThan(medianRun.HARD);
+    expect(medianRun.MEDIUM).toBeGreaterThanOrEqual(20); // clearly perceptible: a third of a second or more
+  });
+
+  it('a CPU does not fire as fast as it can: throws are at least `throwGap` apart, and a ready throw is sometimes held back', () => {
+    // b stands 300 away in the open with its boomerang in hand; the frozen world never changes, so a throw is always available
+    const frozen = (): FuState => place(place(world(OPEN), 'a', 800, 450), 'b', 1100, 450);
+    for (const d of DIFFICULTIES) {
+      let presses = 0;
+      let possible = 0;
+      for (let seed = 1; seed <= 20; seed += 1) {
+        const inputs = drive(d, frozen(), 600, seed).slice(60);
+        let last = -1000;
+        inputs.forEach((i, t) => {
+          if (i.throw !== true) return;
+          presses += 1;
+          expect(t - last, `${d} seed ${seed}`).toBeGreaterThanOrEqual(PROFILES[d].throwGap);
+          last = t;
+        });
+        possible += Math.floor(540 / PROFILES[d].decisionTicks);
+      }
+      expect(presses, d).toBeGreaterThan(0);
+      expect(presses, d).toBeLessThan(possible * 0.5);
+    }
+  });
+
+  it('a CPU is not dashing its way round the arena: successive dashes are at least `dashGap` apart', () => {
+    for (const d of DIFFICULTIES) {
+      for (let seed = 1; seed <= 20; seed += 1) {
+        const s = chase();
+        const inputs = drive(d, s, 900, seed);
+        let last = -10_000;
+        inputs.forEach((i, t) => {
+          if (i.dash !== true) return;
+          expect(t - last, `${d} seed ${seed}`).toBeGreaterThanOrEqual(PROFILES[d].dashGap);
+          last = t;
+        });
+      }
+    }
+  });
+
+  it('the difficulty ladder is monotone in every tempo dimension (slower, more hesitant, sloppier, quicker to forget, scarcer dashes as it gets easier)', () => {
+    const [e, m, h] = [PROFILES.EASY, PROFILES.MEDIUM, PROFILES.HARD];
+    for (const key of [
+      'decisionTicks',
+      'aimError',
+      'aimLapse',
+      'throwHold',
+      'throwGap',
+      'hesitate',
+      'routeNoise',
+      'dashGap',
+      'lapse',
+    ] as const) {
+      expect(e[key], key).toBeGreaterThan(m[key]);
+      expect(m[key], key).toBeGreaterThan(h[key]);
+    }
+    for (const key of [
+      'lead',
+      'deflectTry',
+      'dodge',
+      'returnAwareness',
+      'dashUse',
+      'throwReach',
+    ] as const) {
+      expect(e[key], key).toBeLessThan(m[key]);
+      expect(m[key], key).toBeLessThan(h[key]);
+    }
+    expect(m.commitTicks[0]).toBeGreaterThan(h.commitTicks[0]);
+    expect(e.commitTicks[0]).toBeGreaterThan(m.commitTicks[0]);
+    // the playtest's starting points: Medium 300–450 ms, Hard 180–280 ms
+    expect(m.reactionTicks).toEqual([18, 27]);
+    expect(h.reactionTicks).toEqual([11, 17]);
+  });
+});
+
+describe('the finer imperfections', () => {
+  const frozenDuel = (): FuState => place(place(world(OPEN), 'a', 800, 450), 'b', 1100, 450);
+
+  it('a ready throw is sometimes held back: of the decisions on which it could throw, Easy takes the fewest and Hard the most', () => {
+    const ratio: Record<Difficulty, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    for (const d of DIFFICULTIES) {
+      const gap =
+        Math.ceil(PROFILES[d].throwGap / PROFILES[d].decisionTicks) * PROFILES[d].decisionTicks;
+      let presses = 0;
+      for (let seed = 1; seed <= 40; seed += 1)
+        presses += drive(d, frozenDuel(), 1200, seed)
+          .slice(60)
+          .filter((i) => i.throw === true).length;
+      ratio[d] = presses / (40 * (1140 / gap)); // 1.0 would be a throw the moment the gap allows
+    }
+    console.warn(`THROW TAKEN RATIO ${JSON.stringify(ratio)}\n`);
+    expect(ratio.EASY).toBeLessThan(ratio.MEDIUM);
+    expect(ratio.MEDIUM).toBeLessThan(ratio.HARD);
+    expect(ratio.EASY).toBeLessThan(0.9);
+    expect(ratio.MEDIUM).toBeLessThan(0.95);
+  });
+
+  it('it stops to look now and then (hesitation): Easy most, Hard least, and none of them stand still all the time', () => {
+    const chase: FuState = (() => {
+      const s = place(place(world(OPEN), 'a', 100, 450), 'b', 1500, 450);
+      return {
+        ...s,
+        boomerangs: s.boomerangs.map((x) =>
+          x.ownerId === 'b'
+            ? {
+                ...x,
+                state: 'THROWN' as const,
+                position: { x: 1500, y: 100 },
+                direction: { x: 0, y: -1 },
+                travelled: 0,
+              }
+            : x,
+        ),
+      };
+    })();
+    const idle: Record<Difficulty, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    for (const d of DIFFICULTIES) {
+      let still = 0;
+      let total = 0;
+      for (let seed = 1; seed <= 20; seed += 1) {
+        for (const i of drive(d, chase, 900, seed).slice(60)) {
+          total += 1;
+          if ((i.move?.x ?? 0) === 0 && (i.move?.y ?? 0) === 0) still += 1;
+        }
+      }
+      idle[d] = still / total;
+    }
+    console.warn(`STANDING STILL ${JSON.stringify(idle)}\n`);
+    expect(idle.EASY).toBeGreaterThan(idle.MEDIUM);
+    expect(idle.MEDIUM).toBeGreaterThan(idle.HARD);
+    expect(idle.MEDIUM).toBeGreaterThan(0.04);
+    expect(idle.EASY).toBeLessThan(0.5);
+  });
+
+  it('it forgets a boomerang that is coming back more readily the easier it is: with equal reaction time, the share of RETURNING boomerangs it registers is the profile’s', () => {
+    // b's boomerang is returning along the line to b, and a stands in the way
+    const frozen = (): FuState => {
+      const s = place(place(world(OPEN), 'a', 900, 450), 'b', 1500, 450);
+      return {
+        ...s,
+        boomerangs: s.boomerangs.map((x) =>
+          x.ownerId === 'b'
+            ? {
+                ...x,
+                state: 'RETURNING' as const,
+                position: { x: 600, y: 450 },
+                direction: { x: 1, y: 0 },
+                travelled: 500,
+              }
+            : x,
+        ),
+      };
+    };
+    const noticed: Record<Difficulty, number> = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    for (const d of DIFFICULTIES) {
+      // (reaction time is held equal so that only the awareness differs; a slow CPU would see it too late to count)
+      const profile = { ...PROFILES[d], reactionTicks: [8, 8] as const, lapse: 0 };
+      for (let seed = 1; seed <= 200; seed += 1) {
+        const cpu = new CpuController('a', d, seed, profile);
+        const s = frozen();
+        for (let t = 0; t < 120; t += 1) cpu.decide(s);
+        noticed[d] += cpu.stats.threats;
+      }
+    }
+    console.warn(`RETURNING NOTICED ${JSON.stringify(noticed)}\n`);
+    expect(noticed.EASY).toBeGreaterThan(0);
+    expect(noticed.EASY).toBeLessThan(noticed.MEDIUM);
+    expect(noticed.MEDIUM).toBeLessThan(noticed.HARD);
+    expect(noticed.EASY).toBeLessThan(noticed.HARD * 0.5);
   });
 });

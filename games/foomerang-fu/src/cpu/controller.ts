@@ -132,20 +132,37 @@ export class CpuController {
   #target: string | undefined;
   #targetUntil = 0;
   #wander = 0;
+  #intent: { until: number } | undefined;
+  #lastThrow = -9999;
+  #lastDash = -9999;
   #pendingSlash: { at: number; aim: Vec2 } | undefined;
   #dodge: { until: number; dir: Vec2 } | undefined;
   readonly #decided = new Set<string>();
   readonly #grudge = new Map<string, number>();
   #field: { key: string; at: number; data: Int16Array } | undefined;
   /** Counters for evaluation only; nothing reads them to decide. */
-  readonly stats = { deflectTries: 0, dodges: 0, dashes: 0, throws: 0, slashes: 0, lapses: 0 };
+  readonly stats = {
+    deflectTries: 0,
+    dodges: 0,
+    dashes: 0,
+    throws: 0,
+    slashes: 0,
+    lapses: 0,
+    threats: 0,
+  };
 
   readonly difficulty: Difficulty;
 
-  constructor(id: string, difficulty: Difficulty, seed: number) {
+  /** `profile` replaces the difficulty's own table (evaluation only: it lets a study change one dimension at a time). */
+  constructor(
+    id: string,
+    difficulty: Difficulty,
+    seed: number,
+    profile: Profile = PROFILES[difficulty],
+  ) {
     this.#id = id;
     this.difficulty = difficulty;
-    this.#profile = PROFILES[difficulty];
+    this.#profile = profile;
     this.#rng = new Rng(seed);
     const [lo, hi] = this.#profile.reactionTicks;
     this.#delay = Math.round(this.#rng.range(lo, hi)); // one fixed reaction time per CPU
@@ -166,6 +183,7 @@ export class CpuController {
       this.#target = undefined;
       this.#field = undefined;
       this.#wander = 0;
+      this.#intent = undefined;
       this.#decided.clear();
       this.#move = { x: 0, y: 0 };
     }
@@ -198,6 +216,7 @@ export class CpuController {
       const past = this.#history[Math.max(0, lastIndex - this.#delay)] as FuState;
       const earlier = this.#history[Math.max(0, lastIndex - this.#delay - 4)] as FuState;
       this.#think(state, observe(past, earlier, this.#id), out);
+      if (out.dash === true) this.#lastDash = this.#tick;
     }
     const dir = aimOverride ?? this.#move;
     const input: { move: Vec2; throw?: true; slash?: true; dash?: true } = { move: dir, ...out };
@@ -292,7 +311,9 @@ export class CpuController {
 
     // a Book is a lasting upgrade: unless a fight is right on top of it, it goes to fetch one
     if (book !== undefined && (foe === undefined || dist(here, foe.position) > 330)) {
+      const before = this.#move;
       this.#goTo(book, state, view, here);
+      this.#settle(before, view, here);
       this.#maybeDash(out, state, view, here, book, me, dashAllowed, fatigued);
       return;
     }
@@ -310,15 +331,23 @@ export class CpuController {
         out.slash = true;
         this.stats.slashes += 1;
         this.#move = norm(sub(foe.position, here));
+        this.#intent = undefined; // a strike ends whatever it was walking toward
         return;
       }
       // ranged
-      if (throwReady && d <= (config.throwRange + 40) * p.throwReach) {
+      if (
+        throwReady &&
+        d <= (config.throwRange + 40) * p.throwReach &&
+        this.#tick - this.#lastThrow >= p.throwGap &&
+        !this.#rng.chance(p.throwHold) // it does not always take the shot it has
+      ) {
         const shot = this.#aim(state, view, here, foe, twin);
         if (shot !== undefined) {
           out.throw = true;
           this.stats.throws += 1;
+          this.#lastThrow = this.#tick;
           this.#move = { x: shot.x * 0.3, y: shot.y * 0.3 };
+          this.#intent = undefined;
           return;
         }
       }
@@ -326,32 +355,91 @@ export class CpuController {
       const hunted = p.pressure && foe.weaponsAway === foe.weapons && foe.weapons > 0;
       // when its own weapons are away and an armed foe is near, get out of sight
       if (p.cover && heldCount === 0 && !hunted && d < 420) {
+        const before = this.#move;
         this.#move = this.#coverFrom(foe.position, here, state, view);
+        this.#settle(before, view, here);
         return;
       }
       if (book !== undefined && !hunted) {
+        const before = this.#move;
         this.#goTo(book, state, view, here);
+        this.#settle(before, view, here);
         this.#maybeDash(out, state, view, here, book, me, dashAllowed, fatigued);
         return;
       }
       const stand =
         throwReady && !hunted && !bold ? config.throwRange * 0.55 : config.slashReach * 0.6;
       if (d > stand || !los) {
+        const before = this.#move;
         this.#goTo(foe.position, state, view, here);
+        this.#settle(before, view, here);
         // never a committed dash down an armed opponent's line of fire
         const loaded = los && foe.weapons > foe.weaponsAway;
         if (!loaded)
           this.#maybeDash(out, state, view, here, foe.position, me, dashAllowed, fatigued);
       } else {
         this.#move = { x: 0, y: 0 };
+        this.#intent = undefined;
       }
       return;
     }
     if (book !== undefined) {
+      const before = this.#move;
       this.#goTo(book, state, view, here);
+      this.#settle(before, view, here);
       return;
     }
     this.#move = { x: 0, y: 0 };
+  }
+
+  /**
+   * DECISION COMMITMENT. `#move` now holds the heading it has just worked out and `previous` the one it was following.
+   * While a commitment lasts it keeps `previous`; when it has lapsed it adopts the new heading (a little off the best
+   * route, by the profile's `routeNoise`) and commits to it — or, now and then, stops to look instead (a hesitation).
+   * Danger it has noticed, and a chance to strike, never reach here: they interrupt a commitment.
+   */
+  #settle(previous: Vec2, view: Observation, here: Vec2): void {
+    const p = this.#profile;
+    if (this.#intent !== undefined && this.#tick < this.#intent.until) {
+      // it keeps its heading — unless that heading now walks it into the floor it knows to be deadly
+      if (!this.#walksIntoDanger(previous, here, view)) {
+        this.#move = previous;
+        return;
+      }
+      this.#intent = undefined;
+    }
+    if (this.#rng.chance(p.hesitate)) {
+      this.#intent = {
+        until: this.#tick + Math.round(this.#rng.range(p.hesitateTicks[0], p.hesitateTicks[1])),
+      };
+      this.#move = { x: 0, y: 0 };
+      return;
+    }
+    this.#intent = {
+      until: this.#tick + Math.round(this.#rng.range(p.commitTicks[0], p.commitTicks[1])),
+    };
+    if (p.routeNoise > 0) {
+      const sloppy = rotate(this.#move, this.#rng.range(-1, 1) * p.routeNoise);
+      if (!this.#walksIntoDanger(sloppy, here, view)) this.#move = sloppy;
+    }
+  }
+
+  /** Would walking along `heading` for the next third of a second put it on a hazard it considers dangerous? */
+  #walksIntoDanger(heading: Vec2, here: Vec2, view: Observation): boolean {
+    const p = this.#profile;
+    for (const h of view.systems.hazards) {
+      const danger =
+        h.phase === 'ACTIVE' ||
+        (h.phase === 'WARNING' && p.hazardLookahead > 0) ||
+        (h.phase === 'SAFE' && h.secondsToChange < p.hazardLookahead - 1);
+      if (!danger) continue;
+      for (const k of [0.15, 0.3]) {
+        const reach = 420 * k;
+        if (inRect({ x: here.x + heading.x * reach, y: here.y + heading.y * reach }, h.rect))
+          return true;
+      }
+    }
+    return false;
   }
 
   /** The way off a hazard strip: out through the nearest edge, on to open floor. */
@@ -413,6 +501,9 @@ export class CpuController {
       const range = dist(here, now);
       if (!this.#decided.has(shot.key + ':' + Math.floor(this.#tick / 90))) {
         this.#decided.add(shot.key + ':' + Math.floor(this.#tick / 90));
+        // a boomerang coming back is easier to forget about than one thrown at you
+        if (shot.state === 'RETURNING' && !this.#rng.chance(p.returnAwareness)) continue;
+        this.stats.threats += 1;
         const tryDeflect = can.slashReady && this.#rng.chance(p.deflectTry);
         if (tryDeflect) {
           this.stats.deflectTries += 1;
@@ -433,8 +524,14 @@ export class CpuController {
           const side = rel.x * velocity.y - rel.y * velocity.x >= 0 ? 1 : -1;
           const perp = norm({ x: -velocity.y * side, y: velocity.x * side });
           this.#dodge = { until: this.#tick + 14, dir: perp };
-          if (can.dashAllowed && range / speed < 0.4 && this.#rng.chance(p.dashUse)) {
+          if (
+            can.dashAllowed &&
+            this.#tick - this.#lastDash >= p.dashGap &&
+            range / speed < 0.4 &&
+            this.#rng.chance(p.dashUse)
+          ) {
             this.#move = perp;
+            this.#lastDash = this.#tick;
             result = 'DASH';
           }
         }
@@ -511,7 +608,7 @@ export class CpuController {
     // a boomerang only flies so far: do not throw at an intercept point it cannot reach
     if (dist(here, target) > (config.throwRange + 30) * p.throwReach) return undefined;
     let dir = norm(sub(target, here));
-    dir = rotate(dir, this.#rng.gauss() * p.aimError);
+    dir = rotate(dir, this.#rng.gauss() * p.aimError * (this.#rng.chance(p.aimLapse) ? 2.5 : 1));
     if (twin && p.lead > 0.5) dir = rotate(dir, config.twinSpreadRadians); // so one of the pair is on the target
     const range = config.throwRange;
     const end = { x: here.x + dir.x * range, y: here.y + dir.y * range };
@@ -619,6 +716,7 @@ export class CpuController {
   ): void {
     const p = this.#profile;
     const { config } = state;
+    if (this.#tick - this.#lastDash < p.dashGap) return;
     if (this.#rng.chance(p.dashMisuse)) {
       // Easy: now and then it dashes for no good reason, tired or not, in a random direction
       out.dash = true;
@@ -626,7 +724,8 @@ export class CpuController {
       this.stats.dashes += 1;
       return;
     }
-    if (!dashAllowed || fatigued || !this.#rng.chance(p.dashUse * 0.4)) return;
+    if (!dashAllowed || fatigued) return;
+    if (!this.#rng.chance(p.dashUse * 0.4)) return;
     const radius = config.playerRadius;
     const toGoal = dist(here, goal);
     if (toGoal < 300) return;

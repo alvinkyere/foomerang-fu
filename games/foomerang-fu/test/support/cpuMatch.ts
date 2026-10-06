@@ -14,11 +14,12 @@ import {
   type FuInputs,
   type FuPlayerInput,
   type FuState,
+  type Profile,
 } from '../../src';
 
 /** One participant: a CPU of some difficulty, or a human driven by a test script. */
 export type Participant =
-  | { readonly id: string; readonly cpu: Difficulty }
+  | { readonly id: string; readonly cpu: Difficulty; readonly profile?: Profile }
   | { readonly id: string; readonly human: (state: FuState, tick: number) => FuPlayerInput };
 
 export interface MatchResult {
@@ -70,7 +71,8 @@ export function playMatch(o: MatchOptions): MatchResult {
   if (o.start !== undefined) state = o.start(state);
   const controllers = new Map<string, CpuController>();
   o.participants.forEach((p, i) => {
-    if ('cpu' in p) controllers.set(p.id, new CpuController(p.id, p.cpu, seedFor(seed, i)));
+    if ('cpu' in p)
+      controllers.set(p.id, new CpuController(p.id, p.cpu, seedFor(seed, i), p.profile));
   });
   const events: FuEvent[] = [];
   const inputs: FuInputs[] = [];

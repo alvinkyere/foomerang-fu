@@ -47,81 +47,129 @@ export interface Profile {
   readonly slashEager: number;
   /** Whether it will plan across moving platforms. */
   readonly usePlatforms: boolean;
+  /**
+   * DECISION COMMITMENT: once it has chosen where to go (chase, cover, a Book, a position) it keeps that heading for a
+   * number of ticks drawn from this band before reconsidering; only danger it has noticed (the floor, a boomerang) or
+   * a chance to strike interrupts it. With probability `hesitate` it instead stops and looks for `hesitateTicks`.
+   */
+  readonly commitTicks: readonly [number, number];
+  readonly hesitate: number;
+  readonly hesitateTicks: readonly [number, number];
+  /** Slack in a chosen route (radians): it takes a merely reasonable heading, not the best one. */
+  readonly routeNoise: number;
+  /** Chance per decision it does not take a throw it could (failing to capitalise), and the least time between two throws (ticks). */
+  readonly throwHold: number;
+  readonly throwGap: number;
+  /** Chance a throw is badly aimed (error × 2.5). */
+  readonly aimLapse: number;
+  /** Chance it notices a RETURNING boomerang as a threat at all. */
+  readonly returnAwareness: number;
+  /** The least time between two of its own dashes (ticks): DASH is not its way of walking. */
+  readonly dashGap: number;
 }
 
 const make = (profile: Profile): Profile => Object.freeze(profile);
 
 export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
+  // Slice 7 recalibration after Human Playtest #1 ("Medium plays like an esports bot"): slower perception, committed
+  // movement, hesitation, held-back throws, sloppier aim and defence, scarcer dashes. Physics are NOT touched.
   EASY: make({
-    reactionTicks: [24, 39], // 400–650 ms
-    decisionTicks: 12,
-    aimError: 0.24,
+    reactionTicks: [33, 51], // 550–850 ms
+    decisionTicks: 18,
+    aimError: 0.3,
+    aimLapse: 0.25,
     lead: 0,
-    horizon: 0.35,
-    deflectTry: 0.12,
-    deflectJitter: 9,
-    dodge: 0.25,
-    lapse: 0.14,
-    dashUse: 0.15,
+    horizon: 0.3,
+    deflectTry: 0.06,
+    deflectJitter: 11,
+    dodge: 0.15,
+    returnAwareness: 0.25,
+    lapse: 0.15,
+    dashUse: 0.1,
+    dashGap: 420,
     fatigueAware: false,
     hazardLookahead: 0,
-    bookInterest: 0.3,
+    bookInterest: 0.25,
     bookRange: 300,
-    retarget: 90,
+    retarget: 120,
     pressure: false,
     cover: false,
     phaseRoutes: false,
-    throwReach: 0.7,
-    dashMisuse: 0.06,
-    slashEager: 0.5,
+    throwReach: 0.6,
+    throwHold: 0.35,
+    throwGap: 60,
+    dashMisuse: 0.03,
+    slashEager: 0.4,
     usePlatforms: false,
+    commitTicks: [42, 72], // 0.7–1.2 s
+    hesitate: 0.4,
+    hesitateTicks: [20, 48],
+    routeNoise: 0.5,
   }),
   MEDIUM: make({
-    reactionTicks: [12, 21], // 200–350 ms
-    decisionTicks: 8,
-    aimError: 0.1,
-    lead: 0.6,
-    horizon: 0.6,
-    deflectTry: 0.5,
-    deflectJitter: 4,
-    dodge: 0.6,
-    lapse: 0.05,
-    dashUse: 0.5,
+    reactionTicks: [18, 27], // 300–450 ms
+    decisionTicks: 14,
+    aimError: 0.2,
+    aimLapse: 0.15,
+    lead: 0.35,
+    horizon: 0.5,
+    deflectTry: 0.3,
+    deflectJitter: 6,
+    dodge: 0.4,
+    returnAwareness: 0.55,
+    lapse: 0.08,
+    dashUse: 0.3,
+    dashGap: 200,
     fatigueAware: true,
-    hazardLookahead: 0.5,
-    bookInterest: 0.7,
-    bookRange: 700,
-    retarget: 60,
+    hazardLookahead: 0.35,
+    bookInterest: 0.6,
+    bookRange: 600,
+    retarget: 90,
     pressure: false,
     cover: true,
     phaseRoutes: true,
-    throwReach: 0.85,
+    throwReach: 0.75,
+    throwHold: 0.2,
+    throwGap: 36,
     dashMisuse: 0,
-    slashEager: 0.85,
+    slashEager: 0.7,
     usePlatforms: false,
+    commitTicks: [20, 42], // 0.33–0.7 s
+    hesitate: 0.18,
+    hesitateTicks: [12, 28],
+    routeNoise: 0.35,
   }),
   HARD: make({
-    reactionTicks: [6, 11], // 100–180 ms
-    decisionTicks: 4,
-    aimError: 0.035,
-    lead: 1,
-    horizon: 0.9,
-    deflectTry: 0.85,
-    deflectJitter: 1.5,
-    dodge: 0.9,
-    lapse: 0.015,
-    dashUse: 0.9,
+    reactionTicks: [11, 17], // 180–280 ms
+    decisionTicks: 8,
+    aimError: 0.08,
+    aimLapse: 0.06,
+    lead: 0.8,
+    horizon: 0.8,
+    deflectTry: 0.55,
+    deflectJitter: 3,
+    dodge: 0.7,
+    returnAwareness: 0.85,
+    lapse: 0.03,
+    dashUse: 0.6,
+    dashGap: 90,
     fatigueAware: true,
-    hazardLookahead: 1.5,
+    hazardLookahead: 1.2,
     bookInterest: 1,
-    bookRange: 1600,
-    retarget: 30,
+    bookRange: 1200,
+    retarget: 45,
     pressure: true,
     cover: true,
     phaseRoutes: true,
-    throwReach: 0.95,
+    throwReach: 0.9,
+    throwHold: 0.08,
+    throwGap: 20,
     dashMisuse: 0,
-    slashEager: 1,
+    slashEager: 0.9,
     usePlatforms: true,
+    commitTicks: [10, 22], // 0.17–0.37 s
+    hesitate: 0.07,
+    hesitateTicks: [8, 18],
+    routeNoise: 0.12,
   }),
 });
