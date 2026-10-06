@@ -74,7 +74,7 @@ The player-facing metric is **finger movement → visible response** (input-to-p
 ## Layering: simulation / rules / renderer
 ```
 game-core        PURE SIMULATION PRIMITIVES (no Phaser, DOM, network, framework)
-games/foomerang-fu/src/rules   GAME RULES (depends on game-core + protocol only)
+games/foomerang-fu/src/rules   GAME RULES (depends on game-core only so far; pure and deterministic)
 games/foomerang-fu/src/render  PHASER — reads state, draws it (Foomerang Fu's renderer)
 apps/console/src/render/phaser  PHASER — the console's primitive-arena renderer; the only other Phaser-allowed zone (lint-enforced, lazy-loaded)
 ```

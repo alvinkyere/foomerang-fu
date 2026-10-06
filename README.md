@@ -47,6 +47,10 @@ pnpm dev:demo --host 192.168.1.20   # phones on your Wi-Fi: the address THEY use
 
 Open the console URL it prints, press **Create room**, scan the QR code (or enter the room code at the controller), press **Start**, and move your thumb. You choose the address phones use; nothing guesses it. For https and real-device testing see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md); for the design see [docs/CONSOLE.md](docs/CONSOLE.md).
 
+### Play Foomerang Fu (combat skeleton)
+
+With the demo running, create a room on the console, join from **two** phones (landscape), press **Start**, steer with the left thumb and tap **THROW** with the right. You throw the way you last walked. A hit kills; the last player standing wins the round and the next one starts after a short pause. See [docs/FOOMERANG_FU.md](docs/FOOMERANG_FU.md) for what is (and deliberately is not) in it. The old one-joystick platform test is at `…:5174/?game=primitive-arena`.
+
 ## Try the controller on a phone
 
 ```bash

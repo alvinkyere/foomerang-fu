@@ -10,7 +10,7 @@ HOME ──Create room──► LOBBY (QR + room code + roster) ──Start─�
                           └────────── reload reclaims the room ───────┘
 ```
 
-One test game ("primitive arena": circles, labels, bounds, movement) is all there is. There is deliberately **no game catalogue**, no Foomerang Fu combat/art/maps/boomerangs/powerups.
+There is deliberately **no game catalogue**. "Create room" makes **Foomerang Fu** (the combat skeleton, FOOMERANG_FU.md). The **primitive arena** (circles that follow thumbs) is platform **test infrastructure**: it is reachable only by asking for it by exact name in the address (`/?game=primitive-arena`), is used by the platform's browser tests and one-phone checks, and is never offered in the UI.
 
 ## Who owns what
 
@@ -19,11 +19,11 @@ React (chrome only)        Lobby, QR, roster, banners, debug overlay. Never driv
    │ reads state
 HostSession ──HostTransport──► SocketIOTransport ──► server     (React and Phaser never see a socket)
    │ roster, room state, authenticated movement
-MatchDirector              room PARTICIPANTS ⇄ game BODIES (slots, who is active)
+MatchDirector              room PARTICIPANTS ⇄ game BODIES (slots, who is active); picks the runtime by gameId
    │
-GameRuntime                fixed-step accumulator + latest-input buffer ──► game-core step(state, inputs, 1/60)
-   │ WorldState
-buildArenaView (pure)      WorldState + roster ──► ArenaView   ("what to draw")
+GameRuntime | FuRuntime    fixed-step accumulator + latest-input buffer ──► game-core step / Fu rules stepFu(…, 1/60)
+   │ WorldState / FuState
+buildArenaView | buildFuView (pure)   state + roster ──► ArenaView   ("what to draw")
    │
 ArenaRenderer (interface)  ◄── PhaserArena (lazy chunk; the only file that imports Phaser)
 ```

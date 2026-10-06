@@ -68,6 +68,9 @@ Physical-device testing remains separate: Playwright cannot judge feel.
 9. Complete the required Playwright E2E (two controllers, simultaneous movement, reconnect).
 10. Real-device measurement and write-up.
 
+## Foomerang Fu
+1. **Fu Slice 1 — combat skeleton: engineering complete, awaiting a human play review** (docs/FOOMERANG_FU.md). Move + throw + returning boomerang + hit + death + round reset, primitive visuals. **Do not add dash, catch, powerups, hazards, maps or art until it has been played and reviewed.**
+
 ## Process requirements
 - **CI is required before significant application behavior accumulates.** At minimum: install → `format:check` → `lint` → `typecheck` → unit/integration tests; E2E added when Playwright arrives. **Status (honest):** the workflow exists (`.github/workflows/ci.yml`) and a local clean-checkout reproduction of the same commands passes. **GitHub Actions execution is unverified until a remote is configured and the workflow has actually run.** Do not report CI as passing before then.
 - A TDD project whose tests only run on one developer's laptop does not meet our standard.
