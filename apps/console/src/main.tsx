@@ -3,7 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
-import { parseEnabledParam, parsePowerupsParam } from './runtime/powerupMode';
+import { parseArenaParam, parseEnabledParam, parsePowerupsParam } from './runtime/powerupMode';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
 import { loadPhaserRenderer } from './render/phaser/loadPhaserRenderer';
@@ -43,6 +43,7 @@ if (!config.ok) {
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
     powerups: parsePowerupsParam(window.location.search),
+    arena: parseArenaParam(window.location.search),
     ...enabledOption,
   });
 

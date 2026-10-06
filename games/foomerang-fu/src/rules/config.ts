@@ -8,6 +8,7 @@ import {
   type SpawnRate,
 } from './powerups';
 import { spawnPosition } from './spawn';
+import { assertValidSystems, hazardsOf, inRect } from './systems';
 
 /**
  * Foomerang Fu's tuning knobs. Every number here is a GAMEPLAY HYPOTHESIS to be settled by playing,
@@ -221,6 +222,11 @@ export function assertValidConfig(config: FuConfig): void {
     config.playerRadius,
     slots.length,
   );
+  assertValidSystems(
+    arena,
+    config.playerRadius,
+    slots.map((slot) => spawnPosition(slot, arena)),
+  );
   if (
     config.playerSpeed * config.overdriveMoveFactor * FIXED_TIMESTEP_SECONDS >=
     config.playerRadius
@@ -277,6 +283,9 @@ function assertValidPowerups(config: FuConfig): void {
       throw new RangeError(`pickup spot ${index} is not a point`);
     if (spot.x < 0 || spot.y < 0 || spot.x > arena.width || spot.y > arena.height) {
       throw new RangeError(`pickup spot ${index} is not inside the arena`);
+    }
+    if (hazardsOf(arena).some((h) => inRect(spot, h.rect))) {
+      throw new RangeError(`pickup spot ${index} is on a hazard`);
     }
     if (walls.some((w) => distanceToRect(spot, w) < p.pickupRadius)) {
       throw new RangeError(`pickup spot ${index} is in or against a wall`);

@@ -2,7 +2,7 @@ import type { SessionEnvironment } from '@foomerang/controller-sdk';
 import { HostSession, type HostStore, type HostTransportFactory } from './host';
 import { MatchDirector, createRuntimeFor, warmUpFor } from './runtime/matchDirector';
 import type { PowerKind } from '@foomerang/foomerang-fu';
-import type { PowerupMode } from './runtime/powerupMode';
+import type { ArenaChoice, PowerupMode } from './runtime/powerupMode';
 
 export interface ConsoleRuntimeOptions {
   readonly transportFactory: HostTransportFactory;
@@ -12,6 +12,8 @@ export interface ConsoleRuntimeOptions {
   readonly now?: () => number;
   /** How quickly Foomerang Fu's pickups appear (the page address's `?powerups=`); default normal. */
   readonly powerups?: PowerupMode;
+  /** Which arena Foomerang Fu is played in (the page address's `?arena=`); default the baseline arena. */
+  readonly arena?: ArenaChoice;
   /** Which powers a Book may award (the page address's `?enable=`); default all five. */
   readonly enabled?: readonly PowerKind[];
 }
@@ -34,7 +36,7 @@ export interface ConsoleRuntime {
 export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRuntime {
   const now = options.now ?? ((): number => performance.now());
   const director = new MatchDirector(
-    (gameId) => createRuntimeFor(gameId, options.powerups, options.enabled),
+    (gameId) => createRuntimeFor(gameId, options.powerups, options.enabled, options.arena),
     warmUpFor,
   );
   const session = new HostSession({

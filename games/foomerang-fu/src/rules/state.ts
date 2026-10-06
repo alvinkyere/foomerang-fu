@@ -25,6 +25,8 @@ export interface FuPlayer {
   readonly fatigue: Fatigue;
   /** Slice 5: the powers this player OWNS, oldest first, at most 3. Persists across rounds; see `Inventory`. */
   readonly inventory: Inventory;
+  /** Slice 6: indices of hazards whose ACTIVE window already met this player's shield (they cannot be hit by it again until it ends). */
+  readonly hazardSpared: readonly number[];
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER';
@@ -47,6 +49,10 @@ export interface FuState {
   readonly phase: FuPhase;
   /** Simulated seconds since the match began (the sum of every dt), across rounds. */
   readonly elapsed: number;
+  /** Slice 6: simulated seconds of ACTIVE play since this round began (frozen while the round is over); every arena system is a pure function of it. */
+  readonly roundTime: number;
+  /** Slice 6: per timed gate, whether it has actually SHUT (a gate scheduled to close waits until nothing is in it). */
+  readonly gatesShut: readonly boolean[];
   readonly world: WorldState;
   /** In creation order, which is the order every rule uses to break ties. */
   readonly players: readonly FuPlayer[];
@@ -126,6 +132,7 @@ export function startRound(
       dash: DASH_READY,
       fatigue: RESTED,
       inventory: carried.get(spec.id) ?? NO_POWERS,
+      hazardSpared: Object.freeze([]),
     });
   });
 
@@ -157,6 +164,8 @@ export function startRound(
     round,
     phase: 'PLAYING',
     elapsed,
+    roundTime: 0,
+    gatesShut: Object.freeze((config.arena.gates ?? []).map(() => false)),
     world,
     players: Object.freeze(players),
     boomerangs: Object.freeze(boomerangs),

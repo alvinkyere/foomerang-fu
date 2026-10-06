@@ -1,4 +1,4 @@
-import { isFatigued, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
+import { isFatigued, systemsView, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { SlotAllocator } from '../runtime/slots';
 import {
@@ -209,6 +209,7 @@ export function buildFuView(
       x: p.position.x,
       y: p.position.y,
     })),
+    systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
     events: viewEvents,
     banner,
     round: state.round,

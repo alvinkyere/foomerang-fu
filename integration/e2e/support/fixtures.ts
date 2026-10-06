@@ -18,6 +18,10 @@ export interface Snapshot {
   bodies: { id: string; x: number; y: number }[];
   drawn: { id: string; x: number; y: number }[] | undefined;
   drawnBoomerangs: { id: string; x: number; y: number }[] | undefined;
+  /** What Phaser has drawn of the arena systems (gate/hazard status, platform places). */
+  drawnSystems: Snapshot['game'] extends infer G
+    ? (G extends { systems: infer S } ? S : never) | undefined
+    : never;
   /** The pickups Phaser has on screen. */
   drawnPickups: { id: string; x: number; y: number }[] | undefined;
   /** The walls Phaser has on screen. */
@@ -47,6 +51,26 @@ export interface Snapshot {
         /** Books lying in the arena: a Book carries no kind. */
         pickups: { id: number; x: number; y: number }[];
         awards: number;
+        /** Slice 6: seconds of active play this round, and the arena systems exactly as the rules have them. */
+        roundTime: number;
+        systems: {
+          gates: {
+            status: 'OPEN' | 'CLOSING' | 'CLOSED';
+            held: boolean;
+            secondsToChange: number;
+            rect: { x: number; y: number; width: number; height: number };
+          }[];
+          platforms: {
+            moving: boolean;
+            direction: { x: number; y: number };
+            rect: { x: number; y: number; width: number; height: number };
+          }[];
+          hazards: {
+            phase: 'SAFE' | 'WARNING' | 'ACTIVE';
+            secondsToChange: number;
+            rect: { x: number; y: number; width: number; height: number };
+          }[];
+        };
         boomerangs: {
           blast: boolean;
           ownerId: string;
@@ -317,6 +341,8 @@ interface Fixtures {
    * can be tried in seconds; `enable` narrows which powers a Book may award (`?enable=GUARD`).
    */
   powerHost: (enable?: string) => Promise<Host>;
+  /** The Foomerang Fu console in the Slice 6 arena (`?arena=systems`), with no Books. */
+  systemsHost: Host;
   /** The console from `vite build`: no debug hook, so tests can only look at what a person sees. */
   productionHost: Host;
   newPhone: () => Promise<Phone>;
@@ -348,6 +374,19 @@ export const test = base.extend<Fixtures>({
     await host.open();
     await use(host);
     expect(host.errors, 'no console errors or uncaught exceptions on the Fu console').toEqual([]);
+    await context.close();
+  },
+  systemsHost: async ({ browser, stack }, use) => {
+    const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const host = new Host(
+      await context.newPage(),
+      `${stack.consoleUrl}/?arena=systems&powerups=off`,
+    );
+    await host.open();
+    await use(host);
+    expect(host.errors, 'no console errors or uncaught exceptions on the systems console').toEqual(
+      [],
+    );
     await context.close();
   },
   powerHost: async ({ browser, stack }, use) => {

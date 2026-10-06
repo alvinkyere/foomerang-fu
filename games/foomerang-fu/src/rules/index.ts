@@ -2,6 +2,16 @@
 // time and ambient randomness (lint-enforced). The renderer reads this state; it never changes it.
 
 export { PRIMITIVE_ARENA } from './arena';
+export { SYSTEMS_ARENA, SYSTEMS_POWERUP_SPOTS } from './systemsArena';
+export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
+export type {
+  GatePhase,
+  GateSpec,
+  HazardPhase,
+  HazardSpec,
+  PlatformSpec,
+  SystemsView,
+} from './systems';
 export type { FuArena, Rect } from './arena';
 
 export { DEFAULT_FU_CONFIG } from './config';

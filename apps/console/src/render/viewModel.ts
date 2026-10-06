@@ -109,6 +109,29 @@ export interface WallView {
   readonly height: number;
 }
 
+/** The arena's interactive systems, exactly as the rules have them right now (Slice 6). */
+export interface SystemsViewModel {
+  readonly gates: readonly {
+    readonly rect: WallView;
+    readonly status: 'OPEN' | 'CLOSING' | 'CLOSED';
+    /** Scheduled to be closed but something is in the way, so it is still open. */
+    readonly held: boolean;
+    readonly secondsToChange: number;
+  }[];
+  readonly platforms: readonly {
+    readonly rect: WallView;
+    readonly direction: Vec2;
+    readonly moving: boolean;
+  }[];
+  readonly hazards: readonly {
+    readonly rect: WallView;
+    readonly phase: 'SAFE' | 'WARNING' | 'ACTIVE';
+    readonly secondsToChange: number;
+  }[];
+}
+
+export const NO_SYSTEMS: SystemsViewModel = { gates: [], platforms: [], hazards: [] };
+
 export interface ArenaView {
   readonly width: number;
   readonly height: number;
@@ -118,6 +141,8 @@ export interface ArenaView {
   readonly boomerangs: readonly BoomerangView[];
   /** Powerups lying in the arena. */
   readonly pickups: readonly PickupView[];
+  /** Gates, platforms and hazards (empty in arenas without them). */
+  readonly systems: SystemsViewModel;
   readonly events: readonly ViewEvent[];
   /** Text to show big while a round is over (winner or draw). */
   readonly banner: string | undefined;
@@ -180,6 +205,7 @@ export function buildArenaView(
     })),
     boomerangs: [],
     pickups: [],
+    systems: NO_SYSTEMS,
     events: [],
     banner: undefined,
     round: undefined,

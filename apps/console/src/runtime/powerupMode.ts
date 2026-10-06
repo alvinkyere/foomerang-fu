@@ -35,3 +35,8 @@ export function parseEnabledParam(search: string): PowerKind[] | undefined {
   const valid = KNOWN.filter((kind) => wanted.includes(kind));
   return valid.length === 0 ? undefined : valid;
 }
+
+/** Which experimental arena to play (`?arena=systems`): the Slice 6 arena with gates, platforms and hazards; anything else is the baseline arena. */
+export type ArenaChoice = 'primitive' | 'systems';
+export const parseArenaParam = (search: string): ArenaChoice =>
+  new URLSearchParams(search).get('arena') === 'systems' ? 'systems' : 'primitive';

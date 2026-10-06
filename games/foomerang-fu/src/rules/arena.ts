@@ -1,4 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
+import type { GateSpec, HazardSpec, PlatformSpec } from './systems';
 
 /**
  * Arena geometry is DATA owned by the rules. Walls are axis-aligned rectangles (x, y = top-left
@@ -19,6 +20,12 @@ export interface FuArena {
   readonly walls?: readonly Rect[];
   /** Exactly one point per slot (6). Absent: the Slice 1 ellipse. */
   readonly spawns?: readonly Vec2[];
+  /** Slice 6: timed gates (solid while CLOSED). */
+  readonly gates?: readonly GateSpec[];
+  /** Slice 6: one-dimensional moving platforms (rideable floor that carries). */
+  readonly platforms?: readonly PlatformSpec[];
+  /** Slice 6: periodically lethal floor zones. */
+  readonly hazards?: readonly HazardSpec[];
 }
 
 const NO_WALLS: readonly Rect[] = Object.freeze([]);

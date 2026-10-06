@@ -10,6 +10,7 @@ import { transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
 import {
   circleHitsWalls,
+  distanceToRect,
   lineClearTo,
   lineIsClear,
   sweepCircle,
@@ -43,6 +44,17 @@ import {
   type Inventory,
 } from './powerups';
 import { lastValidAlong, planPhaseDash } from './phase';
+import {
+  gatePhaseAt,
+  gatesOf,
+  hazardPhaseAt,
+  hazardsOf,
+  inRect,
+  platformAt,
+  platformsOf,
+  type GateSpec,
+  type HazardSpec,
+} from './systems';
 import { startRound, type FuPlayer, type FuState } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
 
@@ -371,11 +383,24 @@ interface Flight {
 
 /** Where a lethal contact came from, in the order a guard absorbs them. */
 interface Contact {
-  readonly attacker: number;
-  readonly rank: number; // 0 boomerang / blast, 1 slash
-  readonly weapon: number; // index into the weapon list, -1 for a slash
-  readonly source: 'BOOMERANG' | 'BLAST' | 'SLASH';
+  readonly attacker: number; // the arena itself (a hazard) counts as the last attacker
+  readonly rank: number; // 0 boomerang / blast, 1 slash, 2 hazard
+  readonly weapon: number; // index into the weapon list, -1 for a slash or hazard
+  readonly source: 'BOOMERANG' | 'BLAST' | 'SLASH' | 'HAZARD';
 }
+
+/** Who a kill by the arena is credited to. */
+const ARENA_ID = 'HAZARD';
+
+/** The solid geometry right now: the static walls plus every timed gate that has shut. */
+const solidNow = (
+  statics: readonly Rect[],
+  gates: readonly GateSpec[],
+  shut: readonly boolean[],
+): readonly Rect[] =>
+  gates.some((_g, k) => shut[k] === true)
+    ? [...statics, ...gates.flatMap((g, k) => (shut[k] === true ? [g.rect] : []))]
+    : statics;
 
 const EMPTY: readonly string[] = Object.freeze([]);
 /** A pickup is taken within this of the body when the config has no schedule of its own (hand-placed pickups). */
@@ -383,7 +408,12 @@ const DEFAULT_PICKUP_RADIUS = 28;
 
 function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult {
   const { config } = state;
-  const walls = wallsOf(config.arena);
+  const staticWalls = wallsOf(config.arena);
+  const gates = gatesOf(config.arena);
+  const platforms = platformsOf(config.arena);
+  const hazards = hazardsOf(config.arena);
+  const gatesShut: boolean[] = [...state.gatesShut];
+  let walls: readonly Rect[] = solidNow(staticWalls, gates, gatesShut);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
   const R = config.playerRadius;
@@ -554,8 +584,66 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     }
     if (run.inside) events.push({ type: 'PHASE_EXITED', playerId: player.id, position: to });
   };
+  // Hazard contacts seen over the sub-steps (judged at each sub-step's end, so a large dt cannot skip a strip).
+  const hazardHits: Set<number>[] = state.players.map(() => new Set<number>());
+  const onPlatformAt = (at: Vec2, t: number): boolean =>
+    platforms.some((p) => inRect(at, platformAt(p, t).rect));
   for (let i = 0; i < subSteps; i += 1) {
+    const tStart = state.roundTime + i * h;
+    const tEnd = state.roundTime + (i + 1) * h;
+    // Timed gates: scheduled CLOSED but not yet shut? Shut only once nothing living or flying overlaps the gate.
+    gates.forEach((gate, k) => {
+      if (gatePhaseAt(gate, tEnd).phase !== 'CLOSED') {
+        gatesShut[k] = false;
+      } else if (gatesShut[k] !== true) {
+        const busy =
+          world.bodies.some(
+            (b) => solid.has(b.id) && distanceToRect(b.position, gate.rect) < b.radius,
+          ) ||
+          startWeapons.some(
+            (w) =>
+              w.state !== 'HELD' && distanceToRect(w.position, gate.rect) < config.boomerangRadius,
+          );
+        if (!busy) gatesShut[k] = true;
+      }
+    });
+    walls = solidNow(staticWalls, gates, gatesShut);
+    // Riders (standing on a platform at the start of the sub-step, not mid-dash) are carried with it.
+    const rides = new Map<string, Vec2>();
+    platforms.forEach((platform) => {
+      const from = platformAt(platform, tStart).rect;
+      const to = platformAt(platform, tEnd).rect;
+      const delta = { x: to.x - from.x, y: to.y - from.y };
+      if (delta.x === 0 && delta.y === 0) return;
+      world.bodies.forEach((b) => {
+        const index = ownerOf.get(b.id);
+        if (index === undefined || !solid.has(b.id) || rides.has(b.id)) return;
+        if ((dashes[index] as DashState).phase === 'DASHING' || !inRect(b.position, from)) return;
+        rides.set(b.id, delta);
+      });
+    });
     world = stepWorld(world, frame, h);
+    if (rides.size > 0) {
+      world = moveBodies(
+        world,
+        new Map(
+          world.bodies.flatMap((b) => {
+            const d = rides.get(b.id);
+            return d === undefined
+              ? []
+              : [
+                  [
+                    b.id,
+                    {
+                      x: clamp(b.position.x + d.x, b.radius, world.arena.width - b.radius),
+                      y: clamp(b.position.y + d.y, b.radius, world.arena.height - b.radius),
+                    },
+                  ] as [string, Vec2],
+                ];
+          }),
+        ),
+      );
+    }
     const carried = carryBodies(world, state.players, dashes, boosted, solid, h, config, walls);
     world = carried.world;
     for (let j = 0; j < dashes.length; j += 1) {
@@ -590,6 +678,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       ),
     );
     world = separateBodies(world, (id) => solid.has(id), walls, phasingNow);
+    // Hazards: an ACTIVE strip is lethal to a living body whose centre is on it — unless it is riding a
+    // platform over it, or an earlier shield already met this window.
+    hazards.forEach((hazard, hi) => {
+      if (hazardPhaseAt(hazard, tEnd).phase !== 'ACTIVE') return;
+      world.bodies.forEach((b) => {
+        const index = ownerOf.get(b.id);
+        if (index === undefined || !solid.has(b.id)) return;
+        if (!inRect(b.position, hazard.rect) || onPlatformAt(b.position, tEnd)) return;
+        if ((state.players[index] as FuPlayer).hazardSpared.includes(hi)) return;
+        (hazardHits[index] as Set<number>).add(hi);
+      });
+    });
   }
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
@@ -955,6 +1055,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       }
     });
   });
+  hazardHits.forEach((hits, v) => {
+    if (hits.size === 0 || !(players[v] as FuPlayer).alive) return;
+    (contacts[v] as Contact[]).push({ attacker: count, rank: 2, weapon: -1, source: 'HAZARD' });
+  });
+  const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
   const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
   players.forEach((victim, v) => {
     if (!victim.alive) return;
@@ -975,10 +1080,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       events.push({
         type: 'GUARD_BLOCKED',
         playerId: victim.id,
-        byId: (players[first.attacker] as FuPlayer).id,
+        byId: first.source === 'HAZARD' ? ARENA_ID : (players[first.attacker] as FuPlayer).id,
         position: positionOf(victim.id),
       });
-      if (first.source !== 'SLASH') {
+      if (first.source === 'HAZARD') {
+        // the shield took the hit; the player is spared by every hazard window they are standing in
+        hazardSpared[v] = [...(hazardSpared[v] as number[]), ...(hazardHits[v] as Set<number>)];
+      } else if (first.source !== 'SLASH') {
         const w = weapons[first.weapon] as Boomerang;
         weapons[first.weapon] = Object.freeze({ ...w, absorbed: [...w.absorbed, victim.id] });
       } else if (first.source === 'SLASH') {
@@ -995,7 +1103,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       }
     }
     const [killing] = list;
-    if (killing !== undefined) killedBy.set(victim.id, (players[killing.attacker] as FuPlayer).id);
+    if (killing !== undefined) {
+      killedBy.set(
+        victim.id,
+        killing.source === 'HAZARD' ? ARENA_ID : (players[killing.attacker] as FuPlayer).id,
+      );
+    }
   });
   const survivors: FuPlayer[] = swings.map((player) => {
     const byId = killedBy.get(player.id);
@@ -1049,18 +1162,36 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     }
   }
 
+  const tFinal = state.roundTime + dt;
   const finalPlayers = survivors.map((p, index) => {
     const base =
       roundEnds && p.dash.phase !== 'READY' ? Object.freeze({ ...p, dash: DASH_READY }) : p;
     // Ownership outlives death and the end of a round: only a Book, FIFO eviction or a broken shield changes it.
     const owned = inventory[index] as Inventory;
-    return base.inventory === owned ? base : Object.freeze({ ...base, inventory: owned });
+    // a shield's pass lasts only while that hazard is ACTIVE; the dead keep none
+    const spared = p.alive
+      ? (hazardSpared[index] as number[]).filter(
+          (hi) => hazardPhaseAt(hazards[hi] as HazardSpec, tFinal).phase === 'ACTIVE',
+        )
+      : [];
+    const sparedSame =
+      spared.length === base.hazardSpared.length &&
+      spared.every((v, k) => v === base.hazardSpared[k]);
+    return base.inventory === owned && sparedSame
+      ? base
+      : Object.freeze({
+          ...base,
+          inventory: owned,
+          hazardSpared: sparedSame ? base.hazardSpared : Object.freeze(spared),
+        });
   });
 
   return {
     state: Object.freeze({
       ...state,
       elapsed: state.elapsed + dt,
+      roundTime: tFinal,
+      gatesShut: Object.freeze(gatesShut),
       world,
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.
       players: Object.freeze(finalPlayers),

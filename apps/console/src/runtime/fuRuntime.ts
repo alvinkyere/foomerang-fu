@@ -3,6 +3,9 @@ import {
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
+  SYSTEMS_ARENA,
+  SYSTEMS_POWERUP_SPOTS,
+  systemsView,
   powerupsFor,
   createFuMatch,
   isFatigued,
@@ -46,6 +49,8 @@ const MAX_PENDING_EVENTS = 256;
  * When several arrive before one step the RULES decide (SLASH, then THROW, then DASH), never the
  * order they arrived in.
  */
+export { SYSTEMS_ARENA };
+
 export class FuRuntime implements MatchRuntime {
   state: FuState | undefined;
   /** Repeated event ids the console itself discarded (the server normally catches them first). */
@@ -66,12 +71,21 @@ export class FuRuntime implements MatchRuntime {
   ) {
     this.#arena = arena;
     this.#enabled = enabled;
+    const spots =
+      arena === PRIMITIVE_ARENA
+        ? PRIMITIVE_POWERUPS.spots
+        : arena === SYSTEMS_ARENA
+          ? SYSTEMS_POWERUP_SPOTS
+          : undefined; // an arena with no places to put Books has none
     this.#powerups =
-      arena !== PRIMITIVE_ARENA || powerups === 'off'
+      spots === undefined || powerups === 'off'
         ? undefined
         : powerups === 'fast'
-          ? { ...PRIMITIVE_POWERUPS, firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 }
-          : powerupsFor(powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL');
+          ? { ...PRIMITIVE_POWERUPS, spots, firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 }
+          : powerupsFor(
+              powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL',
+              spots,
+            );
   }
 
   #stepper = new FrameStepper();
@@ -219,6 +233,8 @@ export class FuRuntime implements MatchRuntime {
         y: p.position.y,
       })),
       awards: state.awards,
+      roundTime: state.roundTime,
+      systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
       boomerangs: [...state.boomerangs, ...state.extraBoomerangs].map((b) => ({
         blast: b.blast,
         ownerId: b.ownerId,

@@ -5,6 +5,7 @@ import type { PowerKind } from '@foomerang/foomerang-fu';
 import type {
   ArenaView,
   BoomerangView,
+  SystemsViewModel,
   CircleView,
   PickupView,
   ViewEvent,
@@ -530,6 +531,39 @@ interface Effect {
   readonly update: (g: Phaser.GameObjects.Graphics, progress: number) => void;
 }
 
+/** A rectangle outlined with dashes (so "open / safe / not solid" reads differently from a solid frame). */
+function dashedRect(g: Phaser.GameObjects.Graphics, r: WallView, dash = 16): void {
+  const edge = (x1: number, y1: number, x2: number, y2: number) => {
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    const n = Math.max(1, Math.floor(length / dash));
+    for (let i = 0; i < n; i += 2) {
+      g.lineBetween(
+        x1 + ((x2 - x1) * i) / n,
+        y1 + ((y2 - y1) * i) / n,
+        x1 + ((x2 - x1) * Math.min(i + 1, n)) / n,
+        y1 + ((y2 - y1) * Math.min(i + 1, n)) / n,
+      );
+    }
+  };
+  edge(r.x, r.y, r.x + r.width, r.y);
+  edge(r.x + r.width, r.y, r.x + r.width, r.y + r.height);
+  edge(r.x + r.width, r.y + r.height, r.x, r.y + r.height);
+  edge(r.x, r.y + r.height, r.x, r.y);
+}
+
+/** Diagonal hazard stripes across a rectangle, clipped to it. */
+function stripes(g: Phaser.GameObjects.Graphics, r: WallView, gap: number, offset: number): void {
+  for (let k = -r.height; k < r.width; k += gap) {
+    const x0 = r.x + k + (offset % gap);
+    const x1 = x0 + r.height;
+    const cx = (v: number) => Math.min(Math.max(v, r.x), r.x + r.width);
+    // the line y = r.y + (x − x0), clipped to the rectangle's x range
+    const a = cx(x0);
+    const b = cx(x1);
+    if (b > a) g.lineBetween(a, r.y + (a - x0), b, r.y + (b - x0));
+  }
+}
+
 class ArenaScene extends Phaser.Scene {
   readonly #sprites = new Map<string, PlayerSprite>();
   readonly #boomerangs = new Map<string, BoomerangSprite>();
@@ -540,6 +574,9 @@ class ArenaScene extends Phaser.Scene {
   #wallViews: readonly WallView[] = [];
   #banner: Phaser.GameObjects.Text | undefined;
   #roundLabel: Phaser.GameObjects.Text | undefined;
+  /** The interactive arena systems (gates, platforms, hazards), redrawn every frame so telegraphs can blink. */
+  #systems: Phaser.GameObjects.Graphics | undefined;
+  #systemsView: SystemsViewModel | undefined;
   /** Who owns what, in the order they got it: a plain text list in the corner. */
   #inventoryList: Phaser.GameObjects.Text | undefined;
   #ready: (() => void) | undefined;
@@ -634,6 +671,7 @@ class ArenaScene extends Phaser.Scene {
     for (const event of view.events) this.#spawnEffect(event);
 
     this.#showWalls(view.walls);
+    this.#systemsView = view.systems;
 
     if (this.#banner !== undefined) {
       this.#banner.setPosition(view.width / 2, view.height / 2 - 40);
@@ -676,7 +714,117 @@ class ArenaScene extends Phaser.Scene {
     return this.#wallViews;
   }
 
+  drawnSystems(): SystemsViewModel | undefined {
+    return this.#systemsView;
+  }
+
+  /**
+   * Telegraphs, from the rules' state only. HAZARD: SAFE is a faint dashed red outline; WARNING is an amber
+   * striped, blinking fill that blinks faster as it nears ACTIVE; ACTIVE is a solid red fill with bright
+   * stripes. GATE: OPEN is a green dashed frame; CLOSING (and held-open) is a blinking amber/red frame;
+   * CLOSED is a solid dark barred slab. PLATFORM: a blue slab with chevrons in its direction of travel, and
+   * pause bars while it waits at an end.
+   */
+  #drawSystems(time: number): void {
+    const view = this.#systemsView;
+    if (
+      view === undefined ||
+      view.gates.length + view.platforms.length + view.hazards.length === 0
+    ) {
+      this.#systems?.clear();
+      return;
+    }
+    this.#systems ??= this.add.graphics().setDepth(-4);
+    const g = this.#systems;
+    g.clear();
+    for (const h of view.hazards) {
+      const r = h.rect;
+      if (h.phase === 'SAFE') {
+        g.fillStyle(0xb02a2a, 0.1);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(4, 0xb02a2a, 0.55);
+        dashedRect(g, r);
+      } else if (h.phase === 'WARNING') {
+        const rate = 140 - 90 * Math.max(0, 1 - h.secondsToChange); // blinks faster as ACTIVE nears
+        const lit = Math.floor(time / rate) % 2 === 0;
+        g.fillStyle(0xffb020, lit ? 0.5 : 0.18);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(6, 0xffd23f, lit ? 1 : 0.6);
+        g.strokeRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(8, 0x1a1200, 0.55);
+        stripes(g, r, 40, 0);
+      } else {
+        g.fillStyle(0xe5302f, 0.72);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(8, 0xffffff, 0.9);
+        stripes(g, r, 36, (time / 6) % 36);
+        g.lineStyle(8, 0xff6a5c, 1);
+        g.strokeRect(r.x, r.y, r.width, r.height);
+      }
+    }
+    for (const p of view.platforms) {
+      const r = p.rect;
+      g.fillStyle(0x2b6cb0, 0.9);
+      g.fillRect(r.x, r.y, r.width, r.height);
+      g.lineStyle(5, 0x9fd0ff, 1);
+      g.strokeRect(r.x, r.y, r.width, r.height);
+      const cx = r.x + r.width / 2;
+      const cy = r.y + r.height / 2;
+      if (p.moving) {
+        // three chevrons pointing the way it is going
+        g.lineStyle(6, 0xffffff, 0.95);
+        for (let i = -1; i <= 1; i += 1) {
+          const bx = cx + p.direction.x * i * 22;
+          const by = cy + p.direction.y * i * 22;
+          const nx = -p.direction.y;
+          const ny = p.direction.x;
+          g.lineBetween(
+            bx - p.direction.x * 8 + nx * 16,
+            by - p.direction.y * 8 + ny * 16,
+            bx + p.direction.x * 8,
+            by + p.direction.y * 8,
+          );
+          g.lineBetween(
+            bx - p.direction.x * 8 - nx * 16,
+            by - p.direction.y * 8 - ny * 16,
+            bx + p.direction.x * 8,
+            by + p.direction.y * 8,
+          );
+        }
+      } else {
+        g.fillStyle(0xffffff, 0.9); // waiting at an end: pause bars
+        g.fillRect(cx - 16, cy - 18, 10, 36);
+        g.fillRect(cx + 6, cy - 18, 10, 36);
+      }
+    }
+    for (const gate of view.gates) {
+      const r = gate.rect;
+      if (gate.status === 'OPEN') {
+        g.fillStyle(0x3ddc84, 0.12);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(5, 0x3ddc84, 0.95);
+        dashedRect(g, r, 14);
+      } else if (gate.status === 'CLOSING') {
+        const lit = Math.floor(time / (gate.held ? 90 : 160)) % 2 === 0;
+        const colour = gate.held ? 0xff5a36 : 0xffb020;
+        g.fillStyle(colour, lit ? 0.5 : 0.15);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(7, colour, lit ? 1 : 0.55);
+        g.strokeRect(r.x, r.y, r.width, r.height);
+      } else {
+        g.fillStyle(0x3b1d1d, 1);
+        g.fillRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(6, 0xff6a5c, 1);
+        g.strokeRect(r.x, r.y, r.width, r.height);
+        g.lineStyle(5, 0xff6a5c, 0.8); // bars
+        for (let y = r.y + 14; y < r.y + r.height; y += 22)
+          g.lineBetween(r.x + 4, y, r.x + r.width - 4, y);
+      }
+    }
+  }
+
   override update(time: number): void {
+    this.#drawSystems(time);
     for (const sprite of this.#boomerangs.values()) sprite.spin(time);
     for (const sprite of this.#sprites.values()) sprite.pulse(time);
     for (const sprite of this.#pickups.values()) sprite.bob(time);
@@ -1070,6 +1218,7 @@ export function createPhaserArena(
         drawnBoomerangs: () => scene.drawnBoomerangs(),
         drawnPickups: () => scene.drawnPickups(),
         drawnWalls: () => scene.drawnWalls(),
+        drawnSystems: () => scene.drawnSystems(),
         destroy: () => game?.destroy(true),
       });
     });

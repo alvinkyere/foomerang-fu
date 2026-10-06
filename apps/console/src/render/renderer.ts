@@ -1,4 +1,4 @@
-import type { ArenaView, WallView } from './viewModel';
+import type { ArenaView, SystemsViewModel, WallView } from './viewModel';
 
 /** Where a drawn circle actually is, in world units — read back from the renderer, not assumed. */
 export interface DrawnCircle {
@@ -20,6 +20,8 @@ export interface ArenaRenderer {
   drawnBoomerangs(): readonly DrawnCircle[];
   /** The powerup pickups currently on screen (games without them return none). */
   drawnPickups?(): readonly DrawnCircle[];
+  /** What the arena systems look like right now on screen (gate/hazard status, platform places). */
+  drawnSystems?(): SystemsViewModel | undefined;
   /** The walls currently on screen (games without geometry return none). */
   drawnWalls(): readonly WallView[];
   destroy(): void;
