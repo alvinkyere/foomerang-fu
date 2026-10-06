@@ -164,7 +164,7 @@ describe('three powers at once', () => {
   it('TWIN + BLAST + GUARD: two boomerangs, armed, with a shield against the retaliation', () => {
     let s = make(['a', 'b'], { arena: { width: 1600, height: 900 } });
     s = own(
-      place(place(s, 'a', 100, 450), 'b', 700, 450),
+      place(place(s, 'a', 100, 450), 'b', 260, 450),
       'a',
       'TWIN_THROW',
       'BLAST_BOOMERANG',

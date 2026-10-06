@@ -237,6 +237,7 @@ export class FuRuntime implements MatchRuntime {
       systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
       boomerangs: [...state.boomerangs, ...state.extraBoomerangs].map((b) => ({
         blast: b.blast,
+        direction: { x: b.direction.x, y: b.direction.y },
         ownerId: b.ownerId,
         state: b.state,
         x: b.position.x,

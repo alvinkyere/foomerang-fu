@@ -209,7 +209,7 @@ test('Powerups: PHASE_DASH goes through walls again and again — entry → insi
   expect((await host.body(aliceId)).x).toBeLessThanOrEqual(200 - 36 + 0.5);
 });
 
-test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — two boomerangs, both armed, drawn separately; the power survives the throws', async ({
+test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launches TWO armed boomerangs in a symmetric angled spread, drawn separately; the power survives the throw', async ({
   powerHost,
   newPhone,
 }) => {
@@ -227,14 +227,26 @@ test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — two boomerangs, both a
 
   const mine = async () => (await host.fu()).boomerangs.filter((b) => b.ownerId === aliceId);
   expect(await mine()).toHaveLength(2);
-  await face(alice, 0, 1);
-  await alice.tapThrow();
-  await expect.poll(async () => (await mine())[0]?.state, { timeout: 3_000 }).not.toBe('HELD');
-  expect((await mine())[0]?.blast).toBe(true);
-  expect((await mine())[1]?.state).toBe('HELD'); // one press, one boomerang
-  await alice.tapThrow();
-  await expect.poll(async () => (await mine())[1]?.state, { timeout: 3_000 }).not.toBe('HELD');
-  expect((await mine())[1]?.blast).toBe(true); // both are armed while Blast is owned
+  expect((await mine()).every((b) => b.state === 'HELD')).toBe(true);
+  await face(alice, 0, 1); // facing straight down the open lane
+  const facing = { x: 0, y: 1 };
+  const actions = (await host.snapshot()).diagnostics.actionsReceived;
+  await alice.tapThrow(); // ONE real THROW press…
+  // …launches BOTH boomerangs, on the same simulation step: there is no snapshot with just one away
+  await expect
+    .poll(async () => (await mine()).some((b) => b.state !== 'HELD'), { timeout: 3_000 })
+    .toBe(true);
+  const pair = await mine();
+  expect(pair.map((b) => b.state !== 'HELD')).toEqual([true, true]);
+  expect((await host.snapshot()).diagnostics.actionsReceived - actions).toBe(2); // one press, one release
+  expect(pair.map((b) => b.blast)).toEqual([true, true]); // both armed while Blast is owned
+  // symmetric ±13° about her facing (left = own boomerang, right = twin)
+  const [left, right] = pair as [(typeof pair)[number], (typeof pair)[number]];
+  const angle = (v: { x: number; y: number }) =>
+    Math.atan2(v.x * facing.y - v.y * facing.x, v.x * facing.x + v.y * facing.y);
+  expect(Math.abs(angle(left.direction))).toBeCloseTo((13 * Math.PI) / 180, 2);
+  expect(Math.abs(angle(right.direction))).toBeCloseTo((13 * Math.PI) / 180, 2);
+  expect(Math.sign(angle(left.direction))).toBe(-Math.sign(angle(right.direction)));
   await expect
     .poll(async () => (await host.snapshot()).drawnBoomerangs?.map((b) => b.id).sort(), {
       timeout: 3_000,

@@ -73,6 +73,7 @@ export interface Snapshot {
         };
         boomerangs: {
           blast: boolean;
+          direction: { x: number; y: number };
           ownerId: string;
           state: 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED';
           x: number;

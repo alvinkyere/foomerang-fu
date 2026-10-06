@@ -435,6 +435,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // whose owner is not in the match is an impossible state and is dropped, never obeyed.
   const startExtras = state.extraBoomerangs.filter((b) => ownerOf.has(b.ownerId));
   const startWeapons = [...state.boomerangs, ...startExtras];
+  const twinOwner = state.players.map((p) => p.inventory.includes('TWIN_THROW'));
+  const heldAll = state.players.map((p) =>
+    startWeapons.filter((w) => w.ownerId === p.id).every((w) => w.state === 'HELD'),
+  );
   const heldAny = state.players.map((p) =>
     startWeapons.some((w) => w.ownerId === p.id && w.state === 'HELD'),
   );
@@ -468,7 +472,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const entry = entries[index];
     const committed = dashingAtStart[index] === true; // mid-dash: no slash, throw or new dash
     const hasFacing = player.facing.x !== 0 || player.facing.y !== 0;
-    const held = heldAny[index] === true; // at least one boomerang in hand
+    const held = heldAny[index] === true; // at least one boomerang in hand (enough for a SLASH)
+    const throwReady = twinOwner[index] === true ? heldAll[index] === true : held; // a Twin throw needs both home
     const slashes =
       player.alive &&
       !committed &&
@@ -482,7 +487,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       entry?.throw === true &&
       !slashes && // a same-step SLASH always wins
       (slashAfter[index] as SlashState).phase !== 'ACTIVE' && // the weapon is mid-swing
-      held &&
+      throwReady &&
       hasFacing;
     const dashes =
       player.alive &&
@@ -793,30 +798,47 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       : Object.freeze({ ...player, slash, dash, fatigue: rested });
   });
 
-  // One THROW press throws ONE boomerang: the player's own first, then the twin.
+  // One THROW press throws everything the player has in hand: ONE boomerang straight ahead, or — for an
+  // owner of TWIN_THROW (who needs both at home) — TWO on the same step, the player's own to the left and
+  // the twin to the right, at ∓`twinSpreadRadians` from the facing. Each is independent from then on.
   const thrownNow = new Set<number>();
+  const rotate = (v: Vec2, angle: number): Vec2 => ({
+    x: v.x * Math.cos(angle) - v.y * Math.sin(angle),
+    y: v.x * Math.sin(angle) + v.y * Math.cos(angle),
+  });
   state.players.forEach((_p, index) => {
     if (!(plans[index] as { throws: boolean }).throws) return;
-    const k = weapons.findIndex((w, i) => ownerIdx[i] === index && w.state === 'HELD');
-    if (k < 0) return;
-    const b = weapons[k] as Boomerang;
+    const mine = weapons.flatMap((w, k) =>
+      ownerIdx[k] === index && w.state === 'HELD' ? [k] : [],
+    );
+    if (mine.length === 0) return;
     const player = players[index] as FuPlayer;
-    const facing = player.facing;
     const gap = config.playerRadius + config.boomerangRadius + 1; // starts just outside its owner
     const owner = positionOf(player.id);
-    // Pressed against a wall, the boomerang starts as close to the owner as the wall allows; it then
-    // meets the wall on its first step and turns straight back.
-    const position = sweepCircle(
-      owner,
-      clampToArena({ x: owner.x + facing.x * gap, y: owner.y + facing.y * gap }, config),
-      config.boomerangRadius,
-      walls,
-    ).position;
-    thrownNow.add(k);
-    // An owner of BLAST_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
-    const arm = has(index, 'BLAST_BOOMERANG');
-    events.push({ type: 'THROWN', playerId: player.id, position, direction: facing });
-    weapons[k] = transition(b, 'THROWN', { position, direction: facing, travelled: 0, blast: arm });
+    const twin = has(index, 'TWIN_THROW') && mine.length > 1;
+    mine.forEach((k, n) => {
+      const direction = twin
+        ? rotate(player.facing, (n === 0 ? -1 : 1) * config.twinSpreadRadians)
+        : player.facing;
+      // Pressed against a wall, the boomerang starts as close to the owner as the wall allows; it then
+      // meets the wall on its first step and turns straight back.
+      const position = sweepCircle(
+        owner,
+        clampToArena({ x: owner.x + direction.x * gap, y: owner.y + direction.y * gap }, config),
+        config.boomerangRadius,
+        walls,
+      ).position;
+      thrownNow.add(k);
+      // An owner of BLAST_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
+      const arm = has(index, 'BLAST_BOOMERANG');
+      events.push({ type: 'THROWN', playerId: player.id, position, direction });
+      weapons[k] = transition(weapons[k] as Boomerang, 'THROWN', {
+        position,
+        direction,
+        travelled: 0,
+        blast: arm,
+      });
+    });
   });
 
   // 4. Flight ---------------------------------------------------------------------------------

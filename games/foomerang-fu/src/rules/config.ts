@@ -67,6 +67,8 @@ export interface FuConfig {
   readonly overdriveDashFactor: number;
   /** Slice 5: BLAST_BOOMERANG's blast radius, centre to body centre, world units. */
   readonly blastRadius: number;
+  /** Slice 5: TWIN_THROW's spread: one THROW launches two boomerangs at ±this angle (radians) from the facing. */
+  readonly twinSpreadRadians: number;
   /** Slice 5: which powers a Book may award (default all five). A disabled power is never awarded. */
   readonly enabledPowers?: readonly PowerKind[];
   /** Slice 5: the seed the Book's choice of power is derived from (with how many Books have been taken). */
@@ -107,6 +109,7 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   overdriveDashFactor: 1.3,
   blastRadius: 170,
   seed: 1,
+  twinSpreadRadians: (13 * Math.PI) / 180,
   roundEndSeconds: 2.5,
 });
 
@@ -186,6 +189,9 @@ export function assertValidConfig(config: FuConfig): void {
   }
   if (config.overdriveMoveFactor < 1 || config.overdriveDashFactor < 1) {
     throw new RangeError('overdrive cannot make a player slower');
+  }
+  if (!(config.twinSpreadRadians > 0 && config.twinSpreadRadians < Math.PI / 4)) {
+    throw new RangeError('twinSpreadRadians must be between 0 and 45 degrees');
   }
   if (!Number.isInteger(config.seed)) throw new RangeError('seed must be an integer');
   if (
