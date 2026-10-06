@@ -54,3 +54,14 @@ describe('domain result → protocol error code', () => {
     }
   });
 });
+
+describe('starting a match', () => {
+  it('maps transition failures to protocol codes', async () => {
+    const { TRANSITION_ERRORS } = await import('../src/translation');
+    expect(TRANSITION_ERRORS).toEqual({
+      ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+      INVALID_TRANSITION: 'INVALID_STATE',
+      NOT_ENOUGH_PLAYERS: 'NOT_ENOUGH_PLAYERS',
+    });
+  });
+});

@@ -21,6 +21,8 @@ export const ERROR_CODES = [
   'UNKNOWN_GAME',
   'HANDSHAKE_REQUIRED',
   'INTERNAL_ERROR',
+  'NOT_ENOUGH_PLAYERS',
+  'INVALID_STATE',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

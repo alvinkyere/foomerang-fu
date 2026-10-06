@@ -21,6 +21,9 @@ describe('protocol error codes', () => {
       'UNKNOWN_GAME',
       'HANDSHAKE_REQUIRED',
       'INTERNAL_ERROR',
+      // Added in Slice 8 for host-driven match start:
+      'NOT_ENOUGH_PLAYERS',
+      'INVALID_STATE',
     ]);
   });
 

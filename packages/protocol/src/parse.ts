@@ -6,6 +6,7 @@ import { heartbeatAckMessageSchema, heartbeatMessageSchema } from './heartbeat';
 import { controllerManifestMessageSchema } from './manifest';
 import {
   hostReconnectMessageSchema,
+  matchStartMessageSchema,
   hostReconnectedMessageSchema,
   playerInputMessageSchema,
   roomCreateMessageSchema,
@@ -36,6 +37,7 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   heartbeatMessageSchema,
   roomCreateMessageSchema,
   hostReconnectMessageSchema,
+  matchStartMessageSchema,
   roomJoinMessageSchema,
   playerReconnectMessageSchema,
 ]);

@@ -2,6 +2,7 @@ import type { ErrorCode } from '@foomerang/protocol';
 import type {
   CreateRoomFailure,
   RegistryJoinFailure,
+  RegistryTransitionFailure,
   RegistryReconnectHostFailure,
   RegistryReconnectPlayerFailure,
 } from '@foomerang/room-engine';
@@ -41,4 +42,10 @@ export const RECONNECT_HOST_ERRORS: Readonly<Record<RegistryReconnectHostFailure
 export const CREATE_ROOM_ERRORS: Readonly<Record<CreateRoomFailure, ErrorCode>> = {
   INVALID_CONFIG: 'INTERNAL_ERROR',
   JOIN_CODE_EXHAUSTED: 'INTERNAL_ERROR',
+};
+
+export const TRANSITION_ERRORS: Readonly<Record<RegistryTransitionFailure, ErrorCode>> = {
+  ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+  INVALID_TRANSITION: 'INVALID_STATE',
+  NOT_ENOUGH_PLAYERS: 'NOT_ENOUGH_PLAYERS',
 };

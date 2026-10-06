@@ -18,6 +18,7 @@ import {
   JOIN_ERRORS,
   RECONNECT_HOST_ERRORS,
   RECONNECT_PLAYER_ERRORS,
+  TRANSITION_ERRORS,
 } from './translation';
 
 /**
@@ -38,6 +39,12 @@ export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.fr
   // The primitive prototype controller: one joystick. Foomerang Fu will advertise more later.
   'foomerang-fu': {
     minPlayers: 2,
+    maxPlayers: 6,
+    controller: { orientation: 'landscape', controls: [{ id: 'MOVE', type: 'joystick' }] },
+  },
+  // The input-proof arena: circles that follow thumbs. One player is enough to try it on a phone.
+  'primitive-arena': {
+    minPlayers: 1,
     maxPlayers: 6,
     controller: { orientation: 'landscape', controls: [{ id: 'MOVE', type: 'joystick' }] },
   },
@@ -147,6 +154,20 @@ export class Application {
       payload: { joinCode: room.joinCode, hostToken: room.host.hostToken.reveal() },
     });
     this.#notifyHost(found.roomId);
+  }
+
+  /**
+   * The host begins the match: LOBBY → STARTING → PLAYING. The primitive arena has no countdown,
+   * so both steps happen together. Failure leaves the room exactly as it was.
+   */
+  startMatch(session: Session): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'HOST') return;
+    const starting = this.#deps.registry.beginStart(identity.roomId);
+    if (!starting.ok) return this.#error(session, TRANSITION_ERRORS[starting.reason]);
+    const playing = this.#deps.registry.startPlaying(identity.roomId);
+    if (!playing.ok) return this.#error(session, 'INTERNAL_ERROR');
+    this.#notifyHost(identity.roomId);
   }
 
   routeMove(session: Session, message: InputMoveMessage): void {

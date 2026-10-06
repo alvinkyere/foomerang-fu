@@ -27,6 +27,13 @@ export const roomCreateMessageSchema = plainEnvelope(
 );
 export type RoomCreateMessage = z.infer<typeof roomCreateMessageSchema>;
 
+/**
+ * Client → server (console): begin the match. Host-only; the server drives the room state machine
+ * (LOBBY → STARTING → PLAYING) and answers NOT_ENOUGH_PLAYERS / INVALID_STATE if it cannot.
+ */
+export const matchStartMessageSchema = plainEnvelope('MATCH_START', z.strictObject({}));
+export type MatchStartMessage = z.infer<typeof matchStartMessageSchema>;
+
 /** Client → server (console): reclaim a room after a refresh. The credential rotates on success. */
 export const hostReconnectMessageSchema = plainEnvelope(
   'HOST_RECONNECT',

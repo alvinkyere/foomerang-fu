@@ -22,6 +22,8 @@ export const ERROR_COPY: Readonly<Record<ErrorCode, string>> = {
   INTERNAL_ERROR: SOMETHING_WRONG,
   INVALID_MESSAGE: SOMETHING_WRONG,
   UNAUTHORIZED: SOMETHING_WRONG,
+  NOT_ENOUGH_PLAYERS: SOMETHING_WRONG, // hosts only; a controller never starts a match
+  INVALID_STATE: SOMETHING_WRONG,
 };
 
 export function failureMessage(failure: SessionFailure): string {

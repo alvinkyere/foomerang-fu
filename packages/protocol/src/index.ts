@@ -46,6 +46,7 @@ export {
   SEAT_STATUSES,
   hostReconnectMessageSchema,
   hostReconnectedMessageSchema,
+  matchStartMessageSchema,
   playerInputMessageSchema,
   roomCreateMessageSchema,
   roomCreatedMessageSchema,
@@ -54,6 +55,7 @@ export {
 export type {
   HostReconnectMessage,
   HostReconnectedMessage,
+  MatchStartMessage,
   PlayerInputMessage,
   RoomCreateMessage,
   RoomCreatedMessage,

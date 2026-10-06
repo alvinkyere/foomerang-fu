@@ -165,6 +165,11 @@ export class Gateway {
         application.reconnectHost(session, message.payload.joinCode, message.payload.hostToken);
         return;
 
+      case 'MATCH_START':
+        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
+        application.startMatch(session);
+        return;
+
       case 'ROOM_JOIN':
         if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
         application.joinRoom(session, message.payload.joinCode, message.payload.displayName);
