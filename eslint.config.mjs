@@ -125,7 +125,9 @@ export default tseslint.config(
   // Plain Node scripts (build checks, dev tools).
   {
     files: ['**/*.mjs'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly' },
+    },
   },
 
   // The only places allowed to touch Socket.IO.

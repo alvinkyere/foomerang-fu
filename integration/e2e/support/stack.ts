@@ -1,5 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { execFileSync, execSync, spawn, type ChildProcess } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createServer, connect } from 'node:net';
 import { createRequire } from 'node:module';
@@ -17,6 +17,53 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const HOST = '127.0.0.1';
+
+/**
+ * A throwaway self-signed certificate for 127.0.0.1, and its SPKI hash. The browser is told to
+ * trust exactly that public key (Chrome's --ignore-certificate-errors-spki-list), so verification
+ * stays ON for every other certificate: this is not "disable security".
+ */
+function makeThrowawayCertificate(dir: string): { cert: string; key: string; spki: string } {
+  writeFileSync(
+    join(dir, 'openssl.cnf'),
+    [
+      '[req]',
+      'distinguished_name = dn',
+      'x509_extensions = ext',
+      'prompt = no',
+      '[dn]',
+      'CN = localhost',
+      '[ext]',
+      'subjectAltName = IP:127.0.0.1,DNS:localhost',
+    ].join('\n'),
+  );
+  const cert = join(dir, 'cert.pem');
+  const key = join(dir, 'key.pem');
+  execFileSync(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'rsa:2048',
+      '-nodes',
+      '-days',
+      '1',
+      '-config',
+      join(dir, 'openssl.cnf'),
+      '-keyout',
+      key,
+      '-out',
+      cert,
+    ],
+    { stdio: 'ignore' },
+  );
+  const spki = execSync(
+    `openssl x509 -in "${cert}" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`,
+    { encoding: 'utf8' },
+  ).trim();
+  return { cert, key, spki };
+}
 
 export interface StackInfo {
   readonly serverUrl: string;
@@ -138,11 +185,14 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
   ) {
     throw new Error('could not allocate ports');
   }
+  // FOOMERANG_E2E_TLS=1 runs the whole suite over https / wss with a throwaway certificate.
+  const secure = process.env['FOOMERANG_E2E_TLS'] === '1';
+  const scheme = secure ? 'https' : 'http';
   const info: StackInfo = {
-    serverUrl: `http://${HOST}:${serverPort}`,
-    consoleUrl: `http://${HOST}:${consolePort}`,
-    controllerUrl: `http://${HOST}:${controllerPort}`,
-    productionConsoleUrl: `http://${HOST}:${previewPort}`,
+    serverUrl: `${scheme}://${HOST}:${serverPort}`,
+    consoleUrl: `${scheme}://${HOST}:${consolePort}`,
+    controllerUrl: `${scheme}://${HOST}:${controllerPort}`,
+    productionConsoleUrl: `${scheme}://${HOST}:${previewPort}`,
   };
 
   // The executable a package declares in its own `bin`, resolved from the app that depends on it.
@@ -168,9 +218,17 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
 
   const services: Managed[] = [];
   const productionDist = mkdtempSync(join(tmpdir(), 'foomerang-e2e-console-'));
+  const tlsDir = mkdtempSync(join(tmpdir(), 'foomerang-e2e-tls-'));
+  let tlsEnv: Record<string, string> = {};
+  if (secure) {
+    const { cert, key, spki } = makeThrowawayCertificate(tlsDir);
+    tlsEnv = { FOOMERANG_TLS_CERT: cert, FOOMERANG_TLS_KEY: key };
+    process.env['FOOMERANG_E2E_SPKI'] = spki; // read by playwright.config.ts when the workers start
+  }
   const stop = async (): Promise<void> => {
     await Promise.all(services.map(terminate));
     rmSync(productionDist, { recursive: true, force: true });
+    rmSync(tlsDir, { recursive: true, force: true });
     const leaked: string[] = [];
     for (const service of services) {
       if (service.child.exitCode === null && service.child.signalCode === null)
@@ -187,7 +245,7 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
       binOf(serverDir, 'tsx', 'tsx'),
       ['src/main.ts'],
       serverDir,
-      { PORT: String(serverPort), HOST },
+      { PORT: String(serverPort), HOST, ...tlsEnv },
     );
     const controller = launch(
       'controller',
@@ -195,7 +253,7 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
       binOf(controllerDir, 'vite', 'vite'),
       viteArgs(controllerPort),
       controllerDir,
-      { VITE_SERVER_URL: info.serverUrl },
+      { VITE_SERVER_URL: info.serverUrl, ...tlsEnv },
     );
     const consoleApp = launch(
       'console',
@@ -203,7 +261,11 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
       binOf(consoleDir, 'vite', 'vite'),
       viteArgs(consolePort),
       consoleDir,
-      { FOOMERANG_SERVER_URL: info.serverUrl, FOOMERANG_CONTROLLER_URL: info.controllerUrl },
+      {
+        FOOMERANG_SERVER_URL: info.serverUrl,
+        FOOMERANG_CONTROLLER_URL: info.controllerUrl,
+        ...tlsEnv,
+      },
     );
     services.push(server, controller, consoleApp);
 
@@ -248,7 +310,7 @@ export async function startStack(): Promise<{ info: StackInfo; stop(): Promise<v
           productionDist,
         ],
         consoleDir,
-        consoleEnv,
+        { ...consoleEnv, ...tlsEnv },
       ),
     );
     await Promise.all(services.map((service) => waitUntilListening(service)));

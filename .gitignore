@@ -11,3 +11,8 @@ test-results/
 
 # Secrets: never commit. Document required variables in .env.example instead.
 !.env.example
+
+# Local TLS material for phone testing (mkcert etc.). Keys are secrets: never commit.
+certs/
+*.pem
+*.key

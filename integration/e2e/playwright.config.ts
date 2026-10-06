@@ -15,9 +15,33 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [['list']],
   outputDir: join(tmpdir(), 'foomerang-e2e-results'),
-  use: {
-    // The system Chrome: no browser download. (Not Safari — see docs/DEVICE_TESTING.md.)
-    channel: 'chrome',
-    headless: true,
-  },
+  projects: [
+    {
+      name: 'chrome',
+      testIgnore: ['**/webkit.e2e.ts'],
+      use: {
+        // The system Chrome: no browser download. (Not Safari — see docs/DEVICE_TESTING.md.)
+        channel: 'chrome',
+        headless: true,
+        launchOptions: {
+          // Only in the https variant (FOOMERANG_E2E_TLS=1): trust exactly the throwaway
+          // certificate's public key. Verification stays on for everything else.
+          args:
+            process.env['FOOMERANG_E2E_SPKI'] === undefined
+              ? []
+              : [`--ignore-certificate-errors-spki-list=${process.env['FOOMERANG_E2E_SPKI']}`],
+        },
+      },
+    },
+    // Opt-in (pnpm e2e:webkit): the WebKit engine, which needs `playwright install webkit`.
+    ...(process.env['FOOMERANG_E2E_WEBKIT'] === '1'
+      ? [
+          {
+            name: 'webkit',
+            testMatch: ['**/webkit.e2e.ts'],
+            use: { browserName: 'webkit' as const, headless: true },
+          },
+        ]
+      : []),
+  ],
 });

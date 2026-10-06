@@ -14,7 +14,10 @@
     "format:check": "prettier --check .",
     "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm e2e",
     "build": "turbo run build",
-    "e2e": "pnpm --filter @foomerang/integration e2e"
+    "e2e": "pnpm --filter @foomerang/integration e2e",
+    "dev:demo": "node scripts/dev.mjs",
+    "e2e:tls": "pnpm --filter @foomerang/integration e2e:tls",
+    "e2e:webkit": "pnpm --filter @foomerang/integration e2e:webkit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
