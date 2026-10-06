@@ -2,7 +2,10 @@ import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
 import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
+import { spawnPosition } from './spawn';
 import { normalized } from './vec';
+
+export { spawnPosition };
 
 export interface FuPlayer {
   readonly id: string;
@@ -45,15 +48,6 @@ export interface FuState {
 }
 
 export const MAX_PLAYERS = 6;
-
-/** Slots sit on an ellipse around the middle, evenly spread and far apart; slot 0 at the top, then clockwise. */
-export function spawnPosition(slot: number, arena: FuConfig['arena']): Vec2 {
-  const angle = (slot * Math.PI) / 3 - Math.PI / 2;
-  return Object.freeze({
-    x: arena.width / 2 + arena.width * 0.325 * Math.cos(angle),
-    y: arena.height / 2 + arena.height * (260 / 900) * Math.sin(angle),
-  });
-}
 
 export interface FuPlayerSpec {
   readonly id: string;

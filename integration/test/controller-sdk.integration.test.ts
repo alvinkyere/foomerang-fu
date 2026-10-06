@@ -1,3 +1,4 @@
+import { FU_BUTTONS } from '@foomerang/foomerang-fu';
 import { createStorageSessionStore } from '@foomerang/controller-sdk';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -300,6 +301,24 @@ describe('the SLASH and THROW buttons, end to end over real sockets', () => {
     ]);
     expect(new Set(received.map((a) => a.eventId)).size).toBe(2);
   });
+
+  it.each(['SLASH', 'THROW'] as const)(
+    'pressing the %s control the controller shows sends the action the game defines for it, over the real server',
+    async (label) => {
+      const controller = await joined('Alice');
+      const id = controller.session.getState().playerId ?? '';
+      // What the phone renders and what the game defines, both taken from the live manifest / game package.
+      const shown = controller.session.getState().manifest?.controls.find((c) => c.id === label);
+      expect(shown).toMatchObject({ type: 'button', action: FU_BUTTONS[label] });
+      controller.session.setButton(label, true);
+      controller.session.setButton(label, false);
+      await sleep(200);
+      expect(actions(id).map((a) => [a.action, a.phase])).toEqual([
+        [FU_BUTTONS[label], 'pressed'],
+        [FU_BUTTONS[label], 'released'],
+      ]);
+    },
+  );
 
   it('SLASH is the PRIMARY action and THROW the SECONDARY one; both can be down at once, each with its own ids', async () => {
     const controller = await joined('Alice');

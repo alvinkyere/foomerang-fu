@@ -1,4 +1,10 @@
-import { DEFAULT_FU_CONFIG, createFuMatch, stepFu, type FuState } from '@foomerang/foomerang-fu';
+import {
+  DEFAULT_FU_CONFIG,
+  FU_CONTROLS,
+  createFuMatch,
+  stepFu,
+  type FuState,
+} from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import { describe, expect, it } from 'vitest';
 import { buildFuView } from '../src/render/fuView';
@@ -229,6 +235,46 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       expect(boom(runtime, 'a')?.state).toBe('HELD');
       run(runtime, 0, 1);
       expect(boom(runtime, 'a')?.state).toBe('THROWN');
+    });
+  });
+
+  describe('what each ADVERTISED button does (the regression for THROW arriving as SLASH)', () => {
+    // Driven from the very table the server advertises, so a button and its meaning cannot drift apart.
+    const buttons = FU_CONTROLS.flatMap((c) => (c.type === 'button' ? [c] : []));
+    const effect = (runtime: FuRuntime, id: string) => {
+      const me = s(runtime).players.find((p) => p.id === id);
+      return {
+        swung: me?.slash.phase !== 'READY',
+        thrown: boom(runtime, id)?.state !== 'HELD',
+      };
+    };
+
+    it.each([
+      ['SLASH', { swung: true, thrown: false }],
+      ['THROW', { swung: false, thrown: true }],
+    ] as const)('pressing the %s control does that, and not the other', (label, expected) => {
+      const control = buttons.find((c) => c.id === label);
+      expect(control, `${label} is advertised`).toBeDefined();
+      const runtime = new FuRuntime();
+      runtime.start(players, 0);
+      runtime.receiveAction(press('a', 'event-0001', 'pressed', control?.action ?? 'PRIMARY'));
+      run(runtime, 0, 2);
+      expect(effect(runtime, 'a')).toEqual(expected);
+      expect(effect(runtime, 'b')).toEqual({ swung: false, thrown: false }); // nobody else did anything
+    });
+
+    it('every advertised button does something, and no two buttons do the same thing', () => {
+      const seen = new Set<string>();
+      for (const control of buttons) {
+        const runtime = new FuRuntime();
+        runtime.start(players, 0);
+        runtime.receiveAction(press('a', 'event-0001', 'pressed', control.action));
+        run(runtime, 0, 2);
+        const e = effect(runtime, 'a');
+        expect(e.swung || e.thrown, control.id).toBe(true);
+        seen.add(JSON.stringify(e));
+      }
+      expect(seen.size).toBe(buttons.length);
     });
   });
 

@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
+  FU_BUTTONS,
   createFuMatch,
   stepFu,
   type FuEvent,
@@ -15,12 +16,9 @@ import { InputBuffer } from './inputBuffer';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { SlotAllocator } from './slots';
 
-/**
- * Which generic platform action each of Fu's buttons arrives as (the server's manifest says the
- * same). PRIMARY is the panic button — the one a controller makes biggest — so it is SLASH.
- */
-const SLASH_ACTION = 'PRIMARY';
-const THROW_ACTION = 'SECONDARY';
+/** Which generic platform action each of Fu's buttons arrives as: the game's own table, which the server advertises too. */
+const SLASH_ACTION = FU_BUTTONS.SLASH;
+const THROW_ACTION = FU_BUTTONS.THROW;
 
 /** Event ids remembered per player: far more than any real burst of presses. */
 const DEDUP_WINDOW = 64;

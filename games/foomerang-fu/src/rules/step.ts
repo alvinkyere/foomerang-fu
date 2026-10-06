@@ -1,4 +1,5 @@
 import {
+  FIXED_TIMESTEP_SECONDS,
   normalizeMovementInput,
   step as stepWorld,
   type InputFrame,
@@ -7,6 +8,7 @@ import {
 } from '@foomerang/game-core';
 import { canTransition, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
+import { separateBodies } from './collision';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
 import { startRound, type FuPlayer, type FuState } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
@@ -88,7 +90,8 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  * and iteration order never depends on the Map's insertion order.
  *
  * Order within a PLAYING step (every rule uses the player order the match was created with):
- *   1. movement + facing (alive players only; game-core moves the bodies)
+ *   1. movement + facing (alive players only; game-core moves the bodies, then living players are
+ *      separated from one another — see collision.ts)
  *   2. slash timers advance, then new slashes start (only from READY with the boomerang HELD,
  *      only for the boolean `true`), then throws (only from HELD, and never during an ACTIVE swing —
  *      so when THROW and SLASH arrive on the same step the SLASH wins and the throw is dropped,
@@ -162,7 +165,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (direction.x === 0 && direction.y === 0) return player; // not a meaningful direction
     return Object.freeze({ ...player, facing: direction });
   });
-  const world = stepWorld(state.world, frame, dt);
+  // Move in sub-steps no longer than the fixed step, separating living players after each, so that no
+  // supported dt can carry one player through another. (dt = the fixed step is exactly one sub-step.)
+  const solid = new Set(state.players.filter((p) => p.alive).map((p) => p.id));
+  const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
+  let world = state.world;
+  for (let i = 0; i < subSteps; i += 1) {
+    world = separateBodies(stepWorld(world, frame, dt / subSteps), (id) => solid.has(id));
+  }
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
     return body === undefined ? ZERO : body.position;

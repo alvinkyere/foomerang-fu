@@ -188,6 +188,49 @@ test('Foomerang Fu: one player kills another with SLASH, which uses the weapon i
   expect((await host.fu()).players.map((p) => p.slash)).toEqual(['READY', 'READY']);
 });
 
+/** Samples Alice's slash phase and boomerang state every 10 ms for `ms`: everything that happened to her weapon. */
+async function observe(host: Host, id: string, ms: number) {
+  const slash = new Set<string>();
+  const boomerang = new Set<string>();
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    const fu = await host.fu();
+    slash.add(fu.players.find((p) => p.id === id)?.slash ?? '?');
+    boomerang.add(fu.boomerangs.find((b) => b.ownerId === id)?.state ?? '?');
+    await sleep(10);
+  }
+  return { slash: [...slash].sort(), boomerang: [...boomerang].sort() };
+}
+
+test('Foomerang Fu: the rendered THROW button throws and never slashes; the rendered SLASH button slashes and never throws', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  // Face away from Bob so a throw cannot end the round.
+  const at = await host.body(aliceId);
+  await aim(alice, at, { x: at.x, y: at.y - 100 });
+
+  // Press the button labelled THROW.
+  const afterThrow = observe(host, aliceId, 700);
+  await alice.tapThrow();
+  const threw = await afterThrow;
+  expect(threw.boomerang).toContain('THROWN'); // the boomerang left her hand
+  expect(threw.slash).toEqual(['READY']); // and she never swung
+
+  // Wait for the boomerang to come home, then press the button labelled SLASH.
+  await expect
+    .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state, {
+      timeout: 8_000,
+    })
+    .toBe('HELD');
+  const afterSlash = observe(host, aliceId, 700);
+  await alice.tapSlash();
+  const swung = await afterSlash;
+  expect(swung.slash).toContain('ACTIVE'); // she swung
+  expect(swung.boomerang).toEqual(['HELD']); // and nothing was thrown
+});
+
 test('Foomerang Fu: SLASH is unavailable while the boomerang is away, and works again once it is back', async ({
   fuHost: host,
   newPhone,
@@ -211,6 +254,34 @@ test('Foomerang Fu: SLASH is unavailable while the boomerang is away, and works 
     .toBe('HELD');
   await alice.tapSlash();
   await expect.poll(async () => slashOf(host, aliceId), { intervals: [10] }).not.toBe('READY');
+});
+
+test('Foomerang Fu: players are solid — walking straight into another player stops in contact, never overlapping', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId, bobId } = await setUp(host, newPhone);
+  const from = await host.body(aliceId);
+  const to = await host.body(bobId);
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  await alice.thumbDown();
+  // Keep walking at Bob for far longer than it takes to reach him.
+  await alice.thumbMove(((to.x - from.x) / length) * FAR, ((to.y - from.y) / length) * FAR);
+  let closest = Number.POSITIVE_INFINITY;
+  const until = Date.now() + 2_500;
+  while (Date.now() < until) {
+    const a = await host.body(aliceId);
+    const b = await host.body(bobId);
+    closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
+    await sleep(10);
+  }
+  await alice.thumbUp();
+  const radius = 36; // DEFAULT_FU_CONFIG.playerRadius
+  expect(closest).toBeGreaterThan(2 * radius - 0.5); // they got right up to each other…
+  expect(closest).toBeLessThan(2 * radius + 40); // …(and did walk into contact)…
+  const a = await host.body(aliceId);
+  const b = await host.body(bobId);
+  expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(2 * radius - 0.5); // …but never overlapped
 });
 
 test('Foomerang Fu: holding SLASH swings once and sends exactly one press and one release', async ({

@@ -51,7 +51,7 @@ if (taken.length > 0) {
 }
 
 const services = [
-  ['server', ['--filter', '@foomerang/server', 'start'], { ...tls }],
+  ['server', ['--filter', '@foomerang/server', 'dev'], { ...tls }],
   [
     'controller',
     ['--filter', '@foomerang/controller', 'dev', '--strictPort'],

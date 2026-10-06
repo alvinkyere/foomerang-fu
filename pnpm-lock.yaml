@@ -359,6 +359,9 @@ importers:
       '@foomerang/controller-sdk':
         specifier: workspace:*
         version: link:../packages/controller-sdk
+      '@foomerang/foomerang-fu':
+        specifier: workspace:*
+        version: link:../games/foomerang-fu
       '@foomerang/protocol':
         specifier: workspace:*
         version: link:../packages/protocol

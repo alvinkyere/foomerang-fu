@@ -36,8 +36,10 @@ export interface GameDefinition {
 }
 
 export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
-  // Foomerang Fu, combat skeleton: MOVE (joystick), SLASH (the PRIMARY action: the close-range panic
-  // button, which controllers make biggest) and THROW (the SECONDARY action).
+  // Foomerang Fu: MOVE (joystick), SLASH (the PRIMARY action: the close-range panic button, which
+  // controllers make biggest) and THROW (the SECONDARY action). The server stays game-agnostic and
+  // cannot import the game package, so this literal is checked against the game's own table
+  // (FU_CONTROLS, which the console uses) by integration/test/fu-contract.integration.test.ts.
   'foomerang-fu': {
     minPlayers: 2,
     maxPlayers: 6,

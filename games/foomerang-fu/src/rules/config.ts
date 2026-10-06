@@ -1,4 +1,5 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
+import { spawnPosition } from './spawn';
 
 /**
  * Foomerang Fu's tuning knobs. Every number here is a GAMEPLAY HYPOTHESIS to be settled by playing,
@@ -77,6 +78,20 @@ export function assertValidConfig(config: FuConfig): void {
   if (config.slashMoveFactor > 1) throw new RangeError('slashMoveFactor cannot exceed 1');
   if (arena.width < config.playerRadius * 4 || arena.height < config.playerRadius * 4) {
     throw new RangeError('the arena must be at least four player radii in each direction');
+  }
+  // Players are solid: nobody may start overlapping, and nobody may cross another in one step.
+  const spawns = [0, 1, 2, 3, 4, 5].map((slot) => spawnPosition(slot, arena));
+  for (let a = 0; a < spawns.length; a += 1) {
+    for (let b = a + 1; b < spawns.length; b += 1) {
+      const p = spawns[a] as { x: number; y: number };
+      const q = spawns[b] as { x: number; y: number };
+      if (Math.hypot(p.x - q.x, p.y - q.y) < config.playerRadius * 2) {
+        throw new RangeError('the spawn points would overlap: players must start apart');
+      }
+    }
+  }
+  if (config.playerSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
+    throw new RangeError('a player moves farther than their radius in one step');
   }
   // A boomerang must not be able to jump over a player between two steps.
   const reach = config.playerRadius + config.boomerangRadius;

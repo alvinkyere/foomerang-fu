@@ -15,6 +15,7 @@
   "devDependencies": {
     "@foomerang/config": "workspace:*",
     "@foomerang/controller-sdk": "workspace:*",
+    "@foomerang/foomerang-fu": "workspace:*",
     "@foomerang/protocol": "workspace:*",
     "@foomerang/server": "workspace:*",
     "@playwright/test": "1.63.0",
