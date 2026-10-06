@@ -779,20 +779,20 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.circles[0]).toMatchObject({ dead: false, dimmed: false });
   });
 
-  it('announces the winner, or a draw, while the round is over', () => {
+  it('announces who is left standing, or that the round is over, while the round is over (not a round WIN: the race is in kills)', () => {
     const { state, entries, slots } = playing();
     const won: FuState = {
       ...state,
       phase: 'ROUND_OVER',
       roundOver: { winnerId: 'a', resetInSeconds: 2 },
     };
-    expect(buildFuView(won, [], entries, slots).banner).toBe('Alvin wins the round');
+    expect(buildFuView(won, [], entries, slots).banner).toBe('Alvin is the last one standing');
     const draw: FuState = {
       ...state,
       phase: 'ROUND_OVER',
       roundOver: { winnerId: undefined, resetInSeconds: 2 },
     };
-    expect(buildFuView(draw, [], entries, slots).banner).toBe('Draw');
+    expect(buildFuView(draw, [], entries, slots).banner).toBe('Round over');
   });
 
   it('turns rules events into drawable events, placed and coloured', () => {
@@ -801,7 +801,14 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
       state,
       [
         { type: 'THROWN', playerId: 'a', position: { x: 10, y: 20 }, direction: { x: 1, y: 0 } },
-        { type: 'HIT', byId: 'a', victimId: 'b', position: { x: 30, y: 40 } },
+        {
+          type: 'HIT',
+          byId: 'a',
+          victimId: 'b',
+          position: { x: 30, y: 40 },
+          source: 'BOOMERANG',
+          creditedTo: 'a',
+        },
         { type: 'CAUGHT', playerId: 'a' },
         { type: 'ROUND_START', round: 2 },
         { type: 'RECALLED', playerId: 'b' },

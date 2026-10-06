@@ -1,6 +1,7 @@
 import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
   CpuController,
+  FREE_FOR_ALL,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
@@ -13,6 +14,7 @@ import {
   type FuArena,
   type FuConfig,
   type PowerKind,
+  roundLabel,
   seedFor,
   stepFu,
   type FuEvent,
@@ -24,6 +26,7 @@ import type { PlayerAction } from '../host';
 import { buildFuView } from '../render/fuView';
 import type { ArenaView } from '../render/viewModel';
 import { FrameStepper } from './frameStepper';
+import { DEFAULT_MODE, type GameModeId } from './gameMode';
 import type { PowerupMode } from './powerupMode';
 import { InputBuffer } from './inputBuffer';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
@@ -66,11 +69,22 @@ export class FuRuntime implements MatchRuntime {
 
   readonly #enabled: readonly PowerKind[] | undefined;
 
+  /** What the chosen mode asks of the rules (its win condition). Only Free For All exists; the director never starts another. */
+  readonly #mode: GameModeId;
+
+  /** Test/playtest override of the 14 kills that win (`?kills=`). */
+  readonly #targetKills: number | undefined;
+
   constructor(
     arena: FuArena = PRIMITIVE_ARENA,
     powerups: PowerupMode = 'normal',
     enabled?: readonly PowerKind[],
+    mode: GameModeId = DEFAULT_MODE,
+    targetKills?: number,
   ) {
+    this.#targetKills = targetKills;
+    if (mode !== 'FREE_FOR_ALL') throw new RangeError(`game mode ${mode} cannot be played yet`);
+    this.#mode = mode;
     this.#arena = arena;
     this.#enabled = enabled;
     const spots =
@@ -114,7 +128,9 @@ export class FuRuntime implements MatchRuntime {
       {
         arena: this.#arena,
         ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
-        matchRounds: 9, // a normal Foomerang Fu match is nine rounds; what players own lasts until it ends
+        ...FREE_FOR_ALL,
+        ...(this.#targetKills === undefined ? {} : { targetKills: this.#targetKills }),
+        // first to 14 kills wins at once; nine rounds are regulation, then overtime; what players own lasts until the match ends
         ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }),
       },
     );
@@ -137,6 +153,11 @@ export class FuRuntime implements MatchRuntime {
           new CpuController(p.playerId, p.cpu, seedFor(this.state?.config.seed ?? 1, index)),
         );
     });
+  }
+
+  /** After a pause (the host lost its server connection): the match carries on from where it was, not from the time that passed. */
+  rebase(nowMs: number): void {
+    this.#stepper.rebase(nowMs);
   }
 
   setActivity(isActive: (playerId: string) => boolean): void {
@@ -231,7 +252,12 @@ export class FuRuntime implements MatchRuntime {
     const state = this.state;
     if (state === undefined) return undefined;
     return {
+      mode: this.#mode,
       round: state.round,
+      roundLabel: roundLabel(state),
+      scores: { ...state.scores },
+      matchOver: state.matchOver,
+      tiebreak: state.tiebreak,
       phase: state.phase,
       walls: (state.config.arena.walls ?? []).map((w) => ({ ...w })),
       elapsed: state.elapsed,

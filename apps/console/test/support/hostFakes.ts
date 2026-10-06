@@ -125,6 +125,8 @@ export class FakeHostNetwork {
   createError: ErrorCode | undefined;
   reconnectError: ErrorCode | undefined;
   startError: ErrorCode | undefined;
+  /** What the room is when the host reclaims it (a room whose match was running in a page that has since been reloaded is PLAYING). */
+  roomStateOnReconnect = 'LOBBY';
   validToken = 'host-token-0';
   #counter = 0;
   joinCode = 'K7M4PX';
@@ -188,7 +190,10 @@ export class FakeHostNetwork {
           type: 'HOST_RECONNECTED',
           payload: { joinCode: this.joinCode, hostToken: this.validToken },
         });
-        this.roomUpdated(transport, 'LOBBY', []);
+        this.roomUpdated(transport, this.roomStateOnReconnect, []);
+        return;
+      case 'MATCH_END':
+        this.roomStateOnReconnect = 'LOBBY';
         return;
       case 'MATCH_START':
         if (this.startError)

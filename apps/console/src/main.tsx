@@ -3,7 +3,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
-import { parseArenaParam, parseEnabledParam, parsePowerupsParam } from './runtime/powerupMode';
+import {
+  parseArenaParam,
+  parseEnabledParam,
+  parseKillsParam,
+  parsePowerupsParam,
+} from './runtime/powerupMode';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
 import { loadPhaserRenderer } from './render/phaser/loadPhaserRenderer';
@@ -39,12 +44,15 @@ if (!config.ok) {
   // open two connections.
   const enabled = parseEnabledParam(window.location.search);
   const enabledOption = enabled === undefined ? {} : { enabled };
+  const kills = parseKillsParam(window.location.search);
+  const killsOption = kills === undefined ? {} : { targetKills: kills };
   const runtime = createConsoleRuntime({
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
     powerups: parsePowerupsParam(window.location.search),
     arena: parseArenaParam(window.location.search),
     ...enabledOption,
+    ...killsOption,
   });
 
   // A reload reclaims the same room (the arena simulation itself restarts; see docs/CONSOLE.md).

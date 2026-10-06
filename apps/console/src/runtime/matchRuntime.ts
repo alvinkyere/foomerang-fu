@@ -37,6 +37,8 @@ export interface MatchRuntime {
   /** An authenticated button event. Games without buttons ignore it. */
   receiveAction(action: PlayerAction): void;
   frame(nowMs: number): void;
+  /** After a pause: restart the clock at `nowMs` so the time that passed is not simulated or counted as discarded. */
+  rebase?(nowMs: number): void;
   metrics(): RuntimeMetrics;
   /**
    * What to draw. One-shot presentation events (a throw, a hit) are delivered with the FIRST view

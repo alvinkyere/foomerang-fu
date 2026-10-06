@@ -1,5 +1,6 @@
 import { describe, it } from 'vitest';
 import {
+  FREE_FOR_ALL,
   PROFILES,
   SYSTEMS_ARENA,
   type Difficulty,
@@ -435,6 +436,52 @@ describe.skipIf(!ON)('CPU evaluation (diagnostic only)', () => {
       lines.push(`  ${'EASY as is'.padEnd(34)} ${lethality(PROFILES.EASY, 'EASY')}`);
       lines.push(`  ${'HARD as is'.padEnd(34)} ${lethality(PROFILES.HARD, 'HARD')}`);
       console.warn(lines.join('\n'));
+    },
+  );
+
+  it(
+    'full Free For All matches (first to 14, all CPUs): how long, how many rounds, who wins, how often the floor costs a hole',
+    { timeout: 3_600_000 },
+    () => {
+      const setup = [
+        { id: 'e', cpu: 'EASY' as Difficulty },
+        { id: 'm', cpu: 'MEDIUM' as Difficulty },
+        { id: 'h1', cpu: 'HARD' as Difficulty },
+        { id: 'h2', cpu: 'HARD' as Difficulty },
+      ];
+      const wins: Record<string, number> = {};
+      const seconds: number[] = [];
+      const rounds: number[] = [];
+      let environment = 0;
+      let finished = 0;
+      let ties = 0;
+      for (let seed = 1; seed <= SEEDS; seed += 1) {
+        const rotated = setup.map((_, i) => setup[(i + seed) % setup.length] as (typeof setup)[0]);
+        const r = playMatch({
+          participants: rotated,
+          arena: SYSTEMS_ARENA,
+          seed,
+          steps: 60 * 3000,
+          powerups: true,
+          config: { ...FREE_FOR_ALL },
+        });
+        if (r.state.matchOver === undefined) continue;
+        finished += 1;
+        const w = r.state.matchOver.winnerId;
+        wins[w] = (wins[w] ?? 0) + 1;
+        seconds.push(r.state.elapsed);
+        rounds.push(r.state.round);
+        environment += r.events.filter(
+          (e) => e.type === 'SCORE' && e.reason === 'ENVIRONMENT' && e.delta < 0,
+        ).length;
+        ties += r.events.filter((e) => e.type === 'TIEBREAK_START').length;
+      }
+      const mean = (a: number[]): number => a.reduce((n, x) => n + x, 0) / Math.max(a.length, 1);
+      console.warn(
+        `FREE FOR ALL (E M H H, systems arena, ${SEEDS} matches, ${finished} finished): mean length ${mean(seconds).toFixed(0)} s ` +
+          `(min ${Math.min(...seconds).toFixed(0)}, max ${Math.max(...seconds).toFixed(0)}), mean rounds ${mean(rounds).toFixed(1)}, ` +
+          `wins ${JSON.stringify(wins)}, holes lost to the floor ${environment}, tiebreaks ${ties}`,
+      );
     },
   );
 });

@@ -7,6 +7,8 @@ import type { MatchPlayer, MatchRuntime } from './matchRuntime';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
+import { DEFAULT_MODE, ModeSelection, isStartableMode, type GameModeId } from './gameMode';
+import { MAX_PARTICIPANTS } from './cpuRoster';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
@@ -15,9 +17,11 @@ export function createRuntimeFor(
   powerups?: PowerupMode,
   enabled?: readonly PowerKind[],
   arena?: ArenaChoice,
+  mode: GameModeId = DEFAULT_MODE,
+  targetKills?: number,
 ): MatchRuntime {
   return gameId === 'foomerang-fu'
-    ? new LazyFuRuntime(powerups, enabled, arena)
+    ? new LazyFuRuntime(powerups, enabled, arena, mode, targetKills)
     : new GameRuntime();
 }
 
@@ -45,19 +49,27 @@ export class MatchDirector {
   readonly slots = new SlotAllocator();
   /** The CPUs the host added in the lobby (software controllers; no seat, no connection, no socket). */
   readonly cpus = new CpuRoster();
+  /** The game mode the host has chosen (Free For All is the only one that can start). */
+  readonly mode = new ModeSelection();
   #roster: readonly RosterEntry[] = [];
   #connected = new Set<string>();
   #inMatch = false;
+  #gameId = 'primitive-arena';
+  /** The people who have a body in the match that is running (anyone else seated is waiting for the next one). */
+  #matchHumans = new Set<string>();
+  #paused = false;
 
-  readonly #createRuntime: (gameId: string) => MatchRuntime;
+  readonly #createRuntime: (gameId: string, mode: GameModeId) => MatchRuntime;
 
   readonly #warmUp: (gameId: string) => void;
 
   constructor(
-    createRuntime: (gameId: string) => MatchRuntime = createRuntimeFor,
-    warmUp: (gameId: string) => void = createRuntime === createRuntimeFor ? warmUpFor : () => {},
+    createRuntime?: (gameId: string, mode: GameModeId) => MatchRuntime,
+    warmUp: (gameId: string) => void = createRuntime === undefined ? warmUpFor : () => {},
   ) {
-    this.#createRuntime = createRuntime;
+    this.#createRuntime =
+      createRuntime ??
+      ((gameId, mode) => createRuntimeFor(gameId, undefined, undefined, undefined, mode));
     this.#warmUp = warmUp;
     this.runtime.setActivity((playerId) => this.#isActive(playerId));
     this.cpus.subscribe(() => this.#syncSlots());
@@ -105,20 +117,84 @@ export class MatchDirector {
       return;
     }
     if (this.#inMatch) return;
-    this.#inMatch = true;
-    this.runtime = this.#createRuntime(gameId);
-    this.runtime.setActivity((playerId) => this.#isActive(playerId));
+    if (!isStartableMode(this.mode.id)) return; // a mode that is not available can never begin, whatever the room says
+    this.#begin(gameId, nowMs);
+  }
+
+  /** Builds the bodies for a match about to begin: the people who were there (and any who have since arrived, while there is room), then the CPUs. */
+  #bodies(): { bodies: MatchPlayer[]; humans: Set<string> } {
     const bodies: MatchPlayer[] = [];
-    for (const r of roster) {
+    const humans = new Set<string>();
+    const room = MAX_PARTICIPANTS - this.cpus.entries.length;
+    for (const r of this.#roster) {
       const slot = this.slots.slotOf(r.playerId);
-      if (r.seat === 'HELD' && slot !== undefined) bodies.push({ playerId: r.playerId, slot });
+      if (r.seat !== 'HELD' || slot === undefined || humans.size >= room) continue;
+      bodies.push({ playerId: r.playerId, slot });
+      humans.add(r.playerId);
     }
     // CPUs join after the people, so a full table never turns a person away.
     for (const c of this.cpus.entries) {
       const slot = this.slots.slotOf(c.id);
       if (slot !== undefined) bodies.push({ playerId: c.id, slot, cpu: c.difficulty });
     }
+    return { bodies, humans };
+  }
+
+  #begin(gameId: string, nowMs: number): void {
+    this.#inMatch = true;
+    this.#gameId = gameId;
+    this.runtime = this.#createRuntime(gameId, this.mode.id);
+    this.runtime.setActivity((playerId) => this.#isActive(playerId));
+    const { bodies, humans } = this.#bodies();
+    this.#matchHumans = humans;
     this.runtime.start(bodies, nowMs);
+  }
+
+  /**
+   * REMATCH: the same participants and CPU difficulties, a brand-new match (round 1, empty meters, empty inventories,
+   * nothing carried). People who joined while the last match was running are waiting; they are included now, as far as
+   * the table has room.
+   */
+  rematch(nowMs: number): void {
+    if (!this.#inMatch) return;
+    this.#begin(this.#gameId, nowMs);
+  }
+
+  /** The match is over for good: back to the lobby (the console tells the server). */
+  returnToLobby(): void {
+    this.#inMatch = false;
+    this.#matchHumans = new Set();
+    this.#paused = false;
+  }
+
+  /** People seated now who have no body in the running match: they take part in the next one. */
+  waitingForNextMatch(): readonly RosterEntry[] {
+    if (!this.#inMatch) return [];
+    return this.#roster.filter((r) => r.seat === 'HELD' && !this.#matchHumans.has(r.playerId));
+  }
+
+  /**
+   * Whether a match may begin now, and if not why. Free For All needs two to six participants, people and CPUs
+   * together: any mix (all people, all CPUs, or both) is the host's choice.
+   */
+  startBlock(): 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | undefined {
+    if (!isStartableMode(this.mode.id)) return 'MODE_UNAVAILABLE';
+    const participants =
+      this.#roster.filter((r) => r.seat === 'HELD').length + this.cpus.entries.length;
+    if (participants < 2) return 'TOO_FEW';
+    if (participants > MAX_PARTICIPANTS) return 'TOO_MANY';
+    return undefined;
+  }
+
+  /** The host's own connection to the server is down: the match waits (nothing steps), and resumes where it was. */
+  setPaused(paused: boolean, nowMs: number): void {
+    if (paused === this.#paused) return;
+    this.#paused = paused;
+    if (!paused) this.runtime.rebase?.(nowMs);
+  }
+
+  get paused(): boolean {
+    return this.#paused;
   }
 
   onMovement(playerId: string, x: number, y: number, nowMs: number): void {
@@ -130,7 +206,7 @@ export class MatchDirector {
   }
 
   frame(nowMs: number): void {
-    if (this.#inMatch) this.runtime.frame(nowMs);
+    if (this.#inMatch && !this.#paused) this.runtime.frame(nowMs);
   }
 
   /** What to draw, or undefined when no match is running. */

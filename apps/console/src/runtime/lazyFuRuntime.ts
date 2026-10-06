@@ -6,6 +6,7 @@ import type { FuRuntime } from './fuRuntime';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
+import { DEFAULT_MODE, type GameModeId } from './gameMode';
 import type { SlotAllocator } from './slots';
 
 /** The game's rules, runtime and view model are a separate chunk: the lobby never downloads them. */
@@ -48,7 +49,19 @@ export class LazyFuRuntime implements MatchRuntime {
 
   readonly #arena: ArenaChoice | undefined;
 
-  constructor(powerups?: PowerupMode, enabled?: readonly PowerKind[], arena?: ArenaChoice) {
+  readonly #mode: GameModeId;
+
+  readonly #targetKills: number | undefined;
+
+  constructor(
+    powerups?: PowerupMode,
+    enabled?: readonly PowerKind[],
+    arena?: ArenaChoice,
+    mode: GameModeId = DEFAULT_MODE,
+    targetKills?: number,
+  ) {
+    this.#targetKills = targetKills;
+    this.#mode = mode;
     this.#arena = arena;
     this.#powerups = powerups;
     this.#enabled = enabled;
@@ -74,6 +87,8 @@ export class LazyFuRuntime implements MatchRuntime {
           this.#arena === 'systems' ? SYSTEMS_ARENA : undefined,
           this.#powerups,
           this.#enabled,
+          this.#mode,
+          this.#targetKills,
         );
         real.setActivity((playerId) => this.#isActive(playerId));
         real.start(players, nowMs);
@@ -106,6 +121,10 @@ export class LazyFuRuntime implements MatchRuntime {
 
   frame(nowMs: number): void {
     this.#real?.frame(nowMs);
+  }
+
+  rebase(nowMs: number): void {
+    this.#real?.rebase(nowMs);
   }
 
   metrics(): RuntimeMetrics {

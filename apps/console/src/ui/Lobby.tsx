@@ -3,6 +3,7 @@ import type { Difficulty } from '@foomerang/foomerang-fu';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import { buildJoinUrl } from '../config';
 import { CPU_DIFFICULTIES as DIFFICULTIES, MAX_PARTICIPANTS } from '../runtime/cpuRoster';
+import { GAME_MODES, type GameModeId } from '../runtime/gameMode';
 import { SLOT_STYLES } from '../runtime/slots';
 import { noticeCopy } from './copy';
 import { titleOf } from './games';
@@ -41,8 +42,13 @@ export function Lobby({
   const [newDifficulty, setNewDifficulty] = useState<Difficulty>('MEDIUM');
   const isFu = state.gameId === 'foomerang-fu';
   const participants = seated.length + cpus.length;
-  const tooFew = isFu && participants < 2;
-  const tooMany = isFu && participants > MAX_PARTICIPANTS;
+  const modeId = useSyncExternalStore(
+    (listener) => runtime.director.mode.subscribe(listener),
+    () => runtime.director.mode.id,
+  );
+  const block = isFu ? runtime.director.startBlock() : undefined;
+  const tooFew = block === 'TOO_FEW';
+  const tooMany = block === 'TOO_MANY';
 
   return (
     <main className="screen lobby">
@@ -69,6 +75,30 @@ export function Lobby({
           {joinUrl !== undefined && <p className="join-url">{joinUrl}</p>}
         </div>
       </section>
+
+      {isFu && (
+        <fieldset className="modes">
+          <legend>Game mode</legend>
+          {GAME_MODES.map((mode) => (
+            <label key={mode.id} className={mode.available ? 'mode' : 'mode unavailable'}>
+              {/* A real, disabled radio: it cannot be focused, chosen or submitted, whatever its styling */}
+              <input
+                type="radio"
+                name="game-mode"
+                value={mode.id}
+                checked={modeId === mode.id}
+                disabled={!mode.available}
+                onChange={() => runtime.director.mode.select(mode.id as GameModeId)}
+              />{' '}
+              <span className="mode-title">{mode.title.toUpperCase()}</span>{' '}
+              <span className="mode-status muted">
+                {mode.available ? 'Available' : 'COMING SOON'}
+              </span>
+              {mode.available && <span className="muted"> — {mode.summary}</span>}
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <section aria-label="Players">
         <h2>
@@ -165,6 +195,13 @@ export function Lobby({
         )}
       </section>
 
+      {state.matchInterrupted && (
+        <p className="notice" role="status">
+          The match was interrupted: this console page was reloaded, and the game it was running is
+          gone. Kills and powerups were not kept. Start a new match when you are ready.
+        </p>
+      )}
+
       {state.notice !== undefined && (
         <p className="notice" role="status">
           {noticeCopy(state.notice)}
@@ -174,8 +211,8 @@ export function Lobby({
       <button
         type="button"
         className="primary"
-        onClick={() => runtime.session.startMatch()}
-        disabled={state.phase !== 'ACTIVE' || tooFew || tooMany}
+        onClick={() => runtime.startMatch()}
+        disabled={state.phase !== 'ACTIVE' || block !== undefined}
       >
         Start
       </button>

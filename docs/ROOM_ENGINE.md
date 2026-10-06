@@ -155,7 +155,7 @@ The registry owns the set of live rooms in a process and the join-code index, an
 
 ## Joinability and display names
 
-Players may join only in `LOBBY` (late-join policy is a later product decision). Display names: trimmed, 1–16 Unicode code points, no control/format/line-separator characters (blocks bidi-override spoofing on the shared screen). Duplicate names are allowed for now. Profanity/emoji/moderation policy is deferred.
+Players may join in `LOBBY`, and (Slice 8) in `PLAYING`: a late arrival holds a seat but the game decides what that means (Foomerang Fu: they wait for the next match; no body is created mid-match). Every other state refuses with `ROOM_NOT_JOINABLE`. `minPlayers` may be 0: a game whose other participants are software can start with nobody on a phone. Display names: trimmed, 1–16 Unicode code points, no control/format/line-separator characters (blocks bidi-override spoofing on the shared screen). Duplicate names are allowed for now. Profanity/emoji/moderation policy is deferred.
 
 ## Concurrency (future, documented not built)
 

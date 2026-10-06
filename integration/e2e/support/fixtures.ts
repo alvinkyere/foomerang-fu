@@ -32,7 +32,12 @@ export interface Snapshot {
         round: number;
         /** The arena's walls, as the rules define them. */
         walls: { x: number; y: number; width: number; height: number }[];
-        phase: 'PLAYING' | 'ROUND_OVER';
+        phase: 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
+        /** Slice 8: the kill race. */
+        scores: Record<string, number>;
+        matchOver: { winnerId: string } | undefined;
+        tiebreak: boolean;
+        roundLabel: { kind: string; round: number; of?: number };
         winnerId: string | undefined;
         players: {
           id: string;
@@ -354,6 +359,8 @@ interface Fixtures {
    * can be tried in seconds; `enable` narrows which powers a Book may award (`?enable=GUARD`).
    */
   powerHost: (enable?: string) => Promise<Host>;
+  /** The Foomerang Fu console opened at any address query (e.g. `?kills=3&powerups=off`); closed (and checked for errors) afterwards. */
+  hostAt: (query: string) => Promise<Host>;
   /** The Foomerang Fu console in the Slice 6 arena (`?arena=systems`), with no Books. */
   systemsHost: Host;
   /** The console from `vite build`: no debug hook, so tests can only look at what a person sees. */
@@ -401,6 +408,20 @@ export const test = base.extend<Fixtures>({
       [],
     );
     await context.close();
+  },
+  hostAt: async ({ browser, stack }, use) => {
+    const opened: { host: Host; close: () => Promise<void> }[] = [];
+    await use(async (query) => {
+      const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+      const host = new Host(await context.newPage(), `${stack.consoleUrl}/${query}`);
+      await host.open();
+      opened.push({ host, close: () => context.close() });
+      return host;
+    });
+    for (const { host, close } of opened) {
+      expect(host.errors, 'no console errors or uncaught exceptions on the console').toEqual([]);
+      await close();
+    }
   },
   powerHost: async ({ browser, stack }, use) => {
     const opened: { host: Host; close: () => Promise<void> }[] = [];

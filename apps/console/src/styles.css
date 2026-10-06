@@ -164,18 +164,21 @@ button:focus-visible {
   position: relative;
   padding: 0;
   gap: 0;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 .arena {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100dvh;
+  min-height: 0;
   background: #0e1217;
 }
 .arena canvas {
   max-width: 100%;
-  max-height: 100dvh;
+  max-height: 100%;
 }
 .banner {
   position: fixed;
@@ -237,4 +240,158 @@ button:focus-visible {
 
 .cpu-controls {
   margin-top: 0.75rem;
+}
+
+/* ---- Slice 8: game modes and the kill race (primitive; the premium pass is later) ---- */
+
+.modes {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mode.unavailable {
+  opacity: 0.6;
+}
+
+.mode-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.score-strip {
+  padding: 0.35rem 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.7rem;
+}
+
+.score-strip .round-label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+}
+
+.score-strip ul,
+.standings ul,
+.champion ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.score-strip ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+}
+
+.score-strip li,
+.standings li,
+.champion li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.meter {
+  display: inline-flex;
+  gap: 0.1em;
+  letter-spacing: 0.05em;
+}
+
+.hole.empty {
+  color: var(--color-muted);
+}
+
+.hole.fill {
+  animation: hole-fill 1.4s ease-out;
+}
+
+.hole.drain,
+.hole.penalty {
+  animation: hole-drain 1.4s ease-out;
+}
+
+@keyframes hole-fill {
+  0% {
+    transform: scale(2.4);
+    text-shadow: 0 0 0.6em currentColor;
+  }
+  100% {
+    transform: scale(1);
+    text-shadow: none;
+  }
+}
+
+@keyframes hole-drain {
+  0% {
+    transform: scale(1.8);
+    color: var(--color-danger);
+    text-shadow: 0 0 0.6em var(--color-danger);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.score-toasts {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.score-toasts .gain {
+  color: var(--color-accent);
+}
+
+.score-toasts .loss {
+  color: var(--color-danger);
+}
+
+.standings,
+.champion {
+  position: fixed;
+  inset: 12% 14%;
+  background: rgba(14, 18, 23, 0.94);
+  border: 2px solid var(--color-border);
+  border-radius: 1rem;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.standings ul,
+.champion ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 1.2rem;
+}
+
+.champion h2 {
+  font-size: 2.2rem;
+}
+
+.champion .actions {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 0.8rem;
+}
+
+.waiting {
+  text-align: center;
 }

@@ -59,7 +59,7 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     const normal = new FuRuntime();
     normal.start(players, 0);
     expect(config(normal)).toEqual(PRIMITIVE_POWERUPS);
-    expect(normal.state?.config.matchRounds).toBe(9); // a normal match is nine rounds
+    expect(normal.state?.config).toMatchObject({ targetKills: 14, regulationRounds: 9 }); // Free For All: first to 14, nine regulation rounds
     const low = new FuRuntime(PRIMITIVE_ARENA, 'low');
     low.start(players, 0);
     expect(config(low)).toMatchObject({ firstSeconds: 25, intervalSeconds: 90, maxOnField: 1 });

@@ -6,6 +6,7 @@ import type { ArenaRenderer } from '../src/render/renderer';
 import type { ArenaView } from '../src/render/viewModel';
 import { FrameLoop } from '../src/runtime/frameLoop';
 import { App } from '../src/ui/App';
+import { Lobby } from '../src/ui/Lobby';
 import { FakeHostNetwork, MemoryHostStore, createClock, roster, settle } from './support/hostFakes';
 
 const CONTROLLER = 'http://192.168.1.20:5173';
@@ -452,5 +453,86 @@ describe('CPU players in the lobby (Foomerang Fu)', () => {
   it('the primitive arena (platform test) has no CPUs', async () => {
     await inLobby();
     expect(screen.queryByRole('button', { name: 'Add CPU' })).toBeNull();
+  });
+});
+
+describe('game modes in the lobby (Foomerang Fu)', () => {
+  const lobbyWith = async (people: ReturnType<typeof roster>) => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
+    await flush();
+    return ctx;
+  };
+
+  it('FREE FOR ALL is available and chosen; HIDE & SEEK is shown with COMING SOON', async () => {
+    await lobbyWith(twoPlayers);
+    const group = screen.getByRole('group', { name: 'Game mode' });
+    const ffa = within(group).getByRole('radio', { name: /FREE FOR ALL/ }) as HTMLInputElement;
+    const hide = within(group).getByRole('radio', { name: /HIDE & SEEK/ }) as HTMLInputElement;
+    expect(ffa.checked).toBe(true);
+    expect(ffa.disabled).toBe(false);
+    expect(group.textContent).toContain('Available');
+    expect(group.textContent).toContain('COMING SOON');
+    expect(hide.disabled).toBe(true); // a genuine disabled control, not a label over a working one
+    expect(hide.checked).toBe(false);
+  });
+
+  it('Hide & Seek cannot be chosen: clicking it changes nothing, and Start still starts Free For All', async () => {
+    const { runtime, network } = await lobbyWith(twoPlayers);
+    fireEvent.click(screen.getByRole('radio', { name: /HIDE & SEEK/ }));
+    expect(runtime.director.mode.id).toBe('FREE_FOR_ALL');
+    expect((screen.getByRole('radio', { name: /FREE FOR ALL/ }) as HTMLInputElement).checked).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('human-only: two people can start with no CPU', async () => {
+    await lobbyWith(twoPlayers);
+    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('CPU-only: with nobody on a phone, two CPUs can start (the console asks the server, which allows it)', async () => {
+    const { network } = await lobbyWith(roster());
+    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
+    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('nothing adds a CPU for the host: an empty seat stays empty', async () => {
+    const { runtime } = await lobbyWith(twoPlayers);
+    expect(runtime.director.cpus.entries).toEqual([]);
+    expect(screen.queryByText('CPU 1')).toBeNull();
+  });
+
+  it('the primitive arena (platform test) has no mode choice', async () => {
+    await inLobby();
+    expect(screen.queryByRole('group', { name: 'Game mode' })).toBeNull();
+  });
+
+  it('a reloaded console that lost its match says so in the lobby, in plain words', async () => {
+    const clock = createClock();
+    const network = new FakeHostNetwork();
+    const store = new MemoryHostStore();
+    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
+    network.roomStateOnReconnect = 'PLAYING';
+    const runtime = createConsoleRuntime({
+      transportFactory: network.factory,
+      environment: clock.environment,
+      store,
+      now: () => 0,
+    });
+    runtime.session.resume();
+    await flush();
+    await flush();
+    render(<Lobby runtime={runtime} controllerBaseUrl={CONTROLLER} warnings={[]} />);
+    expect(screen.getByText(/The match was interrupted/).textContent).toMatch(
+      /Kills and\s+powerups were not kept/,
+    );
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
   });
 });

@@ -32,6 +32,11 @@ export class FrameStepper {
     this.#frameTimes = [];
   }
 
+  /** Restart the clock at `nowMs` without touching the counters or the state of the game (after a pause). */
+  rebase(nowMs: number): void {
+    this.#lastFrameAt = nowMs;
+  }
+
   get started(): boolean {
     return this.#lastFrameAt !== undefined;
   }

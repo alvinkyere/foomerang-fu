@@ -410,6 +410,80 @@ Honest reading: **the ordering is strictly Easy < Medium < Hard, and mirror matc
 
 Start the demo, open the console (Foomerang Fu), join from your phone, **Add CPU** with *Easy*, Start; then again with *Medium*, then *Hard*; then a table: you + Easy + Medium + Hard, and the systems arena (`?arena=systems`) and Books (`?powerups=high`). Judge: does Easy feel gentle and *slightly silly*, Medium fair, Hard sharp but not psychic? Does any CPU do something a person could not (see through walls, dodge instantly, never miss a deflect)? Do they get stuck, wander forever, or camp? Do they use Books, dashes, gates, the floor sensibly? Is a round against a CPU too short (the first throw tends to decide it)? **Slice 7 is not PASS until you have played Easy, Medium and Hard.** After the recalibration, replay Easy and Medium first (does Medium feel like a competent friend you can beat if you play well? does it pause, commit, overshoot, miss, mistime a deflection, dash only now and then?), then Hard.
 
+## Slice 8: Game Modes + Kill-Race Match Structure (engineering complete, **not yet played**; 14 kills and the pacing are playtest hypotheses)
+
+The proposed round-win scoring (*last survivor → +1 round point*) is **rejected and not implemented**. Standard Free For All is a persistent **kill race**: every credited enemy elimination fills one of fourteen holes in the killer's meter; the first meter to fill ends the match **at once**. Rounds still exist (they restore combat state, never the match's progression), but surviving a round is worth nothing.
+
+### Game modes (console; `apps/console/src/runtime/gameMode.ts`)
+
+A mode is an id in a short list, chosen by the host before starting: `FREE_FOR_ALL` (available) and `HIDE_AND_SEEK` (listed, **COMING SOON**). The server and room model know only `foomerang-fu`; the mode is console-side configuration that selects a rules configuration (`FREE_FOR_ALL = { targetKills: 14, regulationRounds: 9 }`), so a later mode is one more entry, not a rewrite. Hide & Seek is genuinely unavailable: its radio is a disabled `<input>` (not focusable or choosable), `ModeSelection.select` refuses it (returns `false`, the selection does not change), the director will not begin a match for a mode that is not available, and the game runtime throws if asked to play it. No Hide & Seek gameplay exists.
+
+### Free For All configuration
+
+Two to six participants, any mix: **humans only, CPUs only, or both**; the host decides and nothing adds a CPU unless the host does. Each CPU keeps its own Easy / Medium / Hard (also through a rematch). Start is disabled with fewer than two or more than six participants, with the reason shown. To let a match start with nobody on a phone the server's `minPlayers` for Foomerang Fu is 0 (room-engine accepts 0; the console still requires two participants).
+
+### The kill-race rules (`rules/scoring.ts`, `rules/step.ts`; the UI decides nothing)
+
+- **State:** `FuState.scores` (kills per player), `tiebreak`, `matchOver`; phase `MATCH_OVER`; config `targetKills` (absent = Slices 1–7 behaviour: rounds forever) and `regulationRounds`.
+- **Events:** `HIT` now carries `source` (SLASH / BOOMERANG / BLAST / HAZARD) and `creditedTo`; `SCORE` (`playerId`, `victimId`, `delta` +1 / −1 / 0, `reason` KILL / SELF_KILL / ENVIRONMENT, `kills`); `MATCH_WON`; `TIEBREAK_START`.
+- **Each step**, after all simultaneous contacts are resolved (shields first), the deaths of that step are scored in player order from the same starting scores (so mutual kills both score), then victory is evaluated.
+
+**The complete attribution table**
+
+| What killed the victim | Credited to | Score | Notes |
+| --- | --- | --- | --- |
+| SLASH (an ACTIVE swing) | the swinger | killer +1 | A player killed on the step they swing still lands that swing (Slice 3), so mutual slash kills both score |
+| Boomerang, THROWN | its owner | owner +1 | |
+| Boomerang, RETURNING | its owner | owner +1 | a boomerang coming home kills like any other |
+| Boomerang, DEFLECTED | **the deflector** (`deflectedBy`) | deflector +1, the thrower nothing | the deflector sent it; its owner and the deflector are immune to it (Slice 3). After the deflected leg ends it is RETURNING again and credited to the owner |
+| TWIN_THROW (either boomerang) | the owner | owner +1 **per victim** | both boomerangs hitting one victim on one step is one kill (a victim dies once) |
+| BLAST (an explosion) | the blast boomerang's owner, or its deflector if it was deflected (same rule as above) | +1 per victim killed | a shield breaks instead (below) |
+| Several lethal contacts on one victim on one step | the first in the fixed contact order (attacker's place in the match, then boomerang/blast before slash) | +1, once | deterministic, as since Slice 5; it is **not** used to decide a victory |
+| SHIELD (GUARD) absorbs the blow | nobody | none | the victim did not die |
+| Hazard (the lethal floor) | **nobody** (environmental death) | the victim **−1** (never below 0) | never credits the last player to touch anybody |
+| A weapon of the victim's own | — (impossible) | — | see below |
+
+**Self-kill definition.** A death is a self-kill if the credited player *is* the victim: the victim loses one hole, never below zero, and **nobody else is ever credited**. Under the approved owner policy (Slices 1–5) a boomerang, a blast or a slash **never kills its owner** (and a deflected boomerang never kills its deflector), so no weapon can produce a self-kill; the scoring function nevertheless handles it (tested directly). The **lethal floor** is the only way to die by your own movement: it is classed as an **environmental death**, credits nobody, and — **a decision to be reviewed** — costs the victim one hole, the same penalty as a self-kill (standing on a strip you can see is warning is your own doing). If you'd rather the floor cost nothing, it is one line in `applyDeaths`. A shield that absorbs a floor death costs nothing.
+
+**Victory.** On the step in which a player *gains* a kill and thereby has `targetKills` (14), the match is over at once: phase `MATCH_OVER`, `matchOver.winnerId`, event `MATCH_WON`, no `ROUND_OVER`, the round does not finish, and from then on `stepFu` returns the state untouched with no events, so nothing after the winning step can be processed (a later kill by a player at 13 never happens). The first player to fill the meter wins even if others are still alive and even in round 2.
+
+**Same-step 14 / 14 (tie).** Two or more players filling their last hole on the same simulation step is a tie, not a matter of array order: **no winner is named**; the round ends (the usual pause); the next round is a **tiebreak between only those players** (everyone else sits it out, dead, keeping their kills and inventory). In a tiebreak the first credited kill wins at once (each is already at 14, so any gain wins); if two land on the same step it is a tiebreak again. If a tiebreak round ends with exactly one meter still full (the other lost a hole to the floor) that player wins; if none is full, normal rounds resume.
+
+**Rounds.** A round ends as before (one or none left alive). Kills and owned powers persist (Slice 5 rules, unchanged). `ROUND n / 9` are regulation; if nobody has 14 after round 9 the match goes on (`OVERTIME ROUND 1`, 2, …): there is no award for leading. A **rematch** (`rematchOf`) is a new match: round 1, empty meters, empty inventories, `awards` 0, all combat state reset, same participants, slots and settings.
+
+### Presentation (primitive; `ui/Hud.tsx`, from the rules' state through the view model)
+
+A slim **score strip above the arena** (never over it): the round label, then per player their marker, number, name (CPUs tagged) and a meter of fourteen circles (● filled, ○ empty: shape, not colour) with `8 / 14`. Between rounds a large **Standings** panel (best first, a tiebreak announced). A change of a meter is a CSS pop of the one hole that filled (accent), a flash of the one that emptied (red), and a line of words (`Alvin +1 (Bea)`, `Bea −1 (the floor)`). The match end is a **champion screen** with the final meters and **Rematch** / **Return to lobby**; people who joined mid-match are listed as waiting. No VFX or audio.
+
+### CPUs
+
+A CPU is a participant like any other: its kills fill its holes, a floor death empties one, it can win at 14, difficulty never touches scoring. They do not yet play the race strategically (a possible later step; no new capability was added).
+
+### Match lifecycle and the host
+
+- **Late join:** the room now accepts a person while the match is running (`room-engine` `joinRoom`: LOBBY or PLAYING). They hold a seat and a slot but **no body**; their input is ignored; the champion screen lists them as waiting. A rematch takes them in when the table has room (it never turns a CPU or an earlier player away); otherwise they wait for the lobby.
+- **Rematch** is local to the console (the room stays PLAYING). **Return to lobby** sends the new host message `MATCH_END` (PLAYING → RESULTS → LOBBY on the server).
+- **Host loses its server connection, page alive:** the match **pauses** (nothing steps; the clock is rebased on resume so the time away is not simulated or counted as discarded) and resumes where it was. Controllers are still not told.
+- **Host page reloads (simulation gone):** the reclaiming console sees the room PLAYING, ends the match (`MATCH_END`), shows the lobby and says why. It never restarts round 1 silently.
+- **A reconnecting person** keeps their body, kills and powerups (the simulation never rebuilt anything).
+- `?kills=N` on the console address (1–13; test/playtest only) shortens the race; the game is 14.
+
+### Tests
+
+`test/scoring.test.ts` (the pure scoring), `test/killrace.test.ts` (32 rules tests: one kill fills one hole; three in a round; no survival bonus; persistence; self-kill and zero; the floor; attribution for SLASH / THROWN / RETURNING / DEFLECTED / TWIN / BLAST / deflected blast / shield; mutual kills; 13 → 14 immediate victory with the round still on; no post-victory processing; the earlier of two at 13 wins; same-step tie and the tiebreak; regulation, overtime and no award for leading; rematch), `test/cpuKillRace.test.ts` (CPU scoring, floor death, a complete match and its replay, six CPUs, rematch). Console: `test/slice8.test.ts` (modes, composition, late join, rematch, pause, reload), `test/hud.test.tsx`, lobby tests in `test/app.test.tsx`. Platform: room-engine (joining PLAYING, min 0), protocol (`MATCH_END`), server. End to end (`integration/e2e/killrace.e2e.ts`): modes in the lobby; a CPU-only race to a winner with Rematch and Return to lobby; a latecomer; a reload mid-match. **Mutation testing** of the kill-race rules (16 faults: penalty at zero, below zero, a self-kill credited, 14 not winning, a full meter winning without gaining, a deflected kill credited to the thrower, same-step ties resolved by array order, kills processed after victory, victory also ending the round, a tie not ending the round, no tiebreak, a tiebreak including everyone, overtime a round early, the floor crediting a player, scores never stored): **16 killed** (one only after a test for the two-player winning kill was added).
+
+### Evaluation (diagnostic)
+
+Full CPU-only Free For All matches (Easy, Medium, two Hard; the arena with systems; seats rotated; 30 matches): all 30 ended at 14 kills, **mean length 61 s (45–92 s), mean 10.3 rounds**, wins Hard 28 / Medium 2 / Easy 0; one hole lost to the floor in 30 matches, no tiebreaks. (`pnpm --filter @foomerang/foomerang-fu eval:cpu`.) Human pacing is the playtest's to judge.
+
+### Performance and bundle
+
+Bundle (`pnpm build`, gzip): initial JS **126.6 kB** (budget 130; +2.3 kB for the mode list and the HUD components), lazy JS **348.0 kB** (budget 380; +1.7 kB), budgets unchanged. `pnpm e2e:cpu6` (one idle controller and five Hard CPUs, the strip and standings on screen, 60 s, dev console, headless Chrome): FPS min / median / max **59.99 / 60.00 / 60.03**; CPU decisions 18,185, **mean 0.013 ms, worst 4.4 ms**; 3,637 steps, 5 catch-up frames, 1 discard event, **33 ms** of simulation discarded in total. (A match can end during the run; the champion screen is then up.) The HUD re-renders React only when a meter, the round or the phase changes, not per frame.
+
+### The playtest will answer
+
+Is 14 the right number, and is a match of a few minutes the right length? Do you feel the race (whose meter is closest) without staring at the strip? Is the strip readable from the couch without cluttering the arena? Does the floor penalty feel fair? Does the champion screen, rematch and return flow feel right? Does a latecomer waiting feel acceptable?
+
 ## State (`FuState`, plain data)
 
 `config` · `round` · `phase` (`PLAYING` | `ROUND_OVER`) · `elapsed` · `world` (game-core bodies = player positions) · `players` (`id`, `slot`, `alive`, `facing`, `slash`, `dash`, `fatigue`) · `boomerangs` (one per player: `ownerId`, `state`, `position`, `direction`, `travelled`) · `roundOver` (`winnerId` or undefined for a draw, `resetInSeconds`).

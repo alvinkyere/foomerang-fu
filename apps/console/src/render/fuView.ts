@@ -1,12 +1,22 @@
-import { isFatigued, systemsView, type FuEvent, type FuState } from '@foomerang/foomerang-fu';
+import {
+  isFatigued,
+  roundLabel,
+  systemsView,
+  type FuEvent,
+  type FuState,
+} from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
-import type { SlotAllocator } from '../runtime/slots';
+import { isCpuId } from '../runtime/cpuRoster';
+import { SLOT_STYLES, type SlotAllocator } from '../runtime/slots';
 import {
   identityOf,
   styleOf,
   type ArenaView,
   type BoomerangView,
   type CircleView,
+  type HudView,
+  type ScoreEntryView,
+  type ScoreEventView,
   type ViewEvent,
 } from './viewModel';
 
@@ -69,7 +79,7 @@ export function buildFuView(
               radius: state.config.boomerangRadius,
               color: styleOf(b.ownerId, slots).color,
               state: b.state,
-              spent: state.phase === 'ROUND_OVER',
+              spent: state.phase !== 'PLAYING',
             },
           ];
     },
@@ -126,7 +136,9 @@ export function buildFuView(
             who: identityOf(event.playerId, roster, slots).label,
           },
         ];
-      case 'MATCH_OVER':
+      case 'SCORE': // the meters are drawn from the state; the change itself is the HUD's feedback
+      case 'MATCH_WON':
+      case 'TIEBREAK_START':
         return [];
       case 'BLASTED':
         return [
@@ -194,9 +206,60 @@ export function buildFuView(
     const winnerId = state.roundOver?.winnerId;
     banner =
       winnerId === undefined
-        ? 'Draw'
-        : `${identityOf(winnerId, roster, slots).label} wins the round`;
+        ? 'Round over'
+        : `${identityOf(winnerId, roster, slots).label} is the last one standing`;
   }
+
+  const entryOf = (id: string): ScoreEntryView => {
+    const identity = identityOf(id, roster, slots);
+    const style = SLOT_STYLES.find((st) => st.number === identity.number);
+    return {
+      id,
+      label: identity.label,
+      marker: style?.marker ?? '○',
+      number: identity.number,
+      color: identity.color,
+      kills: state.scores[id] ?? 0,
+      cpu: isCpuId(id),
+    };
+  };
+  const label = roundLabel(state);
+  const target = state.config.targetKills;
+  const scoreEvents = events.flatMap((e, i): ScoreEventView[] =>
+    e.type === 'SCORE'
+      ? [
+          {
+            key: `${state.elapsed.toFixed(4)}:${i}`,
+            playerId: e.playerId,
+            label: identityOf(e.playerId, roster, slots).label,
+            delta: e.delta,
+            reason: e.reason,
+            kills: e.kills,
+            victimLabel: identityOf(e.victimId, roster, slots).label,
+          },
+        ]
+      : [],
+  );
+  const hud: HudView = {
+    target,
+    roundLabel:
+      label.kind === 'TIEBREAK'
+        ? 'TIEBREAK'
+        : label.kind === 'OVERTIME'
+          ? `OVERTIME ROUND ${label.round}`
+          : label.of === undefined
+            ? `ROUND ${label.round}`
+            : `ROUND ${label.round} / ${label.of}`,
+    phase: state.phase,
+    entries: state.players.map((p) => entryOf(p.id)),
+    champion: state.matchOver === undefined ? undefined : entryOf(state.matchOver.winnerId),
+    tiebreak:
+      state.phase === 'ROUND_OVER' && target !== undefined
+        ? state.players.filter((p) => (state.scores[p.id] ?? 0) >= target).map((p) => p.id)
+        : [],
+    scoreEvents,
+    waiting: [],
+  };
 
   return {
     width: state.world.arena.width,
@@ -213,5 +276,6 @@ export function buildFuView(
     events: viewEvents,
     banner,
     round: state.round,
+    hud,
   };
 }

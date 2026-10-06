@@ -163,9 +163,7 @@ export type FuEvent =
   /** Slice 8: these players filled their meters on the same step: a tiebreak round between only them begins. */
   | { readonly type: 'TIEBREAK_START'; readonly playerIds: readonly string[] }
   | { readonly type: 'ROUND_OVER'; readonly winnerId: string | undefined }
-  | { readonly type: 'ROUND_START'; readonly round: number }
-  /** Slice 5: the last round of a match ended; inventories are cleared as the next match starts. */
-  | { readonly type: 'MATCH_OVER' };
+  | { readonly type: 'ROUND_START'; readonly round: number };
 
 export interface FuStepResult {
   readonly state: FuState;

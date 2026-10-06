@@ -320,6 +320,18 @@ describe('immediate victory', () => {
     });
   });
 
+  it('when the winning kill also leaves nobody else alive there is no round end: the match is simply won', () => {
+    const two = withScores(
+      place(place(make(['a', 'b'], FFA), 'a', 800, 450), 'b', 800 + R * 2, 450),
+      { a: 13 },
+    );
+    const r = stepFu(face(two, 'a', 1, 0), SLASH_A, DT);
+    expect(r.state.phase).toBe('MATCH_OVER');
+    expect(r.state.roundOver).toBeUndefined();
+    expect(types(r.events)).not.toContain('ROUND_OVER');
+    expect(types(r.events)).toContain('MATCH_WON');
+  });
+
   it('nothing after the winning step is processed: no kill, no score, no change at all', () => {
     const won = slashKills(race({ a: 13, b: 13 }), 'a', 'c').state;
     expect(won.phase).toBe('MATCH_OVER');

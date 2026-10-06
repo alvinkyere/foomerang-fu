@@ -41,6 +41,10 @@ export class GameRuntime implements MatchRuntime {
   /** The primitive arena has no buttons. */
   receiveAction(): void {}
 
+  rebase(nowMs: number): void {
+    this.#stepper.rebase(nowMs);
+  }
+
   frame(nowMs: number): void {
     if (this.world === undefined) return;
     const steps = this.#stepper.advance(nowMs);

@@ -40,6 +40,13 @@ export interface HostState {
   readonly failure: HostFailure | undefined;
   /** A refused request (e.g. Start with too few players) that did not end the session. */
   readonly notice: ErrorCode | undefined;
+  /**
+   * This console page reclaimed the room after a reload (it did not create it): any match the room was playing was
+   * running in the page that is gone.
+   */
+  readonly reclaimed: boolean;
+  /** The reclaimed room was in the middle of a match whose simulation was lost: the match was ended and the room is back in the lobby. */
+  readonly matchInterrupted: boolean;
 }
 
 export interface HostDiagnostics {
@@ -79,6 +86,8 @@ const IDLE: HostState = Object.freeze({
   roster: Object.freeze([]) as readonly RosterEntry[],
   failure: undefined,
   notice: undefined,
+  reclaimed: false,
+  matchInterrupted: false,
 });
 
 /** Reconnect failures that retrying cannot fix. */
@@ -207,7 +216,13 @@ export class HostSession {
     if (stored === undefined) return false;
     this.#hostToken = stored.hostToken;
     this.#gameId = stored.gameId;
-    this.#set({ ...IDLE, phase: 'RECONNECTING', joinCode: stored.joinCode, gameId: stored.gameId });
+    this.#set({
+      ...IDLE,
+      phase: 'RECONNECTING',
+      joinCode: stored.joinCode,
+      gameId: stored.gameId,
+      reclaimed: true,
+    });
     this.#reconnectStartedAt = this.#env.now();
     this.#attempt = 0;
     this.#open('RECONNECT');
@@ -218,6 +233,12 @@ export class HostSession {
     if (this.#disposed || this.#state.phase !== 'ACTIVE') return;
     this.#set({ ...this.#state, notice: undefined });
     this.#send({ type: 'MATCH_START', payload: {} });
+  }
+
+  /** The match is over (or lost): the room goes back to the lobby. */
+  endMatch(): void {
+    if (this.#disposed || this.#state.phase !== 'ACTIVE') return;
+    this.#send({ type: 'MATCH_END', payload: {} });
   }
 
   /** Give up the room: forget the credential and return to IDLE. */
@@ -392,12 +413,27 @@ export class HostSession {
         if (phase !== 'ACTIVE') return;
         const { state, players, joinCode } = message.payload;
         const roster = sameRoster(this.#state.roster, players) ? this.#state.roster : players;
+        // A page that has just reclaimed a room which is PLAYING has no simulation: the match it was playing died with
+        // the old page. Never pretend otherwise (and never silently restart round 1): end that match, show the lobby, say why.
+        if (this.#state.reclaimed && this.#state.roomState === undefined && state === 'PLAYING') {
+          this.#send({ type: 'MATCH_END', payload: {} });
+          this.#set({
+            ...this.#state,
+            joinCode,
+            roomState: 'LOBBY',
+            roster,
+            notice: undefined,
+            matchInterrupted: true,
+          });
+          return;
+        }
         this.#set({
           ...this.#state,
           joinCode,
           roomState: state,
           roster,
           notice: state === this.#state.roomState ? this.#state.notice : undefined,
+          matchInterrupted: state === 'LOBBY' ? this.#state.matchInterrupted : false,
         });
         return;
       }

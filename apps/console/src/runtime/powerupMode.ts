@@ -36,6 +36,17 @@ export function parseEnabledParam(search: string): PowerKind[] | undefined {
   return valid.length === 0 ? undefined : valid;
 }
 
+/**
+ * How many kills win a Free For All (`?kills=3`), for playtesting and automated checks only: 1–14, so a match can be
+ * seen to its end in seconds. The game is 14; no parameter (or anything else) means 14.
+ */
+export function parseKillsParam(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get('kills');
+  if (raw === null || !/^\d{1,2}$/.test(raw)) return undefined;
+  const n = Number(raw);
+  return n >= 1 && n <= 14 && n !== 14 ? n : undefined;
+}
+
 /** Which experimental arena to play (`?arena=systems`): the Slice 6 arena with gates, platforms and hazards; anything else is the baseline arena. */
 export type ArenaChoice = 'primitive' | 'systems';
 export const parseArenaParam = (search: string): ArenaChoice =>

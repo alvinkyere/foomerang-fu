@@ -132,6 +132,52 @@ export interface SystemsViewModel {
 
 export const NO_SYSTEMS: SystemsViewModel = { gates: [], platforms: [], hazards: [] };
 
+/** One player's row in the kill race: who they are (name, colour, marker, number: never colour alone) and their holes. */
+export interface ScoreEntryView {
+  readonly id: string;
+  readonly label: string;
+  readonly marker: string;
+  readonly number: number;
+  readonly color: string;
+  /** Holes filled (kills). */
+  readonly kills: number;
+  readonly cpu: boolean;
+}
+
+/** A kill meter just changed (a rules fact, from a SCORE event): for the brief on-screen feedback. */
+export interface ScoreEventView {
+  /** Unique, so a repeat is not mistaken for the same event. */
+  readonly key: string;
+  readonly playerId: string;
+  readonly label: string;
+  /** +1 a hole filled, −1 a hole emptied, 0 a penalty at an empty meter. */
+  readonly delta: number;
+  readonly reason: 'KILL' | 'SELF_KILL' | 'ENVIRONMENT';
+  /** Their kills after the change. */
+  readonly kills: number;
+  /** Whose death it was (their name), for "Alvin → Bea". */
+  readonly victimLabel: string;
+}
+
+/** The race, as the score strip, the standings and the champion screen draw it. Presentation only: every number is the rules'. */
+export interface HudView {
+  /** The kills that win the match (14), or undefined in a game without a race. */
+  readonly target: number | undefined;
+  /** "ROUND 3 / 9", "OVERTIME ROUND 1", "TIEBREAK". */
+  readonly roundLabel: string;
+  readonly phase: 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
+  /** In player order (stable: the same row for the same player all match). */
+  readonly entries: readonly ScoreEntryView[];
+  /** Set once somebody has won. */
+  readonly champion: ScoreEntryView | undefined;
+  /** At the end of a round: who filled their meters together and will play a tiebreak. */
+  readonly tiebreak: readonly string[];
+  /** The meters that changed since the last view (delivered once, like the arena events). */
+  readonly scoreEvents: readonly ScoreEventView[];
+  /** People who joined while this match was running: they play the next one. */
+  readonly waiting: readonly string[];
+}
+
 export interface ArenaView {
   readonly width: number;
   readonly height: number;
@@ -144,9 +190,11 @@ export interface ArenaView {
   /** Gates, platforms and hazards (empty in arenas without them). */
   readonly systems: SystemsViewModel;
   readonly events: readonly ViewEvent[];
-  /** Text to show big while a round is over (winner or draw). */
+  /** Text to show big while a round is over. */
   readonly banner: string | undefined;
   readonly round: number | undefined;
+  /** The kill race (Free For All); absent for the primitive arena. */
+  readonly hud?: HudView;
 }
 
 const FALLBACK: SlotStyle = { color: '#9AA0A6', number: 0, shape: 'circle', marker: '○' };

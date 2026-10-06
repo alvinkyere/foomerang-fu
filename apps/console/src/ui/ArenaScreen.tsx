@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import type { ArenaRenderer, ArenaRendererLoader } from '../render/renderer';
 import { FrameLoop } from '../runtime/frameLoop';
+import type { HudView, ScoreEventView } from '../render/viewModel';
 import { DebugOverlay } from './DebugOverlay';
+import { ChampionScreen, ScoreStrip, ScoreToasts, Standings, type Pulse } from './Hud';
 import { useHostState } from './useStore';
 
 // Module-level so their identity is stable: the effect below must not restart (and destroy the
@@ -37,6 +39,11 @@ export function ArenaScreen({
   const [rendererFailed, setRendererFailed] = useState(false);
   const [debugOpen, setDebugOpen] = useState(debugInitiallyOpen);
   const state = useHostState(runtime.session);
+  const [hud, setHud] = useState<HudView | undefined>(undefined);
+  const [waiting, setWaiting] = useState<readonly string[]>([]);
+  const [toasts, setToasts] = useState<readonly ScoreEventView[]>([]);
+  const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
+  const lastHud = useRef('');
 
   useEffect(() => {
     const container = containerRef.current;
@@ -49,7 +56,50 @@ export function ArenaScreen({
     loop.start(() => {
       runtime.frame(now());
       const view = runtime.director.arenaView();
-      if (view !== undefined) renderer?.render(view);
+      if (view === undefined) return;
+      renderer?.render(view);
+      const next = view.hud;
+      if (next === undefined) return;
+      // React re-renders only when what the HUD shows has changed, not on every frame
+      const waitingNow = runtime.director.waitingForNextMatch().map((r) => r.displayName);
+      const key = JSON.stringify([
+        next.roundLabel,
+        next.phase,
+        next.entries.map((e) => [e.id, e.kills, e.label]),
+        next.champion?.id,
+        next.tiebreak,
+        waitingNow,
+      ]);
+      if (key !== lastHud.current) {
+        lastHud.current = key;
+        setHud(next);
+        setWaiting(waitingNow);
+      }
+      if (next.scoreEvents.length > 0) {
+        const fresh = next.scoreEvents;
+        setToasts((old) => [...old, ...fresh].slice(-4));
+        setPulses((old) => ({
+          ...old,
+          ...Object.fromEntries(
+            fresh.map((e) => [
+              e.playerId,
+              {
+                kind: e.delta > 0 ? 'fill' : e.delta < 0 ? 'drain' : 'penalty',
+                hole: e.delta > 0 ? e.kills - 1 : e.kills,
+                key: e.key,
+              } as Pulse,
+            ]),
+          ),
+        }));
+        window.setTimeout(() => {
+          setToasts((old) => old.filter((t) => !fresh.includes(t)));
+          setPulses((old) =>
+            Object.fromEntries(
+              Object.entries(old).filter(([, p]) => !fresh.some((e) => e.key === p.key)),
+            ),
+          );
+        }, 2_200);
+      }
     });
 
     loadRenderer(container).then(
@@ -85,7 +135,21 @@ export function ArenaScreen({
 
   return (
     <main className="screen arena-screen">
+      {hud !== undefined && <ScoreStrip hud={hud} pulses={pulses} />}
       <div ref={containerRef} className="arena" data-testid="arena" />
+      <ScoreToasts toasts={toasts} />
+      {hud?.phase === 'ROUND_OVER' && <Standings hud={hud} />}
+      {hud?.phase === 'MATCH_OVER' && (
+        <ChampionScreen
+          hud={hud}
+          waiting={waiting}
+          onRematch={() => runtime.rematch()}
+          onLobby={() => runtime.returnToLobby()}
+        />
+      )}
+      {hud !== undefined && hud.phase !== 'MATCH_OVER' && waiting.length > 0 && (
+        <p className="muted waiting">Waiting for the next match: {waiting.join(', ')}</p>
+      )}
       {state.phase === 'RECONNECTING' && (
         <p className="banner" role="status">
           Reconnecting to the game server…

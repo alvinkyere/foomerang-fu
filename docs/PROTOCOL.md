@@ -106,7 +106,7 @@ Stable machine identifiers; renaming or removing is a breaking change, adding is
 
 `INVALID_MESSAGE`, `UNSUPPORTED_PROTOCOL`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `INVALID_RECONNECT_TOKEN`, `RATE_LIMITED`, `UNAUTHORIZED`.
 
-Added in Slice 6 (additive), each because the server's translation layer needed a distinct answer: `ROOM_NOT_JOINABLE`, `INVALID_DISPLAY_NAME`, `SEAT_RELEASED`, `ROOM_CLOSING`, `UNKNOWN_GAME`, `HANDSHAKE_REQUIRED` (anything but a handshake first, or no handshake in time), `INTERNAL_ERROR` (a server fault; never carries details).
+Added in Slice 8 (additive): the host message `MATCH_END` (PLAYING → RESULTS → LOBBY; host only; `INVALID_STATE` anywhere else). Added in Slice 6 (additive), each because the server's translation layer needed a distinct answer: `ROOM_NOT_JOINABLE`, `INVALID_DISPLAY_NAME`, `SEAT_RELEASED`, `ROOM_CLOSING`, `UNKNOWN_GAME`, `HANDSHAKE_REQUIRED` (anything but a handshake first, or no handshake in time), `INTERNAL_ERROR` (a server fault; never carries details).
 
 Added in Slice 8 (additive): `NOT_ENOUGH_PLAYERS` (the host asked to start with fewer players than the game needs) and `INVALID_STATE` (the room cannot make that transition now).
 
