@@ -565,12 +565,19 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
         { type: 'HIT', byId: 'a', victimId: 'b', position: { x: 30, y: 40 } },
         { type: 'CAUGHT', playerId: 'a' },
         { type: 'ROUND_START', round: 2 },
+        { type: 'RECALLED', playerId: 'b' },
         { type: 'ROUND_OVER', winnerId: 'a' },
       ],
       entries,
       slots,
     );
-    expect(view.events.map((e) => e.type)).toEqual(['THROWN', 'HIT', 'CAUGHT', 'ROUND_START']);
+    expect(view.events.map((e) => e.type)).toEqual([
+      'THROWN',
+      'HIT',
+      'CAUGHT',
+      'ROUND_START',
+      'CAUGHT', // the recall failsafe is drawn like a catch
+    ]);
     expect(view.events[0]).toMatchObject({ x: 10, y: 20, color: SLOT_STYLES[0]?.color });
     expect(view.events[1]).toMatchObject({ x: 30, y: 40, color: SLOT_STYLES[1]?.color }); // the victim's colour
     expect(view.events[2]).toMatchObject({ color: SLOT_STYLES[0]?.color });

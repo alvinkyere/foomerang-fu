@@ -9,6 +9,7 @@ import {
 import { canTransition, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
 import { lineIsClear, sweepCircle, wallsOf } from './arena';
+import { homeStep } from './homing';
 import { separateBodies } from './collision';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
 import { startRound, type FuPlayer, type FuState } from './state';
@@ -40,6 +41,8 @@ export type FuEvent =
       readonly direction: Vec2;
     }
   | { readonly type: 'CAUGHT'; readonly playerId: string }
+  /** The failsafe: a boomerang that could not get home round the walls in time ended up back in its owner's hand. */
+  | { readonly type: 'RECALLED'; readonly playerId: string }
   | {
       readonly type: 'HIT';
       readonly byId: string;
@@ -98,8 +101,9 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  *      so when THROW and SLASH arrive on the same step the SLASH wins and the throw is dropped,
  *      whichever order the inputs were delivered in)
  *   3. boomerangs fly (a boomerang thrown this step does not also move this step). A THROWN one
- *      stops at the first wall it would touch and turns RETURNING; a RETURNING one flies straight
- *      home through anything (the one deliberate non-rule about geometry: no pathfinding)
+ *      stops at the first wall it would touch and turns RETURNING; a RETURNING one keeps homing
+ *      on its owner but is bound by the walls too, sliding along them (homing.ts: local steering,
+ *      no pathfinding) and recalled by a failsafe if wall-following takes too long
  *   4. hits — boomerangs and ACTIVE slashes alike — resolved SIMULTANEOUSLY against the end-of-step
  *      positions
  *   5. round end
@@ -144,6 +148,8 @@ interface Flight {
   /** Where it can hit someone this step, or undefined if it is not lethal this step. */
   readonly lethalAt: Vec2 | undefined;
   readonly caught: boolean;
+  /** Returned to the owner's hand by the wall-following failsafe rather than caught. */
+  readonly recalled?: boolean;
 }
 
 function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult {
@@ -256,7 +262,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const travelled = b.travelled + length;
       if (hitWall || travelled >= config.throwRange - EPSILON) {
         return {
-          boomerang: transition(b, 'RETURNING', { position, direction: ZERO, travelled: 0 }),
+          boomerang: transition(b, 'RETURNING', {
+            position,
+            direction: ZERO,
+            travelled: 0,
+            follow: 0,
+            wallSeconds: 0,
+          }),
           lethalAt: position,
           caught: false,
         };
@@ -270,30 +282,66 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
 
     // RETURNING: home in on the owner's CURRENT position.
     const owner = positionOf(b.ownerId);
-    const dx = owner.x - b.position.x;
-    const dy = owner.y - b.position.y;
-    const distance = Math.hypot(dx, dy);
     const travel = config.returnSpeed * dt;
-    const position =
-      distance <= travel
-        ? owner
-        : {
-            x: b.position.x + (dx / distance) * travel,
-            y: b.position.y + (dy / distance) * travel,
-          };
-    const arrived = distance - travel <= reach;
-    // It can still hurt on the step it arrives, so lethality is judged at `position` before it is caught.
-    return {
-      boomerang: arrived
-        ? transition(b, 'HELD', { position: owner, direction: ZERO, travelled: 0 })
-        : Object.freeze({ ...b, position }),
-      lethalAt: position,
-      caught: arrived,
-    };
+    const home = (position: Vec2, arrived: boolean, extra: Partial<typeof b>, recalled = false) =>
+      ({
+        // It can still hurt on the step it arrives, so lethality is judged at `position` before it is caught.
+        boomerang: arrived
+          ? transition(b, 'HELD', {
+              position: owner,
+              direction: ZERO,
+              travelled: 0,
+              follow: 0,
+              wallSeconds: 0,
+            })
+          : Object.freeze({ ...b, position, ...extra }),
+        lethalAt: position,
+        caught: arrived,
+        recalled,
+      }) satisfies Flight;
+
+    if (walls.length === 0) {
+      // Open ground (Slice 1 exactly): a straight line home.
+      const dx = owner.x - b.position.x;
+      const dy = owner.y - b.position.y;
+      const distance = Math.hypot(dx, dy);
+      const position =
+        distance <= travel
+          ? owner
+          : {
+              x: b.position.x + (dx / distance) * travel,
+              y: b.position.y + (dy / distance) * travel,
+            };
+      return home(position, distance - travel <= reach, {});
+    }
+
+    // Among walls: still home on the owner, but bound by the geometry — local steering, see homing.ts.
+    const homed = homeStep(
+      b.position,
+      owner,
+      travel,
+      config.boomerangRadius,
+      walls,
+      config.arena,
+      b.follow,
+    );
+    const wallSeconds = b.wallSeconds + (homed.followed ? dt : 0);
+    const arrived = Math.hypot(owner.x - homed.position.x, owner.y - homed.position.y) <= reach;
+    // The failsafe: sliding along walls for too long without getting home ends the trip, deterministically.
+    const recalled = !arrived && wallSeconds >= config.returnWallSeconds - EPSILON;
+    return home(
+      homed.position,
+      arrived || recalled,
+      { follow: homed.follow, wallSeconds },
+      recalled,
+    );
   });
   boomerangs = flights.map((f) => f.boomerang);
   flights.forEach((f, index) => {
-    if (f.caught) events.push({ type: 'CAUGHT', playerId: (players[index] as FuPlayer).id });
+    if (f.caught) {
+      const playerId = (players[index] as FuPlayer).id;
+      events.push({ type: f.recalled === true ? 'RECALLED' : 'CAUGHT', playerId });
+    }
   });
 
   // 4. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------

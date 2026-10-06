@@ -391,6 +391,54 @@ test('Foomerang Fu: a wall stops a player walking into it, and stops a thrown bo
   expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
 });
 
+test('Foomerang Fu: a returning boomerang cannot pass through cover — even when its owner ducks behind it — and still gets home', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  const walls = (await host.fu()).walls;
+  const clearance = (p: Point) =>
+    Math.min(
+      ...walls.map((w) =>
+        Math.hypot(
+          p.x - Math.min(Math.max(p.x, w.x), w.x + w.width),
+          p.y - Math.min(Math.max(p.y, w.y), w.y + w.height),
+        ),
+      ),
+    );
+  // Throw right along the open top lane, then immediately start ducking down the left lane, so that by the
+  // time the boomerang turns back Alice is behind the left corridor's wall (x 200–250, y 300–600).
+  await aim(alice, SPAWNS[0] as Point, { x: 210, y: 110 });
+  await alice.tapThrow();
+  const mine = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === aliceId);
+  await alice.thumbDown();
+  await alice.thumbMove(0, FAR);
+  let tightest = Number.POSITIVE_INFINITY;
+  let sawReturning = 0;
+  let wallFollowing = 0;
+  let home = false;
+  const until = Date.now() + 8_000;
+  while (Date.now() < until) {
+    const b = await mine();
+    if (b === undefined) break;
+    if (b.state !== 'HELD') {
+      tightest = Math.min(tightest, clearance(b));
+      if (b.state === 'RETURNING') sawReturning += 1;
+      if (b.state === 'RETURNING' && b.follow !== 0) wallFollowing += 1;
+    } else if (sawReturning > 0) {
+      home = true;
+      break;
+    }
+    await sleep(6);
+  }
+  await alice.thumbUp();
+  expect(sawReturning).toBeGreaterThan(5);
+  expect(wallFollowing, 'it really did have to slide along cover').toBeGreaterThan(0);
+  expect(tightest).toBeGreaterThanOrEqual(14 - 0.01); // never inside a wall, at any sampled moment
+  expect(home).toBe(true); // and it found its way back to her
+  expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
+});
+
 test('Foomerang Fu: holding SLASH swings once and sends exactly one press and one release', async ({
   fuHost: host,
   newPhone,

@@ -31,6 +31,12 @@ export interface FuConfig {
   readonly slashRecoverySeconds: number;
   /** Walking speed while swinging and recovering, as a fraction of normal (1 = no slowdown). */
   readonly slashMoveFactor: number;
+  /**
+   * Failsafe for a boomerang coming home round geometry: if it has spent this long sliding along walls
+   * without arriving, it is recalled to its owner's hand (nothing is teleported through a wall; it simply
+   * ends). It never counts in open ground, so it cannot affect open-arena play.
+   */
+  readonly returnWallSeconds: number;
   /** How long the round-over state is shown before the next round starts, seconds. */
   readonly roundEndSeconds: number;
 }
@@ -48,6 +54,7 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   slashActiveSeconds: 0.12,
   slashRecoverySeconds: 0.38,
   slashMoveFactor: 0.6,
+  returnWallSeconds: 3,
   roundEndSeconds: 2.5,
 });
 
@@ -70,6 +77,7 @@ export function assertValidConfig(config: FuConfig): void {
     ['slashActiveSeconds', config.slashActiveSeconds],
     ['slashRecoverySeconds', config.slashRecoverySeconds],
     ['slashMoveFactor', config.slashMoveFactor],
+    ['returnWallSeconds', config.returnWallSeconds],
     ['roundEndSeconds', config.roundEndSeconds],
   ];
   for (const [name, value] of numbers) {

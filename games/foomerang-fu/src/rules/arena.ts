@@ -243,3 +243,20 @@ export const PRIMITIVE_ARENA: FuArena = Object.freeze({
     at(800, 825),
   ]),
 });
+
+/** The unit vector pointing away from the wall nearest to `p`, or undefined if `p` is on a wall's surface or there are none. */
+export function nearestWallNormal(p: Vec2, walls: readonly Rect[]): Vec2 | undefined {
+  let best: Rect | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const wall of walls) {
+    const d = distanceToRect(p, wall);
+    if (d < bestDistance) {
+      best = wall;
+      bestDistance = d;
+    }
+  }
+  if (best === undefined || bestDistance === 0) return undefined;
+  const cx = clamp(p.x, best.x, best.x + best.width);
+  const cy = clamp(p.y, best.y, best.y + best.height);
+  return { x: (p.x - cx) / bestDistance, y: (p.y - cy) / bestDistance };
+}

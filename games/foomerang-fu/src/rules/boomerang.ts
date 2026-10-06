@@ -29,6 +29,10 @@ export interface Boomerang {
   readonly direction: Vec2;
   /** Distance flown on the outbound leg. Zero unless THROWN. */
   readonly travelled: number;
+  /** RETURNING only: which way it is hugging a wall (1 or -1), or 0 when it is flying free. */
+  readonly follow: -1 | 0 | 1;
+  /** RETURNING only: seconds it has spent sliding along walls on this trip home (the failsafe clock). */
+  readonly wallSeconds: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

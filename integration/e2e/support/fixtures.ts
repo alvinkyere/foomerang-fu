@@ -41,6 +41,9 @@ export interface Snapshot {
           x: number;
           y: number;
           travelled: number;
+          /** RETURNING and sliding along a wall: which hand (±1); 0 when flying free. */
+          follow: number;
+          wallSeconds: number;
         }[];
         duplicatesIgnored: number;
       }

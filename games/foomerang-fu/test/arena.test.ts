@@ -455,7 +455,9 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
     expect(player(state, 'b').alive).toBe(true);
   });
 
-  it('a boomerang coming back is NOT stopped by walls: it flies straight home, through them, and can still hit (the documented return rule)', () => {
+  it('a boomerang coming back is bound by walls too (Slice 2 decision, reversed after human play): it never enters one, and goes round', () => {
+    // The first version of this rule let a returning boomerang fly straight home through cover. Playtesting
+    // found that unfair, so it is now constrained exactly like a thrown one; see homing.test.ts for the steering.
     let s = match(['a', 'b'], ONE_WALL, { a: [400, 450], b: [1500, 100] });
     s = patch(s, 'a', {
       state: 'RETURNING',
@@ -463,22 +465,11 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
       direction: { x: 0, y: 0 },
       travelled: 0,
     });
-    const seen: number[] = [];
-    for (let i = 0; i < 80 && boom(s, 'a').state === 'RETURNING'; i += 1) {
+    for (let i = 0; i < 200 && boom(s, 'a').state === 'RETURNING'; i += 1) {
       s = stepFu(s, NONE, DT).state;
-      seen.push(boom(s, 'a').position.x);
+      expect(gap(boom(s, 'a').position, SLAB), `step ${i}`).toBeGreaterThanOrEqual(RB - EPS);
     }
-    expect(boom(s, 'a').state).toBe('HELD');
-    expect(seen.some((x) => x > SLAB.x && x < SLAB.x + SLAB.width)).toBe(true); // it was inside the wall at some step
-    // and a player standing on that straight line is hit
-    let t = patch(match(['a', 'b'], ONE_WALL, { a: [400, 450], b: [900, 450] }), 'a', {
-      state: 'RETURNING',
-      position: { x: 1000, y: 450 },
-      direction: { x: 0, y: 0 },
-      travelled: 0,
-    });
-    t = run(t, 20).state;
-    expect(player(t, 'b').alive).toBe(false);
+    expect(boom(s, 'a').state).toBe('HELD'); // and it still got home
   });
 });
 

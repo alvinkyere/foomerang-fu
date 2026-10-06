@@ -114,6 +114,8 @@ export function startRound(
       position: spawns[index] as Vec2,
       direction: normalized({ x: 0, y: 0 }),
       travelled: 0,
+      follow: 0,
+      wallSeconds: 0,
     }),
   );
 

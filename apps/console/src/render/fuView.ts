@@ -79,6 +79,7 @@ export function buildFuView(
       case 'HIT':
         return [{ type: 'HIT', ...event.position, color: styleOf(event.victimId, slots).color }];
       case 'CAUGHT':
+      case 'RECALLED': // the wall-following failsafe: shown like a catch, at the owner
         return [
           {
             type: 'CAUGHT',
