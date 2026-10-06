@@ -1,7 +1,9 @@
 import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
   FU_BUTTONS,
+  PRIMITIVE_ARENA,
   createFuMatch,
+  type FuArena,
   stepFu,
   type FuEvent,
   type FuPlayerInput,
@@ -41,6 +43,13 @@ export class FuRuntime implements MatchRuntime {
   /** Repeated event ids the console itself discarded (the server normally catches them first). */
   duplicatesIgnored = 0;
 
+  /** Which arena to play in: the primitive test arena, unless a test wants the open Slice 1 one. */
+  readonly #arena: FuArena;
+
+  constructor(arena: FuArena = PRIMITIVE_ARENA) {
+    this.#arena = arena;
+  }
+
   #stepper = new FrameStepper();
   #inputs = new InputBuffer();
   #isActive: (playerId: string) => boolean = () => true;
@@ -55,7 +64,11 @@ export class FuRuntime implements MatchRuntime {
   }
 
   start(players: readonly MatchPlayer[], nowMs: number): void {
-    this.state = createFuMatch(players.map((p) => ({ id: p.playerId, slot: p.slot })));
+    // The rules' default is the open Slice 1 arena; the game people play is the primitive test arena.
+    this.state = createFuMatch(
+      players.map((p) => ({ id: p.playerId, slot: p.slot })),
+      { arena: this.#arena },
+    );
     this.#stepper.start(nowMs);
     this.#inputs = new InputBuffer();
     this.#playerIds = new Set(players.map((p) => p.playerId));
@@ -141,6 +154,7 @@ export class FuRuntime implements MatchRuntime {
     return {
       round: state.round,
       phase: state.phase,
+      walls: (state.config.arena.walls ?? []).map((w) => ({ ...w })),
       elapsed: state.elapsed,
       winnerId: state.roundOver?.winnerId,
       players: state.players.map((p) => ({

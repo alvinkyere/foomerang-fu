@@ -1,6 +1,9 @@
 // Foomerang Fu's rules: pure, deterministic, and free of DOM, React, Phaser, Socket.IO, wall-clock
 // time and ambient randomness (lint-enforced). The renderer reads this state; it never changes it.
 
+export { PRIMITIVE_ARENA } from './arena';
+export type { FuArena, Rect } from './arena';
+
 export { DEFAULT_FU_CONFIG } from './config';
 export type { FuConfig } from './config';
 

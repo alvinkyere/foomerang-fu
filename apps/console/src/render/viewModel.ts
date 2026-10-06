@@ -51,9 +51,19 @@ export interface ViewEvent {
   };
 }
 
+/** A solid rectangle of the arena, as the rules define it. The renderer only draws it. */
+export interface WallView {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface ArenaView {
   readonly width: number;
   readonly height: number;
+  /** Solid cover. Empty for the primitive circles arena. */
+  readonly walls: readonly WallView[];
   readonly circles: readonly CircleView[];
   readonly boomerangs: readonly BoomerangView[];
   readonly events: readonly ViewEvent[];
@@ -105,6 +115,7 @@ export function buildArenaView(
   return {
     width: world.arena.width,
     height: world.arena.height,
+    walls: [],
     circles: world.bodies.map((body): CircleView => ({
       id: body.id,
       x: body.position.x,

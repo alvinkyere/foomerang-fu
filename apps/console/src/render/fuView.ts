@@ -112,6 +112,7 @@ export function buildFuView(
   return {
     width: state.world.arena.width,
     height: state.world.arena.height,
+    walls: state.config.arena.walls ?? [],
     circles,
     boomerangs,
     events: viewEvents,

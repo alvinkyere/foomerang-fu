@@ -84,7 +84,7 @@ export function startRound(
   const spawns = specs.map((spec) => spawnPosition(spec.slot, config.arena));
 
   const world = createWorld({
-    arena: config.arena,
+    arena: { width: config.arena.width, height: config.arena.height },
     movement: {
       maxSpeed: config.playerSpeed,
       ...(config.deadZone === undefined ? {} : { deadZone: config.deadZone }),

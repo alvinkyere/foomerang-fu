@@ -25,6 +25,9 @@ export interface DebugSnapshot {
   readonly drawn: readonly { id: string; x: number; y: number }[] | undefined;
   /** Where the renderer has each flying boomerang (undefined until Phaser is up). */
   readonly drawnBoomerangs: readonly { id: string; x: number; y: number }[] | undefined;
+  /** The walls the renderer has on screen (undefined until Phaser is up). */
+  readonly drawnWalls:
+    readonly { x: number; y: number; width: number; height: number }[] | undefined;
   /** The running game's own state (Foomerang Fu: round, phase, who is alive, boomerangs). */
   readonly game: unknown;
   /** Counters from the console's own session (no credentials). */
@@ -67,6 +70,9 @@ export function installDebugHook(
         drawnBoomerangs: getRenderer()
           ?.drawnBoomerangs()
           .map((d) => ({ ...d })),
+        drawnWalls: getRenderer()
+          ?.drawnWalls()
+          .map((w) => ({ ...w })),
         game: runtime.director.runtime.debugState(),
         diagnostics: runtime.session.diagnostics(),
         slots,

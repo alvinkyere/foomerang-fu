@@ -8,6 +8,7 @@ import {
 } from '@foomerang/game-core';
 import { canTransition, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
+import { lineIsClear, sweepCircle, wallsOf } from './arena';
 import { separateBodies } from './collision';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
 import { startRound, type FuPlayer, type FuState } from './state';
@@ -96,7 +97,9 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  *      only for the boolean `true`), then throws (only from HELD, and never during an ACTIVE swing —
  *      so when THROW and SLASH arrive on the same step the SLASH wins and the throw is dropped,
  *      whichever order the inputs were delivered in)
- *   3. boomerangs fly (a boomerang thrown this step does not also move this step)
+ *   3. boomerangs fly (a boomerang thrown this step does not also move this step). A THROWN one
+ *      stops at the first wall it would touch and turns RETURNING; a RETURNING one flies straight
+ *      home through anything (the one deliberate non-rule about geometry: no pathfinding)
  *   4. hits — boomerangs and ACTIVE slashes alike — resolved SIMULTANEOUSLY against the end-of-step
  *      positions
  *   5. round end
@@ -145,6 +148,7 @@ interface Flight {
 
 function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult {
   const { config } = state;
+  const walls = wallsOf(config.arena);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
 
@@ -171,7 +175,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
   let world = state.world;
   for (let i = 0; i < subSteps; i += 1) {
-    world = separateBodies(stepWorld(world, frame, dt / subSteps), (id) => solid.has(id));
+    world = separateBodies(stepWorld(world, frame, dt / subSteps), (id) => solid.has(id), walls);
   }
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
@@ -219,10 +223,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (facing.x === 0 && facing.y === 0) return b;
     const gap = config.playerRadius + config.boomerangRadius + 1; // starts just outside its owner
     const owner = positionOf(player.id);
-    const position = clampToArena(
-      { x: owner.x + facing.x * gap, y: owner.y + facing.y * gap },
-      config,
-    );
+    // Pressed against a wall, the boomerang starts as close to the owner as the wall allows; it then
+    // meets the wall on its first step and turns straight back.
+    const position = sweepCircle(
+      owner,
+      clampToArena({ x: owner.x + facing.x * gap, y: owner.y + facing.y * gap }, config),
+      config.boomerangRadius,
+      walls,
+    ).position;
     thrownNow.add(b.ownerId);
     events.push({ type: 'THROWN', playerId: player.id, position, direction: facing });
     return transition(b, 'THROWN', { position, direction: facing, travelled: 0 });
@@ -240,8 +248,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         x: b.position.x + b.direction.x * length,
         y: b.position.y + b.direction.y * length,
       };
-      const position = clampToArena(free, config);
-      const hitWall = position.x !== free.x || position.y !== free.y;
+      const bounded = clampToArena(free, config);
+      // Solid geometry stops it where it would touch: no penetration, no bounce, no tunnelling.
+      const swept = sweepCircle(b.position, bounded, config.boomerangRadius, walls);
+      const position = swept.position;
+      const hitWall = swept.blocked || bounded.x !== free.x || bounded.y !== free.y;
       const travelled = b.travelled + length;
       if (hitWall || travelled >= config.throwRange - EPSILON) {
         return {
@@ -295,9 +306,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       if (!victim.alive || victim.id === attacker.id || killedBy.has(victim.id)) continue;
       const where = positionOf(victim.id);
       const byBoomerang = at !== undefined && distanceSquared(at, where) < reach * reach;
+      const from = positionOf(attacker.id);
       const bySlash =
         swing.phase === 'ACTIVE' &&
-        inSlashRegion(positionOf(attacker.id), swing.direction, where, config);
+        inSlashRegion(from, swing.direction, where, config) &&
+        lineIsClear(from, where, walls); // a wall is cover: no cutting through it
       if (byBoomerang || bySlash) killedBy.set(victim.id, attacker.id);
     }
   });

@@ -18,10 +18,14 @@ export interface Snapshot {
   bodies: { id: string; x: number; y: number }[];
   drawn: { id: string; x: number; y: number }[] | undefined;
   drawnBoomerangs: { id: string; x: number; y: number }[] | undefined;
+  /** The walls Phaser has on screen. */
+  drawnWalls: { x: number; y: number; width: number; height: number }[] | undefined;
   /** Foomerang Fu's own state (undefined for the primitive arena). */
   game:
     | {
         round: number;
+        /** The arena's walls, as the rules define them. */
+        walls: { x: number; y: number; width: number; height: number }[];
         phase: 'PLAYING' | 'ROUND_OVER';
         winnerId: string | undefined;
         players: {

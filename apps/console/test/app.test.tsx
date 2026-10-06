@@ -51,6 +51,9 @@ class FakeRenderer implements ArenaRenderer {
       y,
     }));
   }
+  drawnWalls() {
+    return this.views.at(-1)?.walls ?? [];
+  }
   destroy() {
     this.destroyed = true;
   }

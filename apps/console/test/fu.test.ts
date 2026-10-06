@@ -1,6 +1,7 @@
 import {
   DEFAULT_FU_CONFIG,
   FU_CONTROLS,
+  PRIMITIVE_ARENA,
   createFuMatch,
   stepFu,
   type FuState,
@@ -12,6 +13,8 @@ import { FuRuntime } from '../src/runtime/fuRuntime';
 import { SLOT_STYLES, SlotAllocator } from '../src/runtime/slots';
 
 const FRAME = 1000 / 60;
+/** The runtime's mechanics (input, dedup, rounds) are tested in the open Slice 1 arena; the primitive arena has its own tests. */
+const OPEN = DEFAULT_FU_CONFIG.arena;
 const players = [
   { playerId: 'a', slot: 0 },
   { playerId: 'b', slot: 3 },
@@ -61,7 +64,7 @@ const alive = (r: FuRuntime, id: string) => s(r).players.find((p) => p.id === id
 
 describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () => {
   it('does nothing, and claims nothing, before a match starts', () => {
-    const runtime = new FuRuntime();
+    const runtime = new FuRuntime(OPEN);
     runtime.frame(100);
     runtime.receiveAction(press('a', 'event-0001'));
     expect(runtime.state).toBeUndefined();
@@ -71,7 +74,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   });
 
   it('starts round 1 of a Fu match for the given players, in their slots', () => {
-    const runtime = new FuRuntime();
+    const runtime = new FuRuntime(OPEN);
     runtime.start(players, 0);
     expect(s(runtime).round).toBe(1);
     expect(s(runtime).players.map((p) => [p.id, p.slot, p.alive])).toEqual([
@@ -83,7 +86,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
 
   it('moves only the player whose thumb moved, at the same speed whatever the frame rate', () => {
     for (const frameMs of [1000 / 60, 1000 / 30, 1000 / 144]) {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       const startX = runtime.world?.bodies[0]?.position.x ?? 0;
       let now = 0;
@@ -107,7 +110,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   });
 
   it('stale movement stops a player after 500 ms, without disconnecting them', () => {
-    const runtime = new FuRuntime();
+    const runtime = new FuRuntime(OPEN);
     runtime.start(players, 0);
     runtime.receiveInput('a', 1, 0, 0);
     const startX = runtime.world?.bodies[0]?.position.x ?? 0;
@@ -119,7 +122,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   });
 
   it('a player who is reconnecting neither moves nor throws, and keeps everything else', () => {
-    const runtime = new FuRuntime();
+    const runtime = new FuRuntime(OPEN);
     runtime.start(players, 0);
     let active = false;
     runtime.setActivity(() => active);
@@ -136,7 +139,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
 
   describe('throwing from a button', () => {
     it('a SECONDARY (THROW) press throws on the next step; a release does not', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001', 'released'));
       run(runtime, 0, 2);
@@ -147,7 +150,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('ignores other actions, and presses from people who are not in the match', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(
         press('a', 'event-0001', 'pressed', 'TERTIARY' as unknown as 'PRIMARY'), // an action Fu does not use
@@ -160,7 +163,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a duplicate event id can never throw twice, even after the boomerang is back in hand', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       let now = run(runtime, 0, 3, { a: [-1, 0] }); // turn to face left, away from Bob
       runtime.receiveAction(press('a', 'event-0001'));
@@ -177,7 +180,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a press made while active is dropped if the player becomes inactive before the step runs', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       let active = true;
       runtime.setActivity(() => active);
@@ -188,7 +191,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('two players pressing before the same step both throw', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001'));
       runtime.receiveAction(press('b', 'event-0002'));
@@ -197,7 +200,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a new match forgets the old match’s event ids', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001'));
       runtime.start(players, 1000);
@@ -206,7 +209,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('two presses before a step still make one throw', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001'));
       runtime.receiveAction(press('a', 'event-0002'));
@@ -217,7 +220,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a throw requested during a stalled frame is applied exactly once, on the first step', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001'));
       runtime.frame(2000); // a 2-second stall: 5 steps run, the rest discarded
@@ -228,7 +231,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a press while no step runs (time did not move) waits for the next step instead of vanishing', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001'));
       runtime.frame(0); // no time passed: no step
@@ -255,7 +258,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     ] as const)('pressing the %s control does that, and not the other', (label, expected) => {
       const control = buttons.find((c) => c.id === label);
       expect(control, `${label} is advertised`).toBeDefined();
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001', 'pressed', control?.action ?? 'PRIMARY'));
       run(runtime, 0, 2);
@@ -266,7 +269,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('every advertised button does something, and no two buttons do the same thing', () => {
       const seen = new Set<string>();
       for (const control of buttons) {
-        const runtime = new FuRuntime();
+        const runtime = new FuRuntime(OPEN);
         runtime.start(players, 0);
         runtime.receiveAction(press('a', 'event-0001', 'pressed', control.action));
         run(runtime, 0, 2);
@@ -283,7 +286,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       press(playerId, eventId, phase, 'PRIMARY');
     // Alice and Bob face each other down the middle; put Bob inside Alice's arc by walking him there.
     function closeUp(): { runtime: FuRuntime; now: number } {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       const spawnA = runtime.world?.bodies[0]?.position;
       const spawnB = runtime.world?.bodies[1]?.position;
@@ -374,7 +377,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     });
 
     it('a slash killing someone ends the round through the real step loop', () => {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       // Alice (top) walks down towards Bob (bottom), then slashes when close.
       let now = 0;
@@ -394,7 +397,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
 
   describe('a round, end to end', () => {
     function fight(): { runtime: FuRuntime; now: number } {
-      const runtime = new FuRuntime();
+      const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       // Put both players on one horizontal line, a facing b, by driving them there with real input.
       return { runtime, now: 0 };
@@ -439,7 +442,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   });
 
   it('is the same fixed-step machine as the arena: five catch-up steps, the rest discarded and counted', () => {
-    const runtime = new FuRuntime();
+    const runtime = new FuRuntime(OPEN);
     runtime.start(players, 0);
     runtime.frame(2000);
     expect(runtime.metrics()).toMatchObject({
@@ -448,6 +451,27 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       discardEvents: 1,
     });
     expect(runtime.metrics().discardedSimulationMs).toBeGreaterThan(1500);
+  });
+
+  it('plays in the primitive arena: its walls, and its own spawn points', () => {
+    const runtime = new FuRuntime();
+    runtime.start(players, 0);
+    expect(s(runtime).config.arena).toBe(PRIMITIVE_ARENA);
+    expect(s(runtime).world.bodies.map((b) => b.position)).toEqual([
+      PRIMITIVE_ARENA.spawns?.[0],
+      PRIMITIVE_ARENA.spawns?.[3], // the second test player holds slot 3
+    ]);
+  });
+
+  it('a player walking into the arena’s wall is stopped by it (rules-owned geometry, through the real runtime)', () => {
+    const runtime = new FuRuntime();
+    runtime.start(players, 0);
+    // slot 0 starts top-left at (110, 110); the left corridor's wall (200–250, 300–600) is below and to the right.
+    runtime.receiveAction(press('a', 'event-0001', 'pressed', 'SECONDARY')); // (a throw: nothing to do with it)
+    run(runtime, 0, 120, { a: [0, 1] });
+    const a = s(runtime).world.bodies[0]?.position;
+    expect(a?.y).toBeGreaterThan(110);
+    expect(a?.x).toBeCloseTo(110, 6);
   });
 
   it('reports a read-only debug snapshot of the Fu state', () => {
@@ -604,6 +628,23 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
       dimmed: true,
       dead: false,
     });
+  });
+
+  it('hands the renderer the arena’s walls exactly as the rules define them', () => {
+    const { entries, slots } = playing();
+    const state = createFuMatch(
+      [
+        { id: 'a', slot: 0 },
+        { id: 'b', slot: 1 },
+      ],
+      { arena: PRIMITIVE_ARENA },
+    );
+    expect(buildFuView(state, [], entries, slots).walls).toEqual(PRIMITIVE_ARENA.walls);
+  });
+
+  it('the open Slice 1 arena has none', () => {
+    const { state, entries, slots } = playing();
+    expect(buildFuView(state, [], entries, slots).walls).toEqual([]);
   });
 
   it('is pure: the same inputs give the same view', () => {

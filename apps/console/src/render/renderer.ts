@@ -1,4 +1,4 @@
-import type { ArenaView } from './viewModel';
+import type { ArenaView, WallView } from './viewModel';
 
 /** Where a drawn circle actually is, in world units — read back from the renderer, not assumed. */
 export interface DrawnCircle {
@@ -18,6 +18,8 @@ export interface ArenaRenderer {
   drawn(): readonly DrawnCircle[];
   /** The boomerangs currently on screen (games without them return none). */
   drawnBoomerangs(): readonly DrawnCircle[];
+  /** The walls currently on screen (games without geometry return none). */
+  drawnWalls(): readonly WallView[];
   destroy(): void;
 }
 

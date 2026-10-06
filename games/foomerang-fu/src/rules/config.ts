@@ -1,4 +1,5 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
+import { assertValidSpawns, assertValidWalls, type FuArena } from './arena';
 import { spawnPosition } from './spawn';
 
 /**
@@ -7,7 +8,7 @@ import { spawnPosition } from './spawn';
  * +Y down). Nothing here knows about pixels, frames or devices.
  */
 export interface FuConfig {
-  readonly arena: { readonly width: number; readonly height: number };
+  readonly arena: FuArena;
   readonly playerRadius: number;
   /** World units per second at full thumb deflection. */
   readonly playerSpeed: number;
@@ -79,17 +80,18 @@ export function assertValidConfig(config: FuConfig): void {
   if (arena.width < config.playerRadius * 4 || arena.height < config.playerRadius * 4) {
     throw new RangeError('the arena must be at least four player radii in each direction');
   }
-  // Players are solid: nobody may start overlapping, and nobody may cross another in one step.
-  const spawns = [0, 1, 2, 3, 4, 5].map((slot) => spawnPosition(slot, arena));
-  for (let a = 0; a < spawns.length; a += 1) {
-    for (let b = a + 1; b < spawns.length; b += 1) {
-      const p = spawns[a] as { x: number; y: number };
-      const q = spawns[b] as { x: number; y: number };
-      if (Math.hypot(p.x - q.x, p.y - q.y) < config.playerRadius * 2) {
-        throw new RangeError('the spawn points would overlap: players must start apart');
-      }
-    }
+  // Players are solid: walls must be sound, and nobody may start overlapping a wall or each other.
+  assertValidWalls(arena, config.playerRadius);
+  const slots = [0, 1, 2, 3, 4, 5];
+  if (arena.spawns !== undefined && arena.spawns.length !== slots.length) {
+    throw new RangeError(`an arena needs exactly ${slots.length} spawn points`);
   }
+  assertValidSpawns(
+    arena,
+    slots.map((slot) => spawnPosition(slot, arena)),
+    config.playerRadius,
+    slots.length,
+  );
   if (config.playerSpeed * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a player moves farther than their radius in one step');
   }

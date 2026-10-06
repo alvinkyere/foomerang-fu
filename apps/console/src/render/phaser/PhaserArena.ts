@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { AIM_BASE_OFFSET, AIM_TIP_OFFSET, nameOffset } from '../layout';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
-import type { ArenaView, BoomerangView, CircleView, ViewEvent } from '../viewModel';
+import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 
 /**
  * THE Phaser module. It is the only file that imports Phaser (lint-enforced) and it is loaded
@@ -14,6 +14,10 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent } from '../viewMod
 
 const DIMMED_ALPHA = 0.35;
 const OUTLINE = 0xffffff;
+/** Walls: a mid-slate face inside a dark base, with a bright edge, against a darker floor. */
+const WALL_SIDE = 0x1b2432;
+const WALL_FACE = 0x56688a;
+const WALL_EDGE = 0xcfd9ea;
 const TRAIL_LENGTH = 9;
 /** How long a spent (round-over) projectile takes to fade away. */
 const SPENT_FADE_MS = 320;
@@ -278,6 +282,9 @@ class ArenaScene extends Phaser.Scene {
   readonly #sprites = new Map<string, PlayerSprite>();
   readonly #boomerangs = new Map<string, BoomerangSprite>();
   #effects: Effect[] = [];
+  #walls: Phaser.GameObjects.Graphics | undefined;
+  #wallsKey = '';
+  #wallViews: readonly WallView[] = [];
   #banner: Phaser.GameObjects.Text | undefined;
   #roundLabel: Phaser.GameObjects.Text | undefined;
   #ready: (() => void) | undefined;
@@ -350,11 +357,36 @@ class ArenaScene extends Phaser.Scene {
 
     for (const event of view.events) this.#spawnEffect(event);
 
+    this.#showWalls(view.walls);
+
     if (this.#banner !== undefined) {
       this.#banner.setPosition(view.width / 2, view.height / 2 - 40);
       this.#banner.setText(view.banner ?? '').setVisible(view.banner !== undefined);
     }
     this.#roundLabel?.setText(view.round === undefined ? '' : `Round ${view.round}`);
+  }
+
+  /** The arena's geometry, exactly as the rules hand it over. Redrawn only when it changes. */
+  #showWalls(walls: readonly WallView[]): void {
+    const key = walls.map((w) => `${w.x},${w.y},${w.width},${w.height}`).join('|');
+    if (key === this.#wallsKey) return;
+    this.#wallsKey = key;
+    this.#wallViews = walls.map((w) => ({ ...w }));
+    this.#walls ??= this.add.graphics().setDepth(-5); // under the players, over the floor
+    const g = this.#walls;
+    g.clear();
+    for (const w of walls) {
+      g.fillStyle(WALL_SIDE, 1); // a slab with a lit top edge and a dark base, so cover reads as solid
+      g.fillRect(w.x, w.y, w.width, w.height);
+      g.fillStyle(WALL_FACE, 1);
+      g.fillRect(w.x + 5, w.y + 5, w.width - 10, w.height - 14);
+      g.lineStyle(5, WALL_EDGE, 1);
+      g.strokeRect(w.x, w.y, w.width, w.height);
+    }
+  }
+
+  drawnWalls(): readonly WallView[] {
+    return this.#wallViews;
   }
 
   override update(time: number): void {
@@ -475,7 +507,7 @@ function swoosh(
 }
 
 function drawBackdrop(scene: Phaser.Scene, width: number, height: number): void {
-  const g = scene.add.graphics();
+  const g = scene.add.graphics().setDepth(-10); // the floor: under the walls, which are under everything alive
   g.fillStyle(0x121a24, 1);
   g.fillRect(0, 0, width, height);
   g.lineStyle(8, 0x3c4a5c, 1);
@@ -496,6 +528,7 @@ export function createPhaserArena(
         render: (view) => scene.show(view),
         drawn: () => scene.drawn(),
         drawnBoomerangs: () => scene.drawnBoomerangs(),
+        drawnWalls: () => scene.drawnWalls(),
         destroy: () => game?.destroy(true),
       });
     });

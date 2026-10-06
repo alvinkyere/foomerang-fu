@@ -17,6 +17,62 @@ async function aim(
   await phone.thumbUp();
 }
 
+type Point = { x: number; y: number };
+const SPAWNS: Point[] = [
+  { x: 110, y: 110 }, // slot 0: top-left (Alice, who joins first)
+  { x: 1490, y: 790 }, // slot 1: bottom-right (Bob)
+];
+const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/**
+ * Holds a thumb and keeps re-aiming it at `target` from the player's LIVE position until `done`.
+ * Steering by position, not by a fixed push, is what lets a test walk a route through walls.
+ */
+async function steer(
+  host: Host,
+  phone: Phone,
+  id: string,
+  target: Point | (() => Promise<Point>),
+  within = 20,
+  timeoutMs = 20_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const here = await host.body(id);
+    const goal = typeof target === 'function' ? await target() : target;
+    const d = dist(here, goal);
+    if (d <= within) return;
+    if (Date.now() > deadline) {
+      throw new Error(
+        `steering from ${JSON.stringify(here)} never reached ${JSON.stringify(goal)}`,
+      );
+    }
+    await phone.thumbMove(((goal.x - here.x) / d) * FAR, ((goal.y - here.y) / d) * FAR);
+    await sleep(25);
+  }
+}
+
+/** Walks a route: each leg is a point to reach (or a live target and how close to get), thumb never lifted between legs. */
+async function walk(
+  host: Host,
+  phone: Phone,
+  id: string,
+  legs: { to: Point | (() => Promise<Point>); within?: number }[],
+): Promise<void> {
+  await phone.thumbDown();
+  try {
+    for (const leg of legs) await steer(host, phone, id, leg.to, leg.within);
+  } finally {
+    await phone.thumbUp();
+  }
+}
+
+/** Alice's way to Bob along the open bottom lane: down the left edge, then right along y = 790. */
+const bottomLane = (bobId: string, host: Host, within: number) => [
+  { to: { x: 110, y: 790 }, within: 20 },
+  { to: () => host.body(bobId), within },
+];
+
 async function setUp(host: Host, newPhone: () => Promise<Phone>) {
   const code = await host.createRoom();
   const alice = await newPhone();
@@ -55,6 +111,7 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   expect(fu.players.map((p) => p.alive)).toEqual([true, true]);
   expect(fu.boomerangs.map((b) => b.state)).toEqual(['HELD', 'HELD']);
   const spawn = { a: await host.body(aliceId), b: await host.body(bobId) };
+  expect(spawn).toEqual({ a: SPAWNS[0], b: SPAWNS[1] }); // the arena's own spawn points
 
   // --- independent movement --------------------------------------------------------------------
   await bob.thumbDown();
@@ -85,11 +142,16 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   expect((await host.snapshot()).drawnBoomerangs).toEqual([]);
 
   // --- aim at Bob and throw: the hit kills, the round ends -------------------------------------
-  const alicePos = await host.body(aliceId);
-  const bobPos = await host.body(bobId);
-  await aim(alice, alicePos, bobPos);
+  // Alice takes the long way round (down the left edge, then along the open bottom lane) to a point
+  // 400 short of Bob, facing him, with nothing in the way of a throw.
+  await walk(host, alice, aliceId, [
+    { to: { x: 110, y: 790 } },
+    { to: async () => ({ x: (await host.body(bobId)).x - 400, y: 790 }), within: 30 },
+  ]);
   const aliceNow = await host.body(aliceId);
-  expect(Math.hypot(bobPos.x - aliceNow.x, bobPos.y - aliceNow.y)).toBeLessThan(560); // within throwing reach (spawn gap + range + hit radius)
+  const bobPos = await host.body(bobId);
+  expect(Math.abs(aliceNow.y - bobPos.y)).toBeLessThan(5); // the same lane
+  expect(bobPos.x - aliceNow.x).toBeLessThan(560); // within throwing reach
   await alice.tapThrow();
   await expect.poll(async () => (await host.fu()).phase, { timeout: 8_000 }).toBe('ROUND_OVER');
   fu = await host.fu();
@@ -139,26 +201,6 @@ test('Foomerang Fu: holding THROW throws once, and sends exactly one press and o
   expect((await host.snapshot()).diagnostics.actionsReceived - before).toBe(2); // pressed + released, nothing else
 });
 
-/** Walks Alice straight towards Bob until they are `within` apart, then stops her (still facing him). */
-async function walkUp(host: Host, alice: Phone, aliceId: string, bobId: string, within: number) {
-  const from = await host.body(aliceId);
-  const to = await host.body(bobId);
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  await alice.thumbDown();
-  await alice.thumbMove(((to.x - from.x) / length) * FAR, ((to.y - from.y) / length) * FAR);
-  await expect
-    .poll(
-      async () => {
-        const a = await host.body(aliceId);
-        const b = await host.body(bobId);
-        return Math.hypot(a.x - b.x, a.y - b.y);
-      },
-      { timeout: 6_000, intervals: [20] },
-    )
-    .toBeLessThan(within);
-  await alice.thumbUp();
-}
-
 const slashOf = async (host: Host, id: string) =>
   (await host.fu()).players.find((p) => p.id === id)?.slash;
 
@@ -168,7 +210,7 @@ test('Foomerang Fu: one player kills another with SLASH, which uses the weapon i
 }) => {
   const { alice, aliceId, bobId } = await setUp(host, newPhone);
   expect(await slashOf(host, aliceId)).toBe('READY');
-  await walkUp(host, alice, aliceId, bobId, 105);
+  await walk(host, alice, aliceId, bottomLane(bobId, host, 105));
   // Out of reach is out of reach: a slash from far away would have changed nothing, and we are close now.
   const a = await host.body(aliceId);
   const b = await host.body(bobId);
@@ -207,9 +249,9 @@ test('Foomerang Fu: the rendered THROW button throws and never slashes; the rend
   newPhone,
 }) => {
   const { alice, aliceId } = await setUp(host, newPhone);
-  // Face away from Bob so a throw cannot end the round.
+  // Throw along the open top lane, away from Bob, so it cannot end the round.
   const at = await host.body(aliceId);
-  await aim(alice, at, { x: at.x, y: at.y - 100 });
+  await aim(alice, at, { x: at.x + 100, y: at.y });
 
   // Press the button labelled THROW.
   const afterThrow = observe(host, aliceId, 700);
@@ -238,7 +280,7 @@ test('Foomerang Fu: SLASH is unavailable while the boomerang is away, and works 
   const { alice, aliceId } = await setUp(host, newPhone);
   // Face away from Bob so the throw cannot end the round, then throw.
   const at = await host.body(aliceId);
-  await aim(alice, at, { x: at.x, y: at.y - 100 });
+  await aim(alice, at, { x: at.x + 100, y: at.y }); // along the open top lane
   await alice.tapThrow();
   await expect
     .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state)
@@ -261,18 +303,16 @@ test('Foomerang Fu: players are solid — walking straight into another player s
   newPhone,
 }) => {
   const { alice, aliceId, bobId } = await setUp(host, newPhone);
-  const from = await host.body(aliceId);
-  const to = await host.body(bobId);
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  // Get next to Bob along the bottom lane, then keep walking at him for far longer than it takes.
   await alice.thumbDown();
-  // Keep walking at Bob for far longer than it takes to reach him.
-  await alice.thumbMove(((to.x - from.x) / length) * FAR, ((to.y - from.y) / length) * FAR);
+  await steer(host, alice, aliceId, { x: 110, y: 790 });
   let closest = Number.POSITIVE_INFINITY;
-  const until = Date.now() + 2_500;
+  const until = Date.now() + 9_000;
   while (Date.now() < until) {
     const a = await host.body(aliceId);
     const b = await host.body(bobId);
-    closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
+    closest = Math.min(closest, dist(a, b));
+    await alice.thumbMove(FAR, 0);
     await sleep(10);
   }
   await alice.thumbUp();
@@ -282,6 +322,73 @@ test('Foomerang Fu: players are solid — walking straight into another player s
   const a = await host.body(aliceId);
   const b = await host.body(bobId);
   expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(2 * radius - 0.5); // …but never overlapped
+});
+
+test('Foomerang Fu: the arena’s walls are drawn exactly as the rules define them', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  await setUp(host, newPhone);
+  const snapshot = await host.snapshot();
+  const rules = (await host.fu()).walls;
+  expect(rules.length).toBeGreaterThanOrEqual(8);
+  expect(snapshot.drawnWalls).toEqual(rules);
+});
+
+test('Foomerang Fu: a wall stops a player walking into it, and stops a thrown boomerang, which turns back', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, aliceId } = await setUp(host, newPhone);
+  // The left corridor's outer wall occupies x 200–250, y 300–600. Stand in the open left lane in front of it.
+  await walk(host, alice, aliceId, [{ to: { x: 110, y: 450 }, within: 12 }]);
+  await host.settled(aliceId);
+  const wallX = 200;
+  const radius = 36;
+
+  // --- walking into it stops flush against it, drawn where the rules say --------------------------
+  await alice.thumbDown();
+  await alice.thumbMove(FAR, 0);
+  await expect
+    .poll(async () => (await host.body(aliceId)).x, { timeout: 4_000 })
+    .toBeGreaterThan(wallX - radius - 1);
+  await sleep(400); // still pushing: no creep, no jitter, no penetration
+  await alice.thumbUp();
+  const stopped = await host.body(aliceId);
+  expect(stopped.x).toBeCloseTo(wallX - radius, 3);
+  const drawn = (await host.snapshot()).drawn?.find((d) => d.id === aliceId);
+  expect(drawn?.x).toBeCloseTo(stopped.x, 3);
+
+  // --- back off, then throw at it ------------------------------------------------------------------
+  await alice.thumbDown();
+  await alice.thumbMove(-FAR, 0);
+  await expect.poll(async () => (await host.body(aliceId)).x).toBeLessThan(70);
+  await alice.thumbUp();
+  await alice.thumbDown();
+  await alice.thumbMove(FAR, 0); // face right again…
+  await sleep(60);
+  await alice.thumbUp(); // …having moved only a few units
+  const from = await host.body(aliceId);
+  await alice.tapThrow();
+  let farthest = 0;
+  let turnedAt: { x: number; y: number } | undefined;
+  const until = Date.now() + 3_000;
+  while (Date.now() < until) {
+    const b = (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId);
+    if (b !== undefined && b.state !== 'HELD') {
+      farthest = Math.max(farthest, b.x);
+      if (b.state === 'RETURNING' && turnedAt === undefined) turnedAt = { x: b.x, y: b.y };
+    }
+    if (b?.state === 'HELD' && turnedAt !== undefined) break;
+    await sleep(8);
+  }
+  expect(from.x).toBeLessThan(120);
+  expect(turnedAt, 'the boomerang turned back').toBeDefined();
+  // it never got past the wall face (200) less its own radius (14), and turned close to it
+  expect(farthest).toBeLessThanOrEqual(wallX - 14 + 0.01);
+  expect(farthest).toBeGreaterThan(wallX - 14 - 40); // …a flight, not a point-blank turn
+  expect((await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state).toBe('HELD'); // and it came home
+  expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
 });
 
 test('Foomerang Fu: holding SLASH swings once and sends exactly one press and one release', async ({

@@ -1,4 +1,5 @@
 import type { Body, WorldState } from '@foomerang/game-core';
+import { pushOutOfRect, type Rect } from './arena';
 
 /**
  * Player-vs-player contact: the minimum circle-vs-circle separation Foomerang Fu needs. Pure and
@@ -14,8 +15,12 @@ import type { Body, WorldState } from '@foomerang/game-core';
  *   - After each pass bodies are kept inside the arena (centre at least `radius` from every wall),
  *     which can re-create a small overlap; passes repeat (at most MAX_PASSES) until none is left.
  *     A pile-up against a wall therefore settles in a few passes instead of oscillating.
+ *   - Walls are fixed: after the players have been separated, every solid body is pushed out of
+ *     every wall (circle vs rectangle: straight away from the nearest point, or out by the nearest
+ *     face if its centre got inside). A wall always wins over a player push, so a shove can never
+ *     put anybody inside one; a pile-up against a wall settles over the next passes.
  *   - Movement is only along the contact normal, so tangential motion is untouched: a glancing
- *     contact slides.
+ *     contact slides — along other players and along walls.
  *
  * Consequence (a decision to be judged by playing): two equal bodies that push at each other with
  * equal effort stop dead and stay in contact; a walker pushing a stationary player shoves them
@@ -26,13 +31,17 @@ const MAX_PASSES = 64;
 /** Below this, an overlap is rounding noise and is left alone. */
 const TOLERANCE = 1e-9;
 
-export function separateBodies(world: WorldState, isSolid: (id: string) => boolean): WorldState {
+export function separateBodies(
+  world: WorldState,
+  isSolid: (id: string) => boolean,
+  walls: readonly Rect[] = [],
+): WorldState {
   const bodies = world.bodies;
   const solid: number[] = [];
   bodies.forEach((body, index) => {
     if (isSolid(body.id)) solid.push(index);
   });
-  if (solid.length < 2) return world;
+  if (solid.length < 2 && (solid.length === 0 || walls.length === 0)) return world;
 
   const xs = bodies.map((b) => b.position.x);
   const ys = bodies.map((b) => b.position.y);
@@ -66,8 +75,6 @@ export function separateBodies(world: WorldState, isSolid: (id: string) => boole
         dy[b] = (dy[b] as number) + ny * half;
       }
     }
-    if (!overlapping) break;
-
     for (const index of solid) {
       const r = (bodies[index] as Body).radius;
       xs[index] = Math.min(
@@ -79,6 +86,18 @@ export function separateBodies(world: WorldState, isSolid: (id: string) => boole
         world.arena.height - r,
       );
     }
+    for (const index of solid) {
+      const r = (bodies[index] as Body).radius;
+      for (const wall of walls) {
+        const out = pushOutOfRect(xs[index] as number, ys[index] as number, r, wall, TOLERANCE);
+        if (out !== undefined) {
+          xs[index] = out[0];
+          ys[index] = out[1];
+          overlapping = true;
+        }
+      }
+    }
+    if (!overlapping) break;
     moved = true;
   }
 
