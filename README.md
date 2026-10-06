@@ -49,7 +49,7 @@ Open the console URL it prints, press **Create room**, scan the QR code (or ente
 
 ### Play Foomerang Fu (combat skeleton)
 
-With the demo running, create a room on the console, join from **two** phones (landscape), press **Start**, steer with the left thumb and tap **THROW** with the right. You throw the way you last walked. A hit kills; the last player standing wins the round and the next one starts after a short pause. See [docs/FOOMERANG_FU.md](docs/FOOMERANG_FU.md) for what is (and deliberately is not) in it. The old one-joystick platform test is at `…:5174/?game=primitive-arena`.
+With the demo running, create a room on the console, join from **two** phones (landscape), press **Start**, steer with the left thumb, **SLASH** (the big button) for a short close-range swing, **THROW** (smaller, lower) to throw your boomerang. You slash and throw the way you last walked; you cannot slash while your boomerang is away. A hit kills; the last player standing wins the round and the next one starts after a short pause. See [docs/FOOMERANG_FU.md](docs/FOOMERANG_FU.md) for what is (and deliberately is not) in it. The old one-joystick platform test is at `…:5174/?game=primitive-arena`.
 
 ## Try the controller on a phone
 
