@@ -53,6 +53,7 @@ export function buildFuView(
             radius: state.config.boomerangRadius,
             color: styleOf(b.ownerId, slots).color,
             state: b.state,
+            spent: state.phase === 'ROUND_OVER',
           },
         ],
   );
@@ -61,6 +62,20 @@ export function buildFuView(
     switch (event.type) {
       case 'THROWN':
         return [{ type: 'THROWN', ...event.position, color: styleOf(event.playerId, slots).color }];
+      case 'SLASHED':
+        return [
+          {
+            type: 'SLASHED',
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+            swing: {
+              direction: event.direction,
+              reach: state.config.slashReach,
+              arc: state.config.slashArc,
+              seconds: state.config.slashActiveSeconds + state.config.slashRecoverySeconds,
+            },
+          },
+        ];
       case 'HIT':
         return [{ type: 'HIT', ...event.position, color: styleOf(event.victimId, slots).color }];
       case 'CAUGHT':

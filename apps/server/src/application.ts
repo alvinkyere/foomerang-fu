@@ -36,7 +36,8 @@ export interface GameDefinition {
 }
 
 export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.freeze({
-  // Foomerang Fu, combat skeleton: MOVE (joystick) and THROW (button -> the PRIMARY action).
+  // Foomerang Fu, combat skeleton: MOVE (joystick), SLASH (the PRIMARY action: the close-range panic
+  // button, which controllers make biggest) and THROW (the SECONDARY action).
   'foomerang-fu': {
     minPlayers: 2,
     maxPlayers: 6,
@@ -44,7 +45,8 @@ export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.fr
       orientation: 'landscape',
       controls: [
         { id: 'MOVE', type: 'joystick' },
-        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+        { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+        { id: 'THROW', type: 'button', action: 'SECONDARY' },
       ],
     },
   },

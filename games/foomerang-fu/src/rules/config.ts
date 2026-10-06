@@ -19,6 +19,16 @@ export interface FuConfig {
   readonly throwRange: number;
   /** Homing speed on the way back, world units per second. */
   readonly returnSpeed: number;
+  /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
+  readonly slashReach: number;
+  /** Slash arc: the full angle of the swing, radians, centred on the facing direction. */
+  readonly slashArc: number;
+  /** How long a swing can hurt, seconds. */
+  readonly slashActiveSeconds: number;
+  /** After the swing, how long before the next one, seconds. */
+  readonly slashRecoverySeconds: number;
+  /** Walking speed while swinging and recovering, as a fraction of normal (1 = no slowdown). */
+  readonly slashMoveFactor: number;
   /** How long the round-over state is shown before the next round starts, seconds. */
   readonly roundEndSeconds: number;
 }
@@ -31,6 +41,11 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   throwSpeed: 900,
   throwRange: 520,
   returnSpeed: 1000,
+  slashReach: 130,
+  slashArc: (Math.PI * 2) / 3,
+  slashActiveSeconds: 0.12,
+  slashRecoverySeconds: 0.38,
+  slashMoveFactor: 0.6,
   roundEndSeconds: 2.5,
 });
 
@@ -48,11 +63,18 @@ export function assertValidConfig(config: FuConfig): void {
     ['throwSpeed', config.throwSpeed],
     ['throwRange', config.throwRange],
     ['returnSpeed', config.returnSpeed],
+    ['slashReach', config.slashReach],
+    ['slashArc', config.slashArc],
+    ['slashActiveSeconds', config.slashActiveSeconds],
+    ['slashRecoverySeconds', config.slashRecoverySeconds],
+    ['slashMoveFactor', config.slashMoveFactor],
     ['roundEndSeconds', config.roundEndSeconds],
   ];
   for (const [name, value] of numbers) {
     if (!positive(value)) throw new RangeError(`${name} must be a positive, finite number`);
   }
+  if (config.slashArc > Math.PI * 2) throw new RangeError('slashArc cannot exceed a full circle');
+  if (config.slashMoveFactor > 1) throw new RangeError('slashMoveFactor cannot exceed 1');
   if (arena.width < config.playerRadius * 4 || arena.height < config.playerRadius * 4) {
     throw new RangeError('the arena must be at least four player radii in each direction');
   }

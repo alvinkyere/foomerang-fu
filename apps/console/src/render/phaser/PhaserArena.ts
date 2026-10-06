@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { AIM_BASE_OFFSET, AIM_TIP_OFFSET, nameOffset } from '../layout';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent } from '../viewModel';
 
@@ -14,6 +15,10 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent } from '../viewMod
 const DIMMED_ALPHA = 0.35;
 const OUTLINE = 0xffffff;
 const TRAIL_LENGTH = 9;
+/** How long a spent (round-over) projectile takes to fade away. */
+const SPENT_FADE_MS = 320;
+/** How long the swoosh is on screen: the sweep, then a fade. A look, not a rule. */
+const SWOOSH_MS = 240;
 
 const toNumber = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16);
 
@@ -66,7 +71,7 @@ class PlayerSprite {
       this.#styleKey = key;
       this.#draw(circle);
       this.#number.setText(circle.number > 0 ? String(circle.number) : '');
-      this.#name.setText(circle.label).setY(circle.radius + 6);
+      this.#name.setText(circle.label).setY(nameOffset(circle.radius));
     }
 
     // Aim indicator: where a throw would go. Solid when the boomerang is in hand, a faint outline
@@ -85,8 +90,8 @@ class PlayerSprite {
     if (circle.facing === undefined || circle.dead) return;
     const r = circle.radius;
     const angle = Math.atan2(circle.facing.y, circle.facing.x);
-    const tip = r + 26;
-    const base = r + 6;
+    const tip = r + AIM_TIP_OFFSET;
+    const base = r + AIM_BASE_OFFSET;
     const spread = 0.42;
     const points = [
       new Phaser.Math.Vector2(Math.cos(angle) * tip, Math.sin(angle) * tip),
@@ -181,6 +186,9 @@ class BoomerangSprite {
   #drawnKey = '';
   #color = 0xffffff;
   #radius = 14;
+  /** When (Phaser time) the round ended on this projectile; undefined while it is live. */
+  #spentAt: number | undefined;
+  #pendingSpent = false;
 
   constructor(scene: Phaser.Scene) {
     this.#trail = scene.add.graphics();
@@ -189,6 +197,12 @@ class BoomerangSprite {
   }
 
   apply(view: BoomerangView): void {
+    this.#pendingSpent = view.spent;
+    if (!view.spent) {
+      this.#spentAt = undefined;
+      this.container.setAlpha(1);
+      this.#trail.setAlpha(1);
+    }
     this.container.setPosition(view.x, view.y);
     this.#color = toNumber(view.color);
     this.#radius = view.radius;
@@ -196,6 +210,10 @@ class BoomerangSprite {
     if (key !== this.#drawnKey) {
       this.#drawnKey = key;
       this.#drawBody();
+    }
+    if (view.spent) {
+      this.#drawTrail();
+      return;
     }
     const last = this.#history.at(-1);
     if (last === undefined || last.x !== view.x || last.y !== view.y) {
@@ -205,8 +223,19 @@ class BoomerangSprite {
     this.#drawTrail();
   }
 
+  /**
+   * Live projectiles spin. Once the round is over the rules freeze it where it was; instead of
+   * leaving it (and its trail) sitting on the victim for the whole pause, it stops and fades out.
+   */
   spin(time: number): void {
-    this.container.setRotation(time / 55);
+    if (!this.#pendingSpent) {
+      this.container.setRotation(time / 55);
+      return;
+    }
+    this.#spentAt ??= time;
+    const alpha = Math.max(0, 1 - (time - this.#spentAt) / SPENT_FADE_MS);
+    this.container.setAlpha(alpha);
+    this.#trail.setAlpha(alpha * 0.5);
   }
 
   #drawBody(): void {
@@ -390,11 +419,59 @@ class ArenaScene extends Phaser.Scene {
           },
         });
         break;
+      case 'SLASHED':
+        if (event.swing !== undefined) {
+          this.#effects.push({
+            graphics,
+            born,
+            duration: SWOOSH_MS,
+            update: swoosh(event, event.swing, color),
+          });
+        } else graphics.destroy();
+        break;
       case 'ROUND_START':
         this.#effects.push({ graphics, born, duration: 650, update: ring(40, 520, 10) });
         break;
     }
   }
+}
+
+/**
+ * The slash: a wedge exactly as wide and as long as the rules' hit region (they hand us the reach
+ * and arc), swept open in the facing direction and then faded. It is drawn FROM the swing the rules
+ * resolved; it decides nothing.
+ */
+function swoosh(
+  event: ViewEvent,
+  swing: NonNullable<ViewEvent['swing']>,
+  color: number,
+): Effect['update'] {
+  const centre = Math.atan2(swing.direction.y, swing.direction.x);
+  const start = centre - swing.arc / 2;
+  return (g, progress) => {
+    g.clear();
+    const sweep = Math.min(1, progress / 0.4); // the blade crosses the arc, then lingers and fades
+    const end = start + swing.arc * sweep;
+    const fade = progress < 0.4 ? 1 : 1 - (progress - 0.4) / 0.6;
+    g.fillStyle(color, 0.5 * fade);
+    g.lineStyle(14, OUTLINE, 0.95 * fade);
+    g.beginPath();
+    g.moveTo(event.x, event.y);
+    g.arc(event.x, event.y, swing.reach, start, end, false);
+    g.closePath();
+    g.fillPath();
+    g.beginPath();
+    g.arc(event.x, event.y, swing.reach, start, end, false);
+    g.strokePath();
+    // the leading edge: a bright line from the player out to the tip of the blade
+    g.lineStyle(8, color, fade);
+    g.lineBetween(
+      event.x,
+      event.y,
+      event.x + Math.cos(end) * swing.reach,
+      event.y + Math.sin(end) * swing.reach,
+    );
+  };
 }
 
 function drawBackdrop(scene: Phaser.Scene, width: number, height: number): void {

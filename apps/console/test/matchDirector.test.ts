@@ -128,12 +128,12 @@ describe('MatchDirector: which game runs', () => {
     expect(d.runtime).toBeInstanceOf(GameRuntime);
   });
 
-  it('routes a throw press to the Fu runtime, and ignores it outside a match', () => {
+  it('routes a throw (SECONDARY) press to the Fu runtime, and ignores it outside a match', () => {
     const d = new MatchDirector();
     const press = {
       playerId: 'a',
       eventId: 'event-0001',
-      action: 'PRIMARY' as const,
+      action: 'SECONDARY' as const,
       phase: 'pressed' as const,
     };
     d.onAction(press); // lobby: nothing running, nothing happens
@@ -153,7 +153,7 @@ describe('MatchDirector: which game runs', () => {
       5,
       'foomerang-fu',
     );
-    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.onRoom('PLAYING', r, 10, 'foomerang-fu');
     d.frame(30);
     expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
@@ -164,7 +164,7 @@ describe('MatchDirector: which game runs', () => {
   it('does not restart the match when the same room reports PLAYING again', () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
-    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.frame(17);
     d.onRoom('PLAYING', r, 20, 'foomerang-fu');
     expect((d.runtime as FuRuntime).state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe(
@@ -175,7 +175,7 @@ describe('MatchDirector: which game runs', () => {
   it('builds the view from the running game (boomerangs and all)', () => {
     const d = new MatchDirector();
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
-    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'PRIMARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
     d.frame(17);
     const view = d.arenaView();
     expect(view?.boomerangs.map((b) => b.ownerId)).toEqual(['a']);

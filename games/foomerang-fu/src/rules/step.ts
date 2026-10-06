@@ -7,6 +7,7 @@ import {
 } from '@foomerang/game-core';
 import { canTransition, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
+import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
 import { startRound, type FuPlayer, type FuState } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
 
@@ -16,6 +17,8 @@ export interface FuPlayerInput {
   readonly move?: MovementInput;
   /** A throw was requested since the last step. Only the boolean `true` counts. */
   readonly throw?: boolean;
+  /** A slash was requested since the last step. Only the boolean `true` counts. */
+  readonly slash?: boolean;
 }
 export type FuInputs = ReadonlyMap<string, FuPlayerInput>;
 
@@ -23,6 +26,12 @@ export type FuInputs = ReadonlyMap<string, FuPlayerInput>;
 export type FuEvent =
   | {
       readonly type: 'THROWN';
+      readonly playerId: string;
+      readonly position: Vec2;
+      readonly direction: Vec2;
+    }
+  | {
+      readonly type: 'SLASHED';
       readonly playerId: string;
       readonly position: Vec2;
       readonly direction: Vec2;
@@ -50,6 +59,18 @@ const NO_MOVEMENT: InputFrame = new Map();
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+/**
+ * The same thumb, slowed to `factor` of its speed. game-core owns the dead zone, so the input is
+ * inverted through it: the returned input comes out of game-core at exactly `factor × magnitude`.
+ */
+function slowedMove(move: MovementInput, deadZone: number, factor: number): MovementInput {
+  const v = normalizeMovementInput(move, deadZone);
+  const magnitude = Math.hypot(v.x, v.y);
+  if (magnitude === 0) return { x: 0, y: 0 };
+  const length = deadZone + factor * magnitude * (1 - deadZone);
+  return { x: (v.x / magnitude) * length, y: (v.y / magnitude) * length };
+}
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
@@ -68,14 +89,19 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  *
  * Order within a PLAYING step (every rule uses the player order the match was created with):
  *   1. movement + facing (alive players only; game-core moves the bodies)
- *   2. throws (only from HELD, only for the boolean `true`)
+ *   2. slash timers advance, then new slashes start (only from READY with the boomerang HELD,
+ *      only for the boolean `true`), then throws (only from HELD, and never during an ACTIVE swing —
+ *      so when THROW and SLASH arrive on the same step the SLASH wins and the throw is dropped,
+ *      whichever order the inputs were delivered in)
  *   3. boomerangs fly (a boomerang thrown this step does not also move this step)
- *   4. hits, resolved SIMULTANEOUSLY against the end-of-step positions
+ *   4. hits — boomerangs and ACTIVE slashes alike — resolved SIMULTANEOUSLY against the end-of-step
+ *      positions
  *   5. round end
  *
  * Owner policy (a deliberate hypothesis, to be judged by playing): a boomerang never kills its
  * owner — not at the throw, not in flight, not on the way back. A boomerang never kills a dead
- * player, and a HELD boomerang kills nobody. A hit needs overlap: distance STRICTLY less than the
+ * player, and a HELD boomerang kills nobody. A slash never kills its owner or a dead player, and
+ * a player killed on the step they swing still lands that swing. A hit needs overlap: distance STRICTLY less than the
  * two radii, so exactly touching is a miss.
  */
 export function stepFu(state: FuState, inputs: FuInputs, dt: number): FuStepResult {
@@ -125,10 +151,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const raw = inputs.get(player.id);
     return isObject(raw) ? (raw as FuPlayerInput) : undefined;
   });
-  const players: FuPlayer[] = state.players.map((player, index) => {
+  const moved: FuPlayer[] = state.players.map((player, index) => {
     const move = entries[index]?.move;
     if (!player.alive || !isObject(move)) return player;
-    frame.set(player.id, move);
+    frame.set(
+      player.id,
+      player.slash.phase === 'READY' ? move : slowedMove(move, deadZone, config.slashMoveFactor), // committed to the swing
+    );
     const direction = normalized(normalizeMovementInput(move, deadZone));
     if (direction.x === 0 && direction.y === 0) return player; // not a meaningful direction
     return Object.freeze({ ...player, facing: direction });
@@ -144,11 +173,37 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     b.state === 'HELD' ? Object.freeze({ ...b, position: positionOf(b.ownerId) }) : b,
   );
 
-  // 2. Throws ---------------------------------------------------------------------------------
+  // 2. Slashes, then throws ---------------------------------------------------------------------
+  const players: FuPlayer[] = moved.map((player, index) => {
+    let slash = player.alive ? advanceSlash(player.slash, dt, config) : SLASH_READY;
+    const facing = player.facing;
+    if (
+      player.alive &&
+      entries[index]?.slash === true &&
+      slash.phase === 'READY' &&
+      (boomerangs[index] as Boomerang).state === 'HELD' &&
+      (facing.x !== 0 || facing.y !== 0)
+    ) {
+      slash = startSlash(facing, config);
+      events.push({
+        type: 'SLASHED',
+        playerId: player.id,
+        position: positionOf(player.id),
+        direction: facing,
+      });
+    }
+    return slash === player.slash ? player : Object.freeze({ ...player, slash });
+  });
+
   const thrownNow = new Set<string>();
   boomerangs = boomerangs.map((b, index) => {
     const player = players[index] as FuPlayer;
-    if (!player.alive || entries[index]?.throw !== true || !canTransition(b.state, 'THROWN'))
+    if (
+      !player.alive ||
+      entries[index]?.throw !== true ||
+      player.slash.phase === 'ACTIVE' || // the weapon is mid-swing; a same-step SLASH always wins
+      !canTransition(b.state, 'THROWN')
+    )
       return b;
     const facing = player.facing;
     if (facing.x === 0 && facing.y === 0) return b;
@@ -224,19 +279,23 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const killedBy = new Map<string, string>(); // victim → first attacker in player order
   flights.forEach((flight, index) => {
     const at = flight.lethalAt;
-    if (at === undefined) return;
     const attacker = players[index] as FuPlayer;
+    const swing = attacker.slash;
     for (const victim of players) {
       if (!victim.alive || victim.id === attacker.id || killedBy.has(victim.id)) continue;
-      if (distanceSquared(at, positionOf(victim.id)) < reach * reach)
-        killedBy.set(victim.id, attacker.id);
+      const where = positionOf(victim.id);
+      const byBoomerang = at !== undefined && distanceSquared(at, where) < reach * reach;
+      const bySlash =
+        swing.phase === 'ACTIVE' &&
+        inSlashRegion(positionOf(attacker.id), swing.direction, where, config);
+      if (byBoomerang || bySlash) killedBy.set(victim.id, attacker.id);
     }
   });
   const survivors: FuPlayer[] = players.map((player) => {
     const byId = killedBy.get(player.id);
     if (byId === undefined) return player;
     events.push({ type: 'HIT', byId, victimId: player.id, position: positionOf(player.id) });
-    return Object.freeze({ ...player, alive: false });
+    return Object.freeze({ ...player, alive: false, slash: SLASH_READY });
   });
 
   // 5. Round end ------------------------------------------------------------------------------

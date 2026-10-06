@@ -7,6 +7,8 @@ export type { FuConfig } from './config';
 export { BOOMERANG_TRANSITIONS, canTransition } from './boomerang';
 export type { Boomerang, BoomerangState } from './boomerang';
 
+export type { SlashState } from './slash';
+
 export { MAX_PLAYERS, createFuMatch, spawnPosition } from './state';
 export type { FuPhase, FuPlayer, FuPlayerSpec, FuRoundOver, FuState } from './state';
 

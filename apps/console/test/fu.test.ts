@@ -14,7 +14,7 @@ const press = (
   playerId: string,
   eventId: string,
   phase: 'pressed' | 'released' = 'pressed',
-  action: 'PRIMARY' | 'SECONDARY' = 'PRIMARY',
+  action: 'PRIMARY' | 'SECONDARY' = 'SECONDARY', // Fu: SECONDARY is THROW, PRIMARY is SLASH
 ) => ({
   playerId,
   eventId,
@@ -129,7 +129,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   });
 
   describe('throwing from a button', () => {
-    it('a PRIMARY press throws on the next step; a release does not', () => {
+    it('a SECONDARY (THROW) press throws on the next step; a release does not', () => {
       const runtime = new FuRuntime();
       runtime.start(players, 0);
       runtime.receiveAction(press('a', 'event-0001', 'released'));
@@ -143,7 +143,9 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('ignores other actions, and presses from people who are not in the match', () => {
       const runtime = new FuRuntime();
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001', 'pressed', 'SECONDARY'));
+      runtime.receiveAction(
+        press('a', 'event-0001', 'pressed', 'TERTIARY' as unknown as 'PRIMARY'), // an action Fu does not use
+      );
       runtime.receiveAction(press('ghost', 'event-0002'));
       runtime.receiveAction(press('ghost', 'event-0002')); // not a player: not even worth remembering
       run(runtime, 0, 3);
@@ -227,6 +229,120 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       expect(boom(runtime, 'a')?.state).toBe('HELD');
       run(runtime, 0, 1);
       expect(boom(runtime, 'a')?.state).toBe('THROWN');
+    });
+  });
+
+  describe('slashing from a button', () => {
+    const slash = (playerId: string, eventId: string, phase: 'pressed' | 'released' = 'pressed') =>
+      press(playerId, eventId, phase, 'PRIMARY');
+    // Alice and Bob face each other down the middle; put Bob inside Alice's arc by walking him there.
+    function closeUp(): { runtime: FuRuntime; now: number } {
+      const runtime = new FuRuntime();
+      runtime.start(players, 0);
+      const spawnA = runtime.world?.bodies[0]?.position;
+      const spawnB = runtime.world?.bodies[1]?.position;
+      expect(spawnA && spawnB).toBeTruthy();
+      return { runtime, now: 0 };
+    }
+    const slashState = (r: FuRuntime, id: string) => s(r).players.find((p) => p.id === id)?.slash;
+
+    it('a PRIMARY press slashes on the next step; a release does not', () => {
+      const { runtime } = closeUp();
+      runtime.receiveAction(slash('a', 'event-0001', 'released'));
+      run(runtime, 0, 2);
+      expect(slashState(runtime, 'a')?.phase).toBe('READY');
+      runtime.receiveAction(slash('a', 'event-0002'));
+      run(runtime, 100, 1);
+      expect(slashState(runtime, 'a')?.phase).toBe('ACTIVE');
+      expect(boom(runtime, 'a')?.state).toBe('HELD'); // a slash is not a throw
+    });
+
+    it('delivers the swing to the renderer as a one-shot event', () => {
+      const { runtime } = closeUp();
+      const entries = roster();
+      const slots = slotsFor(entries);
+      runtime.receiveAction(slash('a', 'event-0001'));
+      run(runtime, 0, 1);
+      expect(runtime.view(entries, slots)?.events.map((e) => e.type)).toEqual(['SLASHED']);
+      expect(runtime.view(entries, slots)?.events).toEqual([]);
+    });
+
+    it('a duplicate event id can never slash twice, even once the swing has fully recovered', () => {
+      const { runtime } = closeUp();
+      runtime.receiveAction(slash('a', 'event-0001'));
+      let now = run(runtime, 0, 60); // the whole swing and its recovery
+      expect(slashState(runtime, 'a')?.phase).toBe('READY');
+      runtime.receiveAction(slash('a', 'event-0001')); // the very same event again
+      now = run(runtime, now, 3);
+      expect(slashState(runtime, 'a')?.phase).toBe('READY');
+      expect(runtime.duplicatesIgnored).toBe(1);
+      runtime.receiveAction(slash('a', 'event-0002')); // a NEW press does swing
+      run(runtime, now, 1);
+      expect(slashState(runtime, 'a')?.phase).toBe('ACTIVE');
+    });
+
+    it('a press made while active is dropped if the player becomes inactive before the step runs', () => {
+      const { runtime } = closeUp();
+      let active = true;
+      runtime.setActivity(() => active);
+      runtime.receiveAction(slash('a', 'event-0001'));
+      active = false; // the connection dropped between the press and the next step
+      run(runtime, 0, 3);
+      active = true;
+      run(runtime, 100, 3);
+      expect(slashState(runtime, 'a')?.phase).toBe('READY'); // not remembered, not fired later
+    });
+
+    it('a controller coming back (reload / reconnect) manufactures no slash: nothing happens until it is pressed', () => {
+      const { runtime } = closeUp();
+      let active = true;
+      runtime.setActivity(() => active);
+      active = false;
+      run(runtime, 0, 30);
+      active = true; // the reconnect completes
+      run(runtime, 500, 30);
+      expect(slashState(runtime, 'a')?.phase).toBe('READY');
+      expect(runtime.view(roster(), slotsFor(roster()))?.events).toEqual([]);
+    });
+
+    it('THROW and SLASH reaching the console before the same step: the slash wins, in either arrival order', () => {
+      for (const order of ['slash-first', 'throw-first'] as const) {
+        const { runtime } = closeUp();
+        const sl = slash('a', 'event-0001');
+        const th = press('a', 'event-0002');
+        for (const action of order === 'slash-first' ? [sl, th] : [th, sl])
+          runtime.receiveAction(action);
+        run(runtime, 0, 1);
+        expect(slashState(runtime, 'a')?.phase, order).toBe('ACTIVE');
+        expect(boom(runtime, 'a')?.state, order).toBe('HELD');
+      }
+    });
+
+    it('a slash and a throw from different players before one step both happen', () => {
+      const { runtime } = closeUp();
+      runtime.receiveAction(slash('a', 'event-0001'));
+      runtime.receiveAction(press('b', 'event-0002'));
+      run(runtime, 0, 1);
+      expect(slashState(runtime, 'a')?.phase).toBe('ACTIVE');
+      expect(boom(runtime, 'b')?.state).toBe('THROWN');
+    });
+
+    it('a slash killing someone ends the round through the real step loop', () => {
+      const runtime = new FuRuntime();
+      runtime.start(players, 0);
+      // Alice (top) walks down towards Bob (bottom), then slashes when close.
+      let now = 0;
+      for (let i = 0; i < 400 && alive(runtime, 'b'); i += 1) {
+        const close = Math.hypot(
+          (runtime.world?.bodies[0]?.position.x ?? 0) - (runtime.world?.bodies[1]?.position.x ?? 0),
+          (runtime.world?.bodies[0]?.position.y ?? 0) - (runtime.world?.bodies[1]?.position.y ?? 0),
+        );
+        if (close < DEFAULT_FU_CONFIG.slashReach - 20)
+          runtime.receiveAction(slash('a', `event-${i}`));
+        now = run(runtime, now, 1, { a: [0, 1] });
+      }
+      expect(alive(runtime, 'b')).toBe(false);
+      expect(s(runtime).roundOver?.winnerId).toBe('a');
     });
   });
 
@@ -388,6 +504,49 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.events[0]).toMatchObject({ x: 10, y: 20, color: SLOT_STYLES[0]?.color });
     expect(view.events[1]).toMatchObject({ x: 30, y: 40, color: SLOT_STYLES[1]?.color }); // the victim's colour
     expect(view.events[2]).toMatchObject({ color: SLOT_STYLES[0]?.color });
+  });
+
+  it('hands the renderer everything it needs to draw a swing, so it never decides what was hit', () => {
+    const { state, entries, slots } = playing();
+    const view = buildFuView(
+      state,
+      [
+        {
+          type: 'SLASHED',
+          playerId: 'a',
+          position: { x: 50, y: 60 },
+          direction: { x: 0, y: 1 },
+        },
+      ],
+      entries,
+      slots,
+    );
+    expect(view.events).toEqual([
+      {
+        type: 'SLASHED',
+        x: 50,
+        y: 60,
+        color: SLOT_STYLES[0]?.color,
+        swing: {
+          direction: { x: 0, y: 1 },
+          reach: DEFAULT_FU_CONFIG.slashReach,
+          arc: DEFAULT_FU_CONFIG.slashArc,
+          seconds: DEFAULT_FU_CONFIG.slashActiveSeconds + DEFAULT_FU_CONFIG.slashRecoverySeconds,
+        },
+      },
+    ]);
+  });
+
+  it('marks flying boomerangs as spent once the round is over (no live projectile sits frozen on the victim)', () => {
+    const { state, entries, slots } = playing();
+    const thrown = stepFu(state, new Map([['a', { throw: true }]]), 1 / 60).state;
+    expect(buildFuView(thrown, [], entries, slots).boomerangs.map((b) => b.spent)).toEqual([false]);
+    const over: FuState = {
+      ...thrown,
+      phase: 'ROUND_OVER',
+      roundOver: { winnerId: 'a', resetInSeconds: 2 },
+    };
+    expect(buildFuView(over, [], entries, slots).boomerangs.map((b) => b.spent)).toEqual([true]);
   });
 
   it('a reconnecting player stays visible (same colour/number) but is dimmed', () => {

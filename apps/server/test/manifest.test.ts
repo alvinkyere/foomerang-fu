@@ -26,7 +26,8 @@ describe('controller manifest delivery', () => {
       orientation: 'landscape',
       controls: [
         { id: 'MOVE', type: 'joystick' },
-        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+        { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+        { id: 'THROW', type: 'button', action: 'SECONDARY' },
       ],
     });
   });

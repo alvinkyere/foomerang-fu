@@ -24,7 +24,13 @@ export interface Snapshot {
         round: number;
         phase: 'PLAYING' | 'ROUND_OVER';
         winnerId: string | undefined;
-        players: { id: string; slot: number; alive: boolean; facing: { x: number; y: number } }[];
+        players: {
+          id: string;
+          slot: number;
+          alive: boolean;
+          facing: { x: number; y: number };
+          slash: 'READY' | 'ACTIVE' | 'RECOVERING';
+        }[];
         boomerangs: {
           ownerId: string;
           state: 'HELD' | 'THROWN' | 'RETURNING';
@@ -222,20 +228,30 @@ export class Phone {
     this.point = undefined;
   }
 
-  private async buttonCenter(): Promise<{ x: number; y: number }> {
-    const box = await this.page.getByRole('button', { name: 'THROW' }).boundingBox();
-    if (box === null) throw new Error('no THROW button on screen');
+  private async buttonCenter(name: string): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByRole('button', { name, exact: true }).boundingBox();
+    if (box === null) throw new Error(`no ${name} button on screen`);
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   }
 
   /** A quick tap on the THROW button (real touch → real pointer events). */
   async tapThrow(): Promise<void> {
-    await this.holdThrow(60);
+    await this.holdButton('THROW', 60);
+  }
+
+  /** A quick tap on the SLASH button. */
+  async tapSlash(): Promise<void> {
+    await this.holdButton('SLASH', 60);
   }
 
   /** Puts a finger on THROW, keeps it there for `ms`, then lifts it. A held button must still send ONE press. */
   async holdThrow(ms: number): Promise<void> {
-    const at = await this.buttonCenter();
+    await this.holdButton('THROW', ms);
+  }
+
+  /** Puts a finger on a button, keeps it there for `ms`, then lifts it. */
+  async holdButton(name: 'THROW' | 'SLASH', ms: number): Promise<void> {
+    const at = await this.buttonCenter(name);
     await this.cdp.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
       touchPoints: [{ x: at.x, y: at.y, id: 2 }],

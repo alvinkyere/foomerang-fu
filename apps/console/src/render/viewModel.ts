@@ -31,14 +31,24 @@ export interface BoomerangView {
   readonly radius: number;
   readonly color: string;
   readonly state: 'THROWN' | 'RETURNING';
+  /** The round is over: this projectile is no longer live and should not be drawn as if it were. */
+  readonly spent: boolean;
 }
 
 /** A one-shot thing that just happened, for the renderer to make a brief effect of. */
 export interface ViewEvent {
-  readonly type: 'THROWN' | 'HIT' | 'CAUGHT' | 'ROUND_START';
+  readonly type: 'THROWN' | 'HIT' | 'CAUGHT' | 'SLASHED' | 'ROUND_START';
   readonly x: number;
   readonly y: number;
   readonly color: string;
+  /** For SLASHED: the swing exactly as the rules resolve it, so it can be drawn but never decided. */
+  readonly swing?: {
+    readonly direction: Vec2;
+    readonly reach: number;
+    readonly arc: number;
+    /** Active window plus recovery: how long the swing is "in progress". */
+    readonly seconds: number;
+  };
 }
 
 export interface ArenaView {

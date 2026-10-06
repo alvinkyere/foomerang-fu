@@ -1,5 +1,6 @@
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
+import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
 import { normalized } from './vec';
 
@@ -11,6 +12,8 @@ export interface FuPlayer {
   readonly alive: boolean;
   /** Unit vector of the last meaningful movement direction; the throw direction. */
   readonly facing: Vec2;
+  /** The melee swing: READY, or ACTIVE (can hurt) / RECOVERING (cannot) with its locked direction and time left. */
+  readonly slash: SlashState;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER';
@@ -106,6 +109,7 @@ export function startRound(
       slot: spec.slot,
       alive: true,
       facing: normalized({ x: centre.x - at.x, y: centre.y - at.y }),
+      slash: SLASH_READY,
     });
   });
 

@@ -11,6 +11,8 @@ import { tick } from '../haptics';
 export interface ActionButtonProps {
   /** The manifest's id for this control. It is the label; the game gives the action its meaning. */
   readonly controlId: string;
+  /** The generic action the manifest says this button sends. Only the layout reads it (PRIMARY is the big one). */
+  readonly action?: string;
   /** `true` when it goes down, `false` when it comes up. Called once per change, never repeated. */
   readonly onChange: (pressed: boolean) => void;
 }
@@ -21,7 +23,7 @@ export interface ActionButtonProps {
  * lost capture, window blur, page hidden/unloading, unmount) reports UP, so it cannot get stuck.
  * Space / Enter work too (accessibility, and the desktop way to try it).
  */
-export function ActionButton({ controlId, onChange }: ActionButtonProps) {
+export function ActionButton({ controlId, action, onChange }: ActionButtonProps) {
   const pointer = useRef<number | null>(null);
   const key = useRef(false);
   const [pressed, setPressed] = useState(false);
@@ -89,6 +91,7 @@ export function ActionButton({ controlId, onChange }: ActionButtonProps) {
       type="button"
       className="action-button"
       data-pressed={pressed}
+      data-action={action}
       // Inline as well as in CSS: scrolling, zooming or a long-press must never steal the touch.
       style={{ touchAction: 'none', userSelect: 'none' }}
       onPointerDown={onPointerDown}

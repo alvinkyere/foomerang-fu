@@ -15,6 +15,13 @@ import { InputBuffer } from './inputBuffer';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { SlotAllocator } from './slots';
 
+/**
+ * Which generic platform action each of Fu's buttons arrives as (the server's manifest says the
+ * same). PRIMARY is the panic button — the one a controller makes biggest — so it is SLASH.
+ */
+const SLASH_ACTION = 'PRIMARY';
+const THROW_ACTION = 'SECONDARY';
+
 /** Event ids remembered per player: far more than any real burst of presses. */
 const DEDUP_WINDOW = 64;
 /** Presentation events waiting for the next view; bounded so an unwatched match cannot grow without limit. */
@@ -25,10 +32,11 @@ const MAX_PENDING_EVENTS = 256;
  *
  * It owns what the RULES must not know about — wall-clock frames, the latest-thumb buffer and its
  * 500 ms freshness, who is currently connected, and button event ids. Per rendered frame it runs
- * 0..5 fixed 1/60 s steps of `stepFu`. A THROW press becomes a one-step `throw: true` request on the
- * next step that runs; the same event id can never throw twice (the server already deduplicates,
- * this is the second line of defence), and a press that cannot be applied now (the player is
- * reconnecting) is dropped, never remembered to fire later.
+ * 0..5 fixed 1/60 s steps of `stepFu`. A THROW or SLASH press becomes a one-step `throw: true` /
+ * `slash: true` request on the next step that runs; the same event id can never act twice (the
+ * server already deduplicates, this is the second line of defence), and a press that cannot be
+ * applied now (the player is reconnecting) is dropped, never remembered to fire later. When both
+ * arrive before one step the RULES decide (SLASH wins), never the order they arrived in.
  */
 export class FuRuntime implements MatchRuntime {
   state: FuState | undefined;
@@ -40,6 +48,7 @@ export class FuRuntime implements MatchRuntime {
   #isActive: (playerId: string) => boolean = () => true;
   #playerIds = new Set<string>();
   #pendingThrows = new Set<string>();
+  #pendingSlashes = new Set<string>();
   #seenEvents = new Map<string, { order: string[]; set: Set<string> }>();
   #events: FuEvent[] = [];
 
@@ -53,6 +62,7 @@ export class FuRuntime implements MatchRuntime {
     this.#inputs = new InputBuffer();
     this.#playerIds = new Set(players.map((p) => p.playerId));
     this.#pendingThrows = new Set();
+    this.#pendingSlashes = new Set();
     this.#seenEvents = new Map();
     this.#events = [];
     this.duplicatesIgnored = 0;
@@ -73,9 +83,12 @@ export class FuRuntime implements MatchRuntime {
       this.duplicatesIgnored += 1;
       return;
     }
-    if (action.action !== 'PRIMARY' || action.phase !== 'pressed') return; // PRIMARY is THROW; a release does nothing
+    if (action.phase !== 'pressed') return; // a release does nothing
+    if (action.action !== SLASH_ACTION && action.action !== THROW_ACTION) return;
     if (!this.#isActive(action.playerId)) return; // dropped, not remembered
-    this.#pendingThrows.add(action.playerId);
+    (action.action === SLASH_ACTION ? this.#pendingSlashes : this.#pendingThrows).add(
+      action.playerId,
+    );
   }
 
   frame(nowMs: number): void {
@@ -86,16 +99,22 @@ export class FuRuntime implements MatchRuntime {
       const inputs = new Map<string, FuPlayerInput>();
       for (const player of this.state.players) {
         const move = thumbs.get(player.id);
-        const wantsThrow =
-          i === 0 && this.#pendingThrows.has(player.id) && this.#isActive(player.id);
-        if (move !== undefined || wantsThrow) {
+        const active = i === 0 && this.#isActive(player.id);
+        const wantsThrow = active && this.#pendingThrows.has(player.id);
+        const wantsSlash = active && this.#pendingSlashes.has(player.id);
+        if (move !== undefined || wantsThrow || wantsSlash) {
           inputs.set(player.id, {
             ...(move === undefined ? {} : { move }),
             ...(wantsThrow ? { throw: true } : {}),
+            ...(wantsSlash ? { slash: true } : {}),
           });
         }
       }
-      if (i === 0) this.#pendingThrows.clear(); // a press waits for a step that actually runs
+      if (i === 0) {
+        // a press waits for a step that actually runs
+        this.#pendingThrows.clear();
+        this.#pendingSlashes.clear();
+      }
       const result = stepFu(this.state, inputs, FIXED_TIMESTEP_SECONDS);
       this.state = result.state;
       this.#events.push(...result.events);
@@ -131,6 +150,7 @@ export class FuRuntime implements MatchRuntime {
         slot: p.slot,
         alive: p.alive,
         facing: { ...p.facing },
+        slash: p.slash.phase,
       })),
       boomerangs: state.boomerangs.map((b) => ({
         ownerId: b.ownerId,

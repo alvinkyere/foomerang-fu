@@ -295,6 +295,47 @@ p {
   background: var(--color-accent);
 }
 
+/*
+ * The action thumb. Buttons are laid out by the generic action they send, never by game: the
+ * PRIMARY button (the close-range panic button) is the biggest and easiest to reach; a SECONDARY
+ * button sits smaller, lower and nearer the middle. Placeholder visuals; tune by playing.
+ */
+.button-cluster {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  min-height: 0;
+}
+
+.button-cluster > .action-button[data-action='PRIMARY'] {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+
+.button-cluster > .action-button[data-action='SECONDARY'] {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+/* A lone button, or buttons with no known action, simply fill the space. */
+.button-cluster > .action-button:not([data-action='PRIMARY']):not([data-action='SECONDARY']),
+.button-cluster > .action-button:only-child {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+
+.action-button[data-action='PRIMARY'] {
+  font-size: 2rem;
+}
+
+/* Visibly a different button, so two thumbs-worth of buttons are never confused. */
+.action-button[data-action='SECONDARY'] {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 3px solid var(--color-accent);
+}
+
 /* A big press-and-release button; the manifest decides which one exists. Placeholder visuals. */
 .action-button {
   min-height: var(--tap-target);

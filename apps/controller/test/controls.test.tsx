@@ -91,6 +91,58 @@ describe('ControlRenderer: the controller is rendered FROM the manifest', () => 
     expect(onButtonChange).toHaveBeenLastCalledWith('THROW', false);
   });
 
+  it('renders two buttons, each reporting its own id, and both can be held at once (a thumb on each)', () => {
+    const onButtonChange = vi.fn();
+    render(
+      <ControlRenderer
+        manifest={manifest({
+          gameId: 'any-game-at-all',
+          controls: [
+            { id: 'MOVE', type: 'joystick' },
+            { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+            { id: 'THROW', type: 'button', action: 'SECONDARY' },
+          ],
+        })}
+        onControlChange={vi.fn()}
+        onButtonChange={onButtonChange}
+      />,
+    );
+    const slash = screen.getByRole('button', { name: /slash/i });
+    const throwButton = screen.getByRole('button', { name: /throw/i });
+    fireEvent.pointerDown(slash, { pointerId: 1 });
+    fireEvent.pointerDown(throwButton, { pointerId: 2 });
+    expect(onButtonChange.mock.calls).toEqual([
+      ['SLASH', true],
+      ['THROW', true],
+    ]);
+    fireEvent.pointerUp(slash, { pointerId: 1 });
+    expect(onButtonChange).toHaveBeenLastCalledWith('SLASH', false);
+  });
+
+  it('lays buttons out by the generic action they send, not by game: PRIMARY is the big one', () => {
+    render(
+      <ControlRenderer
+        manifest={manifest({
+          gameId: 'any-game-at-all',
+          controls: [
+            { id: 'MOVE', type: 'joystick' },
+            { id: 'ONE', type: 'button', action: 'SECONDARY' },
+            { id: 'TWO', type: 'button', action: 'PRIMARY' },
+          ],
+        })}
+        onControlChange={vi.fn()}
+        onButtonChange={vi.fn()}
+      />,
+    );
+    const one = screen.getByRole('button', { name: 'ONE' });
+    const two = screen.getByRole('button', { name: 'TWO' });
+    expect(one.getAttribute('data-action')).toBe('SECONDARY');
+    expect(two.getAttribute('data-action')).toBe('PRIMARY');
+    expect(one.parentElement).toBe(two.parentElement); // one cluster for the action thumb
+    expect(one.parentElement?.classList.contains('button-cluster')).toBe(true);
+    expect(screen.getByRole('group', { name: /move/i }).parentElement).not.toBe(one.parentElement);
+  });
+
   it('ignores control types this build cannot render instead of breaking (forward compatibility)', () => {
     const future = manifest({
       controls: [

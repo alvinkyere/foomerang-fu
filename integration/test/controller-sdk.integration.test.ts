@@ -47,7 +47,8 @@ describe('joining', () => {
       orientation: 'landscape',
       controls: [
         { id: 'MOVE', type: 'joystick' },
-        { id: 'THROW', type: 'button', action: 'PRIMARY' },
+        { id: 'SLASH', type: 'button', action: 'PRIMARY' },
+        { id: 'THROW', type: 'button', action: 'SECONDARY' },
       ],
     });
     const roster = await host.next('ROOM_UPDATED', (m) => m.payload.players.length === 1);
@@ -282,7 +283,7 @@ describe('leaving', () => {
   });
 });
 
-describe('the THROW button, end to end over real sockets', () => {
+describe('the SLASH and THROW buttons, end to end over real sockets', () => {
   const actions = (playerId: string) =>
     host.inputs(playerId).flatMap((p) => (p.input.kind === 'ACTION' ? [p.input] : []));
 
@@ -294,10 +295,56 @@ describe('the THROW button, end to end over real sockets', () => {
     await sleep(200);
     const received = actions(id);
     expect(received.map((a) => [a.action, a.phase])).toEqual([
-      ['PRIMARY', 'pressed'],
-      ['PRIMARY', 'released'],
+      ['SECONDARY', 'pressed'],
+      ['SECONDARY', 'released'],
     ]);
     expect(new Set(received.map((a) => a.eventId)).size).toBe(2);
+  });
+
+  it('SLASH is the PRIMARY action and THROW the SECONDARY one; both can be down at once, each with its own ids', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    controller.session.setButton('SLASH', true);
+    controller.session.setButton('THROW', true);
+    controller.session.setButton('SLASH', false);
+    controller.session.setButton('THROW', false);
+    await sleep(200);
+    const received = actions(id);
+    expect(received.map((a) => [a.action, a.phase])).toEqual([
+      ['PRIMARY', 'pressed'],
+      ['SECONDARY', 'pressed'],
+      ['PRIMARY', 'released'],
+      ['SECONDARY', 'released'],
+    ]);
+    expect(new Set(received.map((a) => a.eventId)).size).toBe(4);
+  });
+
+  it('a hostile client re-sending a SLASH press (same event id) cannot make the host see it twice', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    const transport = controller.transports.at(-1);
+    for (let i = 0; i < 5; i += 1) {
+      transport?.send({
+        type: 'INPUT_EVENT',
+        seq: 200 + i,
+        eventId: 'replayed-slash-1',
+        payload: { action: 'PRIMARY', phase: 'pressed' },
+      });
+    }
+    await sleep(300);
+    expect(actions(id).filter((a) => a.eventId === 'replayed-slash-1')).toHaveLength(1);
+  });
+
+  it('a SLASH press made while the connection is down is not delivered later', async () => {
+    const controller = await joined('Alice');
+    const id = controller.session.getState().playerId ?? '';
+    controller.transports.at(-1)?.close();
+    await controller.waitForPhase('RECONNECTING');
+    controller.session.setButton('SLASH', true);
+    controller.session.setButton('SLASH', false);
+    await controller.waitForPhase('READY');
+    await sleep(300);
+    expect(actions(id)).toEqual([]);
   });
 
   it('holding the button for a long time still sends exactly one press', async () => {

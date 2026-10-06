@@ -19,29 +19,33 @@ export function ControlRenderer({
   onControlChange,
   onButtonChange,
 }: ControlRendererProps) {
+  const sticks = manifest.controls.flatMap((control) =>
+    control.type === 'joystick'
+      ? [
+          <Joystick
+            key={control.id}
+            controlId={control.id}
+            onChange={(value) => onControlChange(control.id, value)}
+          />,
+        ]
+      : [],
+  );
+  const buttons = manifest.controls.flatMap((control) =>
+    control.type === 'button'
+      ? [
+          <ActionButton
+            key={control.id}
+            controlId={control.id}
+            action={control.action}
+            onChange={(pressed) => onButtonChange(control.id, pressed)}
+          />,
+        ]
+      : [],
+  );
   return (
     <div className="controls">
-      {manifest.controls.map((control) => {
-        if (control.type === 'joystick') {
-          return (
-            <Joystick
-              key={control.id}
-              controlId={control.id}
-              onChange={(value) => onControlChange(control.id, value)}
-            />
-          );
-        }
-        if (control.type === 'button') {
-          return (
-            <ActionButton
-              key={control.id}
-              controlId={control.id}
-              onChange={(pressed) => onButtonChange(control.id, pressed)}
-            />
-          );
-        }
-        return null;
-      })}
+      {sticks}
+      {buttons.length > 0 && <div className="button-cluster">{buttons}</div>}
     </div>
   );
 }

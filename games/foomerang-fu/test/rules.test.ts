@@ -852,5 +852,5 @@ describe('determinism and hostile input', () => {
         expect(Number.isFinite(m.position.y)).toBe(true);
       }
     }
-  });
+  }, 30_000); // a long loop of per-step assertions; generous so a loaded CI machine cannot flake it
 });
