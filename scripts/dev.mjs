@@ -7,6 +7,7 @@
 // The address is always given by you. Nothing here (or in the console) guesses a LAN address.
 // Ctrl-C stops everything it started.
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -28,16 +29,37 @@ const serverUrl = `${scheme}://${host}:3001`;
 const controllerUrl = `${scheme}://${host}:5173`;
 const consoleUrl = `${scheme}://${host}:5174`;
 
+// Refuse to start if a port is taken. Otherwise Vite quietly moves to another port, and the QR code
+// and server address would point at the wrong place (often at an OLD run of this same script).
+const PORTS = [3001, 5173, 5174];
+const taken = [];
+for (const port of PORTS) {
+  const free = await new Promise((resolve) => {
+    const probe = createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, '0.0.0.0', () => probe.close(() => resolve(true)));
+  });
+  if (!free) taken.push(port);
+}
+if (taken.length > 0) {
+  console.error(`
+  Port${taken.length > 1 ? 's' : ''} ${taken.join(', ')} already in use — probably an earlier run of this script that is still going.
+  Find what is using ${taken.length > 1 ? 'them' : 'it'}:   lsof -nP ${taken.map((port) => `-iTCP:${port}`).join(' ')} -sTCP:LISTEN
+  Stop it (kill <PID>), or:             pkill -f scripts/dev.mjs; pkill -f vite
+`);
+  process.exit(1);
+}
+
 const services = [
   ['server', ['--filter', '@foomerang/server', 'start'], { ...tls }],
   [
     'controller',
-    ['--filter', '@foomerang/controller', 'dev'],
+    ['--filter', '@foomerang/controller', 'dev', '--strictPort'],
     { ...tls, VITE_SERVER_URL: serverUrl },
   ],
   [
     'console',
-    ['--filter', '@foomerang/console', 'dev'],
+    ['--filter', '@foomerang/console', 'dev', '--strictPort'],
     { ...tls, FOOMERANG_CONTROLLER_URL: controllerUrl, FOOMERANG_SERVER_URL: serverUrl },
   ],
 ];
