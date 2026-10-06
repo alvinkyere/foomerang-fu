@@ -89,6 +89,49 @@ It only ever moves to places the sweep says are free, so it cannot penetrate, tu
 
 **The playtest will answer:** is chasing around cover fun? are chokepoints interesting? does body-blocking become useful? are corridors too restrictive? does SLASH get more interesting around corners? does THROW gain risk/reward around cover? are returning-boomerang trajectories understandable? do walls create strategy rather than annoyance?
 
+## Slice 3: Defensive Mastery (engineering complete, **not yet played**)
+
+Slice 3 asks one question: *can a skilled player actively defend against an incoming boomerang through timing, while keeping the controls as simple as they are?* It adds exactly one interaction and **no new button**: **an ACTIVE SLASH deflects an enemy boomerang.** SLASH still kills players; now the same action has a second use.
+
+**The rule.** During a swing's existing 0.12 s ACTIVE window, an enemy boomerang (THROWN, RETURNING or already DEFLECTED) whose position is inside the slash region, with a clear line from the defender (a wall is cover), is **deflected instead of being lethal**. Outside the window nothing changes: a boomerang kills as before, and SLASH in recovery defends nothing, so it cannot be a permanent shield. The slash's reach, arc, active and recovery times are unchanged (all Slice 1 values stand).
+
+**Ownership.** Deflection never transfers ownership: the boomerang stays its thrower's, still counts as their one boomerang, and is not duplicated. There is no catching or stealing. The thrower cannot slash it away themselves (a player must hold their own boomerang to slash, so it cannot be both away and in their hand).
+
+**The deflection direction, exactly.** Let `v` be the unit vector of the boomerang's travel (its actual movement this step; falling back to its flight direction, then to the line to its owner) and `s` the defender's slash direction (locked when the swing began). Then
+
+```
+out = normalize( reflect(v, s) + s + rot90(s) )
+      reflect(v, s) = v − 2 (v·s) s          the boomerang bounces off the blade's face (a plane perpendicular to the swing)
+      + s                                      the blade's push along the swing
+      rot90(s) = (−s.y, s.x)                   the blade is sweeping across its arc, towards increasing angle (the way the swoosh is drawn), so it also carries things sideways
+```
+
+Properties (all tested): `out` is a unit vector; `out·s = 1 − v·s ≥ 0`, so a boomerang is **never knocked back through the defender**; the sum can never be zero; and a head-on throw is **not returned straight at the thrower**: for `v = (1,0)` and `s = (−1,0)` the result is `(−2,−1)/√5`, about 27° off the line it came down. Where the thrower stood (it fixes `v`) and which way the defender faces (it fixes `s`) therefore decide where it goes. It is a model, not physics: no mass, spin or solver.
+
+**Lifecycle.** A new explicit state, **DEFLECTED** (`THROWN | RETURNING | DEFLECTED → DEFLECTED`; `DEFLECTED → RETURNING | DEFLECTED`; never straight to HELD). It carries `direction`, `deflections` (how many times this throw has been knocked off course) and `deflectedBy`. A DEFLECTED boomerang flies straight at throw speed in `direction`, stopped by walls exactly like a thrown one (flush, no penetration, no tunnelling), for at most **`deflectRange` = 300** world units (a *new* value, not a retune), then turns RETURNING and goes home by the Slice 2 wall-following rule, where it is caught as usual (the counters reset when it is back in hand). **It cannot live forever:** one throw can be deflected at most **`maxDeflections` = 3** times (the fourth contact is simply lethal, as normal), each deflected leg is at most 300 units, and the return is bounded by the Slice 2 failsafe. The Slice 1 transition table is unchanged; the deflection transitions are a separate table.
+
+**Resolution order** (one simulation step; positions are end-of-step; nothing depends on collection or input order):
+
+| Situation | Rule |
+| --- | --- |
+| Boomerang vs an active slash | Deflection is judged **after the boomerangs have flown and before anyone is killed**, so a slash pressed on the very step a boomerang would have killed still saves; one pressed a step later is too late. |
+| Boomerang vs player on the same step | A boomerang deflected on a step **kills nobody on that step** (the clank absorbs it), even a bystander right beside it. |
+| A slash that reaches a player and a boomerang | Both happen on the same step: the player dies, the boomerang is deflected. |
+| Two players able to deflect the same boomerang | Exactly one does: **the nearer to it; an exact tie goes to the earlier player in the match.** Never input order. |
+| The defender's own safety | The boomerang you knock away cannot kill you, nor be deflected by you again, **on that deflected leg** (`deflectedBy`); once it has turned RETURNING, normal rules resume. |
+| Deflection beside a wall | The boomerang keeps its position and takes its new direction; if that points into the wall its next move is blocked at once and it turns RETURNING. It never enters the wall. |
+| Sequential deflections | A different defender can deflect a DEFLECTED boomerang again (`deflections` 2, 3); the same defender must wait for a new leg. The fourth is refused. |
+| Simultaneous interactions elsewhere | Independent boomerangs are resolved independently (two defenders each deflect a different boomerang on the same step). Mutual kills are Slice 1's: both die, a draw. |
+| Dead players | Their swing was reset on death; they deflect nothing. A dead owner's boomerang can still be deflected. |
+
+**Presentation (primitive).** A successful deflection plays a **CLANK**: a white burst, eight spokes, a ring in the **defender's** colour, and a bright streak pointing the way the boomerang was sent; the deflected boomerang then flies on with a **white trail** (still the owner's colour). About 0.4 s. No production VFX or audio.
+
+**Decisions made (provisional, to be judged by play):** the formula above; `deflectRange` 300 and `maxDeflections` 3 (new values); the clank neutralises the boomerang for the step it is deflected; the deflector is immune on that leg; deflection needs a clear line (cover works against it too); a slash must be ACTIVE (not recovering); only enemy boomerangs, never your own.
+
+**Not in this slice (and not started):** DASH, blocking, shields, another defensive button, catching, ownership stealing, powerups, hazards, additional arenas, scoring changes, production art or audio, CPU players (Slice 7: a bot will use this defence through the same ordinary input interface, a SLASH press, because the rules take it as one input like a human's).
+
+**The playtest will answer:** can you defend by timing rather than only by running? Is the window learnable but not trivial? Is the deflection direction readable and does your facing/position change where it goes? Does a deflected boomerang feel like your opponent's weapon gone wrong? Do three deflections feel like a rally or a mess? Is the clank unmistakable? Does it make throwing riskier in a good way, or does it make throwing pointless?
+
 ## The loop
 
 ```
