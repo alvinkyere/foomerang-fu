@@ -21,6 +21,45 @@ How it got there:
 
 What the pass does **not** establish: balance with more than two players, or with players of different skill; long-session feel; Safari/iOS behaviour or other phone models (the physical devices used are not recorded here); and anything beyond Slice 1's scope. No Slice 2 work has started, and none will without separate authorization.
 
+## Slice 2: Arena Combat (engineering complete, **not yet played**)
+
+Slice 2 asks one question: *does deliberate arena geometry make the existing combat substantially deeper and more fun?* It adds geometry and nothing else: no new abilities, no new tuning.
+
+**Arena = data** (`rules/arena.ts`). A `FuArena` is `{ width, height, walls?, spawns? }`; a wall is an axis-aligned rectangle; `spawns` is one point per slot. The rules own all of it; Phaser only draws it. `DEFAULT_FU_CONFIG.arena` is still the **open Slice 1 arena** (no walls, ellipse spawns), which is why every Slice 1 test runs unchanged and passes; the console plays `PRIMITIVE_ARENA` by passing it explicitly (`FuRuntime`).
+
+**The one primitive test arena** (`PRIMITIVE_ARENA`, 1600 × 900, mirrored left–right and top–bottom so no seat is better): a central block with a way round every side; four *gate* walls leaving a **120-wide chokepoint** (one body, not two) in the top and bottom lanes; two **100-wide, 300-long corridors** down the flanks, open at both ends; four free-standing cover blocks between corridors and middle; open corners, edges and middle. Spawns: top-left and bottom-right first (two players start opposite), then the other corners, then the two lane ends. A test walks a player through a corridor and a chokepoint and checks every spawn can reach every other.
+
+```
+ TL ·  ┌──gate──┐  ┌──gate──┐  · TR
+       │        └──┘        │
+   ┃ ┃   ■                ■   ┃ ┃        ┃ ┃ = corridors (100 wide)
+   ┃ ┃        ┌──────┐        ┃ ┃        ■   = cover
+   ┃ ┃   ■    └──────┘    ■   ┃ ┃        gap in a gate = chokepoint (120)
+ BL ·  └──gate──┐  ┌──gate──┘  · BR
+```
+
+**Players vs walls.** Living players are solid against walls, resolved by the same deterministic separation that handles player-vs-player (`rules/collision.ts`): a circle is pushed straight out of a rectangle (away from its nearest point; out by the nearest face if its centre got inside). Only the contact normal is corrected, so a player **slides** along a wall at full tangential speed, rounds a convex corner smoothly, and is held by a concave one. Walls are fixed and win over player shoves, so a shove can never put anyone inside one. Movement still runs in sub-steps no longer than the fixed step, so no accepted `dt` tunnels. Walls must be at least one player radius thick (validated), so nothing pushed by contact can end up on the far side of one. Dead players are not solid (unchanged).
+
+**Boomerangs vs walls.** A **THROWN** boomerang is swept along its step against the walls (cut into pieces no longer than its radius, then bisected to the touching point): it stops flush against the wall, turns **RETURNING** on that very step, and never penetrates, bounces, ricochets or tunnels. A throw made pressed against a wall starts as close to its owner as the wall allows and turns straight back.
+
+**Decisions made (each a hypothesis for the playtest, none of it retuning):**
+
+| Decision | Choice | Alternatives not taken |
+| --- | --- | --- |
+| **RETURNING near geometry** | **Flies straight at its owner's current position and passes through walls**, exactly as in Slice 1, still lethal on the way. | *Blocked on the way home* (needs pathfinding or a stuck rule); *retrace the outbound path* (changes Slice 1's homing). Chosen because it is the smallest rule that needs no navigation and keeps Slice 1's return untouched. Consequence to judge: a wall protects you from the throw but **not** from the return, and a boomerang can come home through cover. |
+| Slash vs walls | A slash needs a **clear line** between the two centres; a wall between attacker and victim blocks it (a line that merely touches a wall's edge is blocked). Reach, arc and timings are unchanged. | A slash that cuts through walls would have made cover meaningless against it. |
+| Boomerang kills vs walls | Unchanged: a boomerang kills by proximity at its own position; a stopped THROWN boomerang is a wall's thickness away from anyone behind it. | — |
+| Shoving into walls | A shove cannot push a player into or through a wall; the pusher is held behind them. | — |
+| Dead players | Not solid to walls or players (Slice 1 policy). | — |
+| Wall shape | Axis-aligned rectangles only, at least one player radius thick. | Polygons/circles: not needed for the question. |
+| Default config | Stays the open Slice 1 arena; the console plays the primitive arena. | Making walls the default would have meant editing Slice 1's tests. |
+
+**Presentation.** Walls are drawn from the rules' data as slate slabs with a bright edge on a darker floor, under the players. `drawnWalls()` lets a browser test prove what is on screen is what the rules define.
+
+**Not in this slice (and not started):** dash, parry, deflection, ricochet, powerups, hazards, portals, moving or destructible geometry, pickups, more maps, art, scoring, new round systems, host-loss redesign.
+
+**The playtest will answer:** is chasing around cover fun? are chokepoints interesting? does body-blocking become useful? are corridors too restrictive? does SLASH get more interesting around corners? does THROW gain risk/reward around cover? are returning-boomerang trajectories understandable? do walls create strategy rather than annoyance?
+
 ## The loop
 
 ```
@@ -146,6 +185,7 @@ Equivalent mutants (no observable difference): duplicate ids and a too-small are
 - One movement joystick per manifest (protocol limitation, unchanged). There is no aim stick.
 - The simulation runs in the host browser: a console reload restarts the round state (host-loss policy: see CONSOLE.md).
 - Collision is circle-vs-circle between living players only. Boomerangs and slashes pass through bodies exactly as before.
+- Geometry is axis-aligned rectangles; a RETURNING boomerang ignores it (see Slice 2 decisions).
 - A boomerang in flight at round end freezes in the rules until the reset (the renderer fades it out; the state itself is not advanced).
 - The slash numbers and the SLASH/THROW button layout were played by one human (Playtest #2) and passed as the baseline; they have not been measured, and more players, other devices and longer sessions are untested.
 - **Not built, on purpose:** slashing an incoming boomerang (deflect / destroy / redirect / parry). It could become the deepest interaction in the game, but only after the simpler loop has been played.
