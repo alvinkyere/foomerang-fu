@@ -3,16 +3,34 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "description": "The host display: lobby with QR, the primitive arena (Phaser rendering game-core state), and an engineering debug overlay.",
   "scripts": {
+    "dev": "vite --host",
+    "build": "vite build && node scripts/check-bundle-size.mjs",
+    "preview": "vite preview --host",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@foomerang/config": "workspace:*",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "jsdom": "^30.1.2",
     "typescript": "~5.9.3",
+    "vite": "^8.3.2",
     "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "@foomerang/controller-sdk": "workspace:*",
+    "@foomerang/game-core": "workspace:*",
+    "@foomerang/protocol": "workspace:*",
+    "phaser": "4.2.1",
+    "qrcode-generator": "2.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

@@ -93,6 +93,29 @@ export default tseslint.config(
     rules: pureRules,
   },
 
+  // Phaser in the console lives in ONE directory (and is lazy-loaded from there). React, the
+  // session and the runtime see only the ArenaRenderer interface.
+  {
+    files: ['apps/console/src/**/*.{ts,tsx}'],
+    ignores: ['apps/console/src/render/phaser/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: SOCKET_IO, message: SOCKET_IO_MESSAGE },
+            {
+              // a regex, not a gitignore-style group: './render/phaser/...' is OUR directory
+              regex: '^phaser(/.*)?$',
+              message:
+                'Phaser may only be imported inside apps/console/src/render/phaser (the renderer boundary).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // React: the rules of hooks, and stale-closure / effect mistakes, in every UI package.
   {
     files: ['apps/*/src/**/*.{ts,tsx}', 'packages/ui/src/**/*.{ts,tsx}'],

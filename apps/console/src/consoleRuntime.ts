@@ -1,0 +1,49 @@
+import type { SessionEnvironment } from '@foomerang/controller-sdk';
+import { HostSession, type HostStore, type HostTransportFactory } from './host';
+import { MatchDirector } from './runtime/matchDirector';
+
+export interface ConsoleRuntimeOptions {
+  readonly transportFactory: HostTransportFactory;
+  readonly store?: HostStore;
+  readonly environment?: SessionEnvironment;
+  /** The host's own monotonic clock, in ms. */
+  readonly now?: () => number;
+}
+
+export interface ConsoleRuntime {
+  readonly session: HostSession;
+  readonly director: MatchDirector;
+  /** Advance the simulation to host time `nowMs`. Called once per rendered frame. */
+  frame(nowMs: number): void;
+  dispose(): void;
+}
+
+/**
+ * The composition root of the console's non-visual half:
+ *
+ *   server ─► HostSession ─► MatchDirector ─► GameRuntime ─► game-core
+ *
+ * It is the only place that wires them together, and it knows nothing about React or Phaser.
+ */
+export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRuntime {
+  const now = options.now ?? ((): number => performance.now());
+  const director = new MatchDirector();
+  const session = new HostSession({
+    transportFactory: options.transportFactory,
+    ...(options.store ? { store: options.store } : {}),
+    ...(options.environment ? { environment: options.environment } : {}),
+  });
+
+  session.onMovement((playerId, x, y) => director.onMovement(playerId, x, y, now()));
+  session.subscribe(() => {
+    const { roomState, roster } = session.getState();
+    if (roomState !== undefined) director.onRoom(roomState, roster, now());
+  });
+
+  return {
+    session,
+    director,
+    frame: (nowMs) => director.frame(nowMs),
+    dispose: () => session.dispose(),
+  };
+}

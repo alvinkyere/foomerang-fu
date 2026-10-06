@@ -89,6 +89,27 @@ describe('architecture boundaries enforced by lint', () => {
     });
   });
 
+  describe('Phaser stays inside the console’s renderer directory', () => {
+    it('is rejected in console UI, runtime and session code', async () => {
+      for (const file of [
+        'apps/console/src/ui/x.tsx',
+        'apps/console/src/runtime/x.ts',
+        'apps/console/src/host/x.ts',
+        'apps/console/src/render/viewModel.ts',
+      ]) {
+        expect(await ruleIds(file, "import 'phaser';\nexport {};\n"), file).toContain(
+          'no-restricted-imports',
+        );
+      }
+    });
+
+    it('is allowed in apps/console/src/render/phaser', async () => {
+      expect(
+        await ruleIds('apps/console/src/render/phaser/x.ts', "import 'phaser';\nexport {};\n"),
+      ).toEqual([]);
+    });
+  });
+
   describe('Socket.IO stays behind the transport boundary', () => {
     it('is rejected anywhere outside a SocketIOTransport file', async () => {
       for (const file of [
