@@ -1,9 +1,14 @@
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const eslint = new ESLint({ cwd: repoRoot });
+
+// The first lint of a cold checkout parses the whole type-aware project (about 10 s on a clean clone
+// while the other packages' tests run in parallel), which exceeded vitest's 5 s default. This only
+// gives the cold start room; every assertion is unchanged.
+vi.setConfig({ testTimeout: 60_000 });
 
 async function ruleIds(filePath: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath: repoRoot + filePath });
