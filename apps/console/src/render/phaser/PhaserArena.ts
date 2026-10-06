@@ -23,6 +23,8 @@ const TRAIL_LENGTH = 9;
 const SPENT_FADE_MS = 320;
 /** How long the swoosh is on screen: the sweep, then a fade. A look, not a rule. */
 const SWOOSH_MS = 240;
+/** How long a deflection's CLANK is on screen. A look, not a rule. */
+const DEFLECT_MS = 380;
 
 const toNumber = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16);
 
@@ -193,6 +195,8 @@ class BoomerangSprite {
   /** When (Phaser time) the round ended on this projectile; undefined while it is live. */
   #spentAt: number | undefined;
   #pendingSpent = false;
+  /** A deflected boomerang trails white, so it is plain whose weapon is flying wrong. */
+  #deflected = false;
 
   constructor(scene: Phaser.Scene) {
     this.#trail = scene.add.graphics();
@@ -202,6 +206,7 @@ class BoomerangSprite {
 
   apply(view: BoomerangView): void {
     this.#pendingSpent = view.spent;
+    this.#deflected = view.state === 'DEFLECTED';
     if (!view.spent) {
       this.#spentAt = undefined;
       this.container.setAlpha(1);
@@ -260,7 +265,7 @@ class BoomerangSprite {
     const count = this.#history.length;
     this.#history.forEach((point, index) => {
       const t = (index + 1) / count;
-      g.fillStyle(this.#color, 0.45 * t);
+      g.fillStyle(this.#deflected ? 0xffffff : this.#color, 0.45 * t);
       g.fillCircle(point.x, point.y, this.#radius * (0.35 + 0.5 * t));
     });
   }
@@ -451,6 +456,44 @@ class ArenaScene extends Phaser.Scene {
           },
         });
         break;
+      case 'DEFLECTED': {
+        // CLANK: a white burst, spokes, a ring in the defender's colour, and a streak the way it was sent.
+        const knock = event.knock ?? { x: 1, y: 0 };
+        this.#effects.push({
+          graphics,
+          born,
+          duration: DEFLECT_MS,
+          update: (g, progress) => {
+            g.clear();
+            const fade = 1 - progress;
+            g.fillStyle(0xffffff, 0.9 * fade * fade);
+            g.fillCircle(event.x, event.y, 26 + progress * 46);
+            g.lineStyle(7 * fade + 1, 0xffffff, fade);
+            for (let i = 0; i < 8; i += 1) {
+              const a = (Math.PI / 4) * i + 0.2;
+              const r0 = 30 + progress * 30;
+              const r1 = 56 + progress * 80;
+              g.lineBetween(
+                event.x + Math.cos(a) * r0,
+                event.y + Math.sin(a) * r0,
+                event.x + Math.cos(a) * r1,
+                event.y + Math.sin(a) * r1,
+              );
+            }
+            g.lineStyle(12 * fade + 2, color, fade);
+            g.strokeCircle(event.x, event.y, 28 + progress * 110);
+            // the way it went: a bright streak from the point of impact
+            g.lineStyle(14 * fade + 2, 0xffffff, 0.95 * fade);
+            g.lineBetween(
+              event.x,
+              event.y,
+              event.x + knock.x * (40 + progress * 170),
+              event.y + knock.y * (40 + progress * 170),
+            );
+          },
+        });
+        break;
+      }
       case 'SLASHED':
         if (event.swing !== undefined) {
           this.#effects.push({

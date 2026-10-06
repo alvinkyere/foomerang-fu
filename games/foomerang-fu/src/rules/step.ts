@@ -9,6 +9,7 @@ import {
 import { canTransition, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
 import { lineIsClear, sweepCircle, wallsOf } from './arena';
+import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
 import { separateBodies } from './collision';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash } from './slash';
@@ -41,6 +42,14 @@ export type FuEvent =
       readonly direction: Vec2;
     }
   | { readonly type: 'CAUGHT'; readonly playerId: string }
+  /** Slice 3: an active slash knocked an enemy boomerang off course. `direction` is where it is now flying. */
+  | {
+      readonly type: 'DEFLECTED';
+      readonly byId: string;
+      readonly ownerId: string;
+      readonly position: Vec2;
+      readonly direction: Vec2;
+    }
   /** The failsafe: a boomerang that could not get home round the walls in time ended up back in its owner's hand. */
   | { readonly type: 'RECALLED'; readonly playerId: string }
   | {
@@ -104,6 +113,8 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
  *      stops at the first wall it would touch and turns RETURNING; a RETURNING one keeps homing
  *      on its owner but is bound by the walls too, sliding along them (homing.ts: local steering,
  *      no pathfinding) and recalled by a failsafe if wall-following takes too long
+ *   3b. deflection: an ACTIVE slash that has an enemy boomerang in its region knocks it off course
+ *      (deflect.ts) before anyone is killed; that boomerang is not lethal on that step
  *   4. hits — boomerangs and ACTIVE slashes alike — resolved SIMULTANEOUSLY against the end-of-step
  *      positions
  *   5. round end
@@ -248,8 +259,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
     if (thrownNow.has(b.ownerId)) return { boomerang: b, lethalAt: b.position, caught: false };
 
-    if (b.state === 'THROWN') {
-      const length = Math.min(config.throwSpeed * dt, config.throwRange - b.travelled);
+    if (b.state === 'THROWN' || b.state === 'DEFLECTED') {
+      // A deflected boomerang flies just like a thrown one — straight, at throw speed, stopped by walls —
+      // but only for `deflectRange`, after which it turns RETURNING and goes home the usual way.
+      const range = b.state === 'DEFLECTED' ? config.deflectRange : config.throwRange;
+      const length = Math.min(config.throwSpeed * dt, range - b.travelled);
       const free = {
         x: b.position.x + b.direction.x * length,
         y: b.position.y + b.direction.y * length,
@@ -260,7 +274,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const position = swept.position;
       const hitWall = swept.blocked || bounded.x !== free.x || bounded.y !== free.y;
       const travelled = b.travelled + length;
-      if (hitWall || travelled >= config.throwRange - EPSILON) {
+      if (hitWall || travelled >= range - EPSILON) {
         return {
           boomerang: transition(b, 'RETURNING', {
             position,
@@ -268,6 +282,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
             travelled: 0,
             follow: 0,
             wallSeconds: 0,
+            deflectedBy: undefined,
           }),
           lethalAt: position,
           caught: false,
@@ -293,6 +308,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
               travelled: 0,
               follow: 0,
               wallSeconds: 0,
+              deflections: 0,
+              deflectedBy: undefined,
             })
           : Object.freeze({ ...b, position, ...extra }),
         lethalAt: position,
@@ -336,6 +353,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       recalled,
     );
   });
+  const flownFrom = boomerangs; // where each boomerang was before it flew this step
   boomerangs = flights.map((f) => f.boomerang);
   flights.forEach((f, index) => {
     if (f.caught) {
@@ -344,16 +362,80 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     }
   });
 
+  // 3b. Deflection (Slice 3) ---------------------------------------------------------------------
+  // A boomerang inside an ENEMY'S ACTIVE slash region (with a clear line to it) is knocked off course
+  // instead of being lethal this step. Judged on end-of-step positions, before anyone is killed, so a
+  // slash pressed on the very step a boomerang would have killed still saves. At most one defender per
+  // boomerang per step: the nearest to it, and on an exact tie the earliest in player order — never the
+  // order inputs arrived in. A boomerang cannot be deflected by whoever just deflected it (until it has
+  // turned RETURNING), nor more than `maxDeflections` times per throw.
+  const lethalAt: (Vec2 | undefined)[] = flights.map((f) => f.lethalAt);
+  boomerangs = [...boomerangs];
+  boomerangs.forEach((b, index) => {
+    if (b.state === 'HELD' || b.deflections >= config.maxDeflections) return;
+    let best: number | undefined;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    players.forEach((defender, j) => {
+      if (j === index || !defender.alive || defender.id === b.deflectedBy) return;
+      const swing = defender.slash;
+      if (swing.phase !== 'ACTIVE') return;
+      const from = positionOf(defender.id);
+      if (!inSlashRegion(from, swing.direction, b.position, config)) return;
+      if (!lineIsClear(from, b.position, walls)) return;
+      const d = distanceSquared(from, b.position);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = j; // strictly nearer wins; a tie keeps the earlier player
+      }
+    });
+    if (best === undefined) return;
+    const defender = players[best] as FuPlayer;
+    const swing = defender.slash;
+    if (swing.phase !== 'ACTIVE') return; // (narrowing: it is ACTIVE by construction)
+    const before = (flownFrom[index] as Boomerang).position;
+    const moved = Math.hypot(b.position.x - before.x, b.position.y - before.y);
+    const toOwner = positionOf(b.ownerId);
+    const incoming =
+      moved > 1e-9
+        ? normalized({ x: b.position.x - before.x, y: b.position.y - before.y })
+        : b.direction.x !== 0 || b.direction.y !== 0
+          ? b.direction
+          : normalized({ x: toOwner.x - b.position.x, y: toOwner.y - b.position.y });
+    const out = deflectionDirection(
+      incoming.x === 0 && incoming.y === 0 ? swing.direction : incoming,
+      swing.direction,
+    );
+    boomerangs[index] = transition(b, 'DEFLECTED', {
+      direction: out,
+      travelled: 0,
+      follow: 0,
+      wallSeconds: 0,
+      deflections: b.deflections + 1,
+      deflectedBy: defender.id,
+    });
+    lethalAt[index] = undefined; // the clank absorbs it: it kills nobody on the step it is deflected
+    events.push({
+      type: 'DEFLECTED',
+      byId: defender.id,
+      ownerId: b.ownerId,
+      position: b.position,
+      direction: out,
+    });
+  });
+
   // 4. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------
   const killedBy = new Map<string, string>(); // victim → first attacker in player order
-  flights.forEach((flight, index) => {
-    const at = flight.lethalAt;
+  flights.forEach((_flight, index) => {
+    const at = lethalAt[index];
     const attacker = players[index] as FuPlayer;
+    const flying = boomerangs[index] as Boomerang;
     const swing = attacker.slash;
     for (const victim of players) {
       if (!victim.alive || victim.id === attacker.id || killedBy.has(victim.id)) continue;
       const where = positionOf(victim.id);
-      const byBoomerang = at !== undefined && distanceSquared(at, where) < reach * reach;
+      // Whoever just knocked a boomerang away is safe from it for that leg of its flight.
+      const immune = flying.state === 'DEFLECTED' && flying.deflectedBy === victim.id;
+      const byBoomerang = !immune && at !== undefined && distanceSquared(at, where) < reach * reach;
       const from = positionOf(attacker.id);
       const bySlash =
         swing.phase === 'ACTIVE' &&

@@ -513,6 +513,28 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.boomerangs).toEqual([]); // nothing in flight
   });
 
+  it('draws a deflected boomerang too, still in its OWNER’s colour (it is still their weapon)', () => {
+    const { state, entries, slots } = playing();
+    const deflected: FuState = {
+      ...state,
+      boomerangs: state.boomerangs.map((b) =>
+        b.ownerId === 'a'
+          ? {
+              ...b,
+              state: 'DEFLECTED' as const,
+              position: { x: 400, y: 300 },
+              direction: { x: 0, y: -1 },
+              deflections: 1,
+              deflectedBy: 'b',
+            }
+          : b,
+      ),
+    };
+    expect(buildFuView(deflected, [], entries, slots).boomerangs).toEqual([
+      expect.objectContaining({ ownerId: 'a', state: 'DEFLECTED', color: SLOT_STYLES[0]?.color }),
+    ]);
+  });
+
   it('draws a boomerang only while it is in the air, in its owner’s colour, and disarms its owner', () => {
     const { state, entries, slots } = playing();
     const thrown = stepFu(state, new Map([['a', { throw: true }]]), 1 / 60).state;
@@ -566,6 +588,13 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
         { type: 'CAUGHT', playerId: 'a' },
         { type: 'ROUND_START', round: 2 },
         { type: 'RECALLED', playerId: 'b' },
+        {
+          type: 'DEFLECTED',
+          byId: 'b',
+          ownerId: 'a',
+          position: { x: 70, y: 80 },
+          direction: { x: 0, y: -1 },
+        },
         { type: 'ROUND_OVER', winnerId: 'a' },
       ],
       entries,
@@ -577,7 +606,15 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
       'CAUGHT',
       'ROUND_START',
       'CAUGHT', // the recall failsafe is drawn like a catch
+      'DEFLECTED',
     ]);
+    const clank = view.events.at(-1);
+    expect(clank).toMatchObject({
+      x: 70,
+      y: 80,
+      color: SLOT_STYLES[1]?.color,
+      knock: { x: 0, y: -1 },
+    }); // the defender's colour, and the way it went
     expect(view.events[0]).toMatchObject({ x: 10, y: 20, color: SLOT_STYLES[0]?.color });
     expect(view.events[1]).toMatchObject({ x: 30, y: 40, color: SLOT_STYLES[1]?.color }); // the victim's colour
     expect(view.events[2]).toMatchObject({ color: SLOT_STYLES[0]?.color });

@@ -7,7 +7,8 @@ export type { FuArena, Rect } from './arena';
 export { DEFAULT_FU_CONFIG } from './config';
 export type { FuConfig } from './config';
 
-export { BOOMERANG_TRANSITIONS, canTransition } from './boomerang';
+export { BOOMERANG_TRANSITIONS, DEFLECTION_TRANSITIONS, canTransition } from './boomerang';
+export { deflectionDirection } from './deflect';
 export type { Boomerang, BoomerangState } from './boomerang';
 
 export type { SlashState } from './slash';

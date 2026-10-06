@@ -172,6 +172,8 @@ export class FuRuntime implements MatchRuntime {
         travelled: b.travelled,
         follow: b.follow,
         wallSeconds: b.wallSeconds,
+        deflections: b.deflections,
+        deflectedBy: b.deflectedBy,
       })),
       duplicatesIgnored: this.duplicatesIgnored,
     };

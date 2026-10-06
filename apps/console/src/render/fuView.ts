@@ -76,6 +76,15 @@ export function buildFuView(
             },
           },
         ];
+      case 'DEFLECTED':
+        return [
+          {
+            type: 'DEFLECTED',
+            ...event.position,
+            color: styleOf(event.byId, slots).color, // the defender's colour: whose clank it was
+            knock: event.direction,
+          },
+        ];
       case 'HIT':
         return [{ type: 'HIT', ...event.position, color: styleOf(event.victimId, slots).color }];
       case 'CAUGHT':

@@ -37,13 +37,15 @@ export interface Snapshot {
         }[];
         boomerangs: {
           ownerId: string;
-          state: 'HELD' | 'THROWN' | 'RETURNING';
+          state: 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED';
           x: number;
           y: number;
           travelled: number;
           /** RETURNING and sliding along a wall: which hand (±1); 0 when flying free. */
           follow: number;
           wallSeconds: number;
+          deflections: number;
+          deflectedBy: string | undefined;
         }[];
         duplicatesIgnored: number;
       }

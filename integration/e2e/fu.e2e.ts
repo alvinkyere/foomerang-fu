@@ -17,6 +17,10 @@ async function aim(
   await phone.thumbUp();
 }
 
+function must<T>(value: T | undefined, what: string): T {
+  if (value === undefined) throw new Error(`test setup: no ${what}`);
+  return value;
+}
 type Point = { x: number; y: number };
 const SPAWNS: Point[] = [
   { x: 110, y: 110 }, // slot 0: top-left (Alice, who joins first)
@@ -437,6 +441,76 @@ test('Foomerang Fu: a returning boomerang cannot pass through cover — even whe
   expect(tightest).toBeGreaterThanOrEqual(14 - 0.01); // never inside a wall, at any sampled moment
   expect(home).toBe(true); // and it found its way back to her
   expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
+});
+
+test('Foomerang Fu: a real controller deflects an incoming boomerang with a timed SLASH — the defender lives, the boomerang stays its thrower’s, and it goes home', async ({
+  fuHost: host,
+  newPhone,
+}) => {
+  const { alice, bob, aliceId, bobId } = await setUp(host, newPhone);
+  const boomerangOf = async (id: string) =>
+    (await host.fu()).boomerangs.find((b) => b.ownerId === id);
+
+  // Bob turns to face down the open bottom lane (left); Alice walks the long way round to 450 short of him.
+  await bob.thumbDown();
+  await bob.thumbMove(-FAR, 0);
+  await sleep(90);
+  await bob.thumbUp();
+  await host.settled(bobId);
+  const bobAt = await host.body(bobId);
+  expect(bobAt.y).toBeCloseTo(790, 3);
+  await walk(host, alice, aliceId, [
+    { to: { x: 110, y: 790 } },
+    { to: { x: bobAt.x - 450, y: 790 }, within: 25 },
+  ]);
+
+  // Bob's reflexes: slash once the boomerang is 200 away (one press, from a real touch, over the real network).
+  let slashed = false;
+  const reflexes = (async () => {
+    const until = Date.now() + 6_000;
+    while (Date.now() < until && !slashed) {
+      const b = await boomerangOf(aliceId);
+      const me = await host.body(bobId);
+      if (b?.state === 'THROWN' && Math.hypot(b.x - me.x, b.y - me.y) <= 200) {
+        slashed = true;
+        await bob.tapSlash();
+      }
+      await sleep(2);
+    }
+  })();
+  await alice.tapThrow();
+
+  // Watch what happens to Alice's boomerang.
+  let seen: NonNullable<Awaited<ReturnType<typeof boomerangOf>>> | undefined;
+  let bobDied = false;
+  let drawnWhileDeflected = false;
+  const until = Date.now() + 8_000;
+  while (Date.now() < until) {
+    const snapshot = await host.snapshot();
+    const fu = must(snapshot.game, 'game');
+    const b = fu.boomerangs.find((x) => x.ownerId === aliceId);
+    if (fu.players.find((p) => p.id === bobId)?.alive === false) bobDied = true;
+    if (b?.state === 'DEFLECTED') {
+      seen ??= b;
+      if (snapshot.drawnBoomerangs?.some((d) => d.id === aliceId)) drawnWhileDeflected = true;
+    }
+    if (seen !== undefined && b?.state === 'HELD') break;
+    await sleep(6);
+  }
+  await reflexes;
+
+  expect(slashed, 'Bob’s reflex fired').toBe(true);
+  expect(bobDied, 'a correctly timed slash must not be a death').toBe(false);
+  const deflected = must(seen, 'the boomerang was deflected');
+  expect(deflected.ownerId).toBe(aliceId); // still Alice’s
+  expect(deflected.deflectedBy).toBe(bobId);
+  expect(deflected.deflections).toBe(1);
+  expect(drawnWhileDeflected).toBe(true); // Phaser draws it flying
+  const end = await host.fu();
+  expect(end.boomerangs.find((b) => b.ownerId === bobId)?.state).toBe('HELD'); // Bob has only his own
+  expect(end.boomerangs.find((b) => b.ownerId === aliceId)?.state).toBe('HELD'); // and Alice got hers back
+  expect(end.players.every((p) => p.alive)).toBe(true);
+  expect(end.phase).toBe('PLAYING');
 });
 
 test('Foomerang Fu: holding SLASH swings once and sends exactly one press and one release', async ({

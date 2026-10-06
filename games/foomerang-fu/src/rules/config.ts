@@ -31,6 +31,10 @@ export interface FuConfig {
   readonly slashRecoverySeconds: number;
   /** Walking speed while swinging and recovering, as a fraction of normal (1 = no slowdown). */
   readonly slashMoveFactor: number;
+  /** Slice 3: how far a deflected boomerang flies in the direction it was knocked, world units (a new value, not a retune). */
+  readonly deflectRange: number;
+  /** Slice 3: how many times one throw can be deflected before it is lethal as normal (0 turns deflection off). */
+  readonly maxDeflections: number;
   /**
    * Failsafe for a boomerang coming home round geometry: if it has spent this long sliding along walls
    * without arriving, it is recalled to its owner's hand (nothing is teleported through a wall; it simply
@@ -54,6 +58,8 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   slashActiveSeconds: 0.12,
   slashRecoverySeconds: 0.38,
   slashMoveFactor: 0.6,
+  deflectRange: 300,
+  maxDeflections: 3,
   returnWallSeconds: 3,
   roundEndSeconds: 2.5,
 });
@@ -77,6 +83,7 @@ export function assertValidConfig(config: FuConfig): void {
     ['slashActiveSeconds', config.slashActiveSeconds],
     ['slashRecoverySeconds', config.slashRecoverySeconds],
     ['slashMoveFactor', config.slashMoveFactor],
+    ['deflectRange', config.deflectRange],
     ['returnWallSeconds', config.returnWallSeconds],
     ['roundEndSeconds', config.roundEndSeconds],
   ];
@@ -84,6 +91,9 @@ export function assertValidConfig(config: FuConfig): void {
     if (!positive(value)) throw new RangeError(`${name} must be a positive, finite number`);
   }
   if (config.slashArc > Math.PI * 2) throw new RangeError('slashArc cannot exceed a full circle');
+  if (!Number.isInteger(config.maxDeflections) || config.maxDeflections < 0) {
+    throw new RangeError('maxDeflections must be a non-negative integer');
+  }
   if (config.slashMoveFactor > 1) throw new RangeError('slashMoveFactor cannot exceed 1');
   if (arena.width < config.playerRadius * 4 || arena.height < config.playerRadius * 4) {
     throw new RangeError('the arena must be at least four player radii in each direction');

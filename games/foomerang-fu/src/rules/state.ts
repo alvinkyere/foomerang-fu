@@ -116,6 +116,8 @@ export function startRound(
       travelled: 0,
       follow: 0,
       wallSeconds: 0,
+      deflections: 0,
+      deflectedBy: undefined,
     }),
   );
 
