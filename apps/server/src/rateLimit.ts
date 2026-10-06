@@ -84,6 +84,7 @@ const CLASS_BY_TYPE: Readonly<Record<string, MessageClass>> = Object.freeze({
   PLAYER_RECONNECT: 'room',
   HOST_RECONNECT: 'room',
   MATCH_START: 'room',
+  MATCH_END: 'room',
   INPUT_MOVE: 'movement',
   INPUT_EVENT: 'action',
   HEARTBEAT: 'heartbeat',

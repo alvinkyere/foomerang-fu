@@ -40,10 +40,10 @@ export const DEFAULT_GAMES: Readonly<Record<string, GameDefinition>> = Object.fr
   // controllers make biggest), THROW (the SECONDARY action) and DASH (the TERTIARY action). The server stays game-agnostic and
   // cannot import the game package, so this literal is checked against the game's own table
   // (FU_CONTROLS, which the console uses) by integration/test/fu-contract.integration.test.ts.
-  // minPlayers is 1 because CPUs (added in the console, which the server never sees) can fill the other seats;
-  // the console itself requires at least two participants, humans and CPUs together.
+  // minPlayers is 0 because CPUs (added in the console, which the server never sees) can be every other participant,
+  // all of them if the host wishes; the console itself requires at least two participants, humans and CPUs together.
   'foomerang-fu': {
-    minPlayers: 1,
+    minPlayers: 0,
     maxPlayers: 6,
     controller: {
       orientation: 'landscape',
@@ -181,6 +181,17 @@ export class Application {
     if (!starting.ok) return this.#error(session, TRANSITION_ERRORS[starting.reason]);
     const playing = this.#deps.registry.startPlaying(identity.roomId);
     if (!playing.ok) return this.#error(session, 'INTERNAL_ERROR');
+    this.#notifyHost(identity.roomId);
+  }
+
+  /** The host ends the match: PLAYING → RESULTS → LOBBY, so the room can start another. Failure leaves the room as it was. */
+  endMatch(session: Session): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'HOST') return;
+    const finished = this.#deps.registry.finishGame(identity.roomId);
+    if (!finished.ok) return this.#error(session, TRANSITION_ERRORS[finished.reason]);
+    const back = this.#deps.registry.returnToLobby(identity.roomId);
+    if (!back.ok) return this.#error(session, 'INTERNAL_ERROR');
     this.#notifyHost(identity.roomId);
   }
 

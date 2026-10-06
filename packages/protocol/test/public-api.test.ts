@@ -39,6 +39,7 @@ describe('public API surface', () => {
         'inputMoveMessageSchema',
         'isSupportedProtocolVersion',
         'joinCodeSchema',
+        'matchEndMessageSchema',
         'matchStartMessageSchema',
         'parseClientMessage',
         'parseServerMessage',

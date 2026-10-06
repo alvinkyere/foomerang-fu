@@ -170,6 +170,11 @@ export class Gateway {
         application.startMatch(session);
         return;
 
+      case 'MATCH_END':
+        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
+        application.endMatch(session);
+        return;
+
       case 'ROOM_JOIN':
         if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
         application.joinRoom(session, message.payload.joinCode, message.payload.displayName);

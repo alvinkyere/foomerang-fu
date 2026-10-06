@@ -121,15 +121,31 @@ describe('JOIN', () => {
     });
   });
 
-  describe('only a LOBBY is joinable', () => {
-    it.each(ROOM_STATES.filter((s) => s !== 'LOBBY'))('%s → ROOM_NOT_JOINABLE', (state) => {
+  describe('only a LOBBY or a running match is joinable', () => {
+    it('a match that is PLAYING can be joined: the newcomer holds a seat and waits for the next match (Slice 8)', () => {
       const env = createFakeEnvironment();
-      const room = roomIn(state, env);
-      expect(joinRoom(room, 'Late', env.time, env)).toEqual({
-        ok: false,
-        reason: 'ROOM_NOT_JOINABLE',
-      });
+      const result = joinRoom(roomIn('PLAYING', env), 'Late', env.time, env);
+      expect(result.ok).toBe(true);
     });
+
+    it('a running match is still bound by capacity', () => {
+      const env = createFakeEnvironment();
+      const lobby = withPlayers(env, newRoom(env), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+      const full = { ...lobby, state: 'PLAYING' as const };
+      expect(joinRoom(full, 'p7', env.time, env)).toEqual({ ok: false, reason: 'ROOM_FULL' });
+    });
+
+    it.each(ROOM_STATES.filter((s) => s !== 'LOBBY' && s !== 'PLAYING'))(
+      '%s → ROOM_NOT_JOINABLE',
+      (state) => {
+        const env = createFakeEnvironment();
+        const room = roomIn(state, env);
+        expect(joinRoom(room, 'Late', env.time, env)).toEqual({
+          ok: false,
+          reason: 'ROOM_NOT_JOINABLE',
+        });
+      },
+    );
   });
 
   it.each(['', '   ', 'x'.repeat(17), 'bad\u0000name', '‮evil'])(
@@ -147,13 +163,13 @@ describe('JOIN', () => {
     it('a failed join leaves the room untouched and draws nothing from the generators', () => {
       const env = createFakeEnvironment();
       const full = withPlayers(env, newRoom(env), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
-      const playing = roomIn('PLAYING', env);
+      const closing = roomIn('CLOSING', env);
       const snapshot = JSON.stringify(full);
       const callsBefore = { ...env.calls };
 
       expect(joinRoom(full, 'p7', env.time, env).ok).toBe(false); // ROOM_FULL
       expect(joinRoom(full, '', env.time, env).ok).toBe(false); // INVALID_DISPLAY_NAME
-      expect(joinRoom(playing, 'late', env.time, env).ok).toBe(false); // ROOM_NOT_JOINABLE
+      expect(joinRoom(closing, 'late', env.time, env).ok).toBe(false); // ROOM_NOT_JOINABLE
 
       expect(env.calls).toEqual(callsBefore); // no PlayerId, credential or clock read consumed
       expect(JSON.stringify(full)).toBe(snapshot);
@@ -176,7 +192,7 @@ describe('JOIN', () => {
       ok: false,
       reason: 'INVALID_DISPLAY_NAME',
     });
-    expect(joinRoom(roomIn('PLAYING', env), '', env.time, env)).toEqual({
+    expect(joinRoom(roomIn('RESULTS', env), '', env.time, env)).toEqual({
       ok: false,
       reason: 'ROOM_NOT_JOINABLE',
     });

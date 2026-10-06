@@ -34,6 +34,13 @@ export type RoomCreateMessage = z.infer<typeof roomCreateMessageSchema>;
 export const matchStartMessageSchema = plainEnvelope('MATCH_START', z.strictObject({}));
 export type MatchStartMessage = z.infer<typeof matchStartMessageSchema>;
 
+/**
+ * Client → server (console): the match is over (or cannot go on): PLAYING → RESULTS → LOBBY. Host-only. The host
+ * sends it when players choose "return to lobby", and when it reclaims a room whose simulation was lost with the page.
+ */
+export const matchEndMessageSchema = plainEnvelope('MATCH_END', z.strictObject({}));
+export type MatchEndMessage = z.infer<typeof matchEndMessageSchema>;
+
 /** Client → server (console): reclaim a room after a refresh. The credential rotates on success. */
 export const hostReconnectMessageSchema = plainEnvelope(
   'HOST_RECONNECT',

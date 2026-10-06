@@ -15,6 +15,7 @@ export function validateRoomConfig(input: RoomConfig): RoomConfig | undefined {
   const { gameId, minPlayers, maxPlayers } = input;
   if (typeof gameId !== 'string' || !GAME_ID_PATTERN.test(gameId)) return undefined;
   if (!Number.isSafeInteger(minPlayers) || !Number.isSafeInteger(maxPlayers)) return undefined;
-  if (minPlayers < 1 || maxPlayers < minPlayers) return undefined;
+  // minPlayers may be 0: a game whose other participants are software (Foomerang Fu's CPUs) can start with nobody on a phone.
+  if (minPlayers < 0 || maxPlayers < 1 || maxPlayers < minPlayers) return undefined;
   return Object.freeze({ gameId, minPlayers, maxPlayers });
 }

@@ -93,14 +93,14 @@ describe('authorization: only the room’s host may start it', () => {
 });
 
 describe('after the match has started', () => {
-  it('nobody new can join, but a player who dropped can come back as the same player', () => {
+  it('a newcomer can still join (they wait for the next match), and a player who dropped can come back as the same player', () => {
     const { client: host, joinCode } = rig.host('primitive-arena');
     const alice = rig.player(joinCode, 'Alice');
     host.send(start);
 
-    const late = rig.connect('controller');
-    late.send(msg.join(joinCode, 'Late'));
-    expect(late.errors()).toEqual(['ROOM_NOT_JOINABLE']);
+    const late = rig.player(joinCode, 'Late'); // Slice 8: seated, but the game never gives them a body mid-match
+    expect(late.client.errors()).toEqual([]);
+    expect(state(host)).toBe('PLAYING');
 
     alice.client.drop();
     const phone = rig.connect('controller');
@@ -124,5 +124,36 @@ describe('the primitive arena game', () => {
     const seventh = rig.connect('controller');
     seventh.send(msg.join(joinCode, 'P7'));
     expect(seventh.errors()).toEqual(['ROOM_FULL']);
+  });
+});
+
+describe('ending a match (MATCH_END): PLAYING → RESULTS → LOBBY', () => {
+  const end = { type: 'MATCH_END', payload: {} };
+
+  it('the host returns the room to the lobby so another match can start', () => {
+    const { client: host, joinCode } = rig.host('primitive-arena');
+    rig.player(joinCode, 'Alice');
+    host.send(start);
+    host.send(end);
+    expect(host.errors()).toEqual([]);
+    expect(state(host)).toBe('LOBBY');
+    host.send(start);
+    expect(state(host)).toBe('PLAYING');
+  });
+
+  it('is refused in a lobby (INVALID_STATE) and from anyone who is not the host', () => {
+    const { client: host, joinCode } = rig.host('primitive-arena');
+    const alice = rig.player(joinCode, 'Alice');
+    host.send(end);
+    expect(host.errors()).toEqual(['INVALID_STATE']);
+    alice.client.send(end);
+    expect(alice.client.errors().length).toBeGreaterThan(0);
+  });
+
+  it('Foomerang Fu can be started with nobody on a phone (all its participants may be CPUs in the console)', () => {
+    const fu = rig.host('foomerang-fu');
+    fu.client.send(start);
+    expect(fu.client.errors()).toEqual([]);
+    expect(state(fu.client)).toBe('PLAYING');
   });
 });

@@ -125,7 +125,9 @@ export function joinRoom(
   now: number,
   env: RoomEnvironment,
 ): Result<{ room: Room; player: Player }, JoinFailure> {
-  if (room.state !== 'LOBBY') return fail('ROOM_NOT_JOINABLE');
+  // A person may also join a match that is already running (Slice 8): they hold a seat and wait for the next match;
+  // the game never gives them a body halfway through.
+  if (room.state !== 'LOBBY' && room.state !== 'PLAYING') return fail('ROOM_NOT_JOINABLE');
   const name = validateDisplayName(displayName);
   if (name === undefined) return fail('INVALID_DISPLAY_NAME');
   if (occupiedSeats(room) >= room.config.maxPlayers) return fail('ROOM_FULL');

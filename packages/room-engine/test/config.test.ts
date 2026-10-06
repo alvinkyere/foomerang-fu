@@ -31,13 +31,16 @@ describe('room configuration (capacity is configuration, not a platform constant
     expect(Object.isFrozen(validated)).toBe(true);
   });
 
+  it('accepts min 0: a game whose participants can all be software (Foomerang Fu CPUs) may start with nobody on a phone', () => {
+    expect(validateRoomConfig(config({ minPlayers: 0 }))).toBeDefined();
+  });
+
   it.each([
-    ['min 0', { minPlayers: 0 }],
     ['negative min', { minPlayers: -1 }],
     ['fractional min', { minPlayers: 1.5 }],
     ['NaN min', { minPlayers: Number.NaN }],
     ['min greater than max', { minPlayers: 7, maxPlayers: 6 }],
-    ['max 0', { minPlayers: 0, maxPlayers: 0 }],
+    ['max 0', { minPlayers: 0, maxPlayers: 0 }], // (a game needs room for somebody)
     ['Infinity max', { maxPlayers: Number.POSITIVE_INFINITY }],
     ['fractional max', { maxPlayers: 6.5 }],
     ['string max', { maxPlayers: '6' }],
