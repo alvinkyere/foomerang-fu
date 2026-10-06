@@ -29,12 +29,17 @@ export interface FuPlayer {
   readonly hazardSpared: readonly number[];
 }
 
-export type FuPhase = 'PLAYING' | 'ROUND_OVER';
+export type FuPhase = 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
 
 export interface FuRoundOver {
   /** The survivor, or undefined for a draw (everyone died in the same step). */
   readonly winnerId: string | undefined;
   readonly resetInSeconds: number;
+}
+
+/** Slice 8: the match is decided; nothing happens after this (no step changes anything, no kill is processed). */
+export interface FuMatchOver {
+  readonly winnerId: string;
 }
 
 /**
@@ -67,6 +72,12 @@ export interface FuState {
   /** Slice 5: how many Books have been taken this match (with the seed, it decides what the next one awards). */
   readonly awards: number;
   readonly roundOver: FuRoundOver | undefined;
+  /** Slice 8: every player's kill count — the filled holes of their meter. Persists across rounds; reset by a rematch. */
+  readonly scores: Readonly<Record<string, number>>;
+  /** Slice 8: this round is a TIEBREAK: only the players who filled their meters on the same step play it (everyone else sits it out, dead). */
+  readonly tiebreak: boolean;
+  /** Slice 8: set once someone has won; phase is then MATCH_OVER. */
+  readonly matchOver: FuMatchOver | undefined;
 }
 
 export const MAX_PLAYERS = 6;
@@ -104,6 +115,11 @@ export function startRound(
   /** What each player owns coming into this round (a new match passes nothing). */
   carried: ReadonlyMap<string, Inventory> = new Map(),
   awards = 0,
+  /** Slice 8: the kill counts coming in (a new match passes nothing), and, in a tiebreak, who plays. */
+  match: {
+    readonly scores?: Readonly<Record<string, number>>;
+    readonly playing?: readonly string[];
+  } = {},
 ): FuState {
   const centre = { x: config.arena.width / 2, y: config.arena.height / 2 };
   const spawns = specs.map((spec) => spawnPosition(spec.slot, config.arena));
@@ -126,7 +142,7 @@ export function startRound(
     return Object.freeze({
       id: spec.id,
       slot: spec.slot,
-      alive: true,
+      alive: match.playing === undefined || match.playing.includes(spec.id),
       facing: normalized({ x: centre.x - at.x, y: centre.y - at.y }),
       slash: SLASH_READY,
       dash: DASH_READY,
@@ -174,6 +190,11 @@ export function startRound(
     pickupClock: Object.freeze({ spawnIn: config.powerups?.firstSeconds ?? 0, spawned: 0 }),
     awards,
     roundOver: undefined,
+    scores: Object.freeze(
+      Object.fromEntries(specs.map((spec) => [spec.id, match.scores?.[spec.id] ?? 0])),
+    ),
+    tiebreak: match.playing !== undefined,
+    matchOver: undefined,
   });
 }
 
@@ -186,4 +207,30 @@ export function createFuMatch(
   assertValidConfig(config);
   assertValidPlayers(players);
   return startRound(players, config, 1, 0);
+}
+
+/**
+ * A rematch: the same participants, the same configuration, a brand-new match — round 1, every kill meter empty,
+ * every inventory cleared, all temporary combat state reset.
+ */
+export const rematchOf = (state: FuState): FuState =>
+  startRound(
+    state.players.map((p) => ({ id: p.id, slot: p.slot })),
+    state.config,
+    1,
+    0,
+  );
+
+/** What to call the round that is on (Slice 8): ROUND n / 9, then OVERTIME ROUND k, or a TIEBREAK. */
+export type RoundLabel =
+  | { readonly kind: 'REGULATION'; readonly round: number; readonly of: number | undefined }
+  | { readonly kind: 'OVERTIME'; readonly round: number }
+  | { readonly kind: 'TIEBREAK'; readonly round: number };
+
+export function roundLabel(state: FuState): RoundLabel {
+  if (state.tiebreak) return { kind: 'TIEBREAK', round: state.round };
+  const regulation = state.config.regulationRounds;
+  if (regulation !== undefined && state.round > regulation)
+    return { kind: 'OVERTIME', round: state.round - regulation };
+  return { kind: 'REGULATION', round: state.round, of: regulation };
 }

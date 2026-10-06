@@ -14,7 +14,7 @@ export type {
 } from './systems';
 export type { FuArena, Rect } from './arena';
 
-export { DEFAULT_FU_CONFIG } from './config';
+export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';
 
 export { BOOMERANG_TRANSITIONS, DEFLECTION_TRANSITIONS, canTransition } from './boomerang';
@@ -25,8 +25,18 @@ export type { SlashState } from './slash';
 export { isFatigued } from './dash';
 export type { DashState, Fatigue } from './dash';
 
-export { MAX_PLAYERS, createFuMatch, spawnPosition } from './state';
-export type { FuPhase, FuPlayer, FuPlayerSpec, FuRoundOver, FuState } from './state';
+export { MAX_PLAYERS, createFuMatch, rematchOf, roundLabel, spawnPosition } from './state';
+export type {
+  FuMatchOver,
+  FuPhase,
+  FuPlayer,
+  FuPlayerSpec,
+  FuRoundOver,
+  FuState,
+  RoundLabel,
+} from './state';
+export { applyDeaths, fullMeters } from './scoring';
+export type { Death, DeathCause, ScoreChange, ScoreReason, ScoreResult } from './scoring';
 
 export { stepFu } from './step';
 export type { FuEvent, FuInputs, FuPlayerInput, FuStepResult } from './step';

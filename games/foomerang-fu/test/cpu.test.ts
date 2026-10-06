@@ -7,6 +7,7 @@ import {
   PROFILES,
   Rng,
   SYSTEMS_ARENA,
+  rematchOf,
   seedFor,
   type Difficulty,
   type FuEvent,
@@ -320,7 +321,7 @@ describe('determinism', () => {
       seed,
       steps: 60 * 60,
       powerups: true,
-      matchRounds: 9,
+      config: { targetKills: 14, regulationRounds: 9 },
     });
     return JSON.stringify({ s: r.state, e: r.events });
   };
@@ -671,26 +672,20 @@ describe('powerups: the same Books, the same builds', () => {
     expect(took.HARD).toBeGreaterThanOrEqual(took.EASY);
   });
 
-  it('builds persist through round resets for CPUs exactly as for humans, over a nine-round match, and the match end clears them', () => {
+  it('builds persist through round resets for CPUs exactly as for humans, over a nine-round match; a rematch clears them', () => {
     let previous: Record<string, readonly string[]> | undefined;
     let resets = 0;
-    let cleared = false;
-    playMatch({
+    const r = playMatch({
       participants: [
         { id: 'a', cpu: 'HARD' },
         { id: 'b', cpu: 'HARD' },
       ],
       seed: 3,
       steps: 60 * 400,
-      matchRounds: 9,
+      config: { targetKills: 40, regulationRounds: 9 }, // far from over: only round resets are under test
       powerups: true,
       start: (s) => own(own(s, 'a', 'OVERDRIVE', 'PHASE_DASH'), 'b', 'GUARD'),
       onStep: (state, events) => {
-        if (events.some((e) => e.type === 'MATCH_OVER')) {
-          cleared = state.players.every((p) => p.inventory.length === 0);
-          previous = undefined;
-          return;
-        }
         if (events.some((e) => e.type === 'ROUND_START') && previous !== undefined) {
           resets += 1;
           for (const p of state.players) expect([...p.inventory], p.id).toEqual(previous[p.id]);
@@ -699,7 +694,7 @@ describe('powerups: the same Books, the same builds', () => {
       },
     });
     expect(resets).toBeGreaterThanOrEqual(8);
-    expect(cleared).toBe(true);
+    expect(rematchOf(r.state).players.every((p) => p.inventory.length === 0)).toBe(true);
   });
 
   it('PHASE_DASH only when owned: a CPU without it never phases; an owner who needs to cross a wall does', () => {

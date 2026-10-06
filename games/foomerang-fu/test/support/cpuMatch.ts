@@ -36,7 +36,6 @@ export interface MatchOptions {
   readonly seed?: number;
   readonly steps: number;
   readonly powerups?: boolean;
-  readonly matchRounds?: number;
   readonly keepInputs?: boolean;
   readonly start?: (state: FuState) => FuState;
   /** Called after every step with the state, its events and the tick. */
@@ -64,7 +63,6 @@ export function playMatch(o: MatchOptions): MatchResult {
             },
           }
         : {}),
-      ...(o.matchRounds === undefined ? {} : { matchRounds: o.matchRounds }),
       ...(o.config ?? {}),
     },
   );

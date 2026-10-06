@@ -11,6 +11,7 @@ import {
   createFuMatch,
   isPowerKind,
   powerupsFor,
+  rematchOf,
   removePower,
   stepFu,
   type FuState,
@@ -223,8 +224,8 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
     expect(inv(s)).toEqual(['GUARD', 'TWIN_THROW']);
   });
 
-  it('only the end of the MATCH clears every inventory, and a new match starts at round 1', () => {
-    let s = make(['a', 'b'], { matchRounds: 3 });
+  it('inventories survive any number of round resets (nothing about "round 9" clears them); only a REMATCH clears every inventory and starts at round 1', () => {
+    let s = make(['a', 'b'], { regulationRounds: 3 });
     s = own(
       place(place(s, 'a', 600, 450), 'b', 1500, 800),
       'a',
@@ -233,31 +234,19 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
       'PHASE_DASH',
     );
     s = { ...s, awards: 4 };
-    s = nextRound(s);
-    s = nextRound(s);
-    expect(s.round).toBe(3);
+    for (let i = 0; i < 5; i += 1) s = nextRound(s); // well past the regulation rounds
+    expect(s.round).toBe(6);
     expect(inv(s)).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
     expect(s.awards).toBe(4);
-    // the last round ends: the match is over and the next one begins clean
-    let end = stepFu(
-      { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
-      NONE,
-      DT,
-    ).state;
-    const events: string[] = [];
-    for (let i = 0; i < 400 && end.round === 3; i += 1) {
-      const r = stepFu(end, NONE, DT);
-      end = r.state;
-      events.push(...types(r.events));
-    }
-    expect(events).toContain('MATCH_OVER');
-    expect(end.round).toBe(1);
-    expect(inv(end)).toEqual([]);
-    expect(end.awards).toBe(0);
-    expect(end.extraBoomerangs).toEqual([]);
+    const fresh = rematchOf(s);
+    expect(fresh.round).toBe(1);
+    expect(fresh.players.map((p) => p.inventory)).toEqual([[], []]);
+    expect(fresh.awards).toBe(0);
+    expect(fresh.extraBoomerangs).toEqual([]);
+    expect(fresh.scores).toEqual({ a: 0, b: 0 });
   });
 
-  it('with no matchRounds (Slices 1–4) rounds simply go on', () => {
+  it('with no targetKills (Slices 1–7) rounds simply go on, forever', () => {
     expect(nextRound(nextRound(nextRound(make()))).round).toBe(4);
   });
 });
@@ -450,7 +439,7 @@ describe('the Book spawn model is scarce', () => {
       let s = make(['a', 'b', 'c'], {
         arena: PRIMITIVE_ARENA,
         powerups: { ...PRIMITIVE_POWERUPS, firstSeconds: 3, intervalSeconds: 4 },
-        matchRounds: 9,
+        regulationRounds: 9,
       });
       const log: unknown[] = [];
       for (let i = 0; i < 3000; i += 1) {
@@ -503,7 +492,8 @@ describe('powerup configuration is checked (a bad schedule is a RangeError, neve
     expect(mk({ overdriveMoveFactor: 0.9 })).toThrow(RangeError);
     expect(mk({ blastRadius: -1 })).toThrow(RangeError);
     expect(mk({ seed: 1.5 })).toThrow(RangeError);
-    expect(mk({ matchRounds: 0 })).toThrow(RangeError);
+    expect(mk({ targetKills: 0 })).toThrow(RangeError);
+    expect(mk({ regulationRounds: 1.5 })).toThrow(RangeError);
     expect(mk({ enabledPowers: ['NOPE'] })).toThrow(RangeError);
     expect(mk({ exclusivePairs: [['GUARD', 'NOPE']] })).toThrow(RangeError);
     expect(mk({ overdriveMoveFactor: 6 })).toThrow(RangeError);

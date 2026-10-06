@@ -32,6 +32,7 @@ import {
   type DashState,
   type Fatigue,
 } from './dash';
+import { applyDeaths, fullMeters, type Death, type DeathCause, type ScoreChange } from './scoring';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import {
   awardPool,
@@ -146,10 +147,21 @@ export type FuEvent =
   | { readonly type: 'RECALLED'; readonly playerId: string }
   | {
       readonly type: 'HIT';
+      /** The attacker whose weapon it was ('HAZARD' for the floor). Not necessarily who is CREDITED: see `creditedTo`. */
       readonly byId: string;
       readonly victimId: string;
       readonly position: Vec2;
+      /** Slice 8: what killed them, as the rules resolved it. */
+      readonly source: DeathCause;
+      /** Slice 8: who the kill is credited to (the deflector, for a deflected boomerang); undefined: nobody (the floor). */
+      readonly creditedTo: string | undefined;
     }
+  /** Slice 8: a kill meter changed (a hole filled or emptied, or a penalty that found it already empty: `delta` 0). */
+  | ({ readonly type: 'SCORE' } & ScoreChange)
+  /** Slice 8: `winnerId` filled the last hole; the match is over at once. */
+  | { readonly type: 'MATCH_WON'; readonly winnerId: string; readonly kills: number }
+  /** Slice 8: these players filled their meters on the same step: a tiebreak round between only them begins. */
+  | { readonly type: 'TIEBREAK_START'; readonly playerIds: readonly string[] }
   | { readonly type: 'ROUND_OVER'; readonly winnerId: string | undefined }
   | { readonly type: 'ROUND_START'; readonly round: number }
   /** Slice 5: the last round of a match ended; inventories are cleared as the next match starts. */
@@ -335,6 +347,8 @@ export function stepFu(state: FuState, inputs: FuInputs, dt: number): FuStepResu
   const probe = stepWorld(state.world, NO_MOVEMENT, dt);
   if (dt === 0) return { state, events: [] };
 
+  // The match is decided: nothing moves, nothing can kill, nothing is scored (Slice 8: no post-victory kills).
+  if (state.phase === 'MATCH_OVER') return { state, events: [] };
   if (state.phase === 'ROUND_OVER') return stepRoundOver(state, probe, dt);
   return stepPlaying(state, inputs, dt);
 }
@@ -345,18 +359,52 @@ function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuS
   const elapsed = state.elapsed + dt;
   if (remaining <= EPSILON) {
     const specs = state.players.map((p) => ({ id: p.id, slot: p.slot }));
-    const { matchRounds } = state.config;
-    if (matchRounds !== undefined && state.round >= matchRounds) {
-      // The match is over: every inventory is cleared and a new match begins at round 1.
-      const next = startRound(specs, state.config, 1, elapsed);
+    // Whoever holds a full meter at the end of a round (only possible after a tie, or after a tiebreak in which the others
+    // lost holes): one of them has won; several play a tiebreak between only them.
+    const target = state.config.targetKills;
+    const full =
+      target === undefined ? [] : state.players.filter((p) => (state.scores[p.id] ?? 0) >= target);
+    if (full.length === 1) {
+      const winnerId = (full[0] as FuPlayer).id;
       return {
-        state: next,
-        events: [{ type: 'MATCH_OVER' }, { type: 'ROUND_START', round: next.round }],
+        state: Object.freeze({
+          ...state,
+          elapsed,
+          world,
+          phase: 'MATCH_OVER' as const,
+          roundOver: undefined,
+          matchOver: Object.freeze({ winnerId }),
+        }),
+        events: [{ type: 'MATCH_WON', winnerId, kills: state.scores[winnerId] ?? 0 }],
       };
     }
-    // A normal round reset keeps what each player owns (and the match's count of Books taken).
+    // What each player owns (and the match's count of Books taken) and every kill count carry into the next round.
     const carried = new Map(state.players.map((p) => [p.id, p.inventory]));
-    const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards);
+    if (full.length > 1) {
+      const playerIds = full.map((p) => p.id);
+      const next = startRound(
+        specs,
+        state.config,
+        state.round + 1,
+        elapsed,
+        carried,
+        state.awards,
+        {
+          scores: state.scores,
+          playing: playerIds,
+        },
+      );
+      return {
+        state: next,
+        events: [
+          { type: 'TIEBREAK_START', playerIds },
+          { type: 'ROUND_START', round: next.round },
+        ],
+      };
+    }
+    const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards, {
+      scores: state.scores,
+    });
     return { state: next, events: [{ type: 'ROUND_START', round: next.round }] };
   }
   return {
@@ -386,7 +434,9 @@ interface Contact {
   readonly attacker: number; // the arena itself (a hazard) counts as the last attacker
   readonly rank: number; // 0 boomerang / blast, 1 slash, 2 hazard
   readonly weapon: number; // index into the weapon list, -1 for a slash or hazard
-  readonly source: 'BOOMERANG' | 'BLAST' | 'SLASH' | 'HAZARD';
+  readonly source: DeathCause;
+  /** Slice 8: who is CREDITED (index), or -1 for nobody. The attacker, except for a deflected boomerang (the deflector). */
+  readonly credit: number;
 }
 
 /** Who a kill by the arena is credited to. */
@@ -1030,6 +1080,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const at = lethalAt[k];
     if (at === undefined) return;
     const a = ownerIdx[k] as number;
+    // A deflected boomerang is credited to whoever deflected it (they sent it; its owner is immune to it anyway);
+    // every other weapon is credited to its owner. Twins and blasts follow the same rule.
+    const credit =
+      w.state === 'DEFLECTED' && w.deflectedBy !== undefined
+        ? (ownerOf.get(w.deflectedBy) ?? a)
+        : a;
     const immuneTo = (victim: FuPlayer): boolean =>
       (w.state === 'DEFLECTED' && w.deflectedBy === victim.id) || w.absorbed.includes(victim.id);
     const touched: number[] = [];
@@ -1047,7 +1103,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       });
       const ordered = [...hit].sort((x, y) => x - y);
       for (const v of ordered)
-        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BLAST' });
+        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BLAST', credit });
       weapons[k] = Object.freeze({ ...w, blast: false }); // spent: it flies on as a plain boomerang
       events.push({
         type: 'BLASTED',
@@ -1058,7 +1114,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       });
     } else {
       for (const v of touched)
-        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG' });
+        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG', credit });
     }
   });
   const swings: FuPlayer[] = [...players];
@@ -1073,16 +1129,23 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         inSlashRegion(from, swing.direction, where, config) &&
         lineClearTo(from, where, R, walls)
       ) {
-        contacts[v]?.push({ attacker: a, rank: 1, weapon: -1, source: 'SLASH' }); // a wall is cover: no cutting through it
+        contacts[v]?.push({ attacker: a, rank: 1, weapon: -1, source: 'SLASH', credit: a }); // a wall is cover: no cutting through it
       }
     });
   });
   hazardHits.forEach((hits, v) => {
     if (hits.size === 0 || !(players[v] as FuPlayer).alive) return;
-    (contacts[v] as Contact[]).push({ attacker: count, rank: 2, weapon: -1, source: 'HAZARD' });
+    (contacts[v] as Contact[]).push({
+      attacker: count,
+      rank: 2,
+      weapon: -1,
+      source: 'HAZARD',
+      credit: -1,
+    });
   });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
   const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
+  const deathOf = new Map<string, Death>(); // victim → how they died and who is credited (Slice 8)
   players.forEach((victim, v) => {
     if (!victim.alive) return;
     const list = (contacts[v] as Contact[]).sort(
@@ -1130,12 +1193,25 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         victim.id,
         killing.source === 'HAZARD' ? ARENA_ID : (players[killing.attacker] as FuPlayer).id,
       );
+      deathOf.set(victim.id, {
+        victimId: victim.id,
+        creditedTo: killing.credit < 0 ? undefined : (players[killing.credit] as FuPlayer).id,
+        cause: killing.source,
+      });
     }
   });
   const survivors: FuPlayer[] = swings.map((player) => {
     const byId = killedBy.get(player.id);
     if (byId === undefined) return player;
-    events.push({ type: 'HIT', byId, victimId: player.id, position: positionOf(player.id) });
+    const death = deathOf.get(player.id) as Death;
+    events.push({
+      type: 'HIT',
+      byId,
+      victimId: player.id,
+      position: positionOf(player.id),
+      source: death.cause,
+      creditedTo: death.creditedTo,
+    });
     return Object.freeze({
       ...player,
       alive: false,
@@ -1146,17 +1222,40 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
 
   // 7. Round end ------------------------------------------------------------------------------
+  // 6b. The kill race (Slice 8): this step's deaths, in the order of the players, become changes of the meters.
+  const scored = applyDeaths(
+    state.scores,
+    survivors.flatMap((p) => {
+      const d = deathOf.get(p.id);
+      return d === undefined ? [] : [d];
+    }),
+  );
+  for (const change of scored.changes) events.push({ type: 'SCORE', ...change });
+  const winners =
+    config.targetKills === undefined
+      ? []
+      : fullMeters(scored.scores, scored.gained, config.targetKills);
+  const matchWonBy = winners.length === 1 ? (winners[0] as string) : undefined;
+  if (matchWonBy !== undefined)
+    events.push({ type: 'MATCH_WON', winnerId: matchWonBy, kills: scored.scores[matchWonBy] ?? 0 });
+
+  // 7. Round end ------------------------------------------------------------------------------
+  // A round ends when one or none is left alive, or — at once — when the match is won (nothing more is processed), or
+  // when several fill their meters on this very step (a tie: the round is over and they play a tiebreak next).
   const alive = survivors.filter((p) => p.alive);
-  const roundEnds = survivors.length >= 2 && alive.length <= 1;
+  const roundEnds =
+    matchWonBy === undefined &&
+    ((survivors.length >= 2 && alive.length <= 1) || winners.length > 1);
   const winnerId = alive.length === 1 ? (alive[0] as FuPlayer).id : undefined;
   if (roundEnds) events.push({ type: 'ROUND_OVER', winnerId });
+  const concluded = roundEnds || matchWonBy !== undefined; // nothing is live any more: no new Book, no half-finished burst
 
   // A new pickup appears after everything else (so it cannot be taken the step it appears); the clock
   // only runs while there is room for one and the round is on.
   let pickups: Pickup[] = lying;
   let clock = state.pickupClock;
   const schedule = config.powerups;
-  if (schedule !== undefined && !roundEnds && pickups.length < schedule.maxOnField) {
+  if (schedule !== undefined && !concluded && pickups.length < schedule.maxOnField) {
     const spawnIn = clock.spawnIn - dt;
     if (spawnIn > EPSILON) clock = Object.freeze({ spawnIn, spawned: clock.spawned });
     else {
@@ -1187,7 +1286,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const tFinal = state.roundTime + dt;
   const finalPlayers = survivors.map((p, index) => {
     const base =
-      roundEnds && p.dash.phase !== 'READY' ? Object.freeze({ ...p, dash: DASH_READY }) : p;
+      concluded && p.dash.phase !== 'READY' ? Object.freeze({ ...p, dash: DASH_READY }) : p;
     // Ownership outlives death and the end of a round: only a Book, FIFO eviction or a broken shield changes it.
     const owned = inventory[index] as Inventory;
     // a shield's pass lasts only while that hazard is ACTIVE; the dead keep none
@@ -1225,10 +1324,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       pickups: Object.freeze(pickups),
       pickupClock: clock,
       awards,
-      phase: roundEnds ? 'ROUND_OVER' : 'PLAYING',
+      phase: matchWonBy !== undefined ? 'MATCH_OVER' : roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds
         ? Object.freeze({ winnerId, resetInSeconds: config.roundEndSeconds })
         : undefined,
+      scores: scored.scores,
+      matchOver: matchWonBy === undefined ? undefined : Object.freeze({ winnerId: matchWonBy }),
     }),
     events,
   };

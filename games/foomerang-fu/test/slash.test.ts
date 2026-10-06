@@ -140,10 +140,11 @@ describe('the swing: SLASH while the boomerang is in hand', () => {
   it('kills an enemy inside the arc on the very step it is pressed, and says so in order', () => {
     const { state, events } = run(duel(100), 1, SLASH_A);
     expect(player(state, 'b').alive).toBe(false);
-    expect(types(events)).toEqual(['SLASHED', 'HIT', 'ROUND_OVER']);
+    expect(types(events)).toEqual(['SLASHED', 'HIT', 'SCORE', 'ROUND_OVER']); // (Slice 8: a kill also fills a hole)
     expect(events[0]).toMatchObject({ type: 'SLASHED', playerId: 'a', direction: { x: 1, y: 0 } });
     expect(events[1]).toMatchObject({ type: 'HIT', byId: 'a', victimId: 'b' });
-    expect(events[2]).toEqual({ type: 'ROUND_OVER', winnerId: 'a' });
+    expect(events[2]).toMatchObject({ type: 'SCORE', playerId: 'a', delta: 1, reason: 'KILL' });
+    expect(events[3]).toEqual({ type: 'ROUND_OVER', winnerId: 'a' });
   });
 
   it('uses the same boomerang: it stays HELD, in hand, throughout', () => {

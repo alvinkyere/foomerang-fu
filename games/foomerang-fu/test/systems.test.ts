@@ -686,7 +686,8 @@ describe('the lethal floor (hazard)', () => {
 });
 
 describe('determinism, high dt and six-player fuzz in the real experimental arena', () => {
-  const six = () => make(['a', 'b', 'c', 'd', 'e', 'f'], { arena: SYSTEMS_ARENA, matchRounds: 9 });
+  const six = () =>
+    make(['a', 'b', 'c', 'd', 'e', 'f'], { arena: SYSTEMS_ARENA, regulationRounds: 9 });
   const script = (i: number) =>
     input(
       Object.fromEntries(

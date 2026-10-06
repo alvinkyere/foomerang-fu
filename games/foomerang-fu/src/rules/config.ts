@@ -73,8 +73,13 @@ export interface FuConfig {
   readonly enabledPowers?: readonly PowerKind[];
   /** Slice 5: the seed the Book's choice of power is derived from (with how many Books have been taken). */
   readonly seed: number;
-  /** Slice 5: how many rounds make a match (9 in the real game). Absent: rounds go on forever (Slices 1–4). A match ends after its last round: every inventory is cleared and a new match begins. */
-  readonly matchRounds?: number;
+  /**
+   * Slice 8: the kill-race. A match is won by the first player to fill `targetKills` holes (14 in Free For All); it ends
+   * the instant that happens. Absent: no victory condition (Slices 1–7: rounds go on forever; kills are still counted).
+   */
+  readonly targetKills?: number;
+  /** Slice 8: how many rounds are REGULATION (9). Only labels the lobby of rounds: a match that reaches the end of them without a winner simply goes on, as OVERTIME rounds. */
+  readonly regulationRounds?: number;
   /** Slice 5: where and when pickups appear. Absent: no powerups (Slices 1–4 exactly). */
   readonly powerups?: PowerupConfig;
   /** Slice 5: pairs of powers one player may NOT hold together (default none; every pair is allowed). */
@@ -194,11 +199,10 @@ export function assertValidConfig(config: FuConfig): void {
     throw new RangeError('twinSpreadRadians must be between 0 and 45 degrees');
   }
   if (!Number.isInteger(config.seed)) throw new RangeError('seed must be an integer');
-  if (
-    config.matchRounds !== undefined &&
-    (!Number.isInteger(config.matchRounds) || config.matchRounds < 1)
-  ) {
-    throw new RangeError('matchRounds must be a positive integer');
+  for (const key of ['targetKills', 'regulationRounds'] as const) {
+    const value = config[key];
+    if (value !== undefined && (!Number.isInteger(value) || value < 1))
+      throw new RangeError(`${key} must be a positive integer`);
   }
   if (config.enabledPowers !== undefined && !config.enabledPowers.every(isPowerKind)) {
     throw new RangeError('enabledPowers must be power kinds');
@@ -301,3 +305,6 @@ function assertValidPowerups(config: FuConfig): void {
     }
   });
 }
+
+/** Free For All, the standard mode (Slice 8): first to 14 kills wins at once; nine rounds are regulation, then overtime. */
+export const FREE_FOR_ALL = Object.freeze({ targetKills: 14, regulationRounds: 9 });
