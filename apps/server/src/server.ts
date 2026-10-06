@@ -6,7 +6,7 @@ import { createNodeEnvironment } from './environment';
 import { Gateway } from './gateway';
 import { DEFAULT_RATE_LIMITS, type RateLimits } from './rateLimit';
 import { realScheduler, type CancelFn, type Scheduler } from './scheduler';
-import { SocketIOTransport } from './socketio/SocketIOTransport';
+import { SocketIOTransport, type TlsCredentials } from './socketio/SocketIOTransport';
 import type { ServerTransport } from './transport';
 
 export interface ServerOptions {
@@ -34,6 +34,11 @@ export interface ServerOptions {
   /** Heartbeat of the default transport. Defaults 5000 / 5000. */
   readonly pingIntervalMs?: number;
   readonly pingTimeoutMs?: number;
+  /**
+   * Serve https / wss. Needed when the controller page itself is served over https (a production-
+   * representative phone test): browsers refuse a plain ws:// connection from an https page.
+   */
+  readonly tls?: TlsCredentials;
   /** Receives unexpected exceptions (never contains credentials by construction). */
   readonly onInternalError?: (error: unknown) => void;
 }
@@ -73,6 +78,7 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
       maxPayloadBytes: options.maxPayloadBytes ?? 16 * 1024,
       pingIntervalMs: options.pingIntervalMs ?? 5_000,
       pingTimeoutMs: options.pingTimeoutMs ?? 5_000,
+      tls: options.tls,
     });
 
   const gateway = new Gateway({

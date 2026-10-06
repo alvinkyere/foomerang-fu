@@ -37,11 +37,16 @@ export class RealClient {
 
   static connect(
     port: number,
-    options: { transports?: ('websocket' | 'polling')[] } = {},
+    options: {
+      transports?: ('websocket' | 'polling')[];
+      /** Connect with TLS (https / wss). `ca` is the certificate to trust; verification stays ON. */
+      tls?: { ca?: string };
+    } = {},
   ): Promise<RealClient> {
     return new Promise((resolve, reject) => {
-      const socket = io(`http://127.0.0.1:${port}`, {
+      const socket = io(`${options.tls ? 'https' : 'http'}://127.0.0.1:${port}`, {
         transports: options.transports ?? ['websocket'],
+        ...(options.tls?.ca === undefined ? {} : { ca: options.tls.ca }),
         forceNew: true,
         reconnection: false,
         timeout: DEFAULT_TIMEOUT_MS,

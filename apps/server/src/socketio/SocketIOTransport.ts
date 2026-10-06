@@ -1,4 +1,5 @@
 import { createServer, type Server as HttpServer } from 'node:http';
+import { createServer as createSecureServer, type Server as HttpsServer } from 'node:https';
 import { Server, type Socket } from 'socket.io';
 import type { ServerTransport, TransportConnection } from '../transport';
 
@@ -10,6 +11,14 @@ export interface SocketIOTransportOptions {
   readonly maxPayloadBytes: number;
   readonly pingIntervalMs: number;
   readonly pingTimeoutMs: number;
+  /** When present the server speaks TLS (https / wss) instead of plain http / ws. */
+  readonly tls?: TlsCredentials | undefined;
+}
+
+/** PEM-encoded certificate chain and private key. The key is a secret: it is never logged. */
+export interface TlsCredentials {
+  readonly cert: string | Buffer;
+  readonly key: string | Buffer;
 }
 
 /** One Socket.IO event carries every protocol message, in both directions. */
@@ -22,7 +31,7 @@ const EVENT = 'message';
 export class SocketIOTransport implements ServerTransport {
   readonly #options: SocketIOTransportOptions;
   #handler: ((connection: TransportConnection) => void) | undefined;
-  #http: HttpServer | undefined;
+  #http: HttpServer | HttpsServer | undefined;
   #io: Server | undefined;
 
   constructor(options: SocketIOTransportOptions) {
@@ -34,7 +43,8 @@ export class SocketIOTransport implements ServerTransport {
   }
 
   async start(): Promise<{ port: number }> {
-    const http = createServer();
+    const { tls } = this.#options;
+    const http = tls ? createSecureServer({ cert: tls.cert, key: tls.key }) : createServer();
     const io = new Server(http, {
       transports: ['websocket'],
       serveClient: false,
