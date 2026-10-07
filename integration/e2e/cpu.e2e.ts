@@ -1,10 +1,4 @@
-import { expect, sleep, test, type Host } from './support/fixtures';
-
-/** Chooses a difficulty in the lobby and adds a CPU, exactly as a host with a mouse would. */
-async function addCpu(host: Host, difficulty: 'Easy' | 'Medium' | 'Hard'): Promise<void> {
-  await host.page.getByLabel('New CPU difficulty').selectOption({ label: difficulty });
-  await host.page.getByRole('button', { name: 'Add CPU' }).click();
-}
+import { expect, sleep, test } from './support/fixtures';
 
 test('Foomerang Fu: one real controller plays a mixed match against a Medium and a Hard CPU, started from the lobby', async ({
   fuHost: host,
@@ -15,16 +9,13 @@ test('Foomerang Fu: one real controller plays a mixed match against a Medium and
   await alice.join(code, 'Alice');
 
   // One person alone is not a match: Start waits until there are two participants.
-  await expect(host.page.getByRole('button', { name: 'Start' })).toBeDisabled();
-  await addCpu(host, 'Medium');
-  await addCpu(host, 'Hard');
-  await expect(host.page.getByRole('button', { name: 'Start' })).toBeEnabled();
-  const rows = host.page.getByRole('listitem');
-  await expect(rows).toHaveCount(3);
-  await expect(rows.nth(1)).toContainText('CPU 1');
-  await expect(rows.nth(2)).toContainText('CPU 2');
-  await expect(host.page.getByLabel('Difficulty of CPU 1')).toHaveValue('MEDIUM');
-  await expect(host.page.getByLabel('Difficulty of CPU 2')).toHaveValue('HARD');
+  await expect(host.startButton).toBeDisabled();
+  await host.addCpu('Medium');
+  await host.addCpu('Hard');
+  await expect(host.startButton).toBeEnabled();
+  await expect(host.filledSeats).toHaveCount(3);
+  await expect(host.cpuSeat(1)).toContainText('Medium');
+  await expect(host.cpuSeat(2)).toContainText('Hard');
 
   await host.start();
   await host.waitForDrawn(3);
@@ -71,12 +62,15 @@ test('Foomerang Fu: a CPU can be removed and its difficulty changed before the m
   const code = await host.createRoom();
   const alice = await newPhone();
   await alice.join(code, 'Alice');
-  for (let i = 0; i < 5; i += 1) await addCpu(host, 'Easy');
-  await expect(host.page.getByRole('button', { name: 'Add CPU' })).toBeDisabled();
-  await expect(host.page.getByRole('listitem')).toHaveCount(6);
-  await host.page.getByRole('button', { name: 'Remove CPU 3' }).click();
-  await expect(host.page.getByRole('listitem')).toHaveCount(5);
-  await host.page.getByLabel('Difficulty of CPU 5').selectOption({ label: 'Hard' });
+  for (let i = 0; i < 5; i += 1) await host.addCpu('Easy');
+  await expect(host.page.getByRole('button', { name: /empty seat/ })).toHaveCount(0); // six is the most
+  await expect(host.filledSeats).toHaveCount(6);
+  await host.removeCpu(3);
+  await expect(host.filledSeats).toHaveCount(5);
+  await host.cpuSeat(5).focus();
+  await host.page.keyboard.press('ArrowRight'); // Easy -> Medium
+  await host.page.keyboard.press('ArrowRight'); // Medium -> Hard
+  await expect(host.cpuSeat(5)).toContainText('Hard');
   await host.start();
   await host.waitForDrawn(5);
   const fu = await host.fu();
@@ -112,7 +106,7 @@ test('six Hard CPUs on Garden (the stress case, nobody on a phone): host frame r
   try {
     await host.createRoom();
     const count = Number(process.env['FOOMERANG_E2E_CPUS'] ?? 6);
-    for (let i = 0; i < count; i += 1) await addCpu(host, 'Hard');
+    for (let i = 0; i < count; i += 1) await host.addCpu('Hard');
     await host.start();
     await host.waitForDrawn(count);
     const fps: number[] = [];

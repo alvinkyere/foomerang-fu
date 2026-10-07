@@ -94,55 +94,6 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
-.join {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2.5rem;
-}
-.qr {
-  width: min(32vw, 22rem);
-  min-width: 12rem;
-  height: auto;
-  border-radius: 12px;
-}
-.join-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.room-code {
-  font-size: 4.5rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  font-variant-numeric: tabular-nums;
-}
-.join-url {
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  word-break: break-all;
-}
-
-.roster {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-  gap: 0.75rem;
-}
-.roster li {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-}
-.roster li.away {
-  opacity: 0.6;
-}
 .marker {
   font-size: 1.75rem;
   line-height: 1;
@@ -154,10 +105,6 @@ button:focus-visible {
   flex: 1;
   font-weight: 600;
   overflow-wrap: anywhere;
-}
-.status {
-  color: var(--color-muted);
-  font-size: 0.8rem;
 }
 
 .arena-screen {
@@ -233,34 +180,7 @@ button:focus-visible {
   text-align: right;
 }
 
-.roster li.cpu select,
-.roster li.cpu button {
-  margin-left: 0.5rem;
-}
-
-.cpu-controls {
-  margin-top: 0.75rem;
-}
-
-/* ---- Slice 8: game modes and the kill race (primitive; the premium pass is later) ---- */
-
-.modes {
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.mode.unavailable {
-  opacity: 0.6;
-}
-
-.mode-title {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
+/* ---- Slice 8: the kill race HUD (the premium pass is later) ---- */
 
 .score-strip {
   padding: 0.35rem 1rem;

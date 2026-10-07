@@ -5,17 +5,22 @@ Status: v0.1 (Slice 8). Package: `apps/console` (Vite + React + Phaser). It is t
 ## The journey it implements
 
 ```
-HOME ──Create room──► LOBBY (QR + room code + roster) ──Start──► ARENA (primitive) 
-                          ▲   players appear as phones join           │
-                          └────────── reload reclaims the room ───────┘
+/  CONSOLE HOME ──select Foomerang Fu──► GAME PAGE ──PLAY──► real room ──► JOIN (QR + code + seats)
+   (the shell: no query, no flag)           │                                  │ phones and CPUs take seats
+                                            └─ How to Play / Game Settings     └──START GAME──► ARENA (Garden)
+   system bar: Players · Controllers · Settings · Help · About                      │ match over: Return to lobby
+                                                                                     ▼
+                                          Close room (asks first) ◄──────────── JOIN again, same room
 ```
 
-There is deliberately **no game catalogue**. "Create room" makes **Foomerang Fu** (the combat skeleton, FOOMERANG_FU.md). The **primitive arena** (circles that follow thumbs) is platform **test infrastructure**: it is reachable only by asking for it by exact name in the address (`/?game=primitive-arena`), is used by the platform's browser tests and one-phone checks, and is never offered in the UI.
+The root route IS the console shell (`src/shell/`, see [SHELL.md](SHELL.md)); there is no separate lobby page. The shell meets the host session in one place, `shell/adapter/` (session state → `ShellModel`, actions back). While a match is being played the arena (`ArenaScreen`) replaces the shell; when the room returns to its lobby the shell is back on Join. A reload reclaims the room and lands straight on Join. Phones never see any of this: the QR points at the controller app, a different origin.
+
+The **primitive arena** (circles that follow thumbs) is platform **test infrastructure**: it is reachable only by asking for it by exact name in the address (`/?game=primitive-arena`, PLAY then creates that game), is used by the platform's browser tests, and is never offered in the UI.
 
 ## Who owns what
 
 ```
-React (chrome only)        Lobby, QR, roster, banners, debug overlay. Never drives the game loop.
+React (chrome only)        The console shell (home, game page, settings, join), HUD, debug overlay. Never drives the game loop.
    │ reads state
 HostSession ──HostTransport──► SocketIOTransport ──► server     (React and Phaser never see a socket)
    │ roster, room state, authenticated movement

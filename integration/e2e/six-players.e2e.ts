@@ -48,7 +48,7 @@ test(`six simulated players for ${SECONDS}s: host frame rate and simulation heal
     await expect
       .poll(() => sessions.every((s) => s.getState().phase === 'READY'), { timeout: 15_000 })
       .toBe(true);
-    await expect(host.page.getByRole('listitem')).toHaveCount(6);
+    await expect(host.filledSeats).toHaveCount(6);
 
     await host.start();
     await expect(host.page.getByTestId('arena').locator('canvas')).toBeVisible();

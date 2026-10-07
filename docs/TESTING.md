@@ -65,3 +65,31 @@ Strict `tsc`, lint, unit+integration on every change; E2E on PR; performance che
 - **`pnpm e2e:webkit`:** console + controller in Playwright's WebKit build (mouse-driven). Opt-in; needs `playwright install webkit`. **Not iOS Safari.**
 - **Mutation testing** of the console modules and of the E2E suite itself (inject a real defect; the right test must fail) — survivors became tests.
 - **Not coverable by automated tests:** a physical phone, Safari, a real network, input-to-photon latency. Milestone 1 passed on a physical run (MILESTONE_1_VALIDATION.md); what was measured there is recorded, and what was not is marked so.
+
+## OPEN DEFECT — intermittent timing-sensitive e2e failures (recorded 2026-10-07)
+
+**Status: OPEN. Not fixed; no assertion loosened, no sleep added.**
+
+Seen in full `pnpm e2e` runs, never the same ones twice, none in isolation:
+
+| Test | Failure |
+| --- | --- |
+| `fu.e2e.ts` "holding THROW throws once…" | `actionsReceived - before` was 1, expected 2 (the release had not been counted yet) |
+| `fu.e2e.ts` "DASH is refused while swinging, and SLASH is refused while dashing" | slash was `RECOVERING`, expected `READY` (the mid-dash tap was not refused) |
+| `powerups.e2e.ts` PHASE_DASH, TWIN_THROW + BLAST | `never reached {x,y}` (steering did not converge) |
+
+**Evidence** (measured, then the probe deleted):
+
+- Press → host, **product path** (phone `pointerdown` → host has counted it): p50 11 ms, p90 ≤ 24 ms, max ≤ 54 ms over 240 samples in three runs. Host frame rate 60 fps, worst frame 18.7 ms, ≤ 66 ms of simulation discarded.
+- Press → host, **including the test driver** (Playwright → Chrome DevTools touch injection into the phone page): p50 ~14 ms, **p90 50–200 ms, max 100–580 ms**. The tail is in the driver, not the app.
+- Eight busy-loop processes on an 8-core machine did **not** reproduce any of the three failures (12 of 12 passed). It is not plain CPU saturation.
+- The shell is not mounted during a match (the arena replaces it), and the failing steps are all inside matches, so shell workload is not involved. The failures also pre-date the shell: one uncaptured first-run failure was seen before it.
+
+**Cause, as far as it is established:** test timing assumptions. Each failing assertion treats touch injection as bounded and immediate, and it is not:
+- hold-THROW reads the counter with no slack right after `touchEnd` resolves, while the release still needs ~10–50 ms to reach the host. It fails when injection latency spikes enough that the 2.6 s watcher has already ended.
+- DASH/SLASH relies on a fixed ~60 ms gap between two injected taps landing inside a swing/dash window.
+- Powerup steering is a closed loop (read position → inject thumb → repeat) whose lag grows with injection latency.
+
+**Not yet explained:** *why* injection latency has a tail (suspects: the single Node process that forwards every WebSocket frame for every phone plus the CDP commands, and phone contexts rendered at device scale 3). Frame scheduling, simulation timing and shell workload are ruled out by the numbers above.
+
+**Direction for a real fix (own slice, reviewed):** make the assertions race-free by waiting on host state rather than on elapsed time (poll until the count reaches 2, then require it stays 2), and make the dash/slash ordering depend on observed host state instead of a fixed gap; consider injecting touches from inside the phone page instead of over CDP. Do not add sleeps or widen tolerances.

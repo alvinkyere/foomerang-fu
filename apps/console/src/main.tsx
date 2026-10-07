@@ -40,6 +40,8 @@ const config = resolveConsoleConfig({
 if (!config.ok) {
   root.render(<ConfigError problems={config.problems} />);
 } else {
+  // Developer diagnostics: the configuration's own wording goes to the browser console, never to the screen.
+  for (const warning of config.warnings) console.warn(`[foomerang] ${warning}`);
   // ONE runtime for the page's life, created outside React so StrictMode's double-mount cannot
   // open two connections.
   const enabled = parseEnabledParam(window.location.search);
@@ -76,7 +78,6 @@ if (!config.ok) {
         runtime={runtime}
         gameId={parseGameParam(window.location.search)}
         controllerBaseUrl={config.controllerBaseUrl}
-        serverUrl={config.serverUrl}
         warnings={config.warnings}
         loadRenderer={phaserRendererFor(
           parseGameParam(window.location.search) === 'foomerang-fu'

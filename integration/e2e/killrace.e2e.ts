@@ -1,32 +1,22 @@
 import { expect, test, type Host } from './support/fixtures';
 
-/** Adds a CPU of a difficulty in the lobby, exactly as a host with a mouse would. */
-async function addCpu(host: Host, difficulty: 'Easy' | 'Medium' | 'Hard'): Promise<void> {
-  await host.page.getByLabel('New CPU difficulty').selectOption({ label: difficulty });
-  await host.page.getByRole('button', { name: 'Add CPU' }).click();
-}
-
 const holes = (host: Host, name: string) =>
   host.page
     .getByLabel('Kill race')
     .getByRole('img', { name: new RegExp(`^${name}: \\d+ of \\d+ kills$`) });
 
-test('Free For All in the lobby: it is available and chosen, and Hide & Seek is visible, says COMING SOON and is genuinely disabled', async ({
+test('Game Settings names Free For All, and Hide & Seek is visible, says Coming soon and cannot be chosen', async ({
   hostAt,
 }) => {
   const host = await hostAt('?powerups=off');
-  await host.createRoom();
-  const modes = host.page.getByRole('group', { name: 'Game mode' });
-  await expect(modes).toContainText('FREE FOR ALL');
-  await expect(modes).toContainText('Available');
-  await expect(modes).toContainText('HIDE & SEEK');
-  await expect(modes).toContainText('COMING SOON');
-  await expect(modes.getByRole('radio', { name: /FREE FOR ALL/ })).toBeChecked();
-  const hide = modes.getByRole('radio', { name: /HIDE & SEEK/ });
-  await expect(hide).toBeDisabled();
-  await hide.click({ force: true }).catch(() => undefined); // it cannot be activated
-  await expect(modes.getByRole('radio', { name: /FREE FOR ALL/ })).toBeChecked();
-  await expect(hide).not.toBeChecked();
+  await host.page.getByRole('button', { name: 'Foomerang Fu', exact: true }).click();
+  await host.page.getByRole('button', { name: 'Game Settings' }).click();
+  const sheet = host.page.getByRole('dialog', { name: 'Game Settings' });
+  await expect(sheet).toContainText('Free For All');
+  await expect(sheet).toContainText('Hide & Seek');
+  await expect(sheet).toContainText('Coming soon');
+  await sheet.getByRole('button', { name: /Hide & Seek/ }).click(); // an info row: pressing it changes nothing
+  await expect(sheet).toContainText('Free For All');
 });
 
 test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the match is won at the target, and REMATCH and RETURN TO LOBBY work', async ({
@@ -35,8 +25,8 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   test.setTimeout(180_000);
   const host = await hostAt('?kills=3&powerups=off');
   await host.createRoom();
-  await addCpu(host, 'Hard');
-  await addCpu(host, 'Hard');
+  await host.addCpu('Hard');
+  await host.addCpu('Hard');
   await host.start();
   await host.waitForDrawn(2);
 
@@ -87,8 +77,8 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
     timeout: 120_000,
   });
   await host.page.getByRole('button', { name: 'Return to lobby' }).click();
-  await expect(host.page.getByRole('button', { name: 'Start' })).toBeVisible();
-  await expect(host.page.getByRole('group', { name: 'Game mode' })).toBeVisible();
+  await expect(host.startButton).toBeVisible();
+  await expect(host.page.getByTestId('room-code')).toBeVisible(); // the shell is back, on Join, in the same room
   expect((await host.snapshot()).roomState).toBe('LOBBY');
 });
 
@@ -99,8 +89,8 @@ test('a person who joins while the match is running connects and waits; the rema
   test.setTimeout(180_000);
   const host = await hostAt('?kills=2&powerups=off');
   const code = await host.createRoom();
-  await addCpu(host, 'Hard');
-  await addCpu(host, 'Hard');
+  await host.addCpu('Hard');
+  await host.addCpu('Hard');
   await host.start();
   await host.waitForDrawn(2);
 
@@ -129,13 +119,15 @@ test('reloading the console page mid-match loses the match, says so, and returns
   test.setTimeout(120_000);
   const host = await hostAt('?kills=14&powerups=off');
   await host.createRoom();
-  await addCpu(host, 'Easy');
-  await addCpu(host, 'Easy');
+  await host.addCpu('Easy');
+  await host.addCpu('Easy');
   await host.start();
   await host.waitForDrawn(2);
   await host.page.reload();
-  await expect(host.page.getByText(/The match was interrupted/)).toBeVisible({ timeout: 15_000 });
-  await expect(host.page.getByRole('button', { name: 'Start' })).toBeVisible();
+  await expect(
+    host.page.getByText(/The last match ended because this screen was reloaded/),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(host.startButton).toBeVisible();
   expect((await host.snapshot()).game).toBeUndefined(); // no match is running
   expect((await host.snapshot()).roomState).toBe('LOBBY');
 });

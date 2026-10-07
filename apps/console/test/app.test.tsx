@@ -6,7 +6,6 @@ import type { ArenaRenderer } from '../src/render/renderer';
 import type { ArenaView } from '../src/render/viewModel';
 import { FrameLoop } from '../src/runtime/frameLoop';
 import { App } from '../src/ui/App';
-import { Lobby } from '../src/ui/Lobby';
 import { FakeHostNetwork, MemoryHostStore, createClock, roster, settle } from './support/hostFakes';
 
 const CONTROLLER = 'http://192.168.1.20:5173';
@@ -60,10 +59,12 @@ class FakeRenderer implements ArenaRenderer {
   }
 }
 
-function setup(options: { warnings?: string[]; debug?: boolean; gameId?: GameId } = {}) {
+function setup(
+  options: { warnings?: string[]; debug?: boolean; gameId?: GameId; store?: MemoryHostStore } = {},
+) {
   const clock = createClock();
   const network = new FakeHostNetwork();
-  const store = new MemoryHostStore();
+  const store = options.store ?? new MemoryHostStore();
   let hostNow = 0;
   const runtime = createConsoleRuntime({
     transportFactory: network.factory,
@@ -79,7 +80,6 @@ function setup(options: { warnings?: string[]; debug?: boolean; gameId?: GameId 
       runtime={runtime}
       controllerBaseUrl={CONTROLLER}
       warnings={options.warnings ?? []}
-      serverUrl="http://192.168.1.20:3001"
       gameId={options.gameId ?? 'primitive-arena'}
       loadRenderer={loadRenderer}
       createLoop={raf.createLoop}
@@ -95,103 +95,152 @@ function setup(options: { warnings?: string[]; debug?: boolean; gameId?: GameId 
     renderer,
     loadRenderer,
     view,
+    store,
     setNow: (t: number) => (hostNow = t),
   };
 }
 
 const flush = () => act(async () => void (await settle()));
+const press = (key: string) => fireEvent.keyDown(window, { key });
+const button = (name: string | RegExp) => screen.getByRole('button', { name });
+const isDisabled = (el: HTMLElement) => el.getAttribute('aria-disabled') === 'true';
+const START = /START GAME/;
 
+/** Home → select the game → PLAY. Returns once the room exists and the Join screen is up. */
 async function inLobby(options?: Parameters<typeof setup>[0]) {
   const ctx = setup(options);
-  fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+  fireEvent.click(button(/Foomerang Fu|Foomerang$|Primitive/));
+  fireEvent.click(button('PLAY'));
   await flush();
   return ctx;
 }
+const seat = (n: number) => screen.getByRole('button', { name: new RegExp(`^Player ${n}:`) });
+const seatGroup = (n: number) => screen.getByRole('group', { name: new RegExp(`^Player ${n}`) });
 
 const twoPlayers = roster(
   { playerId: 'a', displayName: 'Alvin' },
   { playerId: 'b', displayName: 'David' },
 );
+const code = () => screen.getByTestId('room-code').textContent;
 
-describe('console flow: home → lobby', () => {
-  it('offers exactly one thing to do: create a room (no pretend catalogue)', () => {
-    setup();
-    expect(screen.getByRole('button', { name: 'Create room' })).toBeTruthy();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+describe('couch flow: home → game → PLAY → real room → join', () => {
+  it('opens on the console home: the games, the system bar, and nothing to do with a lobby', () => {
+    setup({ gameId: 'foomerang-fu' });
+    expect(button('Foomerang Fu')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /coming soon/i })).toHaveLength(2);
+    for (const name of ['Players', 'Controllers', 'Settings', 'Help', 'About']) {
+      expect(button(name)).toBeTruthy();
+    }
+    expect(screen.queryByRole('button', { name: 'Create room' })).toBeNull();
+    expect(document.documentElement.dataset['view']).toBe('shell');
   });
 
-  it('shows progress, then the room code and a QR code', async () => {
-    const { network } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
-    expect(screen.getByRole('status').textContent).toMatch(/Creating a room/);
+  it('home focuses the first game; Enter opens its page and PLAY is focused', () => {
+    setup({ gameId: 'foomerang-fu' });
+    expect(document.activeElement).toBe(button('Foomerang Fu'));
+    press('Enter');
+    expect(document.activeElement).toBe(button('PLAY'));
+  });
+
+  it('PLAY asks for a real room; its loading state is the real wait, then Join appears', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    fireEvent.click(button('Foomerang Fu'));
+    fireEvent.click(button('PLAY'));
+    expect(button(/Getting ready/).getAttribute('aria-busy')).toBe('true'); // not a timer: the session is CONNECTING
     await flush();
-    expect(network.last.of('ROOM_CREATE')[0]?.payload).toEqual({ gameId: 'primitive-arena' });
-    expect(screen.getByLabelText(/Room code K 7 M 4 P X/).textContent).toBe('K7M4PX');
+    expect(network.last.of('ROOM_CREATE')[0]?.payload).toEqual({ gameId: 'foomerang-fu' });
+    expect(code()).toBe('K7M4PX');
     expect(screen.getByRole('img', { name: /QR code to join room K7M4PX/ })).toBeTruthy();
   });
 
-  it('shows the manual code and link beside the QR; the link carries the room and nothing else', async () => {
-    await inLobby();
-    const url = screen.getByText(/^http:\/\/192\.168\.1\.20:5173\/\?room=K7M4PX$/);
-    expect(new URL(url.textContent ?? '').searchParams.size).toBe(1);
-    expect(document.body.textContent).not.toMatch(/host-token/);
+  it('PLAY creates the game the console was opened for', async () => {
+    const { network } = await inLobby({ gameId: 'primitive-arena' });
+    expect(network.last.of('ROOM_CREATE')[0]?.payload).toEqual({ gameId: 'primitive-arena' });
   });
 
-  it('shows a clear message, and a way to retry, when the server cannot be reached', async () => {
-    const { network } = setup();
-    network.refuseConnections = true;
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
-    await flush();
-    expect(screen.getByRole('alert').textContent).toMatch(/Cannot reach the game server/);
-    // It says WHICH address it tried, so a wrong --host is obvious at a glance.
-    expect(screen.getByRole('alert').textContent).toContain('http://192.168.1.20:3001');
-    expect(screen.getByRole('button', { name: 'Create room' })).toBeTruthy();
+  it('shows the short address for people who cannot scan', async () => {
+    await inLobby();
+    expect(screen.getByTestId('join-address').textContent).toBe('192.168.1.20:5173');
+    expect(document.body.textContent).not.toMatch(/host-token/);
   });
 
   it('warns when the QR could not work from a phone', async () => {
     await inLobby({ warnings: ['The controller URL points at this computer'] });
-    expect(screen.getByRole('alert').textContent).toMatch(/points at this computer/);
-  });
-});
-
-describe('which game the Create button makes', () => {
-  it('creates the game the console was opened for', async () => {
-    const { network } = setup({ gameId: 'foomerang-fu' });
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
-    await flush();
-    expect(network.last.of('ROOM_CREATE')[0]?.payload).toEqual({ gameId: 'foomerang-fu' });
+    expect(screen.getByRole('alert').textContent).toMatch(/Phones can’t reach this screen yet/);
+    expect(document.body.textContent).not.toMatch(/FOOMERANG_|controller URL|http:\/\/192/);
   });
 
-  it('presents Foomerang Fu as the game, and the arena as a platform test', async () => {
-    const fu = setup({ gameId: 'foomerang-fu' });
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Foomerang Fu');
-    fu.view.unmount();
-    setup({ gameId: 'primitive-arena' });
-    expect(document.body.textContent).toMatch(/Primitive arena/);
-    expect(document.body.textContent).toMatch(/platform test/i);
-  });
-
-  it('the lobby names the game the room is', async () => {
-    const { network } = setup({ gameId: 'foomerang-fu' });
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
-    await flush();
-    network.roomUpdated(network.last, 'LOBBY', []);
-    await flush();
-    expect(screen.getAllByRole('heading', { level: 1 })[0]?.textContent).toBe('Foomerang Fu');
-  });
-});
-
-describe('lobby roster', () => {
-  it('lists players as they join, each with a number, a marker and their name — not colour alone', async () => {
-    const { network } = await inLobby();
-    expect(screen.getByText('Waiting for players to join…')).toBeTruthy();
+  it('never shows technical words to a person', async () => {
+    const { network } = await inLobby({ gameId: 'foomerang-fu' });
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
-    const items = within(screen.getByRole('list')).getAllByRole('listitem');
-    expect(items.map((li) => li.textContent)).toEqual(['●1AlvinConnected', '■2DavidConnected']);
+    expect(document.body.textContent).not.toMatch(
+      /socket|wss|rtt|transport|reconnectToken|protocol/i,
+    );
+  });
+});
+
+describe('room creation failure → Try again', () => {
+  it('says so in plain words, offers Back and Try again, and Try again really retries', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    network.refuseConnections = true;
+    fireEvent.click(button('Foomerang Fu'));
+    fireEvent.click(button('PLAY'));
+    await flush();
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toMatch(/couldn’t reach the game/);
+    expect(alert.textContent).not.toMatch(/192\.168|3001|http/); // no addresses
+    expect(button('Back')).toBeTruthy();
+    network.refuseConnections = false;
+    fireEvent.click(button('Try again'));
+    await flush();
+    expect(code()).toBe('K7M4PX');
+    await act(async () => void (await new Promise((r) => setTimeout(r, 250))));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('shows a reconnecting player as such, and keeps their number', async () => {
+  it('Back dismisses the failure and leaves you on the game page', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    network.refuseConnections = true;
+    fireEvent.click(button('Foomerang Fu'));
+    fireEvent.click(button('PLAY'));
+    await flush();
+    fireEvent.click(button('Back'));
+    await act(async () => void (await settle()));
+    expect(button('PLAY')).toBeTruthy();
+    expect(isDisabled(button('PLAY'))).toBe(false);
+  });
+
+  it('a refusal from the server is explained too', async () => {
+    const { network } = setup({ gameId: 'foomerang-fu' });
+    network.createError = 'UNKNOWN_GAME';
+    fireEvent.click(button('Foomerang Fu'));
+    fireEvent.click(button('PLAY'));
+    await flush();
+    expect(screen.getByRole('alert').textContent).toMatch(/does not know this game/);
+  });
+});
+
+describe('Join shows the real roster, live', () => {
+  it('has six seats, empty at first', async () => {
+    await inLobby();
+    expect(screen.getAllByRole('group', { name: /^Player \d, empty/ })).toHaveLength(6);
+  });
+
+  it('players appear as they join, each with a number, a marker and their name — not colour alone', async () => {
+    const { network } = await inLobby();
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    const first = seatGroup(1);
+    expect(first.textContent).toContain('1');
+    expect(first.textContent).toContain('●');
+    expect(first.textContent).toContain('Alvin');
+    expect(seatGroup(2).textContent).toMatch(/■.*David|2.*■/s);
+    expect(first.textContent).toContain('Connected'); // honest: there is no READY mechanic
+    expect(first.textContent).not.toMatch(/\bready\b/i);
+  });
+
+  it('a reconnecting player is shown as such and keeps their seat', async () => {
     const { network } = await inLobby();
     network.roomUpdated(
       network.last,
@@ -199,10 +248,10 @@ describe('lobby roster', () => {
       roster({ playerId: 'a', displayName: 'Alvin', connection: 'RECONNECTING' }),
     );
     await flush();
-    expect(screen.getByRole('listitem').textContent).toBe('●1AlvinReconnecting…');
+    expect(seatGroup(1).textContent).toContain('Rejoining');
   });
 
-  it('a released seat is shown as left', async () => {
+  it('a released seat is freed', async () => {
     const { network } = await inLobby();
     network.roomUpdated(
       network.last,
@@ -210,54 +259,254 @@ describe('lobby roster', () => {
       roster({ playerId: 'a', displayName: 'Alvin', connection: 'DISCONNECTED', seat: 'RELEASED' }),
     );
     await flush();
-    expect(screen.getByRole('listitem').textContent).toContain('Left');
+    expect(screen.getAllByRole('group', { name: /empty/ })).toHaveLength(6);
   });
 });
 
 describe('starting', () => {
-  it('Start asks the server; a refusal is explained and the lobby stays', async () => {
-    const { network } = await inLobby();
-    network.startError = 'NOT_ENOUGH_PLAYERS';
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+  it('START is unavailable and says why until the table can play', async () => {
+    const { network } = await inLobby({ gameId: 'foomerang-fu' });
+    expect(isDisabled(button(START))).toBe(true);
+    expect(document.body.textContent).toMatch(/At least 2 players are needed/);
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    expect(isDisabled(button(START))).toBe(false);
+  });
+
+  it('START asks the server; a refusal is explained and the room stays', async () => {
+    const { network } = await inLobby({ gameId: 'foomerang-fu' });
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    network.startError = 'INVALID_STATE';
+    fireEvent.click(button(START));
     await flush();
     expect(network.last.of('MATCH_START')).toHaveLength(1);
-    expect(screen.getByRole('status').textContent).toMatch(/Waiting for more players/);
-    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/cannot start right now/);
+    expect(button(START)).toBeTruthy();
   });
 
-  it('Start is unavailable while the console’s own connection is down', async () => {
-    const { network } = await inLobby();
-    network.refuseConnections = true;
-    act(() => network.last.serverDrops());
-    await flush();
-    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(true);
-  });
-
-  it('the arena renderer is NOT loaded while people are in the lobby', async () => {
+  it('the arena renderer is NOT loaded while people are in the room', async () => {
     const { network, loadRenderer } = await inLobby();
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
     expect(loadRenderer).not.toHaveBeenCalled();
   });
 
-  it('when the room starts PLAYING the arena replaces the lobby and the renderer loads once', async () => {
-    const { network, loadRenderer } = await inLobby();
+  it('Home → Fu → PLAY → room → players connect → START → the real arena replaces the shell', async () => {
+    const { network, loadRenderer } = await inLobby({ gameId: 'foomerang-fu' });
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    fireEvent.click(button(START));
+    expect(network.last.of('MATCH_START')).toHaveLength(1);
     network.roomUpdated(network.last, 'PLAYING', twoPlayers);
     await flush();
     expect(screen.getByTestId('arena')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
+    expect(screen.queryByRole('button', { name: START })).toBeNull();
+    expect(document.documentElement.dataset['view']).toBeUndefined(); // the arena keeps its own sizes
     expect(loadRenderer).toHaveBeenCalledTimes(1);
+  });
+
+  it('when the match ends and the room returns to its lobby, the shell is back on Join with the same players', async () => {
+    const { network, runtime } = await inLobby({ gameId: 'foomerang-fu' });
+    network.roomUpdated(network.last, 'PLAYING', twoPlayers);
+    await flush();
+    act(() => runtime.returnToLobby());
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    expect(code()).toBe('K7M4PX');
+    expect(seatGroup(1).textContent).toContain('Alvin');
+    expect(isDisabled(button(START))).toBe(false);
+  });
+});
+
+describe('Join → close → Home', () => {
+  it('Back asks first; cancelling keeps the room; confirming gives the room up and goes Home', async () => {
+    const { runtime, store } = await inLobby({ gameId: 'foomerang-fu' });
+    press('Escape');
+    expect(screen.getByRole('dialog', { name: 'Close this room?' })).toBeTruthy();
+    expect(document.activeElement).toBe(button('Cancel')); // a stray press never closes a room
+    press('Escape');
+    await act(async () => void (await new Promise((r) => setTimeout(r, 250))));
+    expect(code()).toBe('K7M4PX');
+    press('Escape');
+    fireEvent.click(button('Close Room'));
+    await flush();
+    expect(runtime.session.getState().phase).toBe('IDLE');
+    expect(store.value).toBeUndefined();
+    expect(button('Foomerang Fu')).toBeTruthy();
+    expect(screen.queryByTestId('room-code')).toBeNull();
+  });
+});
+
+describe('Join → connection interruption → reconnect', () => {
+  it('says the room is kept, blocks START with the reason, and recovers by itself', async () => {
+    const { network, clock } = await inLobby({ gameId: 'foomerang-fu' });
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    network.refuseConnections = true;
+    act(() => network.last.serverDrops());
+    await flush();
+    expect(screen.getByText(/Reconnecting… your room is still here/)).toBeTruthy();
+    expect(isDisabled(button(START))).toBe(true);
+    expect(document.body.textContent).toMatch(/Reconnecting… START is back/);
+    expect(code()).toBe('K7M4PX');
+    network.refuseConnections = false;
+    await act(async () => {
+      clock.advance(250);
+      await settle();
+    });
+    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    await flush();
+    expect(screen.queryByText(/Reconnecting… your room/)).toBeNull();
+    expect(isDisabled(button(START))).toBe(false);
+  });
+
+  it('a room that cannot be reclaimed ends with an explanation and sends you Home', async () => {
+    const { network, clock } = await inLobby();
+    network.reconnectError = 'ROOM_NOT_FOUND';
+    act(() => network.last.serverDrops());
+    await act(async () => {
+      clock.advance(250);
+      await settle();
+    });
+    expect(screen.getByRole('alert').textContent).toMatch(/no longer exists/);
+    fireEvent.click(button('OK'));
+    await flush();
+    expect(button('Foomerang Fu')).toBeTruthy();
+    expect(screen.queryByTestId('room-code')).toBeNull();
+  });
+
+  it('a reloaded console reclaims its room and lands straight on Join', async () => {
+    const store = new MemoryHostStore();
+    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
+    const ctx = setup({ gameId: 'foomerang-fu', store });
+    ctx.runtime.session.resume();
+    await flush();
+    await flush();
+    expect(code()).toBe('K7M4PX');
+  });
+
+  it('a reloaded console that lost its match says so, in plain words', async () => {
+    const store = new MemoryHostStore();
+    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
+    const ctx = setup({ gameId: 'foomerang-fu', store });
+    ctx.network.roomStateOnReconnect = 'PLAYING';
+    ctx.runtime.session.resume();
+    await flush();
+    await flush();
+    expect(document.body.textContent).toMatch(
+      /The last match ended because this screen was reloaded/,
+    );
+    expect(button(START)).toBeTruthy();
+  });
+});
+
+describe('CPU players on Join (Foomerang Fu)', () => {
+  const lobbyWith = async (people: ReturnType<typeof roster>) => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
+    await flush();
+    return ctx;
+  };
+  const addCpu = () =>
+    fireEvent.click(screen.getAllByRole('button', { name: /empty seat/ })[0] as HTMLElement);
+
+  it('one person alone cannot start; adding a CPU makes two participants and enables START', async () => {
+    await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    expect(isDisabled(button(START))).toBe(true);
+    addCpu();
+    expect(isDisabled(button(START))).toBe(false);
+  });
+
+  it('a CPU has a name, a number, a marker and its difficulty — and humans are told apart', async () => {
+    const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    addCpu();
+    expect(runtime.director.cpus.entries.map((c) => [c.name, c.difficulty])).toEqual([
+      ['CPU 1', 'MEDIUM'],
+    ]);
+    const cpu = seat(2);
+    expect(cpu.textContent).toContain('CPU 1');
+    expect(cpu.textContent).toContain('■');
+    expect(cpu.textContent).toContain('Medium');
+    expect(within(cpu).getByText('CPU')).toBeTruthy();
+    expect(seatGroup(1).textContent).toContain('Alvin');
+  });
+
+  it('each CPU has its own difficulty (←/→ on its seat) and Select removes it, freeing its seat', async () => {
+    const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    addCpu();
+    addCpu();
+    act(() => seat(2).focus());
+    press('ArrowLeft');
+    act(() => seat(3).focus());
+    press('ArrowRight');
+    expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
+    press('ArrowRight'); // Hard is the top: it does not wrap round to Easy
+    expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
+    fireEvent.click(seat(2));
+    expect(runtime.director.cpus.entries.map((c) => c.name)).toEqual(['CPU 2']);
+    expect(runtime.director.slots.slotOf('cpu:1')).toBeUndefined();
+    expect(runtime.director.slots.slotOf('cpu:2')).toBe(2);
+  });
+
+  it('a match holds at most six: no empty seat is left to add to, and START still works', async () => {
+    const { runtime } = await lobbyWith(
+      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
+    );
+    for (let i = 0; i < 8; i += 1) {
+      const empty = screen.queryAllByRole('button', { name: /empty seat/ })[0];
+      if (empty) fireEvent.click(empty);
+    }
+    expect(runtime.director.cpus.entries).toHaveLength(4);
+    expect(screen.queryAllByRole('button', { name: /empty seat/ })).toHaveLength(0);
+    expect(isDisabled(button(START))).toBe(false);
+  });
+
+  it('a person joining a full table is told to remove a CPU, and START waits', async () => {
+    const { network, runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    for (let i = 0; i < 5; i += 1) addCpu();
+    expect(runtime.director.cpus.entries).toHaveLength(5);
+    network.roomUpdated(
+      network.last,
+      'LOBBY',
+      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
+    );
+    await flush();
+    expect(document.body.textContent).toMatch(/No seat for David: remove a CPU/);
+    expect(isDisabled(button(START))).toBe(true);
+    expect(document.body.textContent).toMatch(/at most 6 players/);
+    fireEvent.click(seat(6));
+    expect(isDisabled(button(START))).toBe(false);
+  });
+
+  it('nothing adds a CPU for the host: an empty seat stays empty', async () => {
+    const { runtime } = await lobbyWith(twoPlayers);
+    expect(runtime.director.cpus.entries).toEqual([]);
+  });
+
+  it('CPU-only: two CPUs can start (the console asks the server, which allows it)', async () => {
+    const { network } = await lobbyWith(roster());
+    expect(isDisabled(button(START))).toBe(true);
+    addCpu();
+    addCpu();
+    expect(isDisabled(button(START))).toBe(false);
+    fireEvent.click(button(START));
+    expect(network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('the primitive arena (platform test) has no CPUs', async () => {
+    await inLobby();
+    expect(screen.queryAllByRole('button', { name: /empty seat/ })).toHaveLength(0);
   });
 });
 
 describe('the arena', () => {
   async function playing() {
-    const ctx = await inLobby(ctxOptions);
+    const ctx = await inLobby();
     ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
     await flush();
     return ctx;
   }
-  const ctxOptions = undefined;
 
   it('each frame advances the simulation and hands the renderer a view built from authoritative state', async () => {
     const { network, raf, renderer, setNow } = await playing();
@@ -274,8 +523,8 @@ describe('the arena', () => {
     expect(last?.circles.map((c) => c.label)).toEqual(['Alvin', 'David']);
     const a = last?.circles[0];
     const b = last?.circles[1];
-    expect(a?.x).toBeGreaterThan(800); // A moved right from the top spawn
-    expect(b?.x).toBeCloseTo(800 + 520 * Math.cos(Math.PI / 3 - Math.PI / 2), 6); // B did not
+    expect(a?.x).toBeGreaterThan(800);
+    expect(b?.x).toBeCloseTo(800 + 520 * Math.cos(Math.PI / 3 - Math.PI / 2), 6);
     expect(renderer.drawn().map((c) => c.id)).toEqual(['a', 'b']);
   });
 
@@ -357,8 +606,8 @@ describe('debug overlay (honest numbers only)', () => {
       setNow(t);
       act(() => raf.fire(t));
     }
-    fireEvent.keyDown(window, { key: 'd' }); // close...
-    fireEvent.keyDown(window, { key: 'd' }); // ...and reopen, so it renders the current numbers
+    fireEvent.keyDown(window, { key: 'd' });
+    fireEvent.keyDown(window, { key: 'd' });
     const text = screen.getByLabelText('Debug overlay').textContent ?? '';
     expect(text).toMatch(/FPS \(rendered frames\)5\d/);
     expect(text).toMatch(/not network latency and not input-to-photon latency/);
@@ -366,173 +615,87 @@ describe('debug overlay (honest numbers only)', () => {
   });
 });
 
-describe('losing the room', () => {
-  it('a room that cannot be reclaimed ends with an explanation and a way to start over', async () => {
-    const { network, clock } = await inLobby();
-    network.reconnectError = 'ROOM_NOT_FOUND';
-    act(() => network.last.serverDrops());
-    await act(async () => {
-      clock.advance(250);
-      await settle();
-    });
-    expect(screen.getByRole('alert').textContent).toMatch(/no longer exists/);
-    fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
-    expect(screen.getByRole('button', { name: 'Create room' })).toBeTruthy();
+describe('settings persist across navigation', () => {
+  const openSettings = () => fireEvent.click(button('Settings'));
+
+  it('Settings → change a value → Back → Settings: the value is kept (and remembered across visits)', async () => {
+    window.localStorage.clear();
+    setup({ gameId: 'foomerang-fu' });
+    openSettings();
+    expect(screen.getByRole('heading', { name: 'Display' })).toBeTruthy();
+    const row = screen.getByRole('button', { name: /Text Size/ });
+    expect(row.textContent).toContain('Normal');
+    act(() => row.focus());
+    press('ArrowRight');
+    expect(screen.getByRole('button', { name: /Text Size/ }).textContent).toContain('Large');
+    expect(document.documentElement.dataset['textSize']).toBe('large'); // immediate, real effect
+    press('Escape'); // row → its category
+    press('Escape'); // category → Home
+    await flush();
+    expect(button('Foomerang Fu')).toBeTruthy();
+    openSettings();
+    expect(screen.getByRole('button', { name: /Text Size/ }).textContent).toContain('Large');
+    expect(window.localStorage.getItem('foomerang.shell.settings')).toContain('"textSize":"large"');
+    window.localStorage.clear();
+    delete document.documentElement.dataset['textSize'];
+  });
+
+  it('offers only settings that work today', async () => {
+    window.localStorage.clear();
+    setup();
+    openSettings();
+    for (const forbidden of [
+      'Master Volume',
+      'Music',
+      'Screen Shake',
+      'Effects Intensity',
+      'SFX',
+    ]) {
+      expect(document.body.textContent).not.toContain(forbidden);
+    }
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(
+      expect.arrayContaining(['Display', 'Accessibility', 'Controllers', 'Network', 'About']),
+    );
   });
 });
 
-describe('CPU players in the lobby (Foomerang Fu)', () => {
-  const lobbyWith = async (people: ReturnType<typeof roster>) => {
-    const ctx = await inLobby({ gameId: 'foomerang-fu' });
-    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
-    await flush();
-    return ctx;
-  };
-  const start = () => screen.getByRole('button', { name: 'Start' });
-
-  it('one person alone cannot start; adding a CPU makes two participants and enables Start', async () => {
-    await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
-    expect(start().hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText(/At least two players are needed/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    expect(start().hasAttribute('disabled')).toBe(false);
-  });
-
-  it('the roster tells humans from CPUs, and a CPU has a name, a marker, a number and its difficulty', async () => {
-    await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
-    fireEvent.change(screen.getByLabelText('New CPU difficulty'), { target: { value: 'HARD' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    const rows = screen.getAllByRole('listitem');
-    expect(rows[0]?.textContent).toBe('●1AlvinConnected');
-    expect(rows[1]?.textContent).toContain('CPU 1');
-    expect(rows[1]?.textContent).toContain('CPU');
-    expect((screen.getByLabelText('Difficulty of CPU 1') as HTMLSelectElement).value).toBe('HARD');
-    expect(rows[1]?.textContent).toContain('■2');
-  });
-
-  it('each CPU has its own difficulty, which can be changed, and it can be removed', async () => {
-    const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    fireEvent.change(screen.getByLabelText('Difficulty of CPU 1'), { target: { value: 'EASY' } });
-    fireEvent.change(screen.getByLabelText('Difficulty of CPU 2'), { target: { value: 'HARD' } });
-    expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove CPU 1' }));
-    expect(runtime.director.cpus.entries.map((c) => c.name)).toEqual(['CPU 2']);
-    expect(runtime.director.slots.slotOf('cpu:1')).toBeUndefined(); // its slot is free again
-    expect(runtime.director.slots.slotOf('cpu:2')).toBe(2); // and the other keeps its identity
-  });
-
-  it('a match holds at most six participants: Add CPU stops at the table size, and an overfull table cannot start', async () => {
-    const { runtime } = await lobbyWith(
-      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
-    );
-    const add = screen.getByRole('button', { name: 'Add CPU' });
-    for (let i = 0; i < 8; i += 1) fireEvent.click(add);
-    expect(runtime.director.cpus.entries).toHaveLength(4);
-    expect(add.hasAttribute('disabled')).toBe(true);
-    expect(start().hasAttribute('disabled')).toBe(false);
-  });
-
-  it('a person joining a full table (CPUs filled it) is told to remove a CPU and Start waits', async () => {
-    const { network, runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
-    for (let i = 0; i < 5; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    expect(runtime.director.cpus.entries).toHaveLength(5);
-    network.roomUpdated(
-      network.last,
-      'LOBBY',
-      roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
-    );
-    await flush();
-    expect(screen.getByRole('alert').textContent).toMatch(/remove a CPU/);
-    expect(start().hasAttribute('disabled')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove CPU 5' }));
-    expect(start().hasAttribute('disabled')).toBe(false);
-  });
-
-  it('the primitive arena (platform test) has no CPUs', async () => {
-    await inLobby();
-    expect(screen.queryByRole('button', { name: 'Add CPU' })).toBeNull();
+describe('Settings › Network speaks plainly', () => {
+  it('shows what to do about an unreachable address, with no variable names or URLs', async () => {
+    window.localStorage.clear();
+    setup({
+      warnings: [
+        'The controller URL points at this computer (localhost). Set FOOMERANG_CONTROLLER_URL to http://192.168.1.20:5173.',
+      ],
+    });
+    fireEvent.click(button('Settings'));
+    act(() => screen.getByRole('button', { name: 'Network' }).focus());
+    act(() => screen.getByRole('button', { name: /Phones Join At/ }).focus());
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/open as “localhost”/);
+    expect(text).toMatch(/Wi-Fi address/);
+    expect(text).not.toMatch(/FOOMERANG_|environment|variable|URL/);
   });
 });
 
-describe('game modes in the lobby (Foomerang Fu)', () => {
-  const lobbyWith = async (people: ReturnType<typeof roster>) => {
-    const ctx = await inLobby({ gameId: 'foomerang-fu' });
-    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
-    await flush();
-    return ctx;
-  };
-
-  it('FREE FOR ALL is available and chosen; HIDE & SEEK is shown with COMING SOON', async () => {
-    await lobbyWith(twoPlayers);
-    const group = screen.getByRole('group', { name: 'Game mode' });
-    const ffa = within(group).getByRole('radio', { name: /FREE FOR ALL/ }) as HTMLInputElement;
-    const hide = within(group).getByRole('radio', { name: /HIDE & SEEK/ }) as HTMLInputElement;
-    expect(ffa.checked).toBe(true);
-    expect(ffa.disabled).toBe(false);
-    expect(group.textContent).toContain('Available');
-    expect(group.textContent).toContain('COMING SOON');
-    expect(hide.disabled).toBe(true); // a genuine disabled control, not a label over a working one
-    expect(hide.checked).toBe(false);
+describe('system bar: every destination does something real', () => {
+  it('Players with no room explains how to start one; Controllers and Help and About open sheets', async () => {
+    setup({ gameId: 'foomerang-fu' });
+    fireEvent.click(button('Players'));
+    expect(screen.getByRole('dialog', { name: 'Players' }).textContent).toMatch(/press PLAY/);
+    press('Escape');
+    await act(async () => void (await new Promise((r) => setTimeout(r, 250))));
+    for (const name of ['Controllers', 'Help', 'About']) {
+      fireEvent.click(button(name));
+      expect(screen.getByRole('dialog').getAttribute('aria-label')).toMatch(new RegExp(name));
+      press('Escape');
+      await act(async () => void (await new Promise((r) => setTimeout(r, 250))));
+    }
   });
+});
 
-  it('Hide & Seek cannot be chosen: clicking it changes nothing, and Start still starts Free For All', async () => {
-    const { runtime, network } = await lobbyWith(twoPlayers);
-    fireEvent.click(screen.getByRole('radio', { name: /HIDE & SEEK/ }));
-    expect(runtime.director.mode.id).toBe('FREE_FOR_ALL');
-    expect((screen.getByRole('radio', { name: /FREE FOR ALL/ }) as HTMLInputElement).checked).toBe(
-      true,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    expect(network.last.of('MATCH_START')).toHaveLength(1);
-  });
-
-  it('human-only: two people can start with no CPU', async () => {
-    await lobbyWith(twoPlayers);
-    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(false);
-  });
-
-  it('CPU-only: with nobody on a phone, two CPUs can start (the console asks the server, which allows it)', async () => {
-    const { network } = await lobbyWith(roster());
-    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add CPU' }));
-    expect(screen.getByRole('button', { name: 'Start' }).hasAttribute('disabled')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    expect(network.last.of('MATCH_START')).toHaveLength(1);
-  });
-
-  it('nothing adds a CPU for the host: an empty seat stays empty', async () => {
-    const { runtime } = await lobbyWith(twoPlayers);
-    expect(runtime.director.cpus.entries).toEqual([]);
-    expect(screen.queryByText('CPU 1')).toBeNull();
-  });
-
-  it('the primitive arena (platform test) has no mode choice', async () => {
-    await inLobby();
-    expect(screen.queryByRole('group', { name: 'Game mode' })).toBeNull();
-  });
-
-  it('a reloaded console that lost its match says so in the lobby, in plain words', async () => {
-    const clock = createClock();
-    const network = new FakeHostNetwork();
-    const store = new MemoryHostStore();
-    store.value = { joinCode: 'K7M4PX', hostToken: 'host-token-0', gameId: 'foomerang-fu' };
-    network.roomStateOnReconnect = 'PLAYING';
-    const runtime = createConsoleRuntime({
-      transportFactory: network.factory,
-      environment: clock.environment,
-      store,
-      now: () => 0,
-    });
-    runtime.session.resume();
-    await flush();
-    await flush();
-    render(<Lobby runtime={runtime} controllerBaseUrl={CONTROLLER} warnings={[]} />);
-    expect(screen.getByText(/The match was interrupted/).textContent).toMatch(
-      /Kills and\s+powerups were not kept/,
-    );
-    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+describe('the shell never touches the session itself', () => {
+  it('sanity: the host session reports the real room code the screen shows', async () => {
+    const { runtime } = await inLobby();
+    expect(runtime.session.getState().joinCode).toBe(code());
   });
 });

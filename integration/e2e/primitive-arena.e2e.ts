@@ -15,14 +15,10 @@ test('a person can open Foomerang, create a room, join from two phones and move 
   await expect(
     host.page.getByRole('img', { name: `QR code to join room ${code} from a phone` }),
   ).toBeVisible();
-  // The manual code sits beside the QR, and the link it carries is the room and nothing else.
-  const link = host.page.locator('.join-url');
-  const url = new URL((await link.textContent()) ?? '');
-  expect(url.searchParams.get('room')).toBe(code);
-  expect([...url.searchParams.keys()]).toEqual(['room']);
-  expect(url.hash + url.username + url.password).toBe('');
+  // The short address for people who cannot scan sits beside the QR.
+  await expect(host.page.getByTestId('join-address')).toHaveText(/^127\.0\.0\.1:\d+$/);
   // This stack runs on loopback, so the console must warn that a real phone could not use the QR.
-  await expect(host.page.getByRole('alert')).toContainText('FOOMERANG_CONTROLLER_URL');
+  await expect(host.page.getByRole('alert')).toContainText('Phones can’t reach this screen yet');
 
   // --- two controllers join -------------------------------------------------------------------
   const alice = await newPhone();
@@ -30,8 +26,10 @@ test('a person can open Foomerang, create a room, join from two phones and move 
   await alice.join(code, 'Alice');
   await bob.join(code, 'Bob');
 
-  const lobby = host.page.getByRole('list').getByRole('listitem');
-  await expect(lobby).toHaveText(['●1AliceConnected', '■2BobConnected']);
+  await expect(host.filledSeats).toHaveCount(2);
+  await expect(host.filledSeats.nth(0)).toContainText('Alice');
+  await expect(host.filledSeats.nth(0)).toContainText('Connected');
+  await expect(host.filledSeats.nth(1)).toContainText('Bob');
   const aliceId = await host.playerId('Alice');
   const bobId = await host.playerId('Bob');
   expect(aliceId).not.toBe(bobId);
@@ -187,7 +185,7 @@ test('reloading a controller reclaims the same player; reloading the console rec
     .toEqual([[id, 'CONNECTED']]);
 
   await host.page.reload();
-  await expect(host.page.locator('.room-code')).toHaveText(code);
+  await expect(host.page.getByTestId('room-code')).toHaveText(code);
   await expect
     .poll(async () => (await host.snapshot()).roster.map((r) => [r.playerId, r.displayName]))
     .toEqual([[id, 'Alice']]);
@@ -197,7 +195,7 @@ test('Start with nobody in the room is refused with an explanation, and the lobb
   host,
 }) => {
   await host.createRoom();
-  await host.page.getByRole('button', { name: 'Start' }).click();
+  await host.startButton.click();
   await expect(host.page.getByRole('status')).toContainText('Waiting for more players');
   await expect(host.page.getByTestId('arena')).toHaveCount(0);
 });

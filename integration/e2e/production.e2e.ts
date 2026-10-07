@@ -18,7 +18,8 @@ test('production build: there is no debug hook, and the drawn circle follows the
   const code = await host.createRoom();
   const phone = await newPhone();
   await phone.join(code, 'Alice');
-  await expect(host.page.getByRole('listitem')).toHaveText('●1AliceConnected');
+  await expect(host.filledSeats).toHaveCount(1);
+  await expect(host.filledSeats.first()).toContainText('Alice');
   await host.start();
 
   const canvas = host.page.getByTestId('arena').locator('canvas');

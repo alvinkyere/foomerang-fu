@@ -9,7 +9,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const BUDGET_GZIP_BYTES = { initialJs: 130_000, initialCss: 5_000, lazyJs: 380_000 };
+// Raised on purpose (console shell migration, reviewed): the first screen is now the whole console shell
+// (home, game page, settings, join, focus/input system, icons, characters), not a lobby form. Measured:
+// JS 126.9 -> 139.9 kB, CSS 1.7 -> 7.6 kB gzip. The arena and Phaser stay lazy.
+const BUDGET_GZIP_BYTES = { initialJs: 145_000, initialCss: 10_000, lazyJs: 380_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

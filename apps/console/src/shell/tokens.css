@@ -1,0 +1,153 @@
+/* Foomerang Console — design tokens.
+   One unit: rem. The root font-size is derived from the viewport so a 16:9 screen always lays out
+   identically (16px at 1920×1080, 32px at 3840×2160, ~11px at 1366×768). Never use px in the shell. */
+
+:root {
+  color-scheme: dark;
+
+  /* Display scale: 120rem × 67.5rem is the canvas. --ui-scale is the player's Text Size setting;
+     --safe is the player's Screen Margin (TV overscan). */
+  --ui-scale: 1;
+  --safe: 0rem;
+
+  /* Neutrals — "Moss Night": green-tinted darks, so photography and the Garden never fight the UI. */
+  --n-0: #ffffff;
+  --n-50: #f2f8f5;
+  --n-100: #e1efe8;
+  --n-300: #a5c2b6;
+  --n-500: #6c8d80;
+  --n-700: #274840;
+  --n-800: #17302b;
+  --n-900: #0e211e;
+  --n-950: #08140f;
+
+  /* Accent system. Amber is THE action colour (PLAY, START, focus glow). The rest are identity
+     colours for system destinations and are never used for actions. */
+  --accent: #ffb524;
+  --accent-strong: #ff9a00;
+  --accent-ink: #2b1a00;
+  --coral: #ff6f59;
+  --teal: #2ad4bf;
+  --violet: #9d8cff;
+  --sky: #52b9ff;
+  --lime: #96dc4f;
+
+  /* Semantic */
+  --ok: #5ce08f;
+  --warn: #ffd34d;
+  --bad: #ff6b6b;
+
+  /* Player colours: the Okabe–Ito set already used by the game (runtime/slots.ts), always paired
+     with a number and a shape — colour is never the only cue. */
+  --p1: #e69f00;
+  --p2: #56b4e9;
+  --p3: #009e73;
+  --p4: #f0e442;
+  --p5: #cc79a7;
+  --p6: #d55e00;
+
+  /* Surfaces: 0 backdrop · 1 glass · 2 raised glass · 3 solid sheet (modals) */
+  --surface-1: rgb(10 28 24 / 0.55);
+  --surface-2: rgb(14 36 31 / 0.74);
+  --surface-3: #123029;
+  --surface-line: rgb(255 255 255 / 0.14);
+  --text: var(--n-0);
+  --text-dim: rgb(231 245 238 / 0.78);
+  --text-faint: rgb(231 245 238 / 0.55);
+
+  /* Type. Nothing below 1.4rem: that is 22px on a 1080p TV, readable from the couch. */
+  --font:
+    ui-rounded, 'SF Pro Rounded', 'Nunito', 'Segoe UI Variable Display', system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  --fs-small: 1.4rem;
+  --fs-body: 1.75rem;
+  --fs-lead: 2.25rem;
+  --fs-title: 3.5rem;
+  --fs-display: 6rem;
+
+  /* Spacing (0.5rem base) */
+  --s1: 0.5rem;
+  --s2: 1rem;
+  --s3: 1.5rem;
+  --s4: 2rem;
+  --s5: 3rem;
+  --s6: 4rem;
+  --s7: 6rem;
+
+  /* Radii */
+  --r-s: 0.75rem;
+  --r-m: 1.25rem;
+  --r-l: 2rem;
+  --r-pill: 99rem;
+
+  /* Elevation */
+  --e-1: 0 0.4rem 1.2rem rgb(0 0 0 / 0.28);
+  --e-2: 0 1rem 2.4rem rgb(0 0 0 / 0.36);
+  --e-3: 0 2rem 5rem rgb(0 0 0 / 0.5);
+
+  /* Focus treatment: a white ring, an accent ring, a lift, and a glow. Unmistakable at 3 metres. */
+  --focus-ring: 0 0 0 0.25rem var(--n-0), 0 0 0 0.5rem var(--accent);
+  --focus-glow: 0 0 3.5rem rgb(255 181 36 / 0.5);
+  --focus-scale: 1.06;
+
+  /* Motion: ordinary navigation lives between 150 and 300 ms; none of it ever delays input. */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* a restrained spring: one small overshoot, settled by ~260ms */
+  --ease-spring: linear(0, 0.38 7%, 0.86 17%, 1.05 28%, 1.03 40%, 0.995 58%, 1 100%);
+
+  --z-art: 0;
+  --z-content: 1;
+  --z-overlay: 10;
+  --z-modal: 20;
+  --z-toast: 30;
+}
+
+/* Player settings, applied on <html> by the shell. */
+:root[data-text-size='large'] {
+  --ui-scale: 1.1;
+}
+:root[data-text-size='xlarge'] {
+  --ui-scale: 1.2;
+}
+:root[data-margin='small'] {
+  --safe: 1.5rem;
+}
+:root[data-margin='medium'] {
+  --safe: 2.5rem;
+}
+:root[data-margin='large'] {
+  --safe: 3.5rem;
+}
+:root[data-contrast='high'] {
+  --surface-1: rgb(4 14 11 / 0.82);
+  --surface-2: rgb(4 14 11 / 0.92);
+  --surface-line: rgb(255 255 255 / 0.55);
+  --text-dim: #ffffff;
+  --text-faint: rgb(255 255 255 / 0.85);
+}
+
+/* Reduced motion: from the system setting unless the player chose, and always when they chose it.
+   Position changes stay (so you can still tell where focus went); movement and scaling go. */
+:root[data-reduced-motion='true'] {
+  --dur-fast: 1ms;
+  --dur-base: 1ms;
+  --dur-slow: 1ms;
+  --focus-scale: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion='false']) {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+    --focus-scale: 1;
+  }
+}
+
+/* The shell owns the root size only while it is on screen; the arena and its HUD keep theirs. */
+html[data-view='shell'] {
+  font-size: calc(min(100vw / 120, 100vh / 67.5) * var(--ui-scale));
+}

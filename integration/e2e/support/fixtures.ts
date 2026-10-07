@@ -2,6 +2,7 @@ import {
   test as base,
   expect,
   type Browser,
+  type Locator,
   type BrowserContext,
   type CDPSession,
   type Page,
@@ -145,11 +146,52 @@ export class Host {
     await this.page.goto(this.url);
   }
 
+  /** The console's own journey: Home -> the game -> PLAY -> a real room. Returns the room code. */
   async createRoom(): Promise<string> {
-    await this.page.getByRole('button', { name: 'Create room' }).click();
-    const code = this.page.locator('.room-code');
+    await this.page.getByRole('button', { name: 'Foomerang Fu', exact: true }).click();
+    await this.page.getByRole('button', { name: 'PLAY', exact: true }).click();
+    const code = this.page.getByTestId('room-code');
     await expect(code).toHaveText(/^[A-Z0-9]{6}$/);
     return (await code.textContent()) ?? '';
+  }
+
+  /** A seat taken by someone (a phone or a CPU). */
+  get filledSeats(): Locator {
+    return this.page.locator('.ptile:not(.ptile--empty)');
+  }
+
+  /** The seat of "CPU n" (the nth CPU ever added in this console). */
+  cpuSeat(n: number): Locator {
+    return this.page.getByRole('button', { name: new RegExp(`^Player \\d: CPU ${n}$`) });
+  }
+
+  get startButton(): Locator {
+    return this.page.getByRole('button', { name: 'START GAME', exact: true });
+  }
+
+  #cpusAdded = 0;
+
+  /** Adds a CPU (Select on an empty seat), then sets its difficulty with the arrow keys, as a host would. */
+  async addCpu(difficulty: 'Easy' | 'Medium' | 'Hard'): Promise<void> {
+    this.#cpusAdded += 1;
+    const n = this.#cpusAdded;
+    await this.page
+      .getByRole('button', { name: /empty seat/ })
+      .first()
+      .click();
+    const seat = this.cpuSeat(n);
+    await expect(seat).toBeVisible();
+    if (difficulty !== 'Medium') {
+      await seat.focus();
+      await this.page.keyboard.press(difficulty === 'Easy' ? 'ArrowLeft' : 'ArrowRight');
+    }
+    await expect(seat).toContainText(difficulty);
+  }
+
+  /** Removes "CPU n" (Select on its seat). */
+  async removeCpu(n: number): Promise<void> {
+    await this.cpuSeat(n).click();
+    await expect(this.cpuSeat(n)).toHaveCount(0);
   }
 
   async snapshot(): Promise<Snapshot> {
@@ -178,7 +220,7 @@ export class Host {
   }
 
   async start(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Start' }).click();
+    await this.startButton.click();
     await expect(this.page.getByTestId('arena')).toBeVisible();
   }
 

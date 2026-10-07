@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type Host } from './support/fixtures';
+import { expect, test } from './support/fixtures';
 
 /**
  * The visual-fidelity evidence for Garden: the canvas as the canonical camera draws it, written to docs/garden/ so it can be
@@ -9,16 +9,11 @@ import { expect, test, type Host } from './support/fixtures';
  */
 const OUT = join(process.cwd(), '..', 'docs', 'garden');
 
-async function addCpu(host: Host, difficulty: 'Easy' | 'Medium' | 'Hard'): Promise<void> {
-  await host.page.getByLabel('New CPU difficulty').selectOption({ label: difficulty });
-  await host.page.getByRole('button', { name: 'Add CPU' }).click();
-}
-
 test('Garden draws: the canonical canvas, with four characters in it', async ({ hostAt }) => {
   test.setTimeout(120_000);
   const host = await hostAt('?arena=garden&powerups=off&kills=13');
   await host.createRoom();
-  for (const d of ['Easy', 'Medium', 'Hard', 'Easy'] as const) await addCpu(host, d);
+  for (const d of ['Easy', 'Medium', 'Hard', 'Easy'] as const) await host.addCpu(d);
   await host.start();
   await host.waitForDrawn(4);
   await host.page.waitForTimeout(1500);
@@ -45,8 +40,8 @@ test('Garden in the PRODUCTION build: its renderer chunk is fetched (only now), 
   try {
     expect(host.requests.some((u) => /GardenArena/.test(u))).toBe(false); // the lobby never downloads it
     await host.createRoom();
-    await addCpu(host, 'Medium');
-    await addCpu(host, 'Hard');
+    await host.addCpu('Medium');
+    await host.addCpu('Hard');
     await host.start();
     const canvas = host.page.getByTestId('arena').locator('canvas');
     await expect(canvas).toBeVisible({ timeout: 20_000 });
