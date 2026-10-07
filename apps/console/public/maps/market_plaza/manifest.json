@@ -1,0 +1,254 @@
+{
+  "map": "market_plaza",
+  "canvas": [1920, 1080],
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "far_wall",
+      "file": "occ_far_wall.webp",
+      "x": 0,
+      "y": 0,
+      "depth": -4.39,
+      "fade": true
+    },
+    {
+      "key": "pot_5",
+      "file": "occ_pot_5.webp",
+      "x": 1518,
+      "y": 3,
+      "depth": 49.55,
+      "fade": false
+    },
+    {
+      "key": "pot_4",
+      "file": "occ_pot_4.webp",
+      "x": 1470,
+      "y": 8,
+      "depth": 54.52,
+      "fade": false
+    },
+    {
+      "key": "pot_6",
+      "file": "occ_pot_6.webp",
+      "x": 1536,
+      "y": 58,
+      "depth": 104.96,
+      "fade": false
+    },
+    {
+      "key": "crate_2",
+      "file": "occ_crate_2.webp",
+      "x": 279,
+      "y": 45,
+      "depth": 117.51,
+      "fade": false
+    },
+    {
+      "key": "stall_far1",
+      "file": "occ_stall_far1.webp",
+      "x": 1560,
+      "y": 0,
+      "depth": 141.58,
+      "fade": true
+    },
+    {
+      "key": "stall_far0",
+      "file": "occ_stall_far0.webp",
+      "x": 142,
+      "y": 0,
+      "depth": 144.35,
+      "fade": true
+    },
+    {
+      "key": "pot_2",
+      "file": "occ_pot_2.webp",
+      "x": 679,
+      "y": 221,
+      "depth": 268.18,
+      "fade": false
+    },
+    {
+      "key": "stall_s2",
+      "file": "occ_stall_s2.webp",
+      "x": 1198,
+      "y": 188,
+      "depth": 343.5,
+      "fade": true
+    },
+    {
+      "key": "stall_s3",
+      "file": "occ_stall_s3.webp",
+      "x": 484,
+      "y": 193,
+      "depth": 345.67,
+      "fade": true
+    },
+    {
+      "key": "fence_2",
+      "file": "occ_fence_2.webp",
+      "x": 1801,
+      "y": 292,
+      "depth": 359.82,
+      "fade": false
+    },
+    {
+      "key": "fence_0",
+      "file": "occ_fence_0.webp",
+      "x": 47,
+      "y": 294,
+      "depth": 362.72,
+      "fade": false
+    },
+    {
+      "key": "fountain",
+      "file": "occ_fountain.webp",
+      "x": 764,
+      "y": 395,
+      "depth": 555.82,
+      "fade": false
+    },
+    {
+      "key": "stall_s0",
+      "file": "occ_stall_s0.webp",
+      "x": 1414,
+      "y": 454,
+      "depth": 594.7,
+      "fade": true
+    },
+    {
+      "key": "stall_s1",
+      "file": "occ_stall_s1.webp",
+      "x": 282,
+      "y": 461,
+      "depth": 598.2,
+      "fade": true
+    },
+    {
+      "key": "fence_1",
+      "file": "occ_fence_1.webp",
+      "x": 2,
+      "y": 632,
+      "depth": 707.96,
+      "fade": false
+    },
+    {
+      "key": "fence_3",
+      "file": "occ_fence_3.webp",
+      "x": 1863,
+      "y": 646,
+      "depth": 720.94,
+      "fade": false
+    },
+    {
+      "key": "crate_1",
+      "file": "occ_crate_1.webp",
+      "x": 334,
+      "y": 700,
+      "depth": 771.37,
+      "fade": false
+    },
+    {
+      "key": "crate_0",
+      "file": "occ_crate_0.webp",
+      "x": 236,
+      "y": 718,
+      "depth": 793.99,
+      "fade": false
+    },
+    {
+      "key": "pot_1",
+      "file": "occ_pot_1.webp",
+      "x": 306,
+      "y": 792,
+      "depth": 838.77,
+      "fade": false
+    },
+    {
+      "key": "pot_0",
+      "file": "occ_pot_0.webp",
+      "x": 255,
+      "y": 815,
+      "depth": 861.91,
+      "fade": false
+    },
+    {
+      "key": "bunting",
+      "file": "occ_bunting.webp",
+      "x": 744,
+      "y": 714,
+      "depth": 877.14,
+      "fade": true
+    },
+    {
+      "key": "golden_tree",
+      "file": "occ_golden_tree.webp",
+      "x": 1690,
+      "y": 729,
+      "depth": 957.35,
+      "fade": true
+    }
+  ],
+  "characters": {
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "avocado": {
+      "file": "char_avocado.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "donut": {
+      "file": "char_donut.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "milk": {
+      "file": "char_milk.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bacon": {
+      "file": "char_bacon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (bake_plaza.py, bake_chars.py, package_plaza.py); camera = master video take A f233"
+}

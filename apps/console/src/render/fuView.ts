@@ -1,5 +1,6 @@
 import {
   GARDEN_ARENA,
+  MARKET_PLAZA_ARENA,
   isFatigued,
   roundLabel,
   systemsView,
@@ -294,6 +295,10 @@ export function buildFuView(
     banner,
     round: state.round,
     hud,
-    ...(state.config.arena === GARDEN_ARENA ? { arenaId: 'garden' as const } : {}),
+    ...(state.config.arena === GARDEN_ARENA
+      ? { arenaId: 'garden' as const }
+      : state.config.arena === MARKET_PLAZA_ARENA
+        ? { arenaId: 'market_plaza' as const }
+        : {}),
   };
 }

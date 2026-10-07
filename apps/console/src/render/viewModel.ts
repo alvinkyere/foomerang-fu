@@ -197,8 +197,8 @@ export interface ArenaView {
   readonly round: number | undefined;
   /** The kill race (Free For All); absent for the primitive arena. */
   readonly hud?: HudView;
-  /** Which production arena this is (Garden), or absent for the primitive test arenas. */
-  readonly arenaId?: 'garden';
+  /** Which production arena this is (Garden or a reconstructed map), or absent for the primitive test arenas. */
+  readonly arenaId?: 'garden' | 'market_plaza';
 }
 
 const FALLBACK: SlotStyle = { color: '#9AA0A6', number: 0, shape: 'circle', marker: '○' };

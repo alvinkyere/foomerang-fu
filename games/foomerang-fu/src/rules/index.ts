@@ -14,6 +14,15 @@ export {
   GARDEN_WIDTH,
   rockRects,
 } from './gardenArena';
+export {
+  MARKET_PLAZA_ARENA,
+  MARKET_PLAZA_BOOK_SPOTS,
+  MARKET_PLAZA_HEIGHT,
+  MARKET_PLAZA_SPAWNS,
+  MARKET_PLAZA_WALLS,
+  MARKET_PLAZA_WIDTH,
+} from './marketPlazaArena';
+export type { MarketPlazaWall } from './marketPlazaArena';
 export type { GardenRock, GardenWall } from './gardenArena';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {

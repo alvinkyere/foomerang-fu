@@ -8,6 +8,10 @@ import type { ArenaChoice } from '../../runtime/powerupMode';
 export const phaserRendererFor =
   (arena: ArenaChoice): ArenaRendererLoader =>
   async (container) => {
+    if (arena === 'market_plaza') {
+      const { createPlazaArena } = await import('./plaza/PlazaArena');
+      return createPlazaArena(container);
+    }
     if (arena === 'garden') {
       const { createGardenArena } = await import('./garden/GardenArena');
       return createGardenArena(container);

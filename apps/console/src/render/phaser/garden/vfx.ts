@@ -1,6 +1,13 @@
 import * as Phaser from 'phaser';
 import { POWER_STYLE, toNumber } from '../effects';
 import { groundScale, project } from '../../garden/camera';
+
+/** A map's projection: world (x, y, height) → canvas pixels, and the ground scale there. */
+export interface VfxCamera {
+  project(x: number, y: number, z?: number): { readonly x: number; readonly y: number };
+  groundScale(x: number, y: number): { readonly sx: number; readonly sy: number };
+}
+export const GARDEN_VFX_CAMERA: VfxCamera = { project, groundScale };
 import type { ViewEvent } from '../../viewModel';
 import { LIGHT } from './environment';
 import { makeCanvas, polyPath, rng, roundedPath, type P } from './paint';
@@ -214,7 +221,15 @@ export class Vfx {
   readonly #kindOf: (id: string | undefined) => string | undefined;
   #seed = 1;
 
-  constructor(scene: Phaser.Scene, kindOf: (id: string | undefined) => string | undefined) {
+  /** The projection of the arena this effect layer draws in (Garden's camera unless a map supplies its own). */
+  readonly #cam: VfxCamera;
+
+  constructor(
+    scene: Phaser.Scene,
+    kindOf: (id: string | undefined) => string | undefined,
+    cam: VfxCamera = GARDEN_VFX_CAMERA,
+  ) {
+    this.#cam = cam;
     this.#scene = scene;
     this.#kindOf = kindOf;
     bakeTextures(scene);
@@ -466,8 +481,8 @@ export class Vfx {
       ms,
       (p) => {
         const r = r0 + (r1 - r0) * (1 - (1 - p) ** 2);
-        const pt = project(x, y);
-        const s = groundScale(x, y);
+        const pt = this.#cam.project(x, y);
+        const s = this.#cam.groundScale(x, y);
         img
           .setPosition(pt.x, pt.y)
           .setDisplaySize(r * 2 * s.sx, r * 2 * s.sy)
@@ -487,7 +502,7 @@ export class Vfx {
     this.#item(
       260,
       (p) => {
-        const pt = project(x, y, 30);
+        const pt = this.#cam.project(x, y, 30);
         flash
           .setPosition(pt.x, pt.y)
           .setScale(0.3 + p * 0.5)
@@ -508,7 +523,7 @@ export class Vfx {
     this.#item(
       340,
       (p) => {
-        const pt = project(x, y, 36);
+        const pt = this.#cam.project(x, y, 36);
         flash
           .setPosition(pt.x, pt.y)
           .setScale(0.5 + p * 1.1)
@@ -553,7 +568,7 @@ export class Vfx {
     this.#item(
       420,
       (p) => {
-        const pt = project(x, y, 40);
+        const pt = this.#cam.project(x, y, 40);
         const pop = p < 0.22 ? p / 0.22 : 1;
         star
           .setPosition(pt.x, pt.y)
@@ -587,8 +602,8 @@ export class Vfx {
       (p) => {
         const grow = Math.min(1, p / 0.28);
         const r = radius * (1 - (1 - grow) ** 3);
-        const pt = project(x, y);
-        const s = groundScale(x, y);
+        const pt = this.#cam.project(x, y);
+        const s = this.#cam.groundScale(x, y);
         const fade = p < 0.3 ? 1 : 1 - (p - 0.3) / 0.7;
         disc
           .setPosition(pt.x, pt.y)
@@ -647,7 +662,8 @@ export class Vfx {
     const centre = Math.atan2(swing.direction.y, swing.direction.x);
     const start = centre - swing.arc / 2;
     const { x, y } = event;
-    const arcPoint = (a: number, r: number): P => project(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    const arcPoint = (a: number, r: number): P =>
+      this.#cam.project(x + Math.cos(a) * r, y + Math.sin(a) * r);
     const crescent = (
       from: number,
       to: number,
@@ -700,7 +716,7 @@ export class Vfx {
         const a1 = start + swing.arc * sweep;
         const fade = p < 0.55 ? 1 : 1 - (p - 0.55) / 0.45;
         // the truth of the rules, faint: the wedge exactly as wide and as long as the hit region
-        const wedge: P[] = [project(x, y)];
+        const wedge: P[] = [this.#cam.project(x, y)];
         for (let i = 0; i <= 18; i += 1)
           wedge.push(arcPoint(start + (swing.arc * i) / 18, swing.reach));
         g.fillStyle(tint, 0.14 * fade);
@@ -745,20 +761,20 @@ export class Vfx {
       q.x += q.vx * dt;
       q.y += q.vy * dt;
       q.rot += q.vr * dt;
-      const pt = project(q.x, q.y, q.z);
-      const s = groundScale(q.x, q.y);
+      const pt = this.#cam.project(q.x, q.y, q.z);
+      const s = this.#cam.groundScale(q.x, q.y);
       const scale = q.s0 + (q.s1 - q.s0) * p;
       q.img.setPosition(pt.x, pt.y).setAlpha(q.a0 * (p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4));
       if (q.stretch) {
         const speed = Math.hypot(q.vx, q.vy * 0.8) / 400;
         const dir = Math.atan2(
-          project(q.x + q.vx * 0.05, q.y + q.vy * 0.05, q.z).y - pt.y,
-          project(q.x + q.vx * 0.05, q.y, q.z).x - pt.x,
+          this.#cam.project(q.x + q.vx * 0.05, q.y + q.vy * 0.05, q.z).y - pt.y,
+          this.#cam.project(q.x + q.vx * 0.05, q.y, q.z).x - pt.x,
         );
         q.img.setRotation(dir).setScale(scale * (0.8 + speed * 1.2) * s.sx, scale * s.sx);
       } else q.img.setRotation(q.rot).setScale(scale * s.sx);
       if (q.shadow !== undefined) {
-        const gp = project(q.x + q.z * LIGHT.x * 0.5, q.y + q.z * LIGHT.y * 0.5);
+        const gp = this.#cam.project(q.x + q.z * LIGHT.x * 0.5, q.y + q.z * LIGHT.y * 0.5);
         q.shadow
           .setPosition(gp.x, gp.y)
           .setDisplaySize(26 * scale * s.sx, 14 * scale * s.sy)
