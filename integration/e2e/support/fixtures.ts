@@ -362,7 +362,7 @@ export class Phone {
   }
 
   /** Puts a finger on a button, keeps it there for `ms`, then lifts it. */
-  async holdButton(name: 'THROW' | 'SLASH' | 'DASH', ms: number): Promise<void> {
+  async holdButton(name: string, ms: number): Promise<void> {
     const at = await this.buttonCenter(name);
     await this.cdp.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
@@ -370,6 +370,24 @@ export class Phone {
     });
     await sleep(ms);
     await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+
+  /** A quick tap on whatever button is called `name` right now (SELECT, BACK, PAUSE, RESUME, ...). */
+  async tap(name: string): Promise<void> {
+    await this.holdButton(name, 60);
+    await sleep(260); // past the console's press gate: each tap is its own deliberate act
+  }
+
+  /** One deliberate flick of the stick: past the step threshold, back before it would repeat. */
+  async flick(direction: 'up' | 'down' | 'left' | 'right'): Promise<void> {
+    const far = 140;
+    const offsets = { up: [0, -far], down: [0, far], left: [-far, 0], right: [far, 0] } as const;
+    const [dx, dy] = offsets[direction];
+    await this.thumbDown();
+    await this.thumbMove(dx, dy);
+    await sleep(150);
+    await this.thumbUp();
+    await sleep(160);
   }
 
   /** Movement from the phone stops reaching the server; the connection itself stays up. */

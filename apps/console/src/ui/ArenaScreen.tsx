@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import type { ArenaRenderer, ArenaRendererLoader } from '../render/renderer';
 import { FrameLoop } from '../runtime/frameLoop';
 import type { HudView, ScoreEventView } from '../render/viewModel';
+import { FocusManager, FocusScope } from '../shell/focus/FocusManager';
+import { PauseMenu } from '../shell/screens/PauseMenu';
+import '../shell/tokens.css';
+import '../shell/components.css';
 import { DebugOverlay } from './DebugOverlay';
 import { ChampionScreen, ScoreStrip, ScoreToasts, Standings, type Pulse } from './Hud';
 import { useHostState } from './useStore';
@@ -44,6 +48,7 @@ export function ArenaScreen({
   const [toasts, setToasts] = useState<readonly ScoreEventView[]>([]);
   const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
   const lastHud = useRef('');
+  const context = useSyncExternalStore(runtime.subscribeContext, runtime.context);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -134,34 +139,49 @@ export function ArenaScreen({
   }, []);
 
   return (
-    <main className="screen arena-screen">
-      {hud !== undefined && <ScoreStrip hud={hud} pulses={pulses} />}
-      <div ref={containerRef} className="arena" data-testid="arena" />
-      <ScoreToasts toasts={toasts} />
-      {hud?.phase === 'ROUND_OVER' && <Standings hud={hud} />}
-      {hud?.phase === 'MATCH_OVER' && (
-        <ChampionScreen
-          hud={hud}
-          waiting={waiting}
-          onRematch={() => runtime.rematch()}
-          onLobby={() => runtime.returnToLobby()}
+    // The phones (outside gameplay) and the TV's own keyboard / gamepad drive ONE focus system here
+    // too: the pause menu and the champion screen are operated the same way as the shell.
+    <FocusManager remote={runtime.menu}>
+      <main className="screen arena-screen">
+        {/* Nothing to focus while playing: Back (Esc / B) opens the pause menu. */}
+        <FocusScope id="arena" onBack={() => runtime.pause()}>
+          {null}
+        </FocusScope>
+        {hud !== undefined && <ScoreStrip hud={hud} pulses={pulses} />}
+        <div ref={containerRef} className="arena" data-testid="arena" />
+        <ScoreToasts toasts={toasts} />
+        {hud?.phase === 'ROUND_OVER' && <Standings hud={hud} />}
+        {hud?.phase === 'MATCH_OVER' && (
+          <ChampionScreen
+            hud={hud}
+            waiting={waiting}
+            onRematch={() => runtime.rematch()}
+            onLobby={() => runtime.returnToLobby()}
+          />
+        )}
+        {hud !== undefined && hud.phase !== 'MATCH_OVER' && waiting.length > 0 && (
+          <p className="muted waiting">Waiting for the next match: {waiting.join(', ')}</p>
+        )}
+        {state.phase === 'RECONNECTING' && (
+          <p className="banner" role="status">
+            Reconnecting to the game server…
+          </p>
+        )}
+        {rendererFailed && (
+          <p className="banner" role="alert">
+            The arena could not be drawn in this browser.
+          </p>
+        )}
+        <p className="hint muted">Press D for debug</p>
+        {debugOpen && <DebugOverlay runtime={runtime} />}
+      </main>
+      <div className="fc fc--layer">
+        <PauseMenu
+          open={context === 'PAUSED'}
+          onResume={() => runtime.resume()}
+          onLeave={() => runtime.returnToLobby()}
         />
-      )}
-      {hud !== undefined && hud.phase !== 'MATCH_OVER' && waiting.length > 0 && (
-        <p className="muted waiting">Waiting for the next match: {waiting.join(', ')}</p>
-      )}
-      {state.phase === 'RECONNECTING' && (
-        <p className="banner" role="status">
-          Reconnecting to the game server…
-        </p>
-      )}
-      {rendererFailed && (
-        <p className="banner" role="alert">
-          The arena could not be drawn in this browser.
-        </p>
-      )}
-      <p className="hint muted">Press D for debug</p>
-      {debugOpen && <DebugOverlay runtime={runtime} />}
-    </main>
+      </div>
+    </FocusManager>
   );
 }

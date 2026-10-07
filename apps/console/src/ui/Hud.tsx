@@ -1,4 +1,5 @@
 import type { HudView, ScoreEntryView, ScoreEventView } from '../render/viewModel';
+import { FocusScope, useFocusItem } from '../shell/focus/FocusManager';
 
 /** Which hole just changed on whose meter, for a moment: presentation of a rules fact, never a source of one. */
 export interface Pulse {
@@ -159,6 +160,38 @@ export function ChampionScreen({
   const { target, champion } = hud;
   if (target === undefined || champion === undefined) return null;
   return (
+    <FocusScope id="champion" initialFocus="rematch">
+      <ChampionCard
+        hud={hud}
+        target={target}
+        champion={champion}
+        waiting={waiting}
+        onRematch={onRematch}
+        onLobby={onLobby}
+      />
+    </FocusScope>
+  );
+}
+
+/** Inside its focus scope, so a phone (or the TV) can choose Rematch / Return to lobby. */
+function ChampionCard({
+  hud,
+  target,
+  champion,
+  waiting,
+  onRematch,
+  onLobby,
+}: {
+  readonly hud: HudView;
+  readonly target: number;
+  readonly champion: NonNullable<HudView['champion']>;
+  readonly waiting: readonly string[];
+  readonly onRematch: () => void;
+  readonly onLobby: () => void;
+}) {
+  const rematch = useFocusItem<HTMLButtonElement>('rematch');
+  const lobby = useFocusItem<HTMLButtonElement>('lobby');
+  return (
     <section className="champion" role="dialog" aria-label="Match over">
       <h2>
         <span className="marker" style={{ color: champion.color }} aria-hidden="true">
@@ -183,10 +216,10 @@ export function ChampionScreen({
         <p className="muted">Waiting for the next match: {waiting.join(', ')}</p>
       )}
       <div className="actions">
-        <button type="button" className="primary" onClick={onRematch}>
+        <button type="button" className="primary" onClick={onRematch} {...rematch}>
           Rematch
         </button>
-        <button type="button" onClick={onLobby}>
+        <button type="button" onClick={onLobby} {...lobby}>
           Return to lobby
         </button>
       </div>

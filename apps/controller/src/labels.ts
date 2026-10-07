@@ -32,3 +32,11 @@ export const CONTEXT_BADGE: Readonly<Record<ControllerContext, string | undefine
   PAUSED: 'PAUSED',
   RESULTS: 'RESULTS',
 };
+
+/** The phone's own pause button: there only while a match is on (PAUSE) or paused (RESUME). */
+export const PAUSE_LABEL: Readonly<Record<ControllerContext, string | undefined>> = {
+  GAMEPLAY: 'PAUSE',
+  PAUSED: 'RESUME',
+  CONSOLE: undefined,
+  RESULTS: undefined,
+};

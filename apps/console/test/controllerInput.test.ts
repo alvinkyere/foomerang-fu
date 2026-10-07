@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InputRouter, StickNavigator, type MenuAction } from '../src/runtime/controllerInput';
-import type { PlayerAction } from '../src/host';
+import type { ControllerAction, PlayerAction } from '../src/host';
 
 // ---------------------------------------------------------------------------------------------
 // The joystick as a D-pad
@@ -86,8 +86,10 @@ type GameCall = ['move', string, number, number] | ['action', string, string, st
 function rig(options: { navGapMs?: number; pressGapMs?: number } = { navGapMs: 0, pressGapMs: 0 }) {
   const game: GameCall[] = [];
   const menu: [MenuAction, string][] = [];
+  const system: [string, string][] = [];
   let clock = 0;
   const router = new InputRouter({
+    system: (action, playerId) => system.push([action, playerId]),
     gameplay: {
       move: (p, x, y) => game.push(['move', p, x, y]),
       action: (a: PlayerAction) => game.push(['action', a.playerId, a.action, a.phase]),
@@ -101,11 +103,12 @@ function rig(options: { navGapMs?: number; pressGapMs?: number } = { navGapMs: 0
     router,
     game,
     menu,
+    system,
     at: (t: number) => (clock = t),
     move: (p: string, x: number, y: number, s = (seq += 1)) => router.onMove(p, s, x, y, clock),
-    press: (p: string, action: PlayerAction['action'], id = `e${(ev += 1)}-padding`) =>
+    press: (p: string, action: ControllerAction['action'], id = `e${(ev += 1)}-padding`) =>
       router.onAction({ playerId: p, eventId: id, action, phase: 'pressed' }, clock),
-    release: (p: string, action: PlayerAction['action'], id = `e${(ev += 1)}-padding`) =>
+    release: (p: string, action: ControllerAction['action'], id = `e${(ev += 1)}-padding`) =>
       router.onAction({ playerId: p, eventId: id, action, phase: 'released' }, clock),
     context: (c: Parameters<InputRouter['setContext']>[0]) => router.setContext(c, clock),
   };
@@ -359,5 +362,68 @@ describe('repeat is driven by tick() and respects the context', () => {
     r.router.playerGone('a');
     r.router.tick(1000);
     expect(r.menu).toEqual([['right', 'a']]);
+  });
+});
+
+describe('the phone’s PAUSE button (the system MENU action)', () => {
+  it('in GAMEPLAY it asks for the pause menu, and never reaches the game or the console focus', () => {
+    const r = rig();
+    r.context('GAMEPLAY');
+    r.press('a', 'MENU');
+    r.release('a', 'MENU');
+    expect(r.system).toEqual([['MENU', 'a']]);
+    expect(r.game).toEqual([]);
+    expect(r.menu).toEqual([]);
+  });
+
+  it('is heard in every context (the console decides what it means there), still never as a menu press', () => {
+    for (const context of ['CONSOLE', 'PAUSED', 'RESULTS'] as const) {
+      const r = rig();
+      r.context(context);
+      r.press('b', 'MENU');
+      expect(r.system).toEqual([['MENU', 'b']]);
+      expect(r.menu).toEqual([]);
+    }
+  });
+
+  it('the press that opened the pause menu is not a second toggle: it must be released and pressed again', () => {
+    const r = rig();
+    r.context('GAMEPLAY');
+    r.press('a', 'MENU');
+    r.context('PAUSED'); // the console opened the pause menu
+    r.press('a', 'MENU', 'same-hold-repeat'); // a duplicate "pressed" while still held
+    expect(r.system).toEqual([['MENU', 'a']]);
+    r.release('a', 'MENU');
+    r.press('a', 'MENU');
+    expect(r.system).toEqual([
+      ['MENU', 'a'],
+      ['MENU', 'a'],
+    ]);
+  });
+
+  it('two phones pressing PAUSE together toggle once (no pause-then-instantly-resume)', () => {
+    const r = rig({ navGapMs: 0, pressGapMs: 220 });
+    r.context('GAMEPLAY');
+    r.at(1_000);
+    r.press('a', 'MENU');
+    r.at(1_050);
+    r.press('b', 'MENU');
+    expect(r.system).toEqual([['MENU', 'a']]);
+    r.release('b', 'MENU');
+    r.at(1_400);
+    r.press('b', 'MENU', 'later');
+    expect(r.system).toEqual([
+      ['MENU', 'a'],
+      ['MENU', 'b'],
+    ]);
+  });
+
+  it('a retried PAUSE (same event id) never toggles twice', () => {
+    const r = rig();
+    r.context('GAMEPLAY');
+    r.press('a', 'MENU', 'retry-1');
+    r.release('a', 'MENU', 'rel-1');
+    r.press('a', 'MENU', 'retry-1');
+    expect(r.system).toEqual([['MENU', 'a']]);
   });
 });

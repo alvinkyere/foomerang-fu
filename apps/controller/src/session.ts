@@ -1,4 +1,5 @@
 import type { ControllerState, Point } from '@foomerang/controller-sdk';
+import type { SystemAction } from '@foomerang/protocol';
 import { useSyncExternalStore } from 'react';
 
 /**
@@ -13,6 +14,8 @@ export interface SessionPort {
   leave(): void;
   setControlValue(controlId: string, value: Point): void;
   setButton(controlId: string, pressed: boolean): void;
+  /** The phone's own system button (MENU: pause / resume), outside the game's controls. */
+  setSystemButton(action: SystemAction, pressed: boolean): void;
   neutralize(): void;
 }
 

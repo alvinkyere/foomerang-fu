@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACTIONS,
   ACTION_PHASES,
+  SYSTEM_ACTIONS,
   axisSchema,
   inputEventMessageSchema,
   inputMoveMessageSchema,
@@ -136,6 +137,17 @@ describe('INPUT_EVENT (event: reliable, deduplicated by eventId)', () => {
       expect(parseEvent(action({ payload: { action: a, phase: p } })).success).toBe(true);
     },
   );
+
+  it('accepts the system MENU action (the phone\u2019s own pause button), pressed and released', () => {
+    expect([...SYSTEM_ACTIONS]).toEqual(['MENU']);
+    for (const phase of ACTION_PHASES) {
+      expect(parseEvent(action({ payload: { action: 'MENU', phase } })).success).toBe(true);
+    }
+  });
+
+  it('keeps the generic GAME actions exactly as they were: MENU is not one of them', () => {
+    expect((ACTIONS as readonly string[]).includes('MENU')).toBe(false);
+  });
 
   it("treats a repeated eventId as schema-valid: deduplication is the receiver's job, not the schema's", () => {
     expect(parseEvent(action()).success).toBe(true);

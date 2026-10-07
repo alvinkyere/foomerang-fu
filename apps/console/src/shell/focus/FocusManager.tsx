@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { soundHooks } from '../sound';
 import { FocusController, type InputDevice, type ItemOptions } from './FocusController';
-import { GamepadMapper, keyToAction } from './inputMap';
+import { GamepadMapper, keyToAction, type ConsoleAction } from './inputMap';
 
 const ControllerContext = createContext<FocusController | null>(null);
 const ScopeContext = createContext<string>('root');
@@ -32,12 +32,39 @@ export function useInputDevice(): InputDevice {
 const isTextEntry = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
 
+/** What a remote controller (a phone) can ask of the console: the same vocabulary as any device, plus the one secondary button. */
+export type RemoteAction = ConsoleAction | 'secondary';
+
 /**
- * Owns the one FocusController, and feeds it from the keyboard, the mouse and any gamepad. Mount it
+ * A source of remote console input, already translated by the host (stick → steps, SLASH → select,
+ * THROW → back, DASH → secondary). The shell does not know what is on the other end.
+ */
+export interface RemoteInput {
+  subscribe(listener: (action: RemoteAction) => void): () => void;
+}
+
+/**
+ * Owns the one FocusController, and feeds it from the keyboard, the mouse, any gamepad and the
+ * phones (`remote`). Every device drives the same focus: no device has a menu of its own. Mount it
  * once, above every screen.
  */
-export function FocusManager({ children }: { readonly children: ReactNode }) {
+export function FocusManager({
+  children,
+  remote,
+}: {
+  readonly children: ReactNode;
+  readonly remote?: RemoteInput | undefined;
+}) {
   const [controller] = useState(() => new FocusController((cue) => soundHooks.emit(cue)));
+
+  useEffect(() => {
+    if (remote === undefined) return undefined;
+    return remote.subscribe((action) => {
+      // No screen offers a secondary action yet; when one does, it is wired here, not invented.
+      if (action === 'secondary') return;
+      controller.handle(action, 'phone');
+    });
+  }, [controller, remote]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {

@@ -68,11 +68,19 @@ export type {
 export {
   ACTIONS,
   ACTION_PHASES,
+  SYSTEM_ACTIONS,
   axisSchema,
   inputEventMessageSchema,
   inputMoveMessageSchema,
 } from './controller';
-export type { Action, ActionPhase, InputEventMessage, InputMoveMessage } from './controller';
+export type {
+  Action,
+  ActionPhase,
+  InputAction,
+  InputEventMessage,
+  InputMoveMessage,
+  SystemAction,
+} from './controller';
 
 export { heartbeatAckMessageSchema, heartbeatMessageSchema } from './heartbeat';
 export type { HeartbeatAckMessage, HeartbeatMessage } from './heartbeat';

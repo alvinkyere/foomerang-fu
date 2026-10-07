@@ -5,6 +5,7 @@ import {
   type ControllerManifest,
   type ErrorCode,
   type SecondaryAction,
+  type SystemAction,
 } from '@foomerang/protocol';
 import { browserEnvironment, type Cancel, type SessionEnvironment } from './environment';
 import type { Point } from './joystick';
@@ -145,6 +146,7 @@ export class ControllerSession {
   #movementSeq = 0;
   #eventSeq = 0;
   readonly #heldButtons = new Set<string>();
+  readonly #heldSystem = new Set<SystemAction>();
   readonly #newEventId: () => string;
   #heartbeatSeq = 0;
   readonly #heartbeatSentAt = new Map<number, number>();
@@ -287,6 +289,30 @@ export class ControllerSession {
   }
 
   /**
+   * The phone's own system button (MENU: pause / resume), which no manifest describes and no game
+   * receives. Same rules as a game button: one event per change, no retry. A press is only sent where
+   * pausing means something (a match is on, or paused); a release is always sent for a press that
+   * was, so the console's record of the hold always ends.
+   */
+  setSystemButton(action: SystemAction, pressed: boolean): void {
+    if (this.#disposed || this.#state.phase !== 'READY') return;
+    if (this.#heldSystem.has(action) === pressed) return;
+    if (pressed) {
+      const context = this.#state.context?.context;
+      if (context !== 'GAMEPLAY' && context !== 'PAUSED') return;
+      this.#heldSystem.add(action);
+    } else {
+      this.#heldSystem.delete(action);
+    }
+    this.#send({
+      type: 'INPUT_EVENT',
+      seq: this.#eventSeq++,
+      eventId: this.#newEventId(),
+      payload: { action, phase: pressed ? 'pressed' : 'released' },
+    });
+  }
+
+  /**
    * Neutral NOW, for interruptions (page hidden, pointer cancelled, window blurred). Sent
    * immediately rather than waiting for the next tick, because a hidden page's timers may be
    * throttled; it goes through the same sampler, so there is no second input path.
@@ -296,6 +322,7 @@ export class ControllerSession {
     this.#sampler.neutralize();
     if (this.#state.phase === 'READY') this.#sampleAndSend();
     for (const controlId of [...this.#heldButtons]) this.setButton(controlId, false);
+    for (const action of [...this.#heldSystem]) this.setSystemButton(action, false);
   }
 
   /** Voluntarily leave: forget the credential and return to IDLE. */
@@ -585,6 +612,7 @@ export class ControllerSession {
     this.#movementSeq = 0;
     this.#eventSeq = 0;
     this.#heldButtons.clear();
+    this.#heldSystem.clear();
     this.#heartbeatSeq = 0;
     this.#heartbeatSentAt.clear();
     this.#stickLatched = false;

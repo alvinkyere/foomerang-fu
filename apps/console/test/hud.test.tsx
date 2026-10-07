@@ -10,6 +10,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { buildFuView } from '../src/render/fuView';
 import { SLOT_STYLES, SlotAllocator } from '../src/runtime/slots';
+import { FocusManager } from '../src/shell/focus/FocusManager';
 import { ChampionScreen, Meter, ScoreStrip, Standings, scoreToast } from '../src/ui/Hud';
 
 // The race is the rules' fact; the HUD only draws it. These tests read the view the HUD is built from, and the HUD.
@@ -192,7 +193,13 @@ describe('standings and the champion screen', () => {
     );
     const rematch = vi.fn();
     const lobby = vi.fn();
-    render(<ChampionScreen hud={hud} waiting={['Cleo']} onRematch={rematch} onLobby={lobby} />);
+    render(
+      <FocusManager>
+        <ChampionScreen hud={hud} waiting={['Cleo']} onRematch={rematch} onLobby={lobby} />
+      </FocusManager>,
+    );
+    // operable without a mouse: focus starts on Rematch (a phone's SELECT, Enter, A)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rematch' }));
     expect(screen.getByRole('dialog', { name: 'Match over' }).textContent).toContain(
       'BEA WINS THE MATCH',
     );

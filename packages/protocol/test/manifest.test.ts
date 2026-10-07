@@ -75,6 +75,10 @@ describe('controller manifest (what the controller should render — never hard-
   });
 
   it.each([
+    [
+      'a button that claims the system MENU action (no game may take over pause)',
+      { ...manifest, controls: [{ id: 'PAUSE', type: 'button', action: 'MENU' }] },
+    ],
     ['a button with no action', { ...manifest, controls: [{ id: 'THROW', type: 'button' }] }],
     [
       'a button with an unknown action',

@@ -230,6 +230,13 @@ describe('server → client messages', () => {
         payload: { playerId: 'p-1', input: value },
       });
 
+    it('relays the system MENU action to the host (the phone asked to pause / resume)', () => {
+      expect(
+        input({ kind: 'ACTION', eventId: 'press-000001', action: 'MENU', phase: 'pressed' })
+          .success,
+      ).toBe(true);
+    });
+
     it.each([
       ['unknown kind', { kind: 'TELEPORT', x: 0, y: 0 }],
       ['MOVE axis out of range', { kind: 'MOVE', seq: 1, x: 2, y: 0 }],

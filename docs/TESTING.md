@@ -83,7 +83,7 @@ Seen in full `pnpm e2e` runs, never the same ones twice, none in isolation:
 - Press → host, **product path** (phone `pointerdown` → host has counted it): p50 11 ms, p90 ≤ 24 ms, max ≤ 54 ms over 240 samples in three runs. Host frame rate 60 fps, worst frame 18.7 ms, ≤ 66 ms of simulation discarded.
 - Press → host, **including the test driver** (Playwright → Chrome DevTools touch injection into the phone page): p50 ~14 ms, **p90 50–200 ms, max 100–580 ms**. The tail is in the driver, not the app.
 - Eight busy-loop processes on an 8-core machine did **not** reproduce any of the three failures (12 of 12 passed). It is not plain CPU saturation.
-- The shell is not mounted during a match (the arena replaces it), and the failing steps are all inside matches, so shell workload is not involved. The failures also pre-date the shell: one uncaptured first-run failure was seen before it.
+- At the time of these measurements the shell was not mounted during a match (the arena replaced it), and the failing steps are all inside matches, so shell workload was not involved. The failures also pre-date the shell: one uncaptured first-run failure was seen before it. **Since Checkpoint B slice 2 this no longer holds as stated:** the arena now mounts its own `FocusManager` (keyboard listeners and a per-frame gamepad poll) and the pause menu, so in-match shell workload is no longer ruled out by construction; it has not been measured.
 
 **Cause, as far as it is established:** test timing assumptions. Each failing assertion treats touch injection as bounded and immediate, and it is not:
 - hold-THROW reads the counter with no slack right after `touchEnd` resolves, while the release still needs ~10–50 ms to reach the host. It fails when injection latency spikes enough that the 2.6 s watcher has already ended.
@@ -91,5 +91,16 @@ Seen in full `pnpm e2e` runs, never the same ones twice, none in isolation:
 - Powerup steering is a closed loop (read position → inject thumb → repeat) whose lag grows with injection latency.
 
 **Not yet explained:** *why* injection latency has a tail (suspects: the single Node process that forwards every WebSocket frame for every phone plus the CDP commands, and phone contexts rendered at device scale 3). Frame scheduling, simulation timing and shell workload are ruled out by the numbers above.
+
+**Observed during Checkpoint B slice 2 (2026-10-07):**
+
+| Run | `fu.e2e.ts:737` (DASH/SLASH commitment) and `garden.e2e.ts:244` (Garden timed SLASH deflect) |
+| --- | --- |
+| Initial full `pnpm e2e` with slice 2 | both failed |
+| Targeted reruns of the two, slice 2 tree | 15 of 16 passed |
+| Targeted reruns of the two, clean checkout of the slice-1 commit `3943a4e` | 10 of 10 passed |
+| Subsequent full `pnpm e2e` with slice 2 | 58 / 58 passed |
+
+This is consistent with the known timing-sensitive problem above, but it is **not proof that slice 2 has no effect on it**. Separately, during slice 1 one full run had 19 tests fail in about 200 ms each and an immediate rerun passed 57 / 57; that may indicate test-server / environment instability, but the cause was not established.
 
 **Direction for a real fix (own slice, reviewed):** make the assertions race-free by waiting on host state rather than on elapsed time (poll until the count reaches 2, then require it stays 2), and make the dash/slash ordering depend on observed host state instead of a fixed gap; consider injecting touches from inside the phone page instead of over CDP. Do not add sleeps or widen tolerances.

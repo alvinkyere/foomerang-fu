@@ -123,3 +123,54 @@ describe('the play screen shows the context it is in', () => {
     expect(document.body.textContent).toMatch(/MENU/);
   });
 });
+
+describe('the phone’s own PAUSE button', () => {
+  const play = (context: ControllerContext) =>
+    new FakeSession({
+      ...READY,
+      manifest: FU,
+      context: { context, secondaryAction: null, version: 1 },
+    });
+
+  it('GAMEPLAY: a PAUSE button in the header sends the system MENU action, down and up', () => {
+    const session = play('GAMEPLAY');
+    render(<App session={session} initialRoom={undefined} />);
+    const pause = screen.getByRole('button', { name: 'PAUSE' });
+    expect(pause.closest('header')).toBeTruthy(); // not one of the game's controls
+    fireEvent.pointerDown(pause, { pointerId: 7 });
+    fireEvent.pointerUp(pause, { pointerId: 7 });
+    expect(session.calls.filter((c) => c.method === 'setSystemButton')).toEqual([
+      { method: 'setSystemButton', args: ['MENU', true] },
+      { method: 'setSystemButton', args: ['MENU', false] },
+    ]);
+    expect(session.calls.some((c) => c.method === 'setButton')).toBe(false);
+  });
+
+  it('PAUSED: the same button says RESUME', () => {
+    render(<App session={play('PAUSED')} initialRoom={undefined} />);
+    expect(screen.getByRole('button', { name: 'RESUME' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'PAUSE' })).toBeNull();
+  });
+
+  it.each(['CONSOLE', 'RESULTS'] as const)(
+    '%s: there is nothing to pause, so there is no button pretending there is',
+    (context) => {
+      render(<App session={play(context)} initialRoom={undefined} />);
+      expect(screen.queryByRole('button', { name: 'PAUSE' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'RESUME' })).toBeNull();
+    },
+  );
+
+  it('the button that was PAUSE keeps its identity when it becomes RESUME, so its release is still sent', () => {
+    const session = play('GAMEPLAY');
+    render(<App session={session} initialRoom={undefined} />);
+    const button = screen.getByRole('button', { name: 'PAUSE' });
+    fireEvent.pointerDown(button, { pointerId: 3 });
+    act(() => session.set({ context: { context: 'PAUSED', secondaryAction: null, version: 2 } }));
+    fireEvent.pointerUp(screen.getByRole('button', { name: 'RESUME' }), { pointerId: 3 });
+    expect(session.calls.filter((c) => c.method === 'setSystemButton').map((c) => c.args)).toEqual([
+      ['MENU', true],
+      ['MENU', false],
+    ]);
+  });
+});

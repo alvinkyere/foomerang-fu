@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACTIONS, ACTION_PHASES, axisSchema } from './controller';
+import { ACTION_PHASES, INPUT_ACTIONS, axisSchema } from './controller';
 import { eventIdSchema, plainEnvelope, seqSchema } from './envelope';
 import { credentialSchema, joinCodeSchema, wireIdSchema } from './room';
 
@@ -96,7 +96,7 @@ export const playerInputMessageSchema = plainEnvelope(
       z.strictObject({
         kind: z.literal('ACTION'),
         eventId: eventIdSchema,
-        action: z.enum(ACTIONS),
+        action: z.enum(INPUT_ACTIONS),
         phase: z.enum(ACTION_PHASES),
       }),
     ]),

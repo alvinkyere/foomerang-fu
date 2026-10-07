@@ -2,7 +2,7 @@ import type { SoundCue } from '../sound';
 import type { ConsoleAction } from './inputMap';
 import { pickNext, type Direction, type FocusRect } from './navigation';
 
-export type InputDevice = 'keyboard' | 'gamepad' | 'pointer';
+export type InputDevice = 'keyboard' | 'gamepad' | 'phone' | 'pointer';
 
 export interface ScopeOptions {
   /** Called when the player presses Back (Esc / B) while this scope is on top. */

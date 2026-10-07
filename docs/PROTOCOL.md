@@ -62,7 +62,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `ROOM_JOIN`        | plain     | `{ joinCode, displayName }` (wire-bounded ≤64; domain applies the real rules) | controller without an identity |
 | `PLAYER_RECONNECT` | plain     | `{ joinCode, reconnectToken }`                                   | controller without an identity |
 | `INPUT_MOVE`       | state     | `{ x, y }`, each finite in `[-1, 1]`                             | joined player |
-| `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY\|TERTIARY, phase: pressed\|released }` (the sender's `eventId` makes it deduplicable; a manifest `button` sends exactly one pressed and one released per press) | joined player |
+| `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY\|TERTIARY\|MENU, phase: pressed\|released }` (`MENU` is the phone's own pause button, a **system** action: a manifest can never name it and no game receives it; the host consumes it) (the sender's `eventId` makes it deduplicable; a manifest `button` sends exactly one pressed and one released per press) | joined player |
 | `CONTROLLER_CONTEXT` | state   | `{ context: GAMEPLAY\|CONSOLE\|PAUSED\|RESULTS, secondaryAction: null \| { label: OPTIONS\|DETAILS\|REMOVE } }` — what the phones' controls mean now (semantic, never a screen name). `seq` per host connection; a stale one is dropped. Outside `PLAYING` only `CONSOLE` is legal (`INVALID_STATE`) | the room's host |
 
 `clientType`: `console` \| `controller` \| `native-controller` (a native controller is authorized exactly like a controller). The "who may send it" column is enforced by the server's session layer (`UNAUTHORIZED` otherwise), not by the parser.
@@ -80,7 +80,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `PLAYER_RECONNECTED` | plain     | `{ playerId, reconnectToken }` (**new** credential)              | the reconnecting controller |
 | `ROOM_UPDATED`       | plain     | `{ joinCode, state, hostConnection, players[{ playerId, displayName, connection, seat }] }` — a full roster snapshot (≤64 players) | the room's host |
 | `CONTROLLER_MANIFEST` | plain    | `{ gameId, orientation: landscape\|portrait\|any, controls[{ id, type: joystick }] }` (1–16 controls, unique `[A-Z][A-Z0-9_]*` ids) — what the controller should render, from the GAME's definition | the controller, after `ROOM_JOINED` / `PLAYER_RECONNECTED` |
-| `PLAYER_INPUT`       | plain     | `{ playerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` | the room's host |
+| `PLAYER_INPUT`       | plain     | `{ playerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` (`action` includes the system `MENU`) | the room's host |
 | `CONTROLLER_CONTEXT` | plain     | `{ context, secondaryAction, version }` — the room's authoritative context; `version` rises over the room's whole life, so a controller ignores anything older than what it has. The server also sets it itself: `GAMEPLAY` on match start, `CONSOLE` on return to the lobby | every controller, after its manifest (on join / reconnect) and on every change |
 
 Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.

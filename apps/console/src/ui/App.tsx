@@ -48,7 +48,7 @@ export function App(props: AppProps) {
 function Shell({ runtime, gameId, controllerBaseUrl, warnings }: AppProps) {
   const { model, actions } = useShellModel({ runtime, gameId, controllerBaseUrl, warnings });
   return (
-    <ShellRoot>
+    <ShellRoot remote={runtime.menu}>
       <ConsoleApp model={model} actions={actions} />
     </ShellRoot>
   );

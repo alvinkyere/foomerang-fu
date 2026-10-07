@@ -10,6 +10,7 @@ export type {
   HostTransport,
   HostTransportFactory,
   ActionHandler,
+  ControllerAction,
   MovementHandler,
   PlayerAction,
 } from './hostSession';

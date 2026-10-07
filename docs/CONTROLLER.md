@@ -59,6 +59,8 @@ Pointer Events (touch, mouse, pen) with pointer capture. A **floating** stick: t
 | IDLE (also after a failed join) | Join: room code (prefilled from `?room=`), your name, **Join**. A failure shows human words. |
 | CONNECTING / JOINING | The same form, busy ("Joining…"), not submittable twice |
 | READY | The control(s) from the manifest, the player's name, a calm "Connected" badge. Nothing to read mid-game. |
+| READY, outside gameplay | The same physical controls, relabelled by the host's `CONTROLLER_CONTEXT`: NAVIGATE / SELECT / BACK (DASH unlabelled unless the host offers a secondary action), with a MENU / PAUSED / RESULTS badge. |
+| READY, match on or paused | A small header button outside the game's controls: **PAUSE** (GAMEPLAY) / **RESUME** (PAUSED). It sends the system `MENU` action; it is not rendered where there is nothing to pause. Any connected player may pause. |
 | RECONNECTING | Controls stay up, a pulsing "Reconnecting…" badge, a dim veil. The thumb still works; state is re-announced on return. |
 | ENDED | Why (seat given up / replaced by another device / connection lost) and **Join again** |
 

@@ -448,3 +448,17 @@ p {
 .play[data-context='CONSOLE'] .controls {
   filter: saturate(0.75);
 }
+
+/* The phone's own PAUSE / RESUME: a system button in the header, deliberately small and away from the
+   game's thumbs, but still a full tap target. */
+.play-header .action-button[data-control='PAUSE'] {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.9rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: var(--color-text);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px currentColor;
+  border-radius: 999px;
+}

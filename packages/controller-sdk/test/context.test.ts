@@ -202,3 +202,48 @@ describe('transition safety: a held control never carries across a context bound
     expect(events(net)).toEqual(['SECONDARY:pressed', 'TERTIARY:pressed']);
   });
 });
+
+describe('the phone’s own PAUSE button (system MENU action)', () => {
+  it('sends MENU pressed / released while a match is on (GAMEPLAY), one event per change', async () => {
+    const { session, net } = await ready();
+    await net.pushContext('GAMEPLAY');
+    session.setSystemButton('MENU', true);
+    session.setSystemButton('MENU', true); // held: nothing more
+    session.setSystemButton('MENU', false);
+    expect(events(net)).toEqual(['MENU:pressed', 'MENU:released']);
+  });
+
+  it('works in PAUSED too (it resumes there)', async () => {
+    const { session, net } = await ready();
+    await net.pushContext('PAUSED');
+    session.setSystemButton('MENU', true);
+    expect(events(net)).toEqual(['MENU:pressed']);
+  });
+
+  it('sends nothing where there is nothing to pause (CONSOLE, RESULTS)', async () => {
+    const { session, net } = await ready();
+    for (const context of ['CONSOLE', 'RESULTS'] as const) {
+      await net.pushContext(context);
+      session.setSystemButton('MENU', true);
+      session.setSystemButton('MENU', false);
+    }
+    expect(events(net)).toEqual([]);
+  });
+
+  it('an interruption (page hidden) releases a held PAUSE like any held button', async () => {
+    const { session, net } = await ready();
+    await net.pushContext('GAMEPLAY');
+    session.setSystemButton('MENU', true);
+    session.neutralize();
+    expect(events(net)).toEqual(['MENU:pressed', 'MENU:released']);
+  });
+
+  it('a PAUSE held while the context changes still sends its release (the console needs the hold to end)', async () => {
+    const { session, net } = await ready();
+    await net.pushContext('GAMEPLAY');
+    session.setSystemButton('MENU', true);
+    await net.pushContext('PAUSED');
+    session.setSystemButton('MENU', false);
+    expect(events(net)).toEqual(['MENU:pressed', 'MENU:released']);
+  });
+});

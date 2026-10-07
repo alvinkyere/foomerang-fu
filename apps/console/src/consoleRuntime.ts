@@ -39,6 +39,8 @@ export interface ConsoleRuntime {
   readonly menu: MenuInput;
   /** What the phones' controls mean right now. */
   readonly context: () => ControllerContext;
+  /** Told whenever the context changes (for the screens that follow it: the pause menu). */
+  readonly subscribeContext: (listener: () => void) => () => void;
   /** Open the pause menu: only while a match is being played. The game truly freezes. */
   pause(): void;
   /** Close the pause menu: the match continues from where it stood. */
@@ -85,6 +87,11 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
 
   const menuListeners = new Set<MenuListener>();
   const router = new InputRouter({
+    // the phone's PAUSE button: anyone may pause a running match, and anyone may resume it
+    system: () => {
+      if (router.context === 'GAMEPLAY') pause();
+      else if (router.context === 'PAUSED') resume();
+    },
     // looked up on every call: the director's handlers are the game's input path, unchanged
     gameplay: {
       move: (playerId, x, y, nowMs) => director.onMovement(playerId, x, y, nowMs),
@@ -103,13 +110,16 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
   let secondary: SecondaryActionLabel | null = null;
 
   /** The host is the authority on what the controls mean: re-derived whenever anything it depends on may have changed. */
+  const contextListeners = new Set<() => void>();
   const syncContext = (): void => {
     const context = deriveContext({
       roomState: session.getState().roomState,
       manualPaused: director.manualPaused,
       matchPhase: director.matchPhase(),
     });
+    const changed = context !== router.context;
     router.setContext(context, now());
+    if (changed) for (const listener of [...contextListeners]) listener();
     session.setContext(context, secondary === null ? null : { label: secondary });
   };
 
@@ -142,6 +152,17 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
           1000 / 60,
         );
 
+  function pause(): void {
+    if (!director.inMatch || session.getState().roomState !== 'PLAYING') return;
+    director.setManualPause(true, now());
+    syncContext();
+  }
+
+  function resume(): void {
+    director.setManualPause(false, now());
+    syncContext();
+  }
+
   syncContext();
 
   return {
@@ -154,15 +175,12 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       },
     },
     context: () => router.context,
-    pause: () => {
-      if (!director.inMatch || session.getState().roomState !== 'PLAYING') return;
-      director.setManualPause(true, now());
-      syncContext();
+    subscribeContext: (listener) => {
+      contextListeners.add(listener);
+      return () => void contextListeners.delete(listener);
     },
-    resume: () => {
-      director.setManualPause(false, now());
-      syncContext();
-    },
+    pause,
+    resume,
     setSecondaryAction: (label) => {
       secondary = label;
       syncContext();
@@ -188,6 +206,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     dispose: () => {
       stopPump?.();
       menuListeners.clear();
+      contextListeners.clear();
       session.dispose();
     },
   };

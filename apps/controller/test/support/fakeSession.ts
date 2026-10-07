@@ -1,4 +1,4 @@
-import type { ControllerManifest } from '@foomerang/protocol';
+import type { ControllerManifest, SystemAction } from '@foomerang/protocol';
 import type { ControllerState, Point } from '@foomerang/controller-sdk';
 import type { SessionPort } from '../../src/session';
 
@@ -66,6 +66,8 @@ export class FakeSession implements SessionPort {
   neutralize = (): void => void this.calls.push({ method: 'neutralize', args: [] });
   setButton = (id: string, pressed: boolean): void =>
     void this.calls.push({ method: 'setButton', args: [id, pressed] });
+  setSystemButton = (action: SystemAction, pressed: boolean): void =>
+    void this.calls.push({ method: 'setSystemButton', args: [action, pressed] });
   setControlValue = (id: string, value: Point): void =>
     void this.calls.push({ method: 'setControlValue', args: [id, value] });
 

@@ -14,8 +14,22 @@ html[data-view='shell'] #root {
   background: var(--n-950);
 }
 html[data-view='shell'][data-input='keyboard'],
-html[data-view='shell'][data-input='gamepad'] {
+html[data-view='shell'][data-input='gamepad'],
+html[data-view='shell'][data-input='phone'] {
   cursor: none;
+}
+/* The shell's look for an overlay that lives on another screen (the arena's pause menu): its own
+   layers (a modal) position themselves, so the wrapper takes no space and covers nothing. */
+.fc.fc--layer {
+  position: static;
+  inset: auto;
+}
+.pause-menu__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 24rem;
+  margin-bottom: 1.5rem;
 }
 .fc {
   position: fixed;

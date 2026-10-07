@@ -699,3 +699,167 @@ describe('the shell never touches the session itself', () => {
     expect(runtime.session.getState().joinCode).toBe(code());
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Checkpoint B: a phone operates the console. Nothing below touches the keyboard or the mouse.
+// ---------------------------------------------------------------------------------------------
+
+/** jsdom has no layout: give every button a place in document order (one column), so spatial focus works. */
+function layoutInDocumentOrder() {
+  return vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const all = [...document.querySelectorAll('button')];
+    const y = Math.max(0, all.indexOf(this as HTMLButtonElement)) * 100;
+    return {
+      x: 0,
+      y,
+      width: 200,
+      height: 80,
+      left: 0,
+      top: y,
+      right: 200,
+      bottom: y + 80,
+      toJSON: () => ({}),
+    };
+  });
+}
+
+function phone(ctx: Awaited<ReturnType<typeof inLobby>>, playerId = 'a') {
+  let t = 0;
+  let seq = 0;
+  let ev = 0;
+  const later = () => ctx.setNow((t += 1_000)); // past every gate: each step is a deliberate act
+  const event = async (action: string, phase: 'pressed' | 'released') => {
+    ctx.network.last.deliver({
+      type: 'PLAYER_INPUT',
+      payload: {
+        playerId,
+        input: { kind: 'ACTION', eventId: `ev-${playerId}-${(ev += 1)}-x`, action, phase },
+      },
+    });
+    await flush();
+  };
+  return {
+    /** A full press: down, then up. */
+    async tap(action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'MENU') {
+      later();
+      await event(action, 'pressed');
+      await event(action, 'released');
+    },
+    async stick(x: number, y: number) {
+      later();
+      ctx.network.last.deliver({
+        type: 'PLAYER_INPUT',
+        payload: { playerId, input: { kind: 'MOVE', seq: (seq += 1), x, y } },
+      });
+      await flush();
+      ctx.network.last.deliver({
+        type: 'PLAYER_INPUT',
+        payload: { playerId, input: { kind: 'MOVE', seq: (seq += 1), x: 0, y: 0 } },
+      });
+      await flush();
+    },
+  };
+}
+const SELECT = 'PRIMARY';
+const BACK = 'SECONDARY';
+const waitOutAnimation = () => act(async () => void (await new Promise((r) => setTimeout(r, 250))));
+
+describe('a phone operates the console (no keyboard, no mouse)', () => {
+  it('lobby: the phone’s BACK asks to close the room on the TV, and its SELECT answers (Cancel first)', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
+    await flush();
+    const alvin = phone(ctx);
+    await alvin.tap(BACK);
+    expect(screen.getByRole('dialog', { name: 'Close this room?' })).toBeTruthy();
+    expect(document.activeElement).toBe(button('Cancel'));
+    await alvin.tap(SELECT);
+    await waitOutAnimation();
+    expect(screen.queryByRole('dialog', { name: 'Close this room?' })).toBeNull();
+    expect(code()).toBe('K7M4PX');
+  });
+
+  it('lobby: the phone’s SELECT presses START when it is focused', async () => {
+    const layout = layoutInDocumentOrder();
+    try {
+      const ctx = await inLobby({ gameId: 'foomerang-fu' });
+      ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
+      await flush();
+      const alvin = phone(ctx);
+      for (let i = 0; i < 12 && document.activeElement !== button(START); i += 1)
+        await alvin.stick(0, 1);
+      expect(document.activeElement).toBe(button(START));
+      await alvin.tap(SELECT);
+      expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
+    } finally {
+      layout.mockRestore();
+    }
+  });
+
+  it('match: PAUSE on the phone opens the pause menu on the TV; SELECT on Resume resumes', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
+    await flush();
+    const david = phone(ctx, 'b');
+    await david.tap('MENU');
+    expect(ctx.runtime.context()).toBe('PAUSED');
+    expect(screen.getByRole('dialog', { name: 'Paused' })).toBeTruthy();
+    expect(document.activeElement).toBe(button('Resume'));
+    await phone(ctx, 'a').tap(SELECT); // anyone may operate the shared menu
+    expect(ctx.runtime.context()).toBe('GAMEPLAY');
+    await waitOutAnimation();
+    expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+  });
+
+  it('match: BACK in the pause menu resumes too (there is always a way out)', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
+    await flush();
+    const alvin = phone(ctx);
+    await alvin.tap('MENU');
+    await alvin.tap(BACK);
+    expect(ctx.runtime.context()).toBe('GAMEPLAY');
+  });
+
+  it('match: leaving from the pause menu is confirmed on the TV, starting on Cancel; only a deliberate confirm ends it', async () => {
+    const layout = layoutInDocumentOrder();
+    try {
+      const ctx = await inLobby({ gameId: 'foomerang-fu' });
+      ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
+      await flush();
+      const alvin = phone(ctx);
+      await alvin.tap('MENU');
+      await alvin.stick(0, 1);
+      expect(document.activeElement).toBe(button('Return to Lobby'));
+      await alvin.tap(SELECT);
+      expect(screen.getByRole('dialog', { name: 'Leave this match?' })).toBeTruthy();
+      expect(document.activeElement).toBe(button('Cancel'));
+      await alvin.tap(SELECT); // a stray press: nothing is lost
+      await waitOutAnimation();
+      expect(ctx.network.last.of('MATCH_END')).toHaveLength(0);
+      expect(ctx.runtime.context()).toBe('PAUSED');
+
+      await alvin.tap(SELECT); // Return to Lobby again (focus came back to it)
+      await alvin.stick(0, 1); // Cancel → the confirm button
+      expect(document.activeElement).toBe(
+        screen.getAllByRole('button', { name: 'Return to Lobby' }).at(-1),
+      );
+      await alvin.tap(SELECT);
+      expect(ctx.network.last.of('MATCH_END')).toHaveLength(1);
+      expect(ctx.runtime.director.inMatch).toBe(false);
+    } finally {
+      layout.mockRestore();
+    }
+  });
+
+  it('match: the TV’s own Esc opens the same pause menu (one focus system, every device)', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
+    await flush();
+    press('Escape');
+    expect(ctx.runtime.context()).toBe('PAUSED');
+    expect(screen.getByRole('dialog', { name: 'Paused' })).toBeTruthy();
+  });
+});

@@ -1,8 +1,9 @@
 import type { ControllerState } from '@foomerang/controller-sdk';
+import { ActionButton } from '../components/ActionButton';
 import { ConnectionBadge } from '../components/ConnectionBadge';
 import { ControlRenderer } from '../components/ControlRenderer';
 import { useInterruptionGuard } from '../hooks/useInterruptionGuard';
-import { CONTEXT_BADGE } from '../labels';
+import { CONTEXT_BADGE, PAUSE_LABEL } from '../labels';
 import { orientationHint, useViewportOrientation } from '../orientation';
 import type { SessionPort } from '../session';
 
@@ -21,6 +22,7 @@ export function PlayScreen({
   const viewport = useViewportOrientation();
   const context = state.context?.context ?? 'GAMEPLAY';
   const badge = CONTEXT_BADGE[context];
+  const pauseLabel = PAUSE_LABEL[context];
   const hint = state.manifest ? orientationHint(state.manifest.orientation, viewport) : undefined;
 
   return (
@@ -32,6 +34,15 @@ export function PlayScreen({
       <header className="play-header">
         <span className="player-name">{state.displayName}</span>
         {badge !== undefined && <span className="context-badge">{badge}</span>}
+        {/* The phone's own button, not one of the game's: only where pausing means something. */}
+        {pauseLabel !== undefined && (
+          <ActionButton
+            key="pause"
+            controlId="PAUSE"
+            label={pauseLabel}
+            onChange={(pressed) => session.setSystemButton('MENU', pressed)}
+          />
+        )}
         <ConnectionBadge phase={state.phase} />
       </header>
       {hint ? (

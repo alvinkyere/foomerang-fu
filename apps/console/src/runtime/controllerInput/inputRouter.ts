@@ -1,5 +1,10 @@
-import type { ControllerContext } from '@foomerang/protocol';
-import type { PlayerAction } from '../../host';
+import {
+  SYSTEM_ACTIONS,
+  type ControllerContext,
+  type InputAction,
+  type SystemAction,
+} from '@foomerang/protocol';
+import type { ControllerAction, PlayerAction } from '../../host';
 import { StickNavigator, type StickConfig, type StickDirection } from './stickNavigator';
 
 /** What a phone means by a press or a tilt outside gameplay. */
@@ -13,6 +18,8 @@ export interface RouterOptions {
   };
   /** Where console input goes: the shell's focus system. Called in a deterministic order. */
   readonly menu: (action: MenuAction, playerId: string) => void;
+  /** The phone's own system buttons (MENU: pause). Heard in every context; the console decides what they mean there. */
+  readonly system?: (action: SystemAction, playerId: string) => void;
   readonly stick?: Partial<StickConfig>;
   /** Minimum spacing between accepted menu steps / presses, across ALL phones. */
   readonly gate?: { readonly navGapMs?: number; readonly pressGapMs?: number };
@@ -21,17 +28,20 @@ export interface RouterOptions {
 const NEUTRAL = 0.15;
 const EVENT_WINDOW = 128;
 
-type Held = 'game' | 'menu' | 'suppressed';
+type Held = 'game' | 'menu' | 'system' | 'suppressed';
 
 interface PlayerState {
   lastSeq: number;
   readonly seen: Set<string>;
-  readonly held: Map<PlayerAction['action'], Held>;
+  readonly held: Map<InputAction, Held>;
   stick: { x: number; y: number };
   /** Held through a context boundary: reads as neutral until it truly is. */
   latched: boolean;
   readonly nav: StickNavigator;
 }
+
+const SYSTEM: ReadonlySet<InputAction> = new Set<InputAction>(SYSTEM_ACTIONS);
+const isSystem = (action: InputAction): action is SystemAction => SYSTEM.has(action);
 
 const ACTION_TO_MENU: Readonly<Record<PlayerAction['action'], MenuAction>> = {
   PRIMARY: 'select',
@@ -61,6 +71,7 @@ export class InputRouter {
   #context: ControllerContext = 'CONSOLE';
   #lastNavAt = Number.NEGATIVE_INFINITY;
   #lastPressAt = Number.NEGATIVE_INFINITY;
+  #lastSystemAt = Number.NEGATIVE_INFINITY;
 
   constructor(options: RouterOptions) {
     this.#options = options;
@@ -84,7 +95,7 @@ export class InputRouter {
     for (const [playerId, player] of this.#players) {
       // Whatever is held belongs to the old meaning: it must be released before it counts again.
       for (const [action, held] of player.held) {
-        if (held === 'game' && leavingGameplay) {
+        if (held === 'game' && leavingGameplay && !isSystem(action)) {
           // the game's own held state is closed out; the physical release will be dropped
           this.#options.gameplay.action({
             playerId,
@@ -125,7 +136,7 @@ export class InputRouter {
     }
   }
 
-  onAction(action: PlayerAction, nowMs: number): void {
+  onAction(action: ControllerAction, nowMs: number): void {
     const player = this.#player(action.playerId);
     if (player.seen.has(action.eventId)) return; // a retry never acts twice
     player.seen.add(action.eventId);
@@ -134,23 +145,51 @@ export class InputRouter {
       if (!oldest.done) player.seen.delete(oldest.value);
     }
 
-    const held = player.held.get(action.action);
-    if (action.phase === 'released') {
-      player.held.delete(action.action);
+    const kind = action.action;
+    if (isSystem(kind)) {
+      this.#onSystem(player, kind, action, nowMs);
+      return;
+    }
+    const game: PlayerAction = { ...action, action: kind }; // the compiler now knows it is the game's
+    const held = player.held.get(game.action);
+    if (game.phase === 'released') {
+      player.held.delete(game.action);
       if (held === 'suppressed') return; // closes a press that belonged to an earlier meaning
-      if (this.#context === 'GAMEPLAY') this.#options.gameplay.action(action);
+      if (this.#context === 'GAMEPLAY') this.#options.gameplay.action(game);
       return;
     }
     if (held === 'suppressed') return; // still the same physical hold
     if (this.#context === 'GAMEPLAY') {
-      player.held.set(action.action, 'game');
-      this.#options.gameplay.action(action);
+      player.held.set(game.action, 'game');
+      this.#options.gameplay.action(game);
       return;
     }
     // Marked held BEFORE it is delivered: if this very press changes the context (Resume), it is
     // already on record as belonging to the old meaning.
-    player.held.set(action.action, 'menu');
-    this.#emitPress(ACTION_TO_MENU[action.action], action.playerId, nowMs);
+    player.held.set(game.action, 'menu');
+    this.#emitPress(ACTION_TO_MENU[game.action], game.playerId, nowMs);
+  }
+
+  /**
+   * A system button. Like any press it must be released before it counts again (the PAUSE press that
+   * opened the menu is not also the one that closes it), and presses from several phones close
+   * together collapse to one, so two people pausing at once never pause-and-resume.
+   */
+  #onSystem(
+    player: PlayerState,
+    action: SystemAction,
+    event: ControllerAction,
+    nowMs: number,
+  ): void {
+    if (event.phase === 'released') {
+      player.held.delete(action);
+      return;
+    }
+    if (player.held.has(action)) return; // still the same physical hold
+    player.held.set(action, 'system');
+    if (nowMs - this.#lastSystemAt < this.#pressGap) return;
+    this.#lastSystemAt = nowMs;
+    this.#options.system?.(action, event.playerId);
   }
 
   /** Repeat for held sticks. */

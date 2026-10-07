@@ -7,8 +7,10 @@ import {
 import {
   PROTOCOL_VERSION,
   parseServerMessage,
+  type Action,
   type ControllerContext,
   type ErrorCode,
+  type InputAction,
   type RosterEntry,
   type SecondaryAction,
 } from '@foomerang/protocol';
@@ -72,14 +74,18 @@ export interface HostSessionOptions {
 /** `seq` is the sender's movement sequence on its current connection (it restarts when the phone reconnects). */
 export type MovementHandler = (playerId: string, x: number, y: number, seq: number) => void;
 
-/** An authenticated button event. `eventId` is the sender's unique id for it. */
-export interface PlayerAction {
+/** An authenticated button event from a controller: a game action or a system one (MENU). `eventId` is the sender's unique id for it. */
+export interface ControllerAction {
   readonly playerId: string;
   readonly eventId: string;
-  readonly action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
+  readonly action: InputAction;
   readonly phase: 'pressed' | 'released';
 }
-export type ActionHandler = (action: PlayerAction) => void;
+/** A button event that means something to the GAME. System actions never take this shape. */
+export interface PlayerAction extends ControllerAction {
+  readonly action: Action;
+}
+export type ActionHandler = (action: ControllerAction) => void;
 
 const IDLE: HostState = Object.freeze({
   phase: 'IDLE',
@@ -475,7 +481,7 @@ export class HostSession {
         const { playerId, input } = message.payload;
         if (input.kind === 'ACTION') {
           this.#actionsReceived += 1;
-          const action: PlayerAction = {
+          const action: ControllerAction = {
             playerId,
             eventId: input.eventId,
             action: input.action,

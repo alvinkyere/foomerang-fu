@@ -64,7 +64,7 @@ async function room(gameId = 'primitive-arena') {
     },
     async press(
       id: string,
-      action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY',
+      action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'MENU',
       phase: 'pressed' | 'released' = 'pressed',
     ) {
       network.last.deliver({
@@ -144,6 +144,29 @@ describe('the runtime publishes the context and routes phone input by it', () =>
     };
     await r.press('a', 'PRIMARY'); // a deliberate new press
     expect(delivered).toEqual(['PRIMARY:pressed']);
+  });
+
+  it('a phone’s PAUSE button pauses the match, and pressed again resumes it', async () => {
+    const r = await room();
+    await r.enter('PLAYING');
+    await r.press('a', 'MENU');
+    await r.press('a', 'MENU', 'released');
+    expect(r.runtime.director.manualPaused).toBe(true);
+    expect(r.contexts().at(-1)).toBe('PAUSED');
+    r.setNow(1_000);
+    await r.press('b', 'MENU'); // anyone may: the pause menu is shared
+    await r.press('b', 'MENU', 'released');
+    expect(r.runtime.director.manualPaused).toBe(false);
+    expect(r.contexts().at(-1)).toBe('GAMEPLAY');
+    expect(r.menu).toEqual([]); // PAUSE is never a menu press
+  });
+
+  it('PAUSE does nothing in the lobby (there is no match to pause)', async () => {
+    const r = await room();
+    await r.enter('LOBBY');
+    await r.press('a', 'MENU');
+    expect(r.runtime.director.manualPaused).toBe(false);
+    expect(r.contexts().every((c) => c === 'CONSOLE')).toBe(true);
   });
 
   it('cannot pause outside a running match, and pause is not a way to freeze the lobby', async () => {

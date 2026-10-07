@@ -18,7 +18,7 @@ Isolated UI harness (fixtures only, development only, NOT the product): `pnpm --
 
 ## Input model
 
-Arrows / D-pad / left stick = navigate · Enter / Space / A = select · Esc / Backspace / B = back. Mouse hover mirrors focus; click selects; nothing depends on hover. Every screen is a `FocusScope` with a deterministic initial focus; leaving and re-entering a screen restores where you were; Back always leaves; unavailable buttons stay focusable (they say why) but cannot fire.
+Arrows / D-pad / left stick = navigate · Enter / Space / A = select · Esc / Backspace / B = back. **Phones** drive the same focus (never a menu of their own): outside gameplay the host translates a phone's stick into steps, SLASH into select and THROW into back, and `App` hands that stream (`runtime.menu`) to `FocusManager` as its `remote` input (the shell sees only a structural `RemoteInput`; DASH's secondary action is dropped until a screen offers one). The arena mounts its own `FocusManager` with the same feed: Esc / B there opens the **pause menu** (`screens/PauseMenu.tsx`: Resume · Return to Lobby, the latter confirmed on the TV starting on Cancel), and the champion screen's Rematch / Return to lobby are focus items. Mouse hover mirrors focus; click selects; nothing depends on hover. Every screen is a `FocusScope` with a deterministic initial focus; leaving and re-entering a screen restores where you were; Back always leaves; unavailable buttons stay focusable (they say why) but cannot fire.
 
 ## What is real
 

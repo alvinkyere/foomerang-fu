@@ -22,11 +22,23 @@ export type InputMoveMessage = z.infer<typeof inputMoveMessageSchema>;
 export const ACTIONS = ['PRIMARY', 'SECONDARY', 'TERTIARY'] as const;
 export type Action = (typeof ACTIONS)[number];
 
+/**
+ * Actions that belong to the PLATFORM, not to any game: the phone's own system buttons. MENU is the
+ * pause button (open / close the pause menu). A manifest can never name one, so no game can take
+ * one over; the host consumes them and never hands them to a game.
+ */
+export const SYSTEM_ACTIONS = ['MENU'] as const;
+export type SystemAction = (typeof SYSTEM_ACTIONS)[number];
+
+/** Anything a controller may send as an INPUT_EVENT: a game action or a system action. */
+export type InputAction = Action | SystemAction;
+export const INPUT_ACTIONS = [...ACTIONS, ...SYSTEM_ACTIONS] as const;
+
 export const ACTION_PHASES = ['pressed', 'released'] as const;
 export type ActionPhase = (typeof ACTION_PHASES)[number];
 
 export const inputEventPayloadSchema = z.strictObject({
-  action: z.enum(ACTIONS),
+  action: z.enum(INPUT_ACTIONS),
   phase: z.enum(ACTION_PHASES),
 });
 

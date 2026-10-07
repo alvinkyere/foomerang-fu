@@ -22,6 +22,7 @@ describe('public API surface', () => {
         'SEAT_STATUSES',
         'SECONDARY_ACTION_LABELS',
         'SEQ_MAX',
+        'SYSTEM_ACTIONS',
         'axisSchema',
         'clientTypeSchema',
         'clientVersionSchema',
