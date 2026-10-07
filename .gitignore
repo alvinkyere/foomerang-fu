@@ -17,3 +17,8 @@ certs/
 *.pem
 *.key
 docs/garden/motion/
+
+# Slice 9 reconstruction: licensed character models, video-derived renders and captured textures stay local
+art/reconstruction/licensed/
+art/reconstruction/output*/
+art/reconstruction/analysis/textures/

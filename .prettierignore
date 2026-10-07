@@ -4,3 +4,5 @@ node_modules
 dist
 coverage
 docs
+art/reconstruction/analysis
+art/reconstruction/runtime/*.json

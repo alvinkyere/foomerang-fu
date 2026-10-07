@@ -1,0 +1,178 @@
+{
+ "width": 1750,
+ "height": 1300,
+ "walls": [
+  {
+   "id": "STALL0",
+   "kind": "STALL",
+   "x": 1385,
+   "y": 729,
+   "width": 154,
+   "height": 108
+  },
+  {
+   "id": "STALL1",
+   "kind": "STALL",
+   "x": 207,
+   "y": 729,
+   "width": 144,
+   "height": 106
+  },
+  {
+   "id": "STALL2A",
+   "kind": "STALL",
+   "x": 1200,
+   "y": 406,
+   "width": 117,
+   "height": 58
+  },
+  {
+   "id": "STALL2B",
+   "kind": "STALL",
+   "x": 1230,
+   "y": 377,
+   "width": 58,
+   "height": 117
+  },
+  {
+   "id": "STALL3A",
+   "kind": "STALL",
+   "x": 420,
+   "y": 408,
+   "width": 113,
+   "height": 57
+  },
+  {
+   "id": "STALL3B",
+   "kind": "STALL",
+   "x": 448,
+   "y": 380,
+   "width": 57,
+   "height": 113
+  },
+  {
+   "id": "FARSTALL0",
+   "kind": "STALL",
+   "x": 0,
+   "y": 0,
+   "width": 144,
+   "height": 146
+  },
+  {
+   "id": "FARSTALL1",
+   "kind": "STALL",
+   "x": 1584,
+   "y": 0,
+   "width": 166,
+   "height": 146
+  },
+  {
+   "id": "FOUNTAIN_A",
+   "kind": "FOUNTAIN",
+   "x": 685,
+   "y": 649,
+   "width": 342,
+   "height": 147
+  },
+  {
+   "id": "FOUNTAIN_B",
+   "kind": "FOUNTAIN",
+   "x": 782,
+   "y": 552,
+   "width": 147,
+   "height": 342
+  },
+  {
+   "id": "FOUNTAIN_C",
+   "kind": "FOUNTAIN",
+   "x": 727,
+   "y": 594,
+   "width": 258,
+   "height": 258
+  },
+  {
+   "id": "CRATE0",
+   "kind": "CRATE",
+   "x": 183,
+   "y": 976,
+   "width": 72,
+   "height": 72
+  },
+  {
+   "id": "CRATE1",
+   "kind": "CRATE",
+   "x": 275,
+   "y": 951,
+   "width": 72,
+   "height": 72
+  },
+  {
+   "id": "CRATE2",
+   "kind": "CRATE",
+   "x": 108,
+   "y": 68,
+   "width": 72,
+   "height": 72
+  }
+ ],
+ "spawns": [
+  {
+   "x": 256,
+   "y": 224
+  },
+  {
+   "x": 1664,
+   "y": 1216
+  },
+  {
+   "x": 1440,
+   "y": 64
+  },
+  {
+   "x": 608,
+   "y": 1216
+  },
+  {
+   "x": 1120,
+   "y": 704
+  },
+  {
+   "x": 64,
+   "y": 864
+  }
+ ],
+ "books": [
+  {
+   "x": 832,
+   "y": 64
+  },
+  {
+   "x": 1664,
+   "y": 576
+  },
+  {
+   "x": 576,
+   "y": 672
+  },
+  {
+   "x": 1120,
+   "y": 1216
+  },
+  {
+   "x": 1152,
+   "y": 320
+  },
+  {
+   "x": 224,
+   "y": 1216
+  },
+  {
+   "x": 1408,
+   "y": 928
+  },
+  {
+   "x": 864,
+   "y": 960
+  }
+ ]
+}
