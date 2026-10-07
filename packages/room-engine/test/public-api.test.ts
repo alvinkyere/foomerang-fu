@@ -6,14 +6,25 @@ describe('public API surface', () => {
   it('exports exactly the intended runtime values', () => {
     expect(Object.keys(api).sort()).toEqual(
       [
+        'ConsoleRegistry',
+        'DEFAULT_CONSOLE_TIMINGS',
+        'DEFAULT_MAX_CONTROLLERS',
         'DEFAULT_MAX_JOIN_CODE_ATTEMPTS',
         'DEFAULT_ROOM_TIMINGS',
+        'JoinCodeSpace',
         'ROOM_STATES',
         'RoomRegistry',
         'canTransition',
         'occupiedSeats',
         'parseJoinCode',
+        'effectiveContext',
+        'heldControllers',
+        'mayPause',
+        'participationOf',
         'seatedPlayers',
+        'toConsoleId',
+        'toControllerId',
+        'toGameSessionId',
         'toHostId',
         'toHostToken',
         'toPlayerId',
@@ -42,6 +53,19 @@ describe('public API surface', () => {
       'validateRoomConfig',
       'ok',
       'fail',
+      // console sessions: mutation only through ConsoleRegistry
+      'createConsole',
+      'joinConsole',
+      'reconnectController',
+      'releaseController',
+      'reconcileConsole',
+      'launchGame',
+      'setParticipants',
+      'setContext',
+      'beginClose',
+      'reconcileMember',
+      'releaseMember',
+      'resolveConsoleTimings',
     ]) {
       expect(api, internal).not.toHaveProperty(internal);
     }

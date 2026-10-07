@@ -48,3 +48,42 @@ export function elapsedSince(since: number, now: number): number {
   }
   return now - since;
 }
+
+/**
+ * Console-session durations (ADR-004). Product hypotheses, tuned from real play, hence configuration.
+ *
+ *   controller transport lost:  ≥ reconnectingWindowMs → DISCONNECTED; ≥ membershipReservationMs → RELEASED
+ *   TV (host) transport lost:   the session closes after
+ *     - unestablishedHostMs while no controller holds membership (an abandoned / never-used TV), or
+ *     - hostRecoveryMs once a party exists (a TV that lost Wi-Fi must not destroy the party).
+ */
+export interface ConsoleTimings {
+  readonly reconnectingWindowMs: number;
+  readonly membershipReservationMs: number;
+  readonly unestablishedHostMs: number;
+  readonly hostRecoveryMs: number;
+}
+
+export const DEFAULT_CONSOLE_TIMINGS: ConsoleTimings = Object.freeze({
+  reconnectingWindowMs: 10_000,
+  membershipReservationMs: 60_000,
+  unestablishedHostMs: 600_000,
+  hostRecoveryMs: 1_800_000,
+});
+
+/** Invalid timings are a configuration fault, so this throws rather than returning a Result. */
+export function resolveConsoleTimings(overrides: Partial<ConsoleTimings> = {}): ConsoleTimings {
+  const timings = { ...DEFAULT_CONSOLE_TIMINGS, ...overrides };
+  for (const value of Object.values(timings)) {
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new Error('Console timings must be positive integers (milliseconds)');
+    }
+  }
+  if (timings.membershipReservationMs < timings.reconnectingWindowMs) {
+    throw new Error('membershipReservationMs must not be shorter than reconnectingWindowMs');
+  }
+  if (timings.hostRecoveryMs < timings.unestablishedHostMs) {
+    throw new Error('hostRecoveryMs must not be shorter than unestablishedHostMs');
+  }
+  return Object.freeze(timings);
+}

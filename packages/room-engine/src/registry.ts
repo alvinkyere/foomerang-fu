@@ -12,6 +12,7 @@ import {
   type HostReconnectFailure,
   type ReconnectFailure,
 } from './lifecycle';
+import { JoinCodeSpace } from './joinCodes';
 import { fail, ok, type Result } from './result';
 import {
   beginStart,
@@ -38,6 +39,8 @@ export interface RoomRegistryOptions {
   readonly maxJoinCodeAttempts?: number;
   /** Overrides for the reconnecting window / seat reservation (see DEFAULT_ROOM_TIMINGS). */
   readonly timings?: Partial<RoomTimings>;
+  /** The codes in use, shared with the console registry while both exist. Default: its own. */
+  readonly joinCodes?: JoinCodeSpace;
 }
 
 export type CreateRoomFailure = 'INVALID_CONFIG' | 'JOIN_CODE_EXHAUSTED';
@@ -75,6 +78,7 @@ export class RoomRegistry {
   readonly #timings: RoomTimings;
   readonly #rooms = new Map<RoomId, Room>();
   readonly #roomIdByJoinCode = new Map<JoinCode, RoomId>();
+  readonly #codes: JoinCodeSpace;
   #lastNow = Number.NEGATIVE_INFINITY;
 
   constructor(env: RoomEnvironment, options: RoomRegistryOptions = {}) {
@@ -85,6 +89,7 @@ export class RoomRegistry {
     this.#env = env;
     this.#maxJoinCodeAttempts = attempts;
     this.#timings = resolveTimings(options.timings);
+    this.#codes = options.joinCodes ?? new JoinCodeSpace();
   }
 
   get size(): number {
@@ -271,6 +276,7 @@ export class RoomRegistry {
     if (result.ok) {
       this.#rooms.delete(roomId);
       this.#roomIdByJoinCode.delete(result.value.joinCode);
+      this.#codes.release(result.value.joinCode);
     }
     return result;
   };
@@ -309,7 +315,7 @@ export class RoomRegistry {
   #allocateJoinCode(): JoinCode | undefined {
     for (let attempt = 0; attempt < this.#maxJoinCodeAttempts; attempt += 1) {
       const code = parseJoinCode(this.#env.nextJoinCodeCandidate());
-      if (code !== undefined && !this.#roomIdByJoinCode.has(code)) return code;
+      if (code !== undefined && this.#codes.claim(code)) return code;
     }
     return undefined;
   }

@@ -1,14 +1,13 @@
 import type { RoomEnvironment } from './environment';
 import type { PlayerId } from './ids';
+import { reconcileConnection, reconcileMember } from './member';
 import { fail, ok, type Result } from './result';
 import {
   CONNECTED,
   assertFreshCredential,
   identifyPlayer,
   isHost,
-  type Connection,
   type Host,
-  type Membership,
   type Player,
   type Room,
 } from './room';
@@ -20,42 +19,15 @@ import { elapsedSince, type RoomTimings } from './timing';
  * WHEN to ask the domain to reconcile.
  */
 
-function reconcileConnection(
-  connection: Connection,
-  now: number,
-  timings: RoomTimings,
-): { connection: Connection; elapsed: number } | undefined {
-  if (connection.status === 'CONNECTED') return undefined;
-  const elapsed = elapsedSince(connection.disconnectedAt, now); // throws if the clock went backwards
-  const status = elapsed >= timings.reconnectingWindowMs ? 'DISCONNECTED' : 'RECONNECTING';
-  return {
-    elapsed,
-    connection:
-      status === connection.status
-        ? connection
-        : Object.freeze({ status, disconnectedAt: connection.disconnectedAt }),
-  };
-}
-
 function reconcilePlayer(player: Player, now: number, timings: RoomTimings): Player {
-  const settled = reconcileConnection(player.connection, now, timings);
-  if (settled === undefined) return player;
-
-  let membership: Membership = player.membership;
-  if (membership.status === 'HELD' && settled.elapsed >= timings.seatReservationMs) {
-    // Logical release time, independent of how late the server happened to notice.
-    const disconnectedAt = (player.connection as { disconnectedAt: number }).disconnectedAt;
-    membership = Object.freeze({
-      status: 'RELEASED',
-      releasedAt: disconnectedAt + timings.seatReservationMs,
-    });
-  }
-  if (settled.connection === player.connection && membership === player.membership) return player;
-  return Object.freeze({ ...player, connection: settled.connection, membership });
+  return reconcileMember(player, now, {
+    reconnectingWindowMs: timings.reconnectingWindowMs,
+    reservationMs: timings.seatReservationMs,
+  });
 }
 
 function reconcileHost(host: Host, now: number, timings: RoomTimings): Host {
-  const settled = reconcileConnection(host.connection, now, timings);
+  const settled = reconcileConnection(host.connection, now, timings.reconnectingWindowMs);
   if (settled === undefined || settled.connection === host.connection) return host;
   // The host holds no seat: only its connection status progresses. Players are never affected.
   return Object.freeze({ ...host, connection: settled.connection });

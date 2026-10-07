@@ -14,7 +14,17 @@ export type HostId = Brand<'HostId'>;
 /** Temporary human discovery code for a room; distinct from RoomId. */
 export type JoinCode = Brand<'JoinCode'>;
 
+/** Machine identity of a console session (one Foomerang on one TV). Never user-facing. */
+export type ConsoleId = Brand<'ConsoleId'>;
+/** A phone's membership of a console session. Survives games and Home; never a game seat. */
+export type ControllerId = Brand<'ControllerId'>;
+/** One launch of one game on a console. Messages aimed at an exited launch are stale. */
+export type GameSessionId = Brand<'GameSessionId'>;
+
 export const toRoomId = (value: string): RoomId => value as RoomId;
+export const toConsoleId = (value: string): ConsoleId => value as ConsoleId;
+export const toControllerId = (value: string): ControllerId => value as ControllerId;
+export const toGameSessionId = (value: string): GameSessionId => value as GameSessionId;
 export const toPlayerId = (value: string): PlayerId => value as PlayerId;
 export const toHostId = (value: string): HostId => value as HostId;
 

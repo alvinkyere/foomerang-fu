@@ -85,7 +85,7 @@ Add the small additive `CONTROLLER_CONTEXT` message (host → server → phones)
 Outside gameplay: stick = navigate (threshold, hysteresis, delay-then-repeat), SLASH = select, THROW = back, DASH = secondary only when one exists. Focus is shared on the TV; semantic actions are serialized, deduplicated, and ordered. Destructive host actions (close room, restart round, global settings) need host authority or an on-TV confirmation. Every context change requires release / neutral before the controls count under the new context, with no leakage of a held press across the boundary (Resume must never become a slash).
 **Lifecycle is unchanged in B:** Home → Fu → PLAY → room created → phones join → phones drive the UI that exists → START → play → pause / results from phones. B does not redesign `ROOM_CREATE`, game binding or manifests. Also in this checkpoint's neighbourhood (separate commits as appropriate): in-game HUD, host pause, round-over and champion screens in the shell's design language, operable with no mouse.
 
-### Checkpoint C — Foomerang console session (direction decided, **not started; architecture needs approval first**)
+### Checkpoint C — Foomerang console session (**architecture accepted: docs/ADR/ADR-004-console-session.md; in progress, slice by slice C1–C8**)
 Phones connect to **Foomerang itself, before any game is chosen**, and survive every transition:
 
 ```
@@ -111,6 +111,7 @@ Rules for the design:
 - Home gets a first-class **Controllers** action with compact status ("Controllers · 3"), the QR, the code, connected controllers and enough identity to tell them apart. Controllers that are already connected or reclaimed need no visit to it.
 - `CONTROLLER_CONTEXT` is **not** redesigned by C: B establishes physical input → semantic context → console / game action; C changes *when and what the controller connects to*, not what SLASH / THROW mean.
 - Design for the **second** game: a phone joins once, any game can be chosen, the game supplies its controls and config, play, return, choose another.
+**C1 — domain (committed):** `room-engine` gains the console-session aggregate (`ConsoleSession`, `GameSession`, controllers vs per-launch participants, context, WAITING / pause authority, TV-absence rules) behind `ConsoleRegistry`, a join-code space shared with the legacy `RoomRegistry`, and the connection / membership lifecycle extracted into one shared implementation. No protocol, server or app changes; the legacy room flow is untouched.
 **Process:** no C implementation until A and B are passed and committed. Then **stop and present** the room / session migration design (state machines, protocol changes, compatibility strategy, migration plan) for review **before any existing room semantics change**.
 
 ## Process requirements

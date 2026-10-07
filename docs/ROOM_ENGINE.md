@@ -157,6 +157,26 @@ The registry owns the set of live rooms in a process and the join-code index, an
 
 Players may join in `LOBBY`, and (Slice 8) in `PLAYING`: a late arrival holds a seat but the game decides what that means (Foomerang Fu: they wait for the next match; no body is created mid-match). Every other state refuses with `ROOM_NOT_JOINABLE`. `minPlayers` may be 0: a game whose other participants are software can start with nobody on a phone. Display names: trimmed, 1–16 Unicode code points, no control/format/line-separator characters (blocks bidi-override spoofing on the shared screen). Duplicate names are allowed for now. Profanity/emoji/moderation policy is deferred.
 
+## Console sessions (Checkpoint C, ADR-004)
+
+A **console session** is one Foomerang on one TV, joined before any game is chosen. It lives beside the legacy room (both coexist until the console flow replaces it) and is mutated only through `ConsoleRegistry`, with the same discipline as `RoomRegistry` (one clock read per operation, reconcile, apply, commit on success only).
+
+```
+ConsoleSession   OPEN → CLOSING → CLOSED         (host: hostId, rotating hostToken, connection)
+├── controllers  Controller: controllerId, name, rotating reconnectToken, connection × membership, releaseReason
+├── context      CONSOLE | GAMEPLAY | PAUSED | RESULTS, secondaryAction, version (changes only on a real change)
+└── activeGame   null | GameSession: gameSessionId, config, LOBBY → STARTING → PLAYING → RESULTS → LOBBY,
+                 participants (human ControllerIds, seat order)
+```
+
+- **Controller ≠ participant.** Joining makes a controller (≤ 8 per console), never a participant. A launch seats connected controllers (a briefly reconnecting one counts) in join order up to the game's `maxPlayers`; everybody else is WAITING. Exiting the game ends every seat; controllers stay. Messages for an exited launch fail `STALE_GAME` and change nothing.
+- **Seat changes** (`setParticipants`) only in `LOBBY` or between matches (context `RESULTS`); never while a match runs or is paused. A participant whose membership ends leaves an empty seat; nobody is promoted.
+- **Effective context / pause:** a non-participant during `GAMEPLAY | PAUSED | RESULTS` is `WAITING`; only an active participant may pause (or resume) while the match runs (`mayPause`).
+- **Release** (left, removed by the TV, absent past the reservation, console closed) is permanent; a RELEASED member's connection is terminally DISCONNECTED; an old credential never reclaims it.
+- **TV absence:** the session closes (`TV_GONE`) after `unestablishedHostMs` (10 min) while no controller holds membership, or after `hostRecoveryMs` (30 min, a hypothesis) once a party exists, measured from the TV's disconnect.
+- **Join codes** come from one `JoinCodeSpace` shared with the legacy registry, so a code never means both a room and a console.
+- The connection / membership lifecycle (`member.ts`) is shared by room players and console controllers.
+
 ## Concurrency (future, documented not built)
 
 Two joins racing for the last seat must yield 6/6, never 7/6. In a single Node process each registry operation is synchronous, so check-and-add is atomic provided **no `await` ever sits between reading a room and writing it back** — which is why the registry, not callers, performs read-modify-write. When rooms move beyond one process (sharding, persistence, multiple servers) this becomes a distributed-coordination requirement (single-writer-per-room or compare-and-set on a room version). Not built in this slice.
