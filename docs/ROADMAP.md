@@ -71,6 +71,46 @@ Physical-device testing remains separate: Playwright cannot judge feel.
 ## Foomerang Fu
 1. **Fu Slice 1 — combat skeleton: engineering complete, awaiting a human play review** (docs/FOOMERANG_FU.md). Move + throw + returning boomerang + hit + death + round reset, primitive visuals. **Do not add dash, catch, powerups, hazards, maps or art until it has been played and reviewed.**
 
+## Console platform checkpoints (A → B → C; each its own commit, in order)
+
+Phones are first-class console controllers: if an ordinary couch-flow action needs the laptop's mouse, that is a UX defect. The work is split so that each step can be validated, and committed, alone.
+
+### Checkpoint A — production shell (built, **uncommitted**, gated)
+The console shell is the root route, wired to the live session through an adapter (docs/SHELL.md). **Gate: the physical-phone smoke test** (docs/PHYSICAL_PHONE_GATE.md) — status **NOT RUN**; physical phone and physical gamepad are **UNVERIFIED**. If it passes, record the results and commit only the shell migration (nothing from the Garden / reconstruction work, `.gitignore`, `art/`). Frozen: initial JS 145 kB gzip, initial CSS 10 kB gzip. Open engineering defect: intermittent timing-sensitive e2e failures (docs/TESTING.md).
+
+### Checkpoint B — phone as console input (approved design, **not started**)
+Add the small additive `CONTROLLER_CONTEXT` message (host → server → phones): `GAMEPLAY | CONSOLE | PAUSED | RESULTS`, semantic and never a screen name, with an optional bounded secondary-action label. The host is authoritative; the server accepts it only from the host, stores it per room, delivers it on every join/reconnect after identity and manifest (so no wrong labels ever flash), and ignores stale versions. The manifest stays the controller's physical layout; the context says what the controls mean now (never abuse manifest updates for labels).
+Outside gameplay: stick = navigate (threshold, hysteresis, delay-then-repeat), SLASH = select, THROW = back, DASH = secondary only when one exists. Focus is shared on the TV; semantic actions are serialized, deduplicated, and ordered. Destructive host actions (close room, restart round, global settings) need host authority or an on-TV confirmation. Every context change requires release / neutral before the controls count under the new context, with no leakage of a held press across the boundary (Resume must never become a slash).
+**Lifecycle is unchanged in B:** Home → Fu → PLAY → room created → phones join → phones drive the UI that exists → START → play → pause / results from phones. B does not redesign `ROOM_CREATE`, game binding or manifests. Also in this checkpoint's neighbourhood (separate commits as appropriate): in-game HUD, host pause, round-over and champion screens in the shell's design language, operable with no mouse.
+
+### Checkpoint C — Foomerang console session (direction decided, **not started; architecture needs approval first**)
+Phones connect to **Foomerang itself, before any game is chosen**, and survive every transition:
+
+```
+Home → Controllers (QR + code, "Controllers · 3") → phones join Foomerang → phones navigate Home
+→ choose a game → PLAY → configure that game's participants / CPUs → START → play → results
+→ back to Foomerang (same phones) → choose another game
+```
+
+Goal: separate **console / session membership** from **game participation and configuration**. A phone joining Foomerang no longer means "this player has joined a Foomerang Fu room".
+
+```
+Foomerang Console Session
+├── connected controllers, controller identities, host ownership
+├── connection / reconnect state, controller context
+└── Active Game (e.g. Foomerang Fu)
+    ├── participants, CPUs, game-specific config and controls
+    └── match / round
+```
+
+Rules for the design:
+- Do **not** rename `Room` to `ConsoleSession` and call it solved. First decide, responsibility by responsibility, what belongs to the console session, the controller connection, player identity, the game instance and the match/round.
+- Manifest: split the **base controller capability** (enough for a phone at Home to render the console controller before any game exists) from the **active game's control presentation**; a game becoming active changes controls without a disconnect / rejoin. Config- and protocol-driven; never `if (game === "foomerang-fu")` in the controller.
+- Home gets a first-class **Controllers** action with compact status ("Controllers · 3"), the QR, the code, connected controllers and enough identity to tell them apart. Controllers that are already connected or reclaimed need no visit to it.
+- `CONTROLLER_CONTEXT` is **not** redesigned by C: B establishes physical input → semantic context → console / game action; C changes *when and what the controller connects to*, not what SLASH / THROW mean.
+- Design for the **second** game: a phone joins once, any game can be chosen, the game supplies its controls and config, play, return, choose another.
+**Process:** no C implementation until A and B are passed and committed. Then **stop and present** the room / session migration design (state machines, protocol changes, compatibility strategy, migration plan) for review **before any existing room semantics change**.
+
 ## Process requirements
 - **CI is required before significant application behavior accumulates.** At minimum: install → `format:check` → `lint` → `typecheck` → unit/integration tests; E2E added when Playwright arrives. **Status (honest):** the workflow exists (`.github/workflows/ci.yml`) and a local clean-checkout reproduction of the same commands passes. **GitHub Actions execution is unverified until a remote is configured and the workflow has actually run.** Do not report CI as passing before then.
 - A TDD project whose tests only run on one developer's laptop does not meet our standard.
