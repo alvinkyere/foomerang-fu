@@ -415,3 +415,36 @@ p {
     transition: none !important;
   }
 }
+
+/* Context: the same physical controls, a different meaning. Labels change; nothing moves. */
+.joystick-label {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  translate: -50% 0;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.joystick-zone {
+  position: relative;
+}
+.action-button[data-unused='true'] {
+  opacity: 0.35;
+}
+.context-badge {
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #1a1200;
+  background: #ffb020;
+}
+.play[data-context='PAUSED'] .controls,
+.play[data-context='RESULTS'] .controls,
+.play[data-context='CONSOLE'] .controls {
+  filter: saturate(0.75);
+}

@@ -57,7 +57,9 @@ export class MatchDirector {
   #gameId = 'primitive-arena';
   /** The people who have a body in the match that is running (anyone else seated is waiting for the next one). */
   #matchHumans = new Set<string>();
-  #paused = false;
+  /** Two independent reasons the simulation may be frozen: the host lost its server (network) or somebody opened the pause menu (manual). */
+  #networkPaused = false;
+  #manualPaused = false;
 
   readonly #createRuntime: (gameId: string, mode: GameModeId) => MatchRuntime;
 
@@ -157,6 +159,7 @@ export class MatchDirector {
    */
   rematch(nowMs: number): void {
     if (!this.#inMatch) return;
+    this.#manualPaused = false; // a new match is never born paused
     this.#begin(this.#gameId, nowMs);
   }
 
@@ -164,7 +167,8 @@ export class MatchDirector {
   returnToLobby(): void {
     this.#inMatch = false;
     this.#matchHumans = new Set();
-    this.#paused = false;
+    this.#networkPaused = false;
+    this.#manualPaused = false;
   }
 
   /** People seated now who have no body in the running match: they take part in the next one. */
@@ -188,13 +192,46 @@ export class MatchDirector {
 
   /** The host's own connection to the server is down: the match waits (nothing steps), and resumes where it was. */
   setPaused(paused: boolean, nowMs: number): void {
-    if (paused === this.#paused) return;
-    this.#paused = paused;
-    if (!paused) this.runtime.rebase?.(nowMs);
+    if (paused === this.#networkPaused) return;
+    const was = this.paused;
+    this.#networkPaused = paused;
+    this.#changedPause(was, nowMs);
+  }
+
+  /**
+   * Someone opened the pause menu. A REAL freeze: nothing steps, so players, projectiles, attack and
+   * dash timers, hazards, gates, platforms, spawn clocks and match progression all stand still; held
+   * thumbs and queued presses are thrown away, and on resume the clock restarts at `nowMs`, so the
+   * time spent paused is never simulated. Independent of the network pause: each can come and go on
+   * its own, and the match runs only when neither is set.
+   */
+  setManualPause(paused: boolean, nowMs: number): void {
+    if (paused === this.#manualPaused) return;
+    const was = this.paused;
+    this.#manualPaused = paused;
+    if (paused && this.#inMatch) this.runtime.neutralizeInput?.();
+    this.#changedPause(was, nowMs);
+  }
+
+  #changedPause(was: boolean, nowMs: number): void {
+    if (was && !this.paused) this.runtime.rebase?.(nowMs);
   }
 
   get paused(): boolean {
-    return this.#paused;
+    return this.#networkPaused || this.#manualPaused;
+  }
+
+  get manualPaused(): boolean {
+    return this.#manualPaused;
+  }
+
+  get inMatch(): boolean {
+    return this.#inMatch;
+  }
+
+  /** Where the running match is (undefined when none is running, or the game has no such notion). */
+  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
+    return this.#inMatch ? this.runtime.matchPhase?.() : undefined;
   }
 
   onMovement(playerId: string, x: number, y: number, nowMs: number): void {
@@ -206,7 +243,7 @@ export class MatchDirector {
   }
 
   frame(nowMs: number): void {
-    if (this.#inMatch && !this.#paused) this.runtime.frame(nowMs);
+    if (this.#inMatch && !this.paused) this.runtime.frame(nowMs);
   }
 
   /** What to draw, or undefined when no match is running. */

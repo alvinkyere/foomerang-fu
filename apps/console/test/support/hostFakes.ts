@@ -125,7 +125,10 @@ export class FakeHostNetwork {
   createError: ErrorCode | undefined;
   reconnectError: ErrorCode | undefined;
   startError: ErrorCode | undefined;
-  /** What the room is when the host reclaims it (a room whose match was running in a page that has since been reloaded is PLAYING). */
+  /**
+   * What the room is when the host reclaims it. Like the real server, a reclaim never changes the
+   * room's state: it is whatever the server last said (a match that was running is still PLAYING).
+   */
   roomStateOnReconnect = 'LOBBY';
   validToken = 'host-token-0';
   #counter = 0;
@@ -153,6 +156,7 @@ export class FakeHostNetwork {
     state: string,
     players: ReturnType<typeof roster>,
   ): void {
+    this.roomStateOnReconnect = state; // the server's room is in this state now
     transport.deliver({
       type: 'ROOM_UPDATED',
       payload: { joinCode: this.joinCode, state, hostConnection: 'CONNECTED', players },

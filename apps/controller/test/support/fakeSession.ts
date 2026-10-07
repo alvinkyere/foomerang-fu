@@ -24,6 +24,7 @@ export const IDLE: ControllerState = {
   displayName: undefined,
   playerId: undefined,
   manifest: undefined,
+  context: undefined,
   failure: undefined,
 };
 
@@ -33,6 +34,7 @@ export const READY: ControllerState = {
   displayName: 'Alice',
   playerId: 'player-1',
   manifest: MOVE_MANIFEST,
+  context: undefined,
   failure: undefined,
 };
 

@@ -1,8 +1,10 @@
 import {
   PROTOCOL_VERSION,
   parseServerMessage,
+  type ControllerContext,
   type ControllerManifest,
   type ErrorCode,
+  type SecondaryAction,
 } from '@foomerang/protocol';
 import { browserEnvironment, type Cancel, type SessionEnvironment } from './environment';
 import type { Point } from './joystick';
@@ -25,6 +27,14 @@ export type SessionFailure =
   | { readonly kind: 'CONNECTION_FAILED' }
   | { readonly kind: 'CONNECTION_LOST' };
 
+/** What the controller's controls mean right now, as the host last said (see CONTROLLER_CONTEXT). */
+export interface ControllerContextState {
+  readonly context: ControllerContext;
+  readonly secondaryAction: SecondaryAction;
+  /** The room's authoritative version: anything older is stale. */
+  readonly version: number;
+}
+
 /** UI state. Immutable, and replaced only when something a screen would show has changed. */
 export interface ControllerState {
   readonly phase: ControllerPhase;
@@ -32,6 +42,8 @@ export interface ControllerState {
   readonly displayName: string | undefined;
   readonly playerId: string | undefined;
   readonly manifest: ControllerManifest | undefined;
+  /** Undefined until the host's context has arrived: the controller is not interactive before that. */
+  readonly context: ControllerContextState | undefined;
   readonly failure: SessionFailure | undefined;
 }
 
@@ -69,6 +81,7 @@ const IDLE_STATE: ControllerState = Object.freeze({
   displayName: undefined,
   playerId: undefined,
   manifest: undefined,
+  context: undefined,
   failure: undefined,
 });
 
@@ -84,6 +97,8 @@ const FINAL_ERRORS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
 
 const DEFAULT_BACKOFF_MS = [250, 500, 1_000, 2_000] as const;
 const HEARTBEAT_MEMORY = 16;
+/** A stick within this distance of centre counts as neutral when deciding whether a held stick may count again. */
+const NEUTRAL_RADIUS = 0.12;
 
 interface Credentials {
   joinCode: string;
@@ -119,6 +134,12 @@ export class ControllerSession {
   #epoch = 0;
   #intent: 'JOIN' | 'RECONNECT' = 'JOIN';
   #awaitingManifest = false;
+  /** A manifest and a context arrive one after the other; the controller is interactive only once it has both. */
+  #pendingManifest: ControllerManifest | undefined;
+  #pendingContext: ControllerContextState | undefined;
+  /** The stick was held when the context changed: it reads as neutral until it genuinely returns to neutral. */
+  #stickLatched = false;
+  #stick: Point = { x: 0, y: 0 };
   #disposed = false;
 
   #movementSeq = 0;
@@ -229,6 +250,14 @@ export class ControllerSession {
     if (this.#disposed) return;
     const primary = this.#state.manifest?.controls.find((control) => control.type === 'joystick');
     if (primary === undefined || primary.id !== controlId) return;
+    this.#stick = value;
+    if (this.#stickLatched) {
+      if (Math.hypot(value.x, value.y) > NEUTRAL_RADIUS) {
+        this.#sampler.setMovement(0, 0); // held through a context change: it does not count until released
+        return;
+      }
+      this.#stickLatched = false;
+    }
     this.#sampler.setMovement(value.x, value.y);
   }
 
@@ -293,6 +322,8 @@ export class ControllerSession {
     const epoch = (this.#epoch += 1);
     this.#intent = intent;
     this.#awaitingManifest = false;
+    this.#pendingManifest = undefined;
+    this.#pendingContext = undefined;
     const transport = this.#factory();
     this.#transport = transport;
     const live = (): boolean => epoch === this.#epoch && !this.#disposed;
@@ -459,10 +490,20 @@ export class ControllerSession {
       case 'CONTROLLER_MANIFEST':
         if (this.#awaitingManifest) {
           this.#awaitingManifest = false;
-          this.#enterReady(message.payload);
+          this.#pendingManifest = message.payload;
+          this.#setState({ ...this.#state, manifest: message.payload });
+          this.#maybeEnterReady();
         } else if (phase === 'READY') {
           this.#setState({ ...this.#state, manifest: message.payload });
         }
+        return;
+
+      case 'CONTROLLER_CONTEXT':
+        this.#receiveContext({
+          context: message.payload.context,
+          secondaryAction: message.payload.secondaryAction,
+          version: message.payload.version,
+        });
         return;
 
       case 'HEARTBEAT_ACK': {
@@ -498,7 +539,45 @@ export class ControllerSession {
     }
   }
 
-  #enterReady(manifest: ControllerManifest): void {
+  /** Interactive only when BOTH the manifest and the host's context are known: never a flash of the wrong labels. */
+  #maybeEnterReady(): void {
+    const manifest = this.#pendingManifest;
+    const context = this.#pendingContext;
+    if (manifest === undefined || context === undefined) return;
+    this.#pendingManifest = undefined;
+    this.#pendingContext = undefined;
+    this.#enterReady(manifest, context);
+  }
+
+  #receiveContext(next: ControllerContextState): void {
+    const phase = this.#state.phase;
+    if (phase === 'READY') {
+      const current = this.#state.context;
+      if (current !== undefined && next.version <= current.version) return; // stale or repeated
+      this.#setState({ ...this.#state, context: next });
+      if (current === undefined || current.context !== next.context) this.#latchHeldControls();
+      return;
+    }
+    if (phase === 'JOINING' || phase === 'RECONNECTING') {
+      this.#pendingContext = next;
+      this.#maybeEnterReady();
+    }
+  }
+
+  /**
+   * A context boundary: whatever is held NOW belongs to the old meaning. The stick reads neutral at
+   * once and stays neutral until it really returns to neutral; a held button already sent its press
+   * and will send only its release. Nothing here waits on a timer.
+   */
+  #latchHeldControls(): void {
+    if (Math.hypot(this.#stick.x, this.#stick.y) > NEUTRAL_RADIUS) {
+      this.#stickLatched = true;
+      this.#sampler.setMovement(0, 0);
+      this.#sampleAndSend();
+    }
+  }
+
+  #enterReady(manifest: ControllerManifest, context: ControllerContextState): void {
     this.#stopServices();
     this.#cancelRetry?.();
     this.#cancelRetry = undefined;
@@ -508,6 +587,8 @@ export class ControllerSession {
     this.#heldButtons.clear();
     this.#heartbeatSeq = 0;
     this.#heartbeatSentAt.clear();
+    this.#stickLatched = false;
+    this.#stick = { x: 0, y: 0 };
     this.#sampler.reset();
     this.#cancelSampler = this.#env.scheduler.setInterval(
       () => this.#sampleAndSend(),
@@ -517,7 +598,7 @@ export class ControllerSession {
       () => this.#heartbeat(),
       this.#heartbeatIntervalMs,
     );
-    this.#setState({ ...this.#state, phase: 'READY', manifest, failure: undefined });
+    this.#setState({ ...this.#state, phase: 'READY', manifest, context, failure: undefined });
   }
 
   #sampleAndSend(): void {

@@ -1,4 +1,9 @@
-import type { ControllerManifest, ErrorCode } from '@foomerang/protocol';
+import type {
+  ControllerContext,
+  ControllerManifest,
+  ErrorCode,
+  SecondaryAction,
+} from '@foomerang/protocol';
 import type { Cancel, Scheduler, SessionEnvironment } from '../../src/environment';
 import type { SessionStore, StoredSession } from '../../src/store';
 import type { ControllerTransport } from '../../src/transport';
@@ -169,6 +174,14 @@ export class FakeNetwork {
   /** If set, PLAYER_RECONNECT is answered with this error regardless of the token. */
   reconnectError: ErrorCode | undefined;
   manifest: ControllerManifest = MOVE_MANIFEST;
+  /** The context the server delivers right after the manifest (what the host last said). */
+  context:
+    { context: ControllerContext; secondaryAction: SecondaryAction; version: number } | undefined =
+    {
+      context: 'GAMEPLAY',
+      secondaryAction: null,
+      version: 1,
+    };
   /** The only credential the server currently accepts. */
   validToken = 'token-0';
   #tokenCounter = 0;
@@ -190,6 +203,24 @@ export class FakeNetwork {
     return this.transports.flatMap((transport) => transport.of(type));
   }
 
+  #deliverContext(transport: FakeTransport): void {
+    if (this.context !== undefined)
+      transport.deliver({ type: 'CONTROLLER_CONTEXT', payload: { ...this.context } });
+  }
+
+  /** The host changes the context: the server relays it to the connected phone, with a new version. */
+  async pushContext(
+    context: ControllerContext,
+    secondaryAction: SecondaryAction = null,
+    version?: number,
+  ): Promise<void> {
+    const next = { context, secondaryAction, version: version ?? (this.context?.version ?? 0) + 1 };
+    this.context = next;
+    this.last.deliver({ type: 'CONTROLLER_CONTEXT', payload: { ...next } });
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
   serverReceives(transport: FakeTransport, message: Sent): void {
     switch (message.type) {
       case 'HANDSHAKE':
@@ -206,6 +237,7 @@ export class FakeNetwork {
           payload: { playerId: 'player-1', reconnectToken: this.validToken },
         });
         transport.deliver({ type: 'CONTROLLER_MANIFEST', payload: this.manifest });
+        this.#deliverContext(transport);
         return;
       case 'PLAYER_RECONNECT':
         if (this.reconnectError) {
@@ -222,6 +254,7 @@ export class FakeNetwork {
           payload: { playerId: 'player-1', reconnectToken: this.validToken },
         });
         transport.deliver({ type: 'CONTROLLER_MANIFEST', payload: this.manifest });
+        this.#deliverContext(transport);
         return;
       case 'HEARTBEAT':
         if (this.ackHeartbeats) transport.deliver({ type: 'HEARTBEAT_ACK', seq: message.seq });

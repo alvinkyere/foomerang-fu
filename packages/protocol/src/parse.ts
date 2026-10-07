@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { controllerContextMessageSchema, controllerContextSetMessageSchema } from './context';
 import { handshakeAcceptedMessageSchema, handshakeMessageSchema } from './client';
 import { inputEventMessageSchema, inputMoveMessageSchema } from './controller';
 import { errorMessageSchema, type ErrorCode } from './errors';
@@ -40,6 +41,7 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   hostReconnectMessageSchema,
   matchStartMessageSchema,
   matchEndMessageSchema,
+  controllerContextSetMessageSchema,
   roomJoinMessageSchema,
   playerReconnectMessageSchema,
 ]);
@@ -57,6 +59,7 @@ const serverMessageSchema = z.discriminatedUnion('type', [
   roomUpdatedMessageSchema,
   playerInputMessageSchema,
   controllerManifestMessageSchema,
+  controllerContextMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 

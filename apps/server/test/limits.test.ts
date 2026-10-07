@@ -177,6 +177,7 @@ describe('diagnostics', () => {
         'movementRouted',
         'rateLimitedMessages',
         'staleClosesIgnored',
+        'staleContextDiscarded',
         'staleMovementDiscarded',
         'takeovers',
         'unauthorizedMessages',

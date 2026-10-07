@@ -131,6 +131,16 @@ export class LazyFuRuntime implements MatchRuntime {
     this.#real?.rebase(nowMs);
   }
 
+  neutralizeInput(): void {
+    this.#thumbs.clear();
+    this.#presses = [];
+    this.#real?.neutralizeInput();
+  }
+
+  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
+    return this.#real?.matchPhase() ?? (this.#real === undefined ? undefined : 'PLAYING');
+  }
+
   metrics(): RuntimeMetrics {
     return this.#real?.metrics() ?? NOT_LOADED;
   }

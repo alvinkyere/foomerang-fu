@@ -7,8 +7,10 @@ import {
 import {
   PROTOCOL_VERSION,
   parseServerMessage,
+  type ControllerContext,
   type ErrorCode,
   type RosterEntry,
+  type SecondaryAction,
 } from '@foomerang/protocol';
 import type { HostStore } from './hostStore';
 
@@ -67,7 +69,8 @@ export interface HostSessionOptions {
   readonly reconnect?: { readonly timeoutMs?: number; readonly backoffMs?: readonly number[] };
 }
 
-export type MovementHandler = (playerId: string, x: number, y: number) => void;
+/** `seq` is the sender's movement sequence on its current connection (it restarts when the phone reconnects). */
+export type MovementHandler = (playerId: string, x: number, y: number, seq: number) => void;
 
 /** An authenticated button event. `eventId` is the sender's unique id for it. */
 export interface PlayerAction {
@@ -138,6 +141,11 @@ export class HostSession {
   #epoch = 0;
   #intent: 'CREATE' | 'RECONNECT' = 'CREATE';
   #disposed = false;
+
+  /** What the controllers' controls should mean, as the console last decided; re-sent on every new connection. */
+  #desiredContext: { context: ControllerContext; secondaryAction: SecondaryAction } | undefined;
+  #sentContextKey: string | undefined;
+  #contextSeq = 0;
 
   #heartbeatSeq = 0;
   readonly #heartbeatSentAt = new Map<number, number>();
@@ -229,6 +237,29 @@ export class HostSession {
     return true;
   }
 
+  /**
+   * Says what the phones' controls mean now (CONTROLLER_CONTEXT). The console owns this: it is sent
+   * once the connection is live, never twice for the same thing, and again after a reconnect (the
+   * server keeps its own copy, but this console is the authority).
+   */
+  setContext(context: ControllerContext, secondaryAction: SecondaryAction = null): void {
+    this.#desiredContext = { context, secondaryAction };
+    this.#flushContext();
+  }
+
+  #flushContext(): void {
+    const desired = this.#desiredContext;
+    if (this.#disposed || desired === undefined || this.#state.phase !== 'ACTIVE') return;
+    const key = `${desired.context}/${desired.secondaryAction?.label ?? ''}`;
+    if (key === this.#sentContextKey) return;
+    this.#sentContextKey = key;
+    this.#send({
+      type: 'CONTROLLER_CONTEXT',
+      seq: this.#contextSeq++,
+      payload: { context: desired.context, secondaryAction: desired.secondaryAction },
+    });
+  }
+
   startMatch(): void {
     if (this.#disposed || this.#state.phase !== 'ACTIVE') return;
     this.#set({ ...this.#state, notice: undefined });
@@ -265,6 +296,8 @@ export class HostSession {
   #open(intent: 'CREATE' | 'RECONNECT'): void {
     const epoch = (this.#epoch += 1);
     this.#intent = intent;
+    this.#contextSeq = 0; // a new connection is a new stream
+    this.#sentContextKey = undefined;
     const transport = this.#factory();
     this.#transport = transport;
     const live = (): boolean => epoch === this.#epoch && !this.#disposed;
@@ -460,7 +493,7 @@ export class HostSession {
         this.#movementReceived += 1;
         for (const handler of [...this.#movementHandlers]) {
           try {
-            handler(playerId, input.x, input.y);
+            handler(playerId, input.x, input.y, input.seq);
           } catch {
             // one bad consumer must not break the session
           }
@@ -515,6 +548,7 @@ export class HostSession {
       this.#heartbeatIntervalMs,
     );
     this.#set({ ...this.#state, phase: 'ACTIVE', joinCode, failure: undefined, notice: undefined });
+    this.#flushContext();
   }
 
   #heartbeat(): void {

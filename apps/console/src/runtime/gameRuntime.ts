@@ -45,6 +45,10 @@ export class GameRuntime implements MatchRuntime {
     this.#stepper.rebase(nowMs);
   }
 
+  neutralizeInput(): void {
+    this.#inputs.clear();
+  }
+
   frame(nowMs: number): void {
     if (this.world === undefined) return;
     const steps = this.#stepper.advance(nowMs);

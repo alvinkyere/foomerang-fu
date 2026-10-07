@@ -175,6 +175,17 @@ export class Gateway {
         application.endMatch(session);
         return;
 
+      case 'CONTROLLER_CONTEXT':
+        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
+        // State, like movement: ordered within this connection, latest wins; a stale one is quietly dropped.
+        if (message.seq <= session.lastContextSeq) {
+          this.#deps.diagnostics.increment('staleContextDiscarded');
+          return;
+        }
+        session.lastContextSeq = message.seq;
+        application.setContext(session, message);
+        return;
+
       case 'ROOM_JOIN':
         if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
         application.joinRoom(session, message.payload.joinCode, message.payload.displayName);

@@ -39,6 +39,10 @@ export interface MatchRuntime {
   frame(nowMs: number): void;
   /** After a pause: restart the clock at `nowMs` so the time that passed is not simulated or counted as discarded. */
   rebase?(nowMs: number): void;
+  /** Forget every held thumb and every action not yet used (a pause begins): nothing is carried across it. */
+  neutralizeInput?(): void;
+  /** Where the match is, for the games that have rounds and results (the host uses it to tell controllers what their buttons mean). */
+  matchPhase?(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined;
   metrics(): RuntimeMetrics;
   /**
    * What to draw. One-shot presentation events (a throw, a hit) are delivered with the FIRST view

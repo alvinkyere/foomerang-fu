@@ -3,6 +3,7 @@
 
 export { createControllerSession, ControllerSession } from './session';
 export type {
+  ControllerContextState,
   ControllerDiagnostics,
   ControllerPhase,
   ControllerSessionOptions,

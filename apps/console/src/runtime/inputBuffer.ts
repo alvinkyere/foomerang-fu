@@ -55,6 +55,11 @@ export class InputBuffer {
     this.#entries.set(playerId, { x, y, receivedAt: nowMs, consumed: false, staleCounted: false });
   }
 
+  /** Forget every thumb: after this, everybody reads as neutral until they move again. */
+  clear(): void {
+    this.#entries.clear();
+  }
+
   forget(playerId: string): void {
     this.#entries.delete(playerId);
   }

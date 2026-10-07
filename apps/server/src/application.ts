@@ -1,6 +1,9 @@
 import {
   controllerManifestSchema,
   type ControlDescriptor,
+  type ControllerContext,
+  type ControllerContextSetMessage,
+  type SecondaryAction,
   type ControllerOrientation,
   type ErrorCode,
   type HeartbeatMessage,
@@ -76,6 +79,14 @@ export function validateGames(
   return validated;
 }
 
+/** What the room's controllers currently mean by their buttons. Authoritative, per room, and only the host sets it. */
+interface RoomContext {
+  readonly context: ControllerContext;
+  readonly secondaryAction: SecondaryAction;
+  /** Monotonic across the room's whole life (and across host reconnects); phones discard anything older. */
+  readonly version: number;
+}
+
 export interface ApplicationDeps {
   readonly registry: RoomRegistry;
   readonly bindings: BindingTable;
@@ -96,6 +107,8 @@ export class Application {
   readonly #deps: ApplicationDeps;
   /** Per-player action dedup, keyed by identity (so it survives reconnects). Bounded per player and pruned with the room. */
   readonly #eventWindows = new Map<RoomId, Map<PlayerId, BoundedEventWindow>>();
+  /** The controller context of each room. Forgotten with the room. */
+  readonly #contexts = new Map<RoomId, RoomContext>();
 
   constructor(deps: ApplicationDeps) {
     this.#deps = deps;
@@ -113,6 +126,7 @@ export class Application {
     if (!created.ok) return this.#error(session, CREATE_ROOM_ERRORS[created.reason]);
 
     const room = created.value;
+    this.#contexts.set(room.roomId, { context: 'CONSOLE', secondaryAction: null, version: 1 });
     this.#deps.bindings.bindHost(room.roomId, room.host.hostId, session);
     session.send({
       type: 'ROOM_CREATED',
@@ -132,6 +146,7 @@ export class Application {
       payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
     });
     this.#sendManifest(session, room);
+    this.#sendContext(session, room.roomId);
     this.#notifyHost(room.roomId);
   }
 
@@ -150,6 +165,7 @@ export class Application {
       payload: { playerId: player.playerId, reconnectToken: player.reconnectToken.reveal() },
     });
     this.#sendManifest(session, result.value.room);
+    this.#sendContext(session, found.roomId);
     this.#notifyHost(found.roomId);
   }
 
@@ -181,6 +197,7 @@ export class Application {
     if (!starting.ok) return this.#error(session, TRANSITION_ERRORS[starting.reason]);
     const playing = this.#deps.registry.startPlaying(identity.roomId);
     if (!playing.ok) return this.#error(session, 'INTERNAL_ERROR');
+    this.#applyContext(identity.roomId, 'GAMEPLAY', null); // a game just began: the controls mean the game
     this.#notifyHost(identity.roomId);
   }
 
@@ -192,7 +209,24 @@ export class Application {
     if (!finished.ok) return this.#error(session, TRANSITION_ERRORS[finished.reason]);
     const back = this.#deps.registry.returnToLobby(identity.roomId);
     if (!back.ok) return this.#error(session, 'INTERNAL_ERROR');
+    this.#applyContext(identity.roomId, 'CONSOLE', null); // never leave a menu (or a game) on a lobby
     this.#notifyHost(identity.roomId);
+  }
+
+  /**
+   * The host says what the controllers' controls mean now. Legal only while a match is running (any
+   * context); in every other room state only CONSOLE is meaningful. Said again, it changes nothing.
+   */
+  setContext(session: Session, message: ControllerContextSetMessage): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'HOST') return;
+    const room = this.#deps.registry.getRoom(identity.roomId);
+    if (room === undefined) return;
+    const { context, secondaryAction } = message.payload;
+    if (room.state !== 'PLAYING' && context !== 'CONSOLE') {
+      return this.#error(session, 'INVALID_STATE');
+    }
+    this.#applyContext(identity.roomId, context, secondaryAction);
   }
 
   routeMove(session: Session, message: InputMoveMessage): void {
@@ -267,6 +301,9 @@ export class Application {
         this.#deps.bindings.forgetRoom(roomId);
       }
     }
+    for (const roomId of [...this.#contexts.keys()]) {
+      if (this.#deps.registry.getRoom(roomId) === undefined) this.#contexts.delete(roomId);
+    }
   }
 
   // ---------------------------------------------------------------------------------------
@@ -283,6 +320,29 @@ export class Application {
         controls: [...game.controller.controls],
       },
     });
+  }
+
+  /** Tells one controller what its controls mean now; sent after identity and manifest, so it never shows the wrong labels. */
+  #sendContext(session: Session, roomId: RoomId): void {
+    const current = this.#contexts.get(roomId);
+    if (current === undefined) return;
+    session.send({ type: 'CONTROLLER_CONTEXT', payload: { ...current } });
+  }
+
+  /** Stores and broadcasts a context, unless it is exactly what is already true. */
+  #applyContext(
+    roomId: RoomId,
+    context: ControllerContext,
+    secondaryAction: SecondaryAction,
+  ): void {
+    const current = this.#contexts.get(roomId);
+    if (current === undefined) return;
+    if (current.context === context && current.secondaryAction?.label === secondaryAction?.label) {
+      return;
+    }
+    this.#contexts.set(roomId, { context, secondaryAction, version: current.version + 1 });
+    for (const phone of this.#deps.bindings.playerSessions(roomId))
+      this.#sendContext(phone, roomId);
   }
 
   #error(session: Session, code: ErrorCode): void {

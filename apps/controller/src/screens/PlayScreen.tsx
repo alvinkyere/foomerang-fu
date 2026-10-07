@@ -2,6 +2,7 @@ import type { ControllerState } from '@foomerang/controller-sdk';
 import { ConnectionBadge } from '../components/ConnectionBadge';
 import { ControlRenderer } from '../components/ControlRenderer';
 import { useInterruptionGuard } from '../hooks/useInterruptionGuard';
+import { CONTEXT_BADGE } from '../labels';
 import { orientationHint, useViewportOrientation } from '../orientation';
 import type { SessionPort } from '../session';
 
@@ -18,12 +19,19 @@ export function PlayScreen({
 }) {
   useInterruptionGuard(() => session.neutralize());
   const viewport = useViewportOrientation();
+  const context = state.context?.context ?? 'GAMEPLAY';
+  const badge = CONTEXT_BADGE[context];
   const hint = state.manifest ? orientationHint(state.manifest.orientation, viewport) : undefined;
 
   return (
-    <main className="play" data-reconnecting={state.phase === 'RECONNECTING'}>
+    <main
+      className="play"
+      data-reconnecting={state.phase === 'RECONNECTING'}
+      data-context={context}
+    >
       <header className="play-header">
         <span className="player-name">{state.displayName}</span>
+        {badge !== undefined && <span className="context-badge">{badge}</span>}
         <ConnectionBadge phase={state.phase} />
       </header>
       {hint ? (
@@ -36,6 +44,8 @@ export function PlayScreen({
       {state.manifest ? (
         <ControlRenderer
           manifest={state.manifest}
+          context={context}
+          secondaryAction={state.context?.secondaryAction ?? null}
           onControlChange={(controlId, value) => session.setControlValue(controlId, value)}
           onButtonChange={(controlId, pressed) => session.setButton(controlId, pressed)}
         />

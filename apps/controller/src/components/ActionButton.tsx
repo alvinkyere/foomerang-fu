@@ -13,6 +13,8 @@ export interface ActionButtonProps {
   readonly controlId: string;
   /** The generic action the manifest says this button sends. Only the layout reads it (PRIMARY is the big one, TERTIARY sits beside SECONDARY). */
   readonly action?: string;
+  /** What it is called right now (the host's context decides). Default: the control id. No label: still pressable, but unlabelled. */
+  readonly label?: string | null;
   /** `true` when it goes down, `false` when it comes up. Called once per change, never repeated. */
   readonly onChange: (pressed: boolean) => void;
 }
@@ -23,7 +25,8 @@ export interface ActionButtonProps {
  * lost capture, window blur, page hidden/unloading, unmount) reports UP, so it cannot get stuck.
  * Space / Enter work too (accessibility, and the desktop way to try it).
  */
-export function ActionButton({ controlId, action, onChange }: ActionButtonProps) {
+export function ActionButton({ controlId, action, label: labelProp, onChange }: ActionButtonProps) {
+  const label = labelProp === undefined ? controlId : labelProp; // null: deliberately unlabelled
   const pointer = useRef<number | null>(null);
   const key = useRef(false);
   const [pressed, setPressed] = useState(false);
@@ -92,6 +95,9 @@ export function ActionButton({ controlId, action, onChange }: ActionButtonProps)
       className="action-button"
       data-pressed={pressed}
       data-action={action}
+      data-control={controlId}
+      data-unused={label === null || undefined}
+      aria-label={label === null ? `${controlId} (not used here)` : undefined}
       // Inline as well as in CSS: scrolling, zooming or a long-press must never steal the touch.
       style={{ touchAction: 'none', userSelect: 'none' }}
       onPointerDown={onPointerDown}
@@ -102,7 +108,7 @@ export function ActionButton({ controlId, action, onChange }: ActionButtonProps)
       onKeyUp={onKeyUp}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {controlId}
+      {label}
     </button>
   );
 }

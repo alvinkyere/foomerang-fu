@@ -67,6 +67,11 @@ export class BindingTable {
     return this.#hosts.get(roomId)?.session;
   }
 
+  /** Every player connection that currently speaks for a seat in the room. */
+  playerSessions(roomId: RoomId): Session[] {
+    return [...(this.#players.get(roomId)?.values() ?? [])].map((b) => b.session);
+  }
+
   forgetRoom(roomId: RoomId): void {
     this.#hosts.delete(roomId);
     this.#players.delete(roomId);

@@ -14,6 +14,7 @@ export const COUNTER_NAMES = [
   'unauthorizedMessages',
   'rateLimitedMessages',
   'staleMovementDiscarded',
+  'staleContextDiscarded',
   'duplicateEventsDiscarded',
   'movementRouted',
   'eventsRouted',

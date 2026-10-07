@@ -1,10 +1,14 @@
-import type { ControllerManifest } from '@foomerang/protocol';
+import type { ControllerContext, ControllerManifest, SecondaryAction } from '@foomerang/protocol';
 import type { Point } from '@foomerang/controller-sdk';
 import { ActionButton } from './ActionButton';
+import { meaningOf } from '../labels';
 import { Joystick } from './Joystick';
 
 export interface ControlRendererProps {
   readonly manifest: ControllerManifest;
+  /** What the controls mean right now (the host's say). Default: the game itself. */
+  readonly context?: ControllerContext;
+  readonly secondaryAction?: SecondaryAction;
   readonly onControlChange: (controlId: string, value: Point) => void;
   readonly onButtonChange: (controlId: string, pressed: boolean) => void;
 }
@@ -16,6 +20,8 @@ export interface ControlRendererProps {
  */
 export function ControlRenderer({
   manifest,
+  context = 'GAMEPLAY',
+  secondaryAction = null,
   onControlChange,
   onButtonChange,
 }: ControlRendererProps) {
@@ -25,6 +31,7 @@ export function ControlRenderer({
           <Joystick
             key={control.id}
             controlId={control.id}
+            label={meaningOf(control, context, secondaryAction) ?? null}
             onChange={(value) => onControlChange(control.id, value)}
           />,
         ]
@@ -37,6 +44,7 @@ export function ControlRenderer({
             key={control.id}
             controlId={control.id}
             action={control.action}
+            label={meaningOf(control, context, secondaryAction) ?? null}
             onChange={(pressed) => onButtonChange(control.id, pressed)}
           />,
         ]
@@ -48,7 +56,7 @@ export function ControlRenderer({
     (control) => control.type === 'button' && control.action === 'TERTIARY',
   );
   return (
-    <div className="controls">
+    <div className="controls" data-context={context}>
       {sticks}
       {buttons.length > 0 && (
         <div className="button-cluster" data-layout={hasTertiary ? 'tertiary' : undefined}>

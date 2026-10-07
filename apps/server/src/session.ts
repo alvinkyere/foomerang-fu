@@ -39,6 +39,8 @@ export class Session {
    * is a new connection and may start again from 0.
    */
   lastMovementSeq = -1;
+  /** Last accepted CONTROLLER_CONTEXT seq from this (host) connection; a reconnecting host starts again. */
+  lastContextSeq = -1;
   droppedMessages = 0;
   invalidMessages = 0;
 

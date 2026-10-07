@@ -12,6 +12,8 @@ import { tick } from '../haptics';
 export interface JoystickProps {
   /** The manifest's id for this control. It labels the control; the game gives it meaning. */
   readonly controlId: string;
+  /** What it is called right now (the host's context decides). Default: the control id. */
+  readonly label?: string | null;
   /** Normalized value in [-1, 1], +X right, +Y DOWN. Called as often as the pointer moves. */
   readonly onChange: (value: Point) => void;
 }
@@ -44,7 +46,8 @@ const KEYS: Readonly<Record<string, 'up' | 'down' | 'left' | 'right'>> = {
  * capture, window blur, page hidden/unloading, unmount — sends NEUTRAL, so it cannot get stuck.
  * Arrow keys / WASD steer too (accessibility, and the desktop way to try it).
  */
-export function Joystick({ controlId, onChange }: JoystickProps) {
+export function Joystick({ controlId, label: labelProp, onChange }: JoystickProps) {
+  const label = labelProp === undefined ? controlId : labelProp;
   const zoneRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -161,7 +164,7 @@ export function Joystick({ controlId, onChange }: JoystickProps) {
       ref={zoneRef}
       className="joystick-zone"
       role="group"
-      aria-label={`${controlId} joystick`}
+      aria-label={`${label ?? controlId} joystick`}
       aria-describedby={helpId}
       tabIndex={0}
       data-active={active}
@@ -182,6 +185,11 @@ export function Joystick({ controlId, onChange }: JoystickProps) {
       <div ref={baseRef} className="joystick-base" aria-hidden="true">
         <div ref={thumbRef} className="joystick-thumb" />
       </div>
+      {label !== null && (
+        <span className="joystick-label" aria-hidden="true">
+          {label}
+        </span>
+      )}
       <p id={helpId} className="visually-hidden">
         Drag anywhere on this area to move. Arrow keys or W, A, S, D also work.
       </p>

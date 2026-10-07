@@ -93,3 +93,17 @@ export type {
   ControllerManifestMessage,
   ControllerOrientation,
 } from './manifest';
+
+export {
+  CONTROLLER_CONTEXTS,
+  SECONDARY_ACTION_LABELS,
+  controllerContextMessageSchema,
+  controllerContextSetMessageSchema,
+} from './context';
+export type {
+  ControllerContext,
+  ControllerContextMessage,
+  ControllerContextSetMessage,
+  SecondaryAction,
+  SecondaryActionLabel,
+} from './context';

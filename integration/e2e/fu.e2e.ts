@@ -92,20 +92,27 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   fuHost: host,
   newPhone,
 }) => {
-  // The controller is rendered from the manifest: MOVE joystick + SLASH and THROW buttons.
+  // The controller is rendered from the manifest. In the lobby the host says CONSOLE, so the same
+  // thumbs drive the console: NAVIGATE / SELECT / BACK.
   const code = await host.createRoom();
   const alice = await newPhone();
   const bob = await newPhone();
   await alice.join(code, 'Alice');
   await bob.join(code, 'Bob');
   for (const phone of [alice, bob]) {
-    await expect(phone.page.getByRole('group', { name: /move/i })).toBeVisible();
-    await expect(phone.page.getByRole('button', { name: 'THROW' })).toBeVisible();
-    await expect(phone.page.getByRole('button', { name: 'SLASH' })).toBeVisible();
+    await expect(phone.page.getByRole('group', { name: /navigate/i })).toBeVisible();
+    await expect(phone.page.getByRole('button', { name: 'SELECT' })).toBeVisible();
+    await expect(phone.page.getByRole('button', { name: 'BACK' })).toBeVisible();
   }
 
   await host.start();
   await host.waitForDrawn(2);
+  // GAMEPLAY: the game's own names — MOVE joystick + SLASH and THROW buttons.
+  for (const phone of [alice, bob]) {
+    await expect(phone.page.getByRole('group', { name: /move/i })).toBeVisible();
+    await expect(phone.page.getByRole('button', { name: 'THROW' })).toBeVisible();
+    await expect(phone.page.getByRole('button', { name: 'SLASH' })).toBeVisible();
+  }
   const aliceId = await host.playerId('Alice');
   const bobId = await host.playerId('Bob');
 

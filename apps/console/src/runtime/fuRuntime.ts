@@ -164,6 +164,18 @@ export class FuRuntime implements MatchRuntime {
     this.#stepper.rebase(nowMs);
   }
 
+  /** A pause begins: no held thumb and no queued press survives it. */
+  neutralizeInput(): void {
+    this.#inputs.clear();
+    this.#pendingThrows.clear();
+    this.#pendingSlashes.clear();
+    this.#pendingDashes.clear();
+  }
+
+  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
+    return this.state?.phase;
+  }
+
   setActivity(isActive: (playerId: string) => boolean): void {
     this.#isActive = isActive;
   }
