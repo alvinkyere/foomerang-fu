@@ -29,6 +29,11 @@ cv2.imwrite(os.path.join(OUT, 'ground.webp'), np.clip(g, 0, 255).astype(np.uint8
 layers = json.load(open(os.path.join(ENV, 'layers.json'))); occ = []
 for k, (xb, yb) in cfg.get('depth_overrides', {}).items():          # a group whose footprint centre misrepresents its depth
     if k in layers: layers[k]['depth_y'] = screen_y(xb / 100, yb / 100)
+anim = []
+for k, meta in layers.pop('_animated', {}).items():          # environment animation sheets (animate_prop.py): presentation only
+    im = cv2.imread(os.path.join(ENV, meta['file']), cv2.IMREAD_UNCHANGED); cv2.imwrite(os.path.join(OUT, f'anim_{k}.webp'), im, [cv2.IMWRITE_WEBP_QUALITY, 95])
+    anim.append(dict(key=k, file=f'anim_{k}.webp', x=meta['x'], y=meta['y'], width=meta['width'], height=meta['height'], frames=meta['frames'],
+                     periodS=meta['period_s'], depths=meta['depths']))
 for k, meta in layers.items():
     im = cv2.imread(os.path.join(ENV, f'occ_{k}.png'), cv2.IMREAD_UNCHANGED)
     a = im[..., 3]; ys, xs = np.nonzero(a > 2)
@@ -48,7 +53,7 @@ for name in cells['chars']:
     cv2.imwrite(os.path.join(OUT, f'char_{name}.webp'), sheet, [cv2.IMWRITE_WEBP_QUALITY, 95])
     chars[name] = dict(file=f'char_{name}.webp', cell=C, anchor=[round(cells['anchor'][0], 2), round(cells['anchor'][1], 2)], frames=32)
 json.dump(dict(map=MAP, canvas=[W, H], camera=camera, camera_evidence=cc.get('evidence', {}), ground='ground.webp',
-               occluders=sorted(occ, key=lambda o: o['depth']), characters=chars,
+               occluders=sorted(occ, key=lambda o: o['depth']), animated=anim, characters=chars,
                provenance=f'art/reconstruction (maps/{MAP}.json; bake_map.py, bake_chars.py, package_map.py)'),
           open(os.path.join(OUT, 'manifest.json'), 'w'), indent=1)
 sz = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT)); print('packaged', MAP, len(occ), 'occluders,', len(chars), 'characters,', round(sz / 1e6, 2), 'MB')

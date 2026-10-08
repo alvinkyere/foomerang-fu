@@ -9,6 +9,7 @@ import type {
   ViewEvent,
   WallView,
 } from '../../viewModel';
+import { animationFrame, type AnimatedProp } from '../../reconstructed/animatedProp';
 import { followView } from '../../reconstructed/followView';
 import { createMapCamera, parseMapCamera, type MapCamera } from '../../reconstructed/mapCamera';
 import {
@@ -45,6 +46,7 @@ interface Manifest {
     depth: number;
     fade?: boolean;
   }[];
+  readonly animated?: readonly AnimatedProp[];
   readonly characters: Readonly<
     Record<string, { file: string; cell: number; anchor: [number, number]; frames: number }>
   >;
@@ -206,6 +208,7 @@ class ReconstructedScene extends Phaser.Scene {
     fade: boolean;
   }[] = [];
   #manifest: Manifest | undefined;
+  readonly #animated: { image: Phaser.GameObjects.Image; prop: AnimatedProp }[] = [];
   #cam: MapCamera | undefined;
   #vfx: Vfx | undefined;
   #banner: Phaser.GameObjects.Text | undefined;
@@ -231,6 +234,11 @@ class ReconstructedScene extends Phaser.Scene {
       (_key: string, _type: string, data: Manifest) => {
         this.load.image('map-ground', `${at}${data.ground}`);
         for (const o of data.occluders) this.load.image(`map-occ-${o.key}`, `${at}${o.file}`);
+        for (const a of data.animated ?? [])
+          this.load.spritesheet(`map-anim-${a.key}`, `${at}${a.file}`, {
+            frameWidth: a.width,
+            frameHeight: a.height,
+          });
         for (const [name, c] of Object.entries(data.characters))
           this.load.spritesheet(`char-${name}`, `${at}${c.file}`, {
             frameWidth: c.cell,
@@ -251,6 +259,11 @@ class ReconstructedScene extends Phaser.Scene {
       const image = this.add.image(o.x, o.y, `map-occ-${o.key}`).setOrigin(0, 0).setDepth(o.depth);
       this.#occluders.push({ image, depth: o.depth, alpha: 1, fade: o.fade === true });
     }
+    for (const prop of m.animated ?? [])
+      this.#animated.push({
+        image: this.add.image(prop.x, prop.y, `map-anim-${prop.key}`, 0).setOrigin(0, 0),
+        prop,
+      });
     this.#vfx = new Vfx(
       this,
       (id) => {
@@ -386,6 +399,10 @@ class ReconstructedScene extends Phaser.Scene {
 
   override update(time: number): void {
     this.#frame(false);
+    for (const { image, prop } of this.#animated) {
+      const f = animationFrame(time, prop.periodS, prop.frames);
+      image.setFrame(f).setDepth(prop.depths[f] ?? 0);
+    }
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#vfx?.update(time);
   }
