@@ -31,3 +31,28 @@ Findings:
   average stays ~59. harbour_fort's p99 doubles (33 ms). The previously reported TV / high-player slowdown is **unresolved** and
   remains a **release blocker** until tested on that hardware and resolution.
 - Not yet profiled per map (the earlier plaza CPU profile found React dev re-renders of the console UI as the top app-level cost).
+
+## All 14 maps (2026-10-08)
+
+Same machine and conditions as above: six Hard CPUs + one idle controller, viewport 1920×1080, canvas backing 1920×1080, CPU throttle
+1×, dev console, 20 s per map. "Worst" is the console's worst frame over 2 s windows.
+
+| Map           | Avg FPS | 1% low | p50 / p95 / p99 ms | Worst ms |
+| ------------- | ------- | ------ | ------------------ | -------- |
+| market_plaza  | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 32.4     |
+| harbour_fort  | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 30.7     |
+| sky_islands   | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 18.7     |
+| pond_garden   | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 33.6     |
+| lakeshore     | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 39.3     |
+| farm_plots    | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 34.8     |
+| flooded_ruins | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 33.8     |
+| hedge_maze    | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 23.1     |
+| toaster_dock  | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 31.2     |
+| twin_log_rink | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 31.3     |
+| hex_grove     | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 32.7     |
+| stone_ruins   | 60.00   | 59.52  | 16.7 / 16.7 / 16.8 | 20.7     |
+| cross_pond    | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 30.9     |
+| diamond_walls | 60.00   | 59.52  | 16.7 / 16.8 / 16.8 | 19.7     |
+
+On this machine at 1× every map holds 60 with six CPUs. This does not cover the TV / 4K backing / slow-CPU case: that remains
+unmeasured on target hardware and is still a **release blocker** (the 6× throttle runs above already showed hitches).
