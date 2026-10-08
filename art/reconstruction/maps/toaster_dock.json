@@ -1,0 +1,185 @@
+{
+  "map": "toaster_dock",
+  "shots": "S12 (f1022-f1088); reference f1055",
+  "camera": {
+    "f": 1225.0,
+    "pose": {
+      "pitch_deg": 63.89999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.0050144158293794075, 0.011644079645348613, 0.9782136678695679]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "MEASURED (MEDIUM): two of three vanishing-point segments of S12 agree (f [2524, 1225, 1225] px @640, pitch [45.9, 63.9, 63.9] deg; the first is an outlier) -> f 1225, pitch 63.9.",
+      "track": "window f1040-f1070 around reference f1055 (ECC median 0.98).",
+      "framing": "OBSERVED: reference frame f1055's own camera.",
+      "world_scale": "MEASURED: the banana in f1055 is ~35 px tall against 33-44 px baked through this camera at the plaza fit -> character_scale 0.9 (+-0.1); 2222 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2222,
+    "plan_origin_x": -0.268,
+    "plan_origin_y": 0.678
+  },
+  "character_scale": 0.9,
+  "frame_mode": {
+    "camera_key": "toaster_dock",
+    "reference_frame": 1055,
+    "window": [1040, 1070],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [440, 140],
+        "radius": 19,
+        "what": "banana"
+      }
+    ],
+    "inpaint_px": [
+      {
+        "centre": [414, 188],
+        "radius": 20,
+        "what": "eggplant (in the window median too)"
+      },
+      {
+        "centre": [287, 233],
+        "radius": 30,
+        "what": "carrot + fight (in the median too)"
+      },
+      {
+        "centre": [230, 238],
+        "radius": 24,
+        "what": "effect"
+      },
+      {
+        "centre": [6, 215],
+        "radius": 13,
+        "what": "character"
+      },
+      {
+        "centre": [60, 213],
+        "radius": 15,
+        "what": "character"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "toaster_dais",
+      "polygon_px": [
+        [270, 72],
+        [345, 70],
+        [350, 160],
+        [268, 162]
+      ],
+      "fade": true
+    },
+    {
+      "name": "chair_w",
+      "polygon_px": [
+        [214, 118],
+        [255, 118],
+        [258, 170],
+        [216, 170]
+      ]
+    },
+    {
+      "name": "chair_e",
+      "polygon_px": [
+        [358, 118],
+        [400, 118],
+        [398, 172],
+        [360, 172]
+      ]
+    },
+    {
+      "name": "pots_w",
+      "polygon_px": [
+        [238, 88],
+        [262, 88],
+        [262, 132],
+        [238, 132]
+      ]
+    },
+    {
+      "name": "pot_e",
+      "polygon_px": [
+        [355, 82],
+        [382, 82],
+        [382, 112],
+        [355, 112]
+      ]
+    },
+    {
+      "name": "pots_se",
+      "polygon_px": [
+        [455, 228],
+        [508, 228],
+        [508, 272],
+        [455, 272]
+      ]
+    },
+    {
+      "name": "tree_nw",
+      "polygon_px": [
+        [78, 15],
+        [135, 15],
+        [138, 92],
+        [82, 92]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_ne",
+      "polygon_px": [
+        [462, 0],
+        [548, 0],
+        [548, 82],
+        [470, 82]
+      ],
+      "fade": true
+    },
+    {
+      "name": "pot_s",
+      "polygon_px": [
+        [262, 340],
+        [290, 340],
+        [290, 360],
+        [262, 360]
+      ]
+    }
+  ],
+  "fade_prefixes": ["toaster", "tree"],
+  "arena": {
+    "plan_box": [-0.268, 0.258, 0.328, 0.678],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [18, 34],
+        "min_sat": 70,
+        "min_val": 150
+      },
+      {
+        "hue": [0, 8],
+        "min_sat": 90,
+        "min_val": 120
+      },
+      {
+        "hue": [8, 18],
+        "min_sat": 45,
+        "min_val": 80
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["banana", "carrot", "bread", "coffee", "watermelon", "icecream"],
+  "rules_doc": [
+    "TOASTER DOCK (`toaster_dock`) \u2014 reconstructed from the master gameplay video (shot S12; FRAME MODE: reference frame f1055): a",
+    "sand island with a toaster shrine on a dais (chairs, easels, red carpet), pots, golden trees and wooden docks between water",
+    "channels. Every cell is OBSERVED in the reference frame; ground behind cut-outs is INFERRED walkable; water only blocks (no",
+    "water mechanic). Camera MEASURED (MEDIUM). No hazards; no new mechanic."
+  ]
+}

@@ -155,6 +155,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1871, height: 1352 }),
       background: '#a7d46a',
     }),
+    // seats 1-2 are the shot's pack cast (S12: banana, carrot); its eggplant has no pack model yet
+    toaster_dock: Object.freeze({
+      id: 'toaster_dock',
+      assetDir: 'maps/toaster_dock/',
+      roster: Object.freeze([
+        'banana',
+        'carrot',
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1169, height: 778 }),
+      background: '#e9cf7a',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

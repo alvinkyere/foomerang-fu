@@ -29,6 +29,10 @@ import {
   HEDGE_MAZE_BOOK_SPOTS,
   HEDGE_MAZE_SPAWNS,
   HEDGE_MAZE_WALLS,
+  TOASTER_DOCK_ARENA,
+  TOASTER_DOCK_BOOK_SPOTS,
+  TOASTER_DOCK_SPAWNS,
+  TOASTER_DOCK_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -50,6 +54,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'toaster_dock',
+    arena: TOASTER_DOCK_ARENA,
+    walls: TOASTER_DOCK_WALLS,
+    spawns: TOASTER_DOCK_SPAWNS,
+    books: TOASTER_DOCK_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'hedge_maze',
     arena: HEDGE_MAZE_ARENA,

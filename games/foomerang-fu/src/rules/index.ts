@@ -147,3 +147,12 @@ export {
   HEDGE_MAZE_WIDTH,
 } from './hedgeMazeArena';
 export type { HedgeMazeWall } from './hedgeMazeArena';
+export {
+  TOASTER_DOCK_ARENA,
+  TOASTER_DOCK_BOOK_SPOTS,
+  TOASTER_DOCK_HEIGHT,
+  TOASTER_DOCK_SPAWNS,
+  TOASTER_DOCK_WALLS,
+  TOASTER_DOCK_WIDTH,
+} from './toasterDockArena';
+export type { ToasterDockWall } from './toasterDockArena';
