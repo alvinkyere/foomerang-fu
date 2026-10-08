@@ -91,6 +91,11 @@ const CLASS_BY_TYPE: Readonly<Record<string, MessageClass>> = Object.freeze({
   CONTROLLER_RECONNECT: 'room',
   CONTROLLER_LEAVE: 'room',
   CONTROLLER_REMOVE: 'room',
+  GAME_LAUNCH: 'room',
+  GAME_EXIT: 'room',
+  // Desired STATE from the TV (seating changes as CPUs are added / players benched), like its
+  // context: the action budget, not the human-request one.
+  GAME_PARTICIPANTS: 'action',
   CONTROLLER_CONTEXT: 'action',
   INPUT_MOVE: 'movement',
   INPUT_EVENT: 'action',

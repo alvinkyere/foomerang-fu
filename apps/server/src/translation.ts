@@ -1,6 +1,7 @@
 import type { ErrorCode } from '@foomerang/protocol';
 import type {
   CloseFailure,
+  GameFailure,
   ConsoleJoinFailure,
   ControllerFailure,
   ControllerReconnectFailure,
@@ -95,4 +96,22 @@ export const CONTROLLER_REMOVE_ERRORS: Readonly<Record<ControllerFailure | NotFo
 export const CONSOLE_CLOSE_ERRORS: Readonly<Record<CloseFailure | NotFound, ErrorCode>> = {
   CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
   INVALID_TRANSITION: 'INVALID_STATE',
+};
+
+/**
+ * Game operations on a console (C4). STALE_GAME never reaches the TV as an error: a message for an
+ * ended launch is dropped quietly (and counted), like stale state.
+ */
+export const GAME_ERRORS: Readonly<Record<GameFailure | NotFound, ErrorCode>> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  STALE_GAME: 'INVALID_STATE',
+  INVALID_STATE: 'INVALID_STATE',
+  GAME_ALREADY_ACTIVE: 'INVALID_STATE',
+  INVALID_GAME_CONFIG: 'INTERNAL_ERROR', // the server's own game table is wrong
+  INVALID_TRANSITION: 'INVALID_STATE',
+  NOT_ENOUGH_PLAYERS: 'NOT_ENOUGH_PLAYERS',
+  INVALID_PARTICIPANTS: 'INVALID_STATE',
+  INVALID_SEAT: 'INVALID_STATE',
+  UNKNOWN_CONTROLLER: 'INVALID_STATE',
+  TOO_MANY_PARTICIPANTS: 'INVALID_STATE',
 };

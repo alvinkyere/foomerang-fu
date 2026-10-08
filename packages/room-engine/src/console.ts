@@ -58,12 +58,19 @@ export interface GameConfig {
   readonly maxPlayers: number;
 }
 
+/** A human participant of one launch: which controller, and the seat the TV gave it. */
+export interface Participant {
+  readonly controllerId: ControllerId;
+  /** 1-based, unique within the launch, at most the game's maxPlayers (CPUs fill seats too). */
+  readonly seat: number;
+}
+
 export interface GameSession {
   readonly gameSessionId: GameSessionId;
   readonly config: GameConfig;
   readonly state: GameState;
-  /** Human participants, in seat order. Always a subset of the controllers holding membership. */
-  readonly participants: readonly ControllerId[];
+  /** Human participants as the TV seated them. Always controllers that hold membership. */
+  readonly participants: readonly Participant[];
 }
 
 export interface ConsoleContext {
@@ -83,6 +90,11 @@ export interface ConsoleSession {
   readonly host: Host;
   readonly controllers: readonly Controller[];
   readonly context: ConsoleContext;
+  /**
+   * The controllers' VIEW version: rises whenever what any controller's controls mean may have
+   * changed (context, the active game, its participants). Phones discard anything older.
+   */
+  readonly viewVersion: number;
   readonly activeGame: GameSession | null;
   readonly createdAt: number;
 }
@@ -101,6 +113,7 @@ export type GameFailure =
   | 'INVALID_TRANSITION'
   | 'NOT_ENOUGH_PLAYERS'
   | 'INVALID_PARTICIPANTS'
+  | 'INVALID_SEAT'
   | 'UNKNOWN_CONTROLLER'
   | 'TOO_MANY_PARTICIPANTS';
 export type CloseFailure = 'INVALID_TRANSITION';
@@ -122,6 +135,7 @@ export function createConsole(params: {
     host: Object.freeze({ ...params.host, connection: CONNECTED }),
     controllers: Object.freeze([]),
     context: Object.freeze({ value: 'CONSOLE', secondaryAction: null, version: 1 }),
+    viewVersion: 1,
     activeGame: null,
     createdAt: params.now,
   });
@@ -140,8 +154,16 @@ export function participationOf(
   const game = session.activeGame;
   const member = session.controllers.find((c) => c.controllerId === controllerId);
   if (game === null || member === undefined || member.membership.status !== 'HELD') return 'NONE';
-  return game.participants.includes(controllerId) ? 'PARTICIPANT' : 'WAITING';
+  return game.participants.some((p) => p.controllerId === controllerId) ? 'PARTICIPANT' : 'WAITING';
 }
+
+/** The seat the TV gave this controller in the active launch, if it plays. */
+export function seatOf(session: ConsoleSession, controllerId: ControllerId): number | undefined {
+  return session.activeGame?.participants.find((p) => p.controllerId === controllerId)?.seat;
+}
+
+const touchView = (session: ConsoleSession): ConsoleSession =>
+  Object.freeze({ ...session, viewVersion: session.viewVersion + 1 });
 
 const MATCH_CONTEXTS: ReadonlySet<ControllerContext> = new Set(['GAMEPLAY', 'PAUSED', 'RESULTS']);
 
@@ -246,14 +268,16 @@ function withoutParticipants(
   gone: ReadonlySet<ControllerId>,
 ): ConsoleSession {
   const game = session.activeGame;
-  if (game === null || !game.participants.some((p) => gone.has(p))) return session;
-  return Object.freeze({
-    ...session,
-    activeGame: Object.freeze({
-      ...game,
-      participants: Object.freeze(game.participants.filter((p) => !gone.has(p))),
+  if (game === null || !game.participants.some((p) => gone.has(p.controllerId))) return session;
+  return touchView(
+    Object.freeze({
+      ...session,
+      activeGame: Object.freeze({
+        ...game,
+        participants: Object.freeze(game.participants.filter((p) => !gone.has(p.controllerId))),
+      }),
     }),
-  });
+  );
 }
 
 export function disconnectController(
@@ -460,10 +484,12 @@ function withContext(
   if (current.value === value && current.secondaryAction?.label === secondaryAction?.label) {
     return session;
   }
-  return Object.freeze({
-    ...session,
-    context: Object.freeze({ value, secondaryAction, version: current.version + 1 }),
-  });
+  return touchView(
+    Object.freeze({
+      ...session,
+      context: Object.freeze({ value, secondaryAction, version: current.version + 1 }),
+    }),
+  );
 }
 
 /** The TV says what the controls mean. Anything but CONSOLE needs a running match. */
@@ -480,9 +506,10 @@ export function setContext(
 // --- games -----------------------------------------------------------------------------------
 
 /**
- * Launches a game: a fresh game session whose participants are the controllers connected now (a
- * briefly reconnecting phone counts; one whose connection is lost for good does not), in console
- * join order, up to the game's capacity. Everyone else is WAITING. Seats are never carried over.
+ * Launches a game: a fresh game session (a new epoch: messages for an earlier launch are stale) with
+ * NO participants. The TV seats them (GAME_PARTICIPANTS): it alone knows the CPUs and the seating
+ * policy, so the server never turns a member into a player by itself. Until seated, a controller
+ * of the console is WAITING in this launch.
  */
 export function launchGame(
   session: ConsoleSession,
@@ -493,17 +520,13 @@ export function launchGame(
   if (session.activeGame !== null) return fail('GAME_ALREADY_ACTIVE');
   const valid = validateRoomConfig(config);
   if (valid === undefined) return fail('INVALID_GAME_CONFIG');
-  const participants = heldControllers(session)
-    .filter((c) => c.connection.status !== 'DISCONNECTED')
-    .slice(0, valid.maxPlayers)
-    .map((c) => c.controllerId);
   const game: GameSession = Object.freeze({
     gameSessionId,
     config: valid,
     state: 'LOBBY',
-    participants: Object.freeze(participants),
+    participants: Object.freeze([]),
   });
-  return ok({ session: Object.freeze({ ...session, activeGame: game }), game });
+  return ok({ session: touchView(Object.freeze({ ...session, activeGame: game })), game });
 }
 
 function currentGame(
@@ -535,8 +558,9 @@ export function beginMatch(
   if (!game.ok) return game;
   // Only participants who can actually play count: one who is reconnecting cannot.
   const ready = game.value.participants.filter(
-    (id) =>
-      session.controllers.find((c) => c.controllerId === id)?.connection.status === 'CONNECTED',
+    (p) =>
+      session.controllers.find((c) => c.controllerId === p.controllerId)?.connection.status ===
+      'CONNECTED',
   );
   if (game.value.state === 'LOBBY' && ready.length < game.value.config.minPlayers) {
     return fail('NOT_ENOUGH_PLAYERS');
@@ -572,31 +596,55 @@ export function exitGame(
 ): Result<ConsoleSession, GameFailure> {
   const game = currentGame(session, gameSessionId);
   if (!game.ok) return game;
-  return ok(withContext(Object.freeze({ ...session, activeGame: null }), 'CONSOLE', null));
+  return ok(
+    withContext(touchView(Object.freeze({ ...session, activeGame: null })), 'CONSOLE', null),
+  );
 }
 
 /**
- * The host seats / benches. Only in the lobby or between matches (match over: RESULTS), never while
- * a match is running or paused, so nothing changes underneath the people playing.
+ * The TV's desired participants for this launch, validated against what the server knows, and
+ * applied all-or-nothing: only in the lobby or between matches (match over: RESULTS), never while a
+ * match is running or paused; every controller a member holding membership, listed once; every
+ * seat an integer in 1..maxPlayers, used once; at most maxPlayers humans.
  */
 export function setParticipants(
   session: ConsoleSession,
   gameSessionId: GameSessionId,
-  participants: readonly ControllerId[],
+  participants: readonly Participant[],
 ): Result<ConsoleSession, GameFailure> {
   const game = currentGame(session, gameSessionId);
   if (!game.ok) return game;
-  const { state } = game.value;
+  const { state, config } = game.value;
   const betweenMatches = state === 'PLAYING' && session.context.value === 'RESULTS';
   if (state !== 'LOBBY' && !betweenMatches) return fail('INVALID_STATE');
-  if (new Set(participants).size !== participants.length) return fail('INVALID_PARTICIPANTS');
+  const ids = participants.map((p) => p.controllerId);
+  if (new Set(ids).size !== ids.length) return fail('INVALID_PARTICIPANTS');
+  const seats = participants.map((p) => p.seat);
+  if (
+    new Set(seats).size !== seats.length ||
+    seats.some((seat) => !Number.isSafeInteger(seat) || seat < 1 || seat > config.maxPlayers)
+  ) {
+    return fail('INVALID_SEAT');
+  }
   const held = new Set(heldControllers(session).map((c) => c.controllerId));
-  if (participants.some((id) => !held.has(id))) return fail('UNKNOWN_CONTROLLER');
-  if (participants.length > game.value.config.maxPlayers) return fail('TOO_MANY_PARTICIPANTS');
+  if (ids.some((id) => !held.has(id))) return fail('UNKNOWN_CONTROLLER');
+  if (participants.length > config.maxPlayers) return fail('TOO_MANY_PARTICIPANTS');
+  const next = Object.freeze(
+    participants.map((p) => Object.freeze({ controllerId: p.controllerId, seat: p.seat })),
+  );
+  const current = game.value.participants;
+  const same =
+    next.length === current.length &&
+    next.every(
+      (p, i) => p.controllerId === current[i]?.controllerId && p.seat === current[i]?.seat,
+    );
+  if (same) return ok(session);
   return ok(
-    Object.freeze({
-      ...session,
-      activeGame: Object.freeze({ ...game.value, participants: Object.freeze([...participants]) }),
-    }),
+    touchView(
+      Object.freeze({
+        ...session,
+        activeGame: Object.freeze({ ...game.value, participants: next }),
+      }),
+    ),
   );
 }

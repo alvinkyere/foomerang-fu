@@ -77,13 +77,22 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
     ...(options.consoleTimings ? { timings: options.consoleTimings } : {}),
   });
   const bindings = new BindingTable();
-  const consoles = new ConsoleApplication({ registry: consoleRegistry, bindings, diagnostics });
+  const games = validateGames(options.games ?? DEFAULT_GAMES);
+  const eventWindowCapacity = options.eventWindowCapacity ?? 256;
+  const consoles = new ConsoleApplication({
+    registry: consoleRegistry,
+    bindings,
+    diagnostics,
+    games,
+    now: environment.now,
+    eventWindowCapacity,
+  });
   const application = new Application({
     registry,
     bindings,
-    games: validateGames(options.games ?? DEFAULT_GAMES),
+    games,
     diagnostics,
-    eventWindowCapacity: options.eventWindowCapacity ?? 256,
+    eventWindowCapacity,
   });
 
   const transport =

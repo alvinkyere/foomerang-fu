@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ACTION_PHASES, INPUT_ACTIONS, axisSchema } from './controller';
 import { eventIdSchema, plainEnvelope, seqSchema } from './envelope';
+import { gameSessionIdSchema } from './ids';
 import { credentialSchema, joinCodeSchema, wireIdSchema } from './room';
 
 /**
@@ -31,14 +32,21 @@ export type RoomCreateMessage = z.infer<typeof roomCreateMessageSchema>;
  * Client → server (console): begin the match. Host-only; the server drives the room state machine
  * (LOBBY → STARTING → PLAYING) and answers NOT_ENOUGH_PLAYERS / INVALID_STATE if it cannot.
  */
-export const matchStartMessageSchema = plainEnvelope('MATCH_START', z.strictObject({}));
+export const matchStartMessageSchema = plainEnvelope(
+  'MATCH_START',
+  // Console sessions name the launch (and the server requires it from a console TV); legacy rooms send {}.
+  z.strictObject({ gameSessionId: gameSessionIdSchema.optional() }),
+);
 export type MatchStartMessage = z.infer<typeof matchStartMessageSchema>;
 
 /**
  * Client → server (console): the match is over (or cannot go on): PLAYING → RESULTS → LOBBY. Host-only. The host
  * sends it when players choose "return to lobby", and when it reclaims a room whose simulation was lost with the page.
  */
-export const matchEndMessageSchema = plainEnvelope('MATCH_END', z.strictObject({}));
+export const matchEndMessageSchema = plainEnvelope(
+  'MATCH_END',
+  z.strictObject({ gameSessionId: gameSessionIdSchema.optional() }),
+);
 export type MatchEndMessage = z.infer<typeof matchEndMessageSchema>;
 
 /** Client → server (console): reclaim a room after a refresh. The credential rotates on success. */

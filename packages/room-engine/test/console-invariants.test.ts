@@ -64,6 +64,18 @@ describe('console-session invariants hold over arbitrary operation sequences', (
       const exitedGames: GameSessionId[] = [];
       let order: ControllerId[] = [];
       let version = 1;
+      let viewVersion = 1;
+      /** What every member's controls mean: if it changes, the view version must rise. */
+      const viewOf = (session: ConsoleSession) =>
+        session.controllers.map((c) => [
+          c.controllerId,
+          effectiveContext(session, c.controllerId),
+          participationOf(session, c.controllerId),
+          session.activeGame?.gameSessionId ?? null,
+          session.activeGame?.participants.find((p) => p.controllerId === c.controllerId)?.seat ??
+            null,
+          session.context.secondaryAction?.label ?? null,
+        ]);
 
       for (let step = 0; step < STEPS; step += 1) {
         env.time += choose([
@@ -144,7 +156,13 @@ describe('console-session invariants hold over arbitrary operation sequences', (
             if (game) {
               const held = before.controllers.filter((c) => c.membership.status === 'HELD');
               const subset = held.filter(() => random() < 0.6).map((c) => c.controllerId);
-              registry.setParticipants(consoleId, game, subset);
+              // seats 1..6 in a random order, sometimes an invalid one (0, 7, a repeat)
+              const seats = [1, 2, 3, 4, 5, 6].sort(() => random() - 0.5);
+              const entries = subset.map((controllerId, i) => ({
+                controllerId,
+                seat: random() < 0.1 ? (choose([0, 7, 1, 2.5]) as number) : (seats[i] ?? 7),
+              }));
+              registry.setParticipants(consoleId, game, entries);
             }
             break;
           case 'begin':
@@ -210,8 +228,18 @@ describe('console-session invariants hold over arbitrary operation sequences', (
         expect(held.length <= 8, `${label}: console capacity`).toBe(true);
 
         // participants
-        const participants = s.activeGame?.participants ?? [];
+        const seatedNow = s.activeGame?.participants ?? [];
+        const participants = seatedNow.map((p) => p.controllerId);
         expect(new Set(participants).size, `${label}: unique`).toBe(participants.length);
+        expect(new Set(seatedNow.map((p) => p.seat)).size, `${label}: a seat once`).toBe(
+          seatedNow.length,
+        );
+        for (const { seat } of seatedNow) {
+          expect(
+            Number.isSafeInteger(seat) && seat >= 1 && seat <= 6,
+            `${label}: seat ${seat}`,
+          ).toBe(true);
+        }
         expect(participants.length <= 6, `${label}: game capacity`).toBe(true);
         for (const p of participants) {
           expect(
@@ -226,7 +254,7 @@ describe('console-session invariants hold over arbitrary operation sequences', (
         if (running && s.activeGame?.gameSessionId === before.activeGame?.gameSessionId) {
           for (const p of participants) {
             expect(
-              before.activeGame?.participants.includes(p),
+              before.activeGame?.participants.some((q) => q.controllerId === p),
               `${label}: nobody is promoted during a running match`,
             ).toBe(true);
           }
@@ -238,6 +266,26 @@ describe('console-session invariants hold over arbitrary operation sequences', (
         }
         expect(s.context.version >= version, `${label}: version never goes back`).toBe(true);
         version = s.context.version;
+        expect(s.viewVersion >= viewVersion, `${label}: view version never goes back`).toBe(true);
+        // Members present before AND still holding membership: they have a phone to tell.
+        const stillHeld = new Set(
+          s.controllers.filter((c) => c.membership.status === 'HELD').map((c) => c.controllerId),
+        );
+        const existing = new Set(
+          before.controllers.map((c) => c.controllerId).filter((id) => stillHeld.has(id)),
+        );
+        const keep = (rows: ReturnType<typeof viewOf>) =>
+          rows.filter((r) => existing.has(r[0] as never));
+        if (
+          JSON.stringify(keep(viewOf(s))) !== JSON.stringify(keep(viewOf(before))) &&
+          s.state === 'OPEN'
+        ) {
+          expect(
+            s.viewVersion > before.viewVersion,
+            `${label}: a changed view has a newer version`,
+          ).toBe(true);
+        }
+        viewVersion = s.viewVersion;
         for (const c of s.controllers) {
           const participation = participationOf(s, c.controllerId);
           if (effectiveContext(s, c.controllerId) === 'WAITING') {

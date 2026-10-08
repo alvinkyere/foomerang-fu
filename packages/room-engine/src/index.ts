@@ -27,6 +27,7 @@ export {
   heldControllers,
   mayPause,
   participationOf,
+  seatOf,
 } from './console';
 export type {
   CloseFailure,
@@ -43,6 +44,7 @@ export type {
   GameSession,
   GameState,
   HostFailure,
+  Participant,
   ReleaseReason,
 } from './console';
 export { JoinCodeSpace } from './joinCodes';

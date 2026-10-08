@@ -82,6 +82,7 @@ const SERVER = {
     type: 'CONTROLLER_INPUT',
     payload: {
       controllerId: CTRL,
+      gameSessionId: GAME,
       input: { kind: 'ACTION', eventId: 'press-000001', action: 'MENU', phase: 'pressed' },
     },
   },
@@ -439,30 +440,25 @@ describe('protocol version: still 1, negotiated once, for both flows', () => {
 });
 
 describe('compatibility: the legacy ROOM_* flow is untouched', () => {
-  // C3 serves the console-session lifecycle; the game operations are adopted with their handlers in C4.
-  const ADOPTED_IN_C3 = [
-    'CONSOLE_OPEN',
-    'CONSOLE_CLOSE',
-    'CONTROLLER_REMOVE',
-    'CONTROLLER_JOIN',
-    'CONTROLLER_RECONNECT',
-    'CONTROLLER_LEAVE',
-  ];
-
-  it('the server’s trust boundary accepts exactly the console lifecycle the server serves (C3)', () => {
+  it('since C4 the server’s trust boundary accepts every console-flow client message', () => {
     for (const message of Object.values(CLIENT)) {
-      const parsed = parseClientMessage(clone(message));
-      if (ADOPTED_IN_C3.includes(message.type)) {
-        expect(parsed, message.type).toEqual({ ok: true, message });
-      } else {
-        // GAME_* and the game-scoped MATCH_* (with a gameSessionId) wait for C4.
-        expect(parsed, message.type).toEqual({ ok: false, code: 'INVALID_MESSAGE' });
-      }
+      expect(parseClientMessage(clone(message)), message.type).toEqual({ ok: true, message });
     }
-    expect(Object.keys(CLIENT).filter((t) => ADOPTED_IN_C3.includes(t))).toHaveLength(6);
+    // what the server SENDS is still never something a client may send (and vice versa)
     for (const message of Object.values(SERVER)) {
       expect(parseServerMessage(clone(message)).ok, message.type).toBe(false);
     }
+  });
+
+  it('MATCH_*: the console flow requires the launch; the server boundary also takes the legacy {}', () => {
+    expect(client({ type: 'MATCH_START', payload: {} }).ok).toBe(false);
+    expect(parseClientMessage({ type: 'MATCH_START', payload: {} }).ok).toBe(true);
+    expect(parseClientMessage({ type: 'MATCH_END', payload: { gameSessionId: GAME } }).ok).toBe(
+      true,
+    );
+    expect(parseClientMessage({ type: 'MATCH_END', payload: { gameSessionId: 'bad id' } }).ok).toBe(
+      false,
+    );
   });
 
   it('legacy messages still parse at the legacy boundary, exactly as before', () => {
@@ -505,6 +501,30 @@ describe('compatibility: the legacy ROOM_* flow is untouched', () => {
     for (const message of shared) {
       expect(client(message).ok, message.type).toBe(parseClientMessage(message).ok);
     }
+  });
+});
+
+describe('epoch fields (C4): routed input and the TV’s context name their launch', () => {
+  it('CONTROLLER_INPUT always says which launch it was routed under (or none)', () => {
+    expect(server(withPayload(SERVER.CONTROLLER_INPUT, { gameSessionId: null })).ok).toBe(true);
+    expect(server(without(SERVER.CONTROLLER_INPUT, 'gameSessionId')).ok).toBe(false);
+    expect(server(withPayload(SERVER.CONTROLLER_INPUT, { gameSessionId: 'bad id' })).ok).toBe(
+      false,
+    );
+  });
+
+  it('the TV’s CONTROLLER_CONTEXT may name its launch (null: none); legacy rooms omit it', () => {
+    const set = (payload: Json) => ({
+      type: 'CONTROLLER_CONTEXT',
+      seq: 2,
+      payload: { context: 'PAUSED', secondaryAction: null, ...payload },
+    });
+    expect(client(set({ gameSessionId: GAME })).ok).toBe(true);
+    expect(client(set({ gameSessionId: null })).ok).toBe(true);
+    expect(client(set({})).ok).toBe(true);
+    expect(parseClientMessage(set({ gameSessionId: GAME })).ok).toBe(true);
+    expect(client(set({ gameSessionId: 'bad id' })).ok).toBe(false);
+    expect(client(set({ gameSessionId: GAME, context: 'WAITING' })).ok).toBe(false); // still never WAITING
   });
 });
 

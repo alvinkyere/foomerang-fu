@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { plainEnvelope, seqSchema, stateEnvelope } from './envelope';
+import { gameSessionIdSchema } from './ids';
 
 /**
  * CONTROLLER_CONTEXT: what a controller's physical controls MEAN right now. It is not a screen name
@@ -39,7 +40,15 @@ const contextPayloadShape = {
  */
 export const controllerContextSetMessageSchema = stateEnvelope(
   'CONTROLLER_CONTEXT',
-  z.strictObject(contextPayloadShape),
+  z.strictObject({
+    ...contextPayloadShape,
+    /**
+     * Console sessions (ADR-004): the launch this context belongs to (null: no game). The server
+     * requires it from a console TV and ignores a context for a launch that is no longer active,
+     * so a delayed PAUSED for one game can never pause the next. Legacy rooms omit it.
+     */
+    gameSessionId: gameSessionIdSchema.nullable().optional(),
+  }),
 );
 export type ControllerContextSetMessage = z.infer<typeof controllerContextSetMessageSchema>;
 

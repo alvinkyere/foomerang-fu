@@ -169,7 +169,8 @@ ConsoleSession   OPEN → CLOSING → CLOSED         (host: hostId, rotating hos
                  participants (human ControllerIds, seat order)
 ```
 
-- **Controller ≠ participant.** Joining makes a controller (≤ 8 per console), never a participant. A launch seats connected controllers (a briefly reconnecting one counts) in join order up to the game's `maxPlayers`; everybody else is WAITING. Exiting the game ends every seat; controllers stay. Messages for an exited launch fail `STALE_GAME` and change nothing.
+- **Controller ≠ participant.** Joining makes a controller (≤ 8 per console), never a participant. A launch (a new `gameSessionId` epoch) seats **nobody** (since C4: the TV, which owns CPUs and seating policy, assigns participants as `{ controllerId, seat }`); everybody else is WAITING. `setParticipants` is all-or-nothing: current launch, held members, each controller and seat once, seats 1..maxPlayers (`INVALID_SEAT`). Exiting the game ends every seat; controllers stay. Messages for an exited launch fail `STALE_GAME` and change nothing.
+- **View version** (`viewVersion`): rises whenever any member's meaning may change (context, launch, exit, seating, a seated member released); phones discard older views.
 - **Seat changes** (`setParticipants`) only in `LOBBY` or between matches (context `RESULTS`); never while a match runs or is paused. A participant whose membership ends leaves an empty seat; nobody is promoted.
 - **Effective context / pause:** a non-participant during `GAMEPLAY | PAUSED | RESULTS` is `WAITING`; only an active participant may pause (or resume) while the match runs (`mayPause`).
 - **Release** (left, removed by the TV, absent past the reservation, console closed) is permanent; a RELEASED member's connection is terminally DISCONNECTED; an old credential never reclaims it.

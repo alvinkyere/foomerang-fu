@@ -21,6 +21,7 @@ describe('public API surface', () => {
         'heldControllers',
         'mayPause',
         'participationOf',
+        'seatOf',
         'seatedPlayers',
         'toConsoleId',
         'toControllerId',

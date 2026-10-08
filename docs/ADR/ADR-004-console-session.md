@@ -246,6 +246,8 @@ General: all additions are **additive** to protocol version 1 while both flows c
 - **Separate trust boundary until C3**: `parseConsoleClientMessage` / `parseConsoleServerMessage` over the console flow's own unions (shared messages reused by reference). The legacy `parseClientMessage` / `parseServerMessage` are unchanged and still reject every console-flow message; C3 adopts them together with the server handlers.
 - **Error codes** for the console flow (e.g. a full console) are added in the slice that first emits them, with the clients' copy, rather than in C2.
 
+**As built in C4:** a launch seats **nobody**; the TV assigns participants (it owns CPUs and the seating policy, so the server never infers "joined, so plays"). The §0 consumer behaviour (join-order auto-seating, excess WAITING) is the TV's job in C7. Participants carry the TV's seat; the domain validates seats against the game (1..maxPlayers, unique). `CONTROLLER_INPUT` and the TV's `CONTROLLER_CONTEXT` carry `gameSessionId` (additive). Nothing from a WAITING controller is routed; a MENU press needs pause authority and passes a 300 ms per-console coalescing mark (reset by any context change); MENU releases flow for anyone who may act. The phone's view `version` is the console's `viewVersion`.
+
 Terminology: `ROOM_*` is wrong for the new concept (a "room" was one game's lobby). It is **not** renamed in place: the legacy family keeps working unchanged until removal (§10), and the new family uses `CONSOLE_*`, `CONTROLLER_*`, `GAME_*`. The `room-engine` package keeps its name for now (a rename is churn with no behaviour); the consumer UI says "join code", never "room" or "session".
 
 ## 7. Server model

@@ -46,6 +46,31 @@ export const msg = {
     type: 'CONTROLLER_REMOVE',
     payload: { controllerId },
   }),
+  gameLaunch: (gameId = 'foomerang-fu') => ({ type: 'GAME_LAUNCH', payload: { gameId } }),
+  gameParticipants: (
+    seq: number,
+    gameSessionId: string,
+    participants: { controllerId: string; seat: number }[],
+  ) => ({ type: 'GAME_PARTICIPANTS', seq, payload: { gameSessionId, participants } }),
+  gameExit: (gameSessionId: string) => ({ type: 'GAME_EXIT', payload: { gameSessionId } }),
+  gameMatchStart: (gameSessionId: string) => ({ type: 'MATCH_START', payload: { gameSessionId } }),
+  gameMatchEnd: (gameSessionId: string) => ({ type: 'MATCH_END', payload: { gameSessionId } }),
+  /** The TV's context in the console flow: names the launch it belongs to. */
+  tvContext: (
+    seq: number,
+    context: 'CONSOLE' | 'GAMEPLAY' | 'PAUSED' | 'RESULTS',
+    gameSessionId: string | null,
+  ) => ({
+    type: 'CONTROLLER_CONTEXT',
+    seq,
+    payload: { context, secondaryAction: null, gameSessionId },
+  }),
+  action: (
+    eventId: string,
+    action: 'PRIMARY' | 'SECONDARY' | 'TERTIARY' | 'MENU',
+    phase: 'pressed' | 'released' = 'pressed',
+    seq = 1,
+  ) => ({ type: 'INPUT_EVENT', seq, eventId, payload: { action, phase } }),
 };
 
 export interface Rig {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveContext, mayPause, participationOf, type ConsoleSession } from '../src/console';
+import {
+  effectiveContext,
+  mayPause,
+  participationOf,
+  seatOf,
+  type ConsoleSession,
+} from '../src/console';
 import { ConsoleRegistry } from '../src/consoleRegistry';
 import type { ConsoleId, ControllerId, GameSessionId } from '../src/ids';
 import { createFakeConsoleEnvironment } from './support/fakeConsoleEnvironment';
@@ -147,29 +153,46 @@ describe('controller identity: reconnect, rotation, release', () => {
   });
 });
 
+/** The TV's seating: these controllers, in these seats (1-based, in list order by default). */
+const seated = (ids: readonly ControllerId[], firstSeat = 1) =>
+  ids.map((controllerId, i) => ({ controllerId, seat: firstSeat + i }));
+const idsOf = (participants: readonly { controllerId: ControllerId }[]) =>
+  participants.map((p) => p.controllerId);
+
 describe('games: launched on the console, participants scoped to one launch', () => {
-  it('launch seats connected controllers in console join order up to the game’s capacity; the rest WAIT', () => {
+  it('a launch is a new epoch with NO participants: the server never makes a member a player', () => {
+    const t = setup();
+    const ids = Array.from({ length: 8 }, (_, i) => t.join(`P${i + 1}`));
+    t.launch();
+    expect(t.participants()).toEqual([]);
+    for (const id of ids) expect(participationOf(t.session(), id)).toBe('WAITING');
+  });
+
+  it('the TV seats up to the game’s capacity; everyone else WAITs once the match is on', () => {
     const t = setup();
     const ids = Array.from({ length: 8 }, (_, i) => t.join(`P${i + 1}`));
     const game = t.launch();
-    expect(t.participants()).toEqual(ids.slice(0, 6));
+    value(t.registry.setParticipants(t.id, game, seated(ids.slice(0, 6))));
     t.play(game);
     for (const id of ids.slice(0, 6)) expect(participationOf(t.session(), id)).toBe('PARTICIPANT');
     for (const id of ids.slice(6)) {
       expect(participationOf(t.session(), id)).toBe('WAITING');
       expect(effectiveContext(t.session(), id)).toBe('WAITING');
     }
+    expect(seatOf(t.session(), ids[2] as ControllerId)).toBe(3);
   });
 
-  it('a phone whose connection is lost for good (DISCONNECTED) is not seated; a briefly reconnecting one is', () => {
+  it('seats are the TV’s (CPUs fill seats too): any valid seat numbers, not necessarily 1..n', () => {
     const t = setup();
-    const gone = t.join('Gone');
-    const blip = t.join('Blip');
-    value(t.registry.disconnectController(t.id, gone));
-    t.after(10_000); // Gone: DISCONNECTED, still HELD
-    value(t.registry.disconnectController(t.id, blip)); // Blip: RECONNECTING
-    t.launch();
-    expect(t.participants()).toEqual([blip]);
+    const [a, b] = [t.join('A'), t.join('B')];
+    const game = t.launch();
+    value(
+      t.registry.setParticipants(t.id, game, [
+        { controllerId: a, seat: 2 },
+        { controllerId: b, seat: 5 },
+      ]),
+    );
+    expect(seatOf(t.session(), b)).toBe(5);
   });
 
   it('only one game at a time, with a valid capacity', () => {
@@ -202,18 +225,20 @@ describe('games: launched on the console, participants scoped to one launch', ()
 
   it('a message for a game that has been exited is stale: it never touches the next game', () => {
     const t = setup();
-    t.join('Alice');
+    const a = t.join('Alice');
     const first = t.launch();
     value(t.registry.exitGame(t.id, first));
     const second = t.launch();
     expect(second).not.toBe(first);
+    const before = t.session();
     expect(t.registry.beginMatch(t.id, first)).toEqual({ ok: false, reason: 'STALE_GAME' });
-    expect(t.registry.setParticipants(t.id, first, [])).toEqual({
+    expect(t.registry.setParticipants(t.id, first, seated([a]))).toEqual({
       ok: false,
       reason: 'STALE_GAME',
     });
+    expect(t.registry.finishMatch(t.id, first)).toEqual({ ok: false, reason: 'STALE_GAME' });
     expect(t.registry.exitGame(t.id, first)).toEqual({ ok: false, reason: 'STALE_GAME' });
-    expect(t.session().activeGame?.gameSessionId).toBe(second);
+    expect(t.session()).toBe(before);
   });
 
   it('returning Home ends the game and its seats, never the controllers', () => {
@@ -221,6 +246,7 @@ describe('games: launched on the console, participants scoped to one launch', ()
     const a = t.join('Alice');
     const b = t.join('Bob');
     const game = t.launch();
+    value(t.registry.setParticipants(t.id, game, seated([a, b])));
     t.play(game);
     value(t.registry.exitGame(t.id, game));
     const s = t.session();
@@ -233,37 +259,58 @@ describe('games: launched on the console, participants scoped to one launch', ()
     expect(participationOf(s, a)).toBe('NONE');
   });
 
-  it('launching again seats afresh from who is connected now (no seat is permanent)', () => {
+  it('launching again starts with nobody seated (no seat or colour is permanent)', () => {
     const t = setup();
     const a = t.join('Alice');
     const b = t.join('Bob');
     const first = t.launch();
-    value(t.registry.setParticipants(t.id, first, [b])); // Alice benched in the first game
+    value(t.registry.setParticipants(t.id, first, seated([b, a])));
     value(t.registry.exitGame(t.id, first));
     t.launch();
-    expect(t.participants()).toEqual([a, b]);
+    expect(t.participants()).toEqual([]);
+  });
+
+  it('the view version rises whenever any controller’s meaning may change, and only then', () => {
+    const t = setup();
+    const a = t.join('Alice');
+    const v = () => t.session().viewVersion;
+    const v0 = v();
+    t.join('Bob'); // joining changes nobody else's meaning
+    expect(v()).toBe(v0);
+    const game = t.launch();
+    expect(v()).toBe(v0 + 1);
+    value(t.registry.setParticipants(t.id, game, seated([a])));
+    expect(v()).toBe(v0 + 2);
+    value(t.registry.setParticipants(t.id, game, seated([a]))); // the same seating again
+    expect(v()).toBe(v0 + 2);
+    t.play(game);
+    expect(v()).toBeGreaterThan(v0 + 2);
+    const playing = v();
+    value(t.registry.exitGame(t.id, game));
+    expect(v()).toBeGreaterThan(playing);
   });
 });
 
-describe('seat changes follow the game’s lifecycle', () => {
+describe('seat changes follow the game’s lifecycle, and are validated', () => {
   function sixPlusTwo() {
     const t = setup();
     const ids = Array.from({ length: 8 }, (_, i) => t.join(`P${i + 1}`));
     const game = t.launch();
+    value(t.registry.setParticipants(t.id, game, seated(ids.slice(0, 6))));
     return { t, ids, game };
   }
 
   it('the host may bench and seat in the lobby', () => {
     const { t, ids, game } = sixPlusTwo();
-    const seated = [...ids.slice(1, 6), ids[6]] as ControllerId[];
-    value(t.registry.setParticipants(t.id, game, seated));
-    expect(t.participants()).toEqual(seated);
+    const next = seated([...ids.slice(1, 6), ids[6]] as ControllerId[]);
+    value(t.registry.setParticipants(t.id, game, next));
+    expect(t.participants()).toEqual(next);
   });
 
   it('never during a running match — playing or paused', () => {
     const { t, ids, game } = sixPlusTwo();
     t.play(game);
-    const swap = [...ids.slice(0, 5), ids[6]] as ControllerId[];
+    const swap = seated([...ids.slice(0, 5), ids[6]] as ControllerId[]);
     expect(t.registry.setParticipants(t.id, game, swap)).toEqual({
       ok: false,
       reason: 'INVALID_STATE',
@@ -276,8 +323,13 @@ describe('seat changes follow the game’s lifecycle', () => {
     const { t, ids, game } = sixPlusTwo();
     t.play(game);
     value(t.registry.setContext(t.id, 'RESULTS', null));
-    const swap = [...ids.slice(0, 5), ids[6]] as ControllerId[];
-    value(t.registry.setParticipants(t.id, game, swap));
+    value(
+      t.registry.setParticipants(
+        t.id,
+        game,
+        seated([...ids.slice(0, 5), ids[6]] as ControllerId[]),
+      ),
+    );
     expect(participationOf(t.session(), ids[6] as ControllerId)).toBe('PARTICIPANT');
   });
 
@@ -286,22 +338,42 @@ describe('seat changes follow the game’s lifecycle', () => {
     t.play(game);
     const leaver = ids[2] as ControllerId;
     value(t.registry.releaseController(t.id, leaver, 'LEFT'));
-    expect(t.participants()).toEqual(ids.slice(0, 6).filter((id) => id !== leaver));
+    expect(idsOf(t.participants())).toEqual(ids.slice(0, 6).filter((id) => id !== leaver));
+    expect(seatOf(t.session(), ids[3] as ControllerId)).toBe(4); // nobody moves seats either
     expect(participationOf(t.session(), ids[6] as ControllerId)).toBe('WAITING');
   });
 
-  it('rejects unknown, released, repeated or too many controllers', () => {
+  it('rejects, atomically, any list with one bad entry', () => {
     const { t, ids, game } = sixPlusTwo();
     value(t.registry.releaseController(t.id, ids[7] as ControllerId, 'LEFT'));
-    const bad: [ControllerId[], string][] = [
-      [['controller-404' as ControllerId], 'UNKNOWN_CONTROLLER'],
-      [[ids[7] as ControllerId], 'UNKNOWN_CONTROLLER'],
-      [[ids[0], ids[0]] as ControllerId[], 'INVALID_PARTICIPANTS'],
-      [ids.slice(0, 7), 'TOO_MANY_PARTICIPANTS'],
+    const good = seated(ids.slice(0, 2));
+    const bad: [readonly { controllerId: ControllerId; seat: number }[], string][] = [
+      [
+        [...good, { controllerId: 'controller-404' as ControllerId, seat: 3 }],
+        'UNKNOWN_CONTROLLER',
+      ],
+      [[...good, { controllerId: ids[7] as ControllerId, seat: 3 }], 'UNKNOWN_CONTROLLER'],
+      [[...good, { controllerId: ids[0] as ControllerId, seat: 3 }], 'INVALID_PARTICIPANTS'],
+      [[...good, { controllerId: ids[2] as ControllerId, seat: 2 }], 'INVALID_SEAT'],
+      [[...good, { controllerId: ids[2] as ControllerId, seat: 7 }], 'INVALID_SEAT'],
+      [[...good, { controllerId: ids[2] as ControllerId, seat: 0 }], 'INVALID_SEAT'],
+      [[...good, { controllerId: ids[2] as ControllerId, seat: 2.5 }], 'INVALID_SEAT'],
     ];
+    const before = t.session();
     for (const [list, reason] of bad) {
       expect(t.registry.setParticipants(t.id, game, list)).toEqual({ ok: false, reason });
     }
+    expect(t.session()).toBe(before); // nothing at all changed
+  });
+
+  it('never more humans than the game has places', () => {
+    const t = setup({ maxControllers: 8 });
+    const ids = Array.from({ length: 7 }, (_, i) => t.join(`P${i + 1}`));
+    const game = value(
+      t.registry.launchGame(t.id, { gameId: 'tiny', minPlayers: 0, maxPlayers: 6 }),
+    ).game.gameSessionId;
+    // seven distinct seats cannot exist in a six-place game: the seat rule refuses first
+    expect(t.registry.setParticipants(t.id, game, seated(ids)).ok).toBe(false);
   });
 });
 
@@ -310,6 +382,7 @@ describe('what each phone’s controls mean, and who may pause', () => {
     const t = setup();
     const ids = Array.from({ length: 7 }, (_, i) => t.join(`P${i + 1}`));
     const game = t.launch();
+    value(t.registry.setParticipants(t.id, game, seated(ids.slice(0, 6))));
     const spare = ids[6] as ControllerId;
     expect(participationOf(t.session(), spare)).toBe('WAITING');
     expect(effectiveContext(t.session(), spare)).toBe('CONSOLE');
@@ -322,6 +395,7 @@ describe('what each phone’s controls mean, and who may pause', () => {
     const t = setup();
     const ids = Array.from({ length: 7 }, (_, i) => t.join(`P${i + 1}`));
     const game = t.launch();
+    value(t.registry.setParticipants(t.id, game, seated(ids.slice(0, 6))));
     const player = ids[0] as ControllerId;
     const spare = ids[6] as ControllerId;
     expect(mayPause(t.session(), player)).toBe(false); // lobby: nothing to pause

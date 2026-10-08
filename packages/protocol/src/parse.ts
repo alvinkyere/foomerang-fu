@@ -8,6 +8,9 @@ import {
   controllerLeaveMessageSchema,
   controllerReconnectMessageSchema,
   controllerRemoveMessageSchema,
+  gameExitMessageSchema,
+  gameLaunchMessageSchema,
+  gameParticipantsMessageSchema,
   type ConsoleClientMessage,
   type ConsoleServerMessage,
 } from './console';
@@ -56,8 +59,11 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   controllerContextSetMessageSchema,
   roomJoinMessageSchema,
   playerReconnectMessageSchema,
-  // Console-session lifecycle (ADR-004), served since C3. The game operations (GAME_*, game-scoped
-  // MATCH_*) are adopted with their handlers in C4.
+  // Console sessions (ADR-004): the lifecycle, served since C3, and the game operations, since C4.
+  // (MATCH_START / MATCH_END above carry the console flow's gameSessionId as an optional field.)
+  gameLaunchMessageSchema,
+  gameParticipantsMessageSchema,
+  gameExitMessageSchema,
   consoleOpenMessageSchema,
   consoleCloseMessageSchema,
   controllerRemoveMessageSchema,

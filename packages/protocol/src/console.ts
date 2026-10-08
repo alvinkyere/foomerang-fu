@@ -22,6 +22,12 @@ import {
   hostReconnectedMessageSchema,
 } from './host';
 import { controllerManifestMessageSchema, type ControlDescriptor } from './manifest';
+import {
+  controllerIdSchema,
+  gameSessionIdSchema,
+  type ControllerId,
+  type GameSessionId,
+} from './ids';
 import { credentialSchema, joinCodeSchema } from './room';
 
 /**
@@ -45,19 +51,8 @@ import { credentialSchema, joinCodeSchema } from './room';
 
 // --- identities ------------------------------------------------------------------------------
 
-/** Server-issued ids are UUIDs today; the wire accepts any short, URL-safe opaque id. */
-const opaqueId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
-
-/**
- * A phone's membership of a console session. Survives game launches and Home. Branded so it can
- * never be passed where a game session id (or a legacy player id) is expected.
- */
-export const controllerIdSchema = opaqueId.brand<'ControllerId'>();
-export type ControllerId = z.infer<typeof controllerIdSchema>;
-
-/** One launch of one game. Every game-scoped message names it; one for an ended launch is stale. */
-export const gameSessionIdSchema = opaqueId.brand<'GameSessionId'>();
-export type GameSessionId = z.infer<typeof gameSessionIdSchema>;
+export { controllerIdSchema, gameSessionIdSchema } from './ids';
+export type { ControllerId, GameSessionId } from './ids';
 
 /**
  * A participant is identified by (gameSessionId, controllerId): it exists only inside one game
@@ -272,14 +267,20 @@ export type ConsoleUpdatedMessage = z.infer<typeof consoleUpdatedMessageSchema>;
 
 /**
  * A controller's accepted input, tagged with WHICH controller sent it (the console-flow successor of
- * PLAYER_INPUT, whose `playerId` would blur a controller with a player). The server has
- * authenticated the sender, dropped stale movement, deduplicated events, and only routes the system
- * MENU from an active participant.
+ * PLAYER_INPUT, whose `playerId` would blur a controller with a player). The identity is the
+ * server's, taken from the authenticated connection, never from the client. The server has dropped
+ * stale movement, deduplicated events, routes nothing from a WAITING controller, and routes the
+ * system MENU press only from an active participant of a running match.
  */
 export const controllerInputMessageSchema = plainEnvelope(
   'CONTROLLER_INPUT',
   z.strictObject({
     controllerId: controllerIdSchema,
+    /**
+     * The launch the server routed it under (null: no game). The TV discards input routed for a
+     * launch it has already left: the epoch boundary holds even when messages cross.
+     */
+    gameSessionId: gameSessionIdSchema.nullable(),
     input: z.discriminatedUnion('kind', [
       z.strictObject({ kind: z.literal('MOVE'), seq: seqSchema, x: axisSchema, y: axisSchema }),
       z.strictObject({

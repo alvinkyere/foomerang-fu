@@ -309,17 +309,18 @@ describe('malformed and unauthorized messages change nothing', () => {
     expect(roster(tv)).toEqual([['Alice', 'CONNECTED']]);
   });
 
-  it('game operations are not served yet (C4): refused as invalid, nothing changes', () => {
+  it('since C4 a console’s game operations name their launch: one that does not exist changes nothing', () => {
     const { client: tv } = rig.console();
-    tv.send({ type: 'GAME_LAUNCH', payload: { gameId: 'foomerang-fu' } });
-    tv.send({ type: 'MATCH_START', payload: { gameSessionId: 'game-1' } });
-    expect(tv.errors()).toEqual(['INVALID_MESSAGE', 'INVALID_MESSAGE']);
+    tv.send({ type: 'MATCH_START', payload: { gameSessionId: 'game-404' } }); // no such launch
+    expect(tv.errors()).toEqual([]); // dropped quietly, like any stale epoch
+    expect(rig.server.diagnostics().staleGameDiscarded).toBe(1);
     expect(tv.last('CONSOLE_UPDATED')?.payload.game).toBeNull();
   });
 
   it('identities do not cross flows: a console TV is not a room host, a controller is not a player', () => {
     const { client: tv, joinCode } = rig.console();
     const alice = rig.controller(joinCode, 'Alice');
+    // A console TV's match and context messages must name the launch (the room form is not enough)…
     tv.send({ type: 'MATCH_START', payload: {} });
     tv.send({ type: 'MATCH_END', payload: {} });
     tv.send({
@@ -327,10 +328,14 @@ describe('malformed and unauthorized messages change nothing', () => {
       seq: 1,
       payload: { context: 'CONSOLE', secondaryAction: null },
     });
-    alice.client.send(msg.move(1));
+    expect(tv.errors()).toEqual(['INVALID_MESSAGE', 'INVALID_MESSAGE', 'INVALID_MESSAGE']);
+    // …and a controller is never a player: no room join, and its input is the CONSOLE's (C4),
+    // tagged with its controller id, never PLAYER_INPUT.
     alice.client.send(msg.join(joinCode, 'Again'));
-    expect(tv.errors()).toEqual(['UNAUTHORIZED', 'UNAUTHORIZED', 'UNAUTHORIZED']);
-    expect(alice.client.errors()).toEqual(['UNAUTHORIZED', 'UNAUTHORIZED']);
+    expect(alice.client.errors()).toEqual(['UNAUTHORIZED']);
+    alice.client.send(msg.move(1));
+    expect(tv.all('PLAYER_INPUT')).toEqual([]);
+    expect(tv.last('CONTROLLER_INPUT')?.payload.controllerId).toBe(alice.controllerId);
     const room = rig.host();
     room.client.send(msg.controllerRemove(alice.controllerId)); // a legacy room host has no console
     room.client.send(msg.consoleClose());

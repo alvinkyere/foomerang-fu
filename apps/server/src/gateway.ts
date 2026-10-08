@@ -201,26 +201,53 @@ export class Gateway {
         consoles.leave(session);
         return;
 
-      case 'MATCH_START':
-        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
-        application.startMatch(session);
+      // --- games on a console (C4): the TV only -----------------------------------------------
+      case 'GAME_LAUNCH':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        consoles.launch(session, message.payload.gameId);
         return;
+      case 'GAME_PARTICIPANTS':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        // Desired STATE: latest wins per connection; a stale or replayed seq has no effect at all.
+        if (message.seq <= session.lastParticipantsSeq) {
+          this.#deps.diagnostics.increment('staleParticipantsDiscarded');
+          return;
+        }
+        session.lastParticipantsSeq = message.seq;
+        consoles.participants(session, message);
+        return;
+      case 'GAME_EXIT':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        consoles.exit(session, message.payload.gameSessionId);
+        return;
+
+      case 'MATCH_START':
+        if (session.identity?.kind === 'HOST') return application.startMatch(session);
+        if (session.identity?.kind === 'CONSOLE_HOST') {
+          return consoles.matchStart(session, message.payload.gameSessionId);
+        }
+        return this.#unauthorized(session);
 
       case 'MATCH_END':
-        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
-        application.endMatch(session);
-        return;
+        if (session.identity?.kind === 'HOST') return application.endMatch(session);
+        if (session.identity?.kind === 'CONSOLE_HOST') {
+          return consoles.matchEnd(session, message.payload.gameSessionId);
+        }
+        return this.#unauthorized(session);
 
-      case 'CONTROLLER_CONTEXT':
-        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
+      case 'CONTROLLER_CONTEXT': {
+        const kind = session.identity?.kind;
+        if (kind !== 'HOST' && kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
         // State, like movement: ordered within this connection, latest wins; a stale one is quietly dropped.
         if (message.seq <= session.lastContextSeq) {
           this.#deps.diagnostics.increment('staleContextDiscarded');
           return;
         }
         session.lastContextSeq = message.seq;
-        application.setContext(session, message);
+        if (kind === 'HOST') application.setContext(session, message);
+        else consoles.context(session, message);
         return;
+      }
 
       case 'ROOM_JOIN':
         if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
@@ -235,8 +262,9 @@ export class Gateway {
         );
         return;
 
-      case 'INPUT_MOVE':
-        if (session.identity?.kind !== 'PLAYER') return this.#unauthorized(session);
+      case 'INPUT_MOVE': {
+        const kind = session.identity?.kind;
+        if (kind !== 'PLAYER' && kind !== 'CONTROLLER') return this.#unauthorized(session);
         // Movement is STATE: ordered within this connection, latest wins. A stale arrival is
         // normal reordering, not a protocol violation — discard it quietly.
         if (message.seq <= session.lastMovementSeq) {
@@ -244,12 +272,16 @@ export class Gateway {
           return;
         }
         session.lastMovementSeq = message.seq;
-        application.routeMove(session, message);
+        if (kind === 'PLAYER') application.routeMove(session, message);
+        else consoles.routeMove(session, message);
         return;
-      case 'INPUT_EVENT':
-        if (session.identity?.kind !== 'PLAYER') return this.#unauthorized(session);
-        application.routeEvent(session, message);
-        return;
+      }
+      case 'INPUT_EVENT': {
+        const kind = session.identity?.kind;
+        if (kind === 'PLAYER') return application.routeEvent(session, message);
+        if (kind === 'CONTROLLER') return consoles.routeEvent(session, message);
+        return this.#unauthorized(session);
+      }
 
       default: {
         const unreachable: never = message;

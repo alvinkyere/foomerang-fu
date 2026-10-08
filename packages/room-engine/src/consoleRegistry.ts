@@ -31,6 +31,7 @@ import {
   type GameFailure,
   type GameSession,
   type HostFailure,
+  type Participant,
 } from './console';
 import { validateRoomConfig } from './config';
 import type { ConsoleEnvironment } from './environment';
@@ -222,7 +223,7 @@ export class ConsoleRegistry {
   setParticipants = (
     consoleId: ConsoleId,
     gameSessionId: GameSessionId,
-    participants: readonly ControllerId[],
+    participants: readonly Participant[],
   ) => this.#game(consoleId, (s) => setParticipants(s, gameSessionId, participants));
   beginMatch = (consoleId: ConsoleId, id: GameSessionId) =>
     this.#game(consoleId, (s) => beginMatch(s, id));

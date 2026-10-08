@@ -87,7 +87,9 @@ Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to thei
 
 ### Console-session flow (Checkpoint C; lifecycle served since C3, game operations from C4)
 
-Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**. A phone joins Foomerang as a *controller*; the TV seats controllers as *participants* of one game launch. Its own parsers (`parseConsoleClientMessage`, `parseConsoleServerMessage`) apply the same rules as the legacy boundary. **The server's trust boundary (`parseClientMessage`) has adopted the console lifecycle it serves since C3**: `CONSOLE_OPEN`, `CONSOLE_CLOSE`, `CONTROLLER_REMOVE`, `CONTROLLER_JOIN`, `CONTROLLER_RECONNECT`, `CONTROLLER_LEAVE`. The game operations (`GAME_*`, game-scoped `MATCH_*`) are still refused there (`INVALID_MESSAGE`) until C4 serves them.
+Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**. A phone joins Foomerang as a *controller*; the TV seats controllers as *participants* of one game launch. Its own parsers (`parseConsoleClientMessage`, `parseConsoleServerMessage`) apply the same rules as the legacy boundary. **The server's trust boundary (`parseClientMessage`) has adopted every console-flow client message**: the lifecycle since C3 (`CONSOLE_OPEN`, `CONSOLE_CLOSE`, `CONTROLLER_REMOVE`, `CONTROLLER_JOIN`, `CONTROLLER_RECONNECT`, `CONTROLLER_LEAVE`) and the game operations since C4 (`GAME_LAUNCH`, `GAME_PARTICIPANTS`, `GAME_EXIT`; `MATCH_START` / `MATCH_END` accept an optional `gameSessionId`, which the server requires from a console TV and the legacy room flow omits).
+
+**Epoch fields (C4, additive):** `CONTROLLER_INPUT` carries `gameSessionId` (the launch it was routed under, or `null`), so the TV can discard input for a launch it has already left; the TV's `CONTROLLER_CONTEXT` carries an optional `gameSessionId` (`null`: no game), required by the server from a console TV, so a delayed context for one launch can never apply to the next.
 
 | Type | Dir | Payload | Who may send it |
 | --- | --- | --- | --- |
