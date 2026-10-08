@@ -8,7 +8,7 @@ Discrepancies: BLOCKER / MAJOR / MINOR — what differs → why → next correct
 | Map           | Build mode                     | Camera (f @640, pitch)                   | World scale                 | In game | Reference comparison                  |
 | ------------- | ------------------------------ | ---------------------------------------- | --------------------------- | ------- | ------------------------------------- |
 | market_plaza  | 3D reconstruction (passes 1–6) | 900, 55 (frozen; **DISPUTED**, VP ~1500) | plaza fit (reference)       | yes     | passes 1–6 sheets                     |
-| harbour_fort  | proxy kit + panning view       | 1540, 56.2 (MEASURED)                    | crate size (MEDIUM)         | yes     | `output/harbour_fort_compare.png`     |
+| harbour_fort  | proxy kit + panning view       | 1540, 56.2 (MEASURED)                    | characters 1.1 (MEASURED)   | yes     | `output/harbour_fort_compare.png`     |
 | sky_islands   | frame mode (f470)              | 1240, 57.8 (MEDIUM)                      | carrot size 0.80 (MEASURED) | yes     | reference frame + runtime screenshots |
 | 11 other maps | not started                    |                                          |                             | no      |                                       |
 

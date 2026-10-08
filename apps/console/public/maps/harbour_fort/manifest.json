@@ -16,7 +16,7 @@
     "rollDeg": 0.0,
     "centre": [0.12, 0.0669, 1.0],
     "world": {
-      "unitsPerPlanUnit": 2000,
+      "unitsPerPlanUnit": 1818,
       "planOriginX": -0.27,
       "planOriginY": 0.97
     }
@@ -25,7 +25,7 @@
     "lens_and_pitch": "MEASURED: vanishing-point horizon/nadir scans over f655-f818 in three segments (f 1549/1520/1554 px at 640 wide, pitch 57.2/55.4/56.0 deg); the method recovers a known render camera to 2-3%. Nadir and horizon x ~325 px: yaw and roll ~0.",
     "track": "MEASURED: translating camera at constant height (crate tops 43 vs 42 px at f655/f815), track_pan.py FOO_FIXED_HEIGHT=1, ECC median 0.88; the ground mosaic is sharp across the shot. Shot camera moves +0.32 x, -0.06 y (plan units = its height).",
     "framing": "REFERENCE-CONSTRAINED: the game camera has the shot's own height (1.0, constant through the shot), lens and pitch, so characters and structures appear at the footage's scale; its position (x 0.12, y 0.067) lies inside the shot's own pan range (x 0..0.32, y -0.06..0.074). Like the shot's camera the view PANS: the baked canvas (3440 x 1935, the footage's 16:9 at x3) is the courtyard seen from that point, and the view follows the living players (render/reconstructed/followView.ts; zooming out only when they spread wider than the screen is an INFERRED rule). Perspective at the canvas edges is that single viewpoint's, not the panned camera's.",
-    "world_scale": "MEDIUM: crate top 0.035-0.040 plan units vs market_plaza 0.036, so the plaza's 2000 world units per plan unit is kept (players the same size on both maps)."
+    "world_scale": "MEASURED: the footage's characters set the scale (pack models are one size): avocado ~47x20 px and watermelon ~49 px tall in f815 against 42 / 44 px for the plaza-fitted bake through this camera -> character_scale 1.1 (+-0.1; both mid-motion); world units per plan unit = 2000 / 1.1 = 1818. Crate tops (0.035-0.040 vs the plaza's 0.036 plan units) agree within that error."
   },
   "ground": "ground.webp",
   "occluders": [
@@ -190,6 +190,7 @@
       "fade": false
     }
   ],
+  "animated": [],
   "characters": {
     "avocado": {
       "file": "char_avocado.webp",

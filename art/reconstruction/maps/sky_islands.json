@@ -1,438 +1,209 @@
 {
- "map": "sky_islands",
- "shots": "S7 (f432-f545); reference f470",
- "camera": {
-  "f": 1240.0,
-  "pose": {
-   "pitch_deg": 57.79999999999999,
-   "yaw_deg": 0.0,
-   "roll_deg": 0.0,
-   "C": [
-    -0.026943807514746957,
-    0.034792488769983414,
-    0.9505549669265747
-   ]
+  "map": "sky_islands",
+  "shots": "S7 (f432-f545); reference f470",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.026943807514746957, 0.034792488769983414, 0.9505549669265747]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "MEASURED (MEDIUM): vanishing-point scans in three segments of S7: f 1265/1183/1271 px @640, pitch 57.7/59.4/56.2 deg; nadir support 1100-1770 (harbour 9500, plaza ~1000).",
+      "track": "MEASURED (window f450-f484 only): translating camera with free height (ECC median 0.84); the whole shot could not be registered cleanly (islands at several heights, cliffs and void below the ground carry parallax, a rotating hazard), so this map is built in FRAME MODE from one reference frame.",
+      "framing": "OBSERVED: the game camera is reference frame f470's own camera (canvas = that frame at x3); nothing outside it is shown.",
+      "world_scale": "MEASURED: the pack characters are one size on every map, so the world scale follows the footage's characters. The carrot in S7 is ~28 x 17 px (f440, f540) against 35 x 21 px for the plaza-fitted bake through this camera -> character_scale 0.80 (+-0.05); world units per plan unit = 2000 / 0.80 = 2500, so the rules' player radius (36) matches the drawn characters."
+    }
   },
-  "canvas": [
-   1920,
-   1080
-  ],
-  "scale": 3,
-  "evidence": {
-   "lens_and_pitch": "MEASURED (MEDIUM): vanishing-point scans in three segments of S7: f 1265/1183/1271 px @640, pitch 57.7/59.4/56.2 deg; nadir support 1100-1770 (harbour 9500, plaza ~1000).",
-   "track": "MEASURED (window f450-f484 only): translating camera with free height (ECC median 0.84); the whole shot could not be registered cleanly (islands at several heights, cliffs and void below the ground carry parallax, a rotating hazard), so this map is built in FRAME MODE from one reference frame.",
-   "framing": "OBSERVED: the game camera is reference frame f470's own camera (canvas = that frame at x3); nothing outside it is shown.",
-   "world_scale": "MEASURED: the pack characters are one size on every map, so the world scale follows the footage's characters. The carrot in S7 is ~28 x 17 px (f440, f540) against 35 x 21 px for the plaza-fitted bake through this camera -> character_scale 0.80 (+-0.05); world units per plan unit = 2000 / 0.80 = 2500, so the rules' player radius (36) matches the drawn characters."
-  }
- },
- "world": {
-  "units_per_plan_unit": 2500,
-  "plan_origin_x": -0.29,
-  "plan_origin_y": 0.84
- },
- "frame_mode": {
-  "camera_key": "sky_islands",
-  "reference_frame": 470,
-  "window": [
-   450,
-   484
-  ],
-  "mover_threshold": 130,
-  "keep_px": [
-   [
-    [
-     268,
-     30
+  "world": {
+    "units_per_plan_unit": 2500,
+    "plan_origin_x": -0.29,
+    "plan_origin_y": 0.84
+  },
+  "frame_mode": {
+    "camera_key": "sky_islands",
+    "reference_frame": 470,
+    "window": [450, 484],
+    "mover_threshold": 130,
+    "keep_px": [
+      [
+        [268, 30],
+        [380, 30],
+        [430, 100],
+        [430, 170],
+        [330, 170],
+        [270, 160]
+      ]
     ],
-    [
-     380,
-     30
-    ],
-    [
-     430,
-     100
-    ],
-    [
-     430,
-     170
-    ],
-    [
-     330,
-     170
-    ],
-    [
-     270,
-     160
+    "clean_px": [
+      {
+        "centre": [110, 85],
+        "radius": 20,
+        "what": "carrot"
+      },
+      {
+        "centre": [97, 224],
+        "radius": 18,
+        "what": "eggplant"
+      },
+      {
+        "centre": [350, 213],
+        "radius": 16,
+        "what": "coffee"
+      },
+      {
+        "centre": [346, 240],
+        "radius": 11,
+        "what": "banana"
+      },
+      {
+        "centre": [512, 108],
+        "radius": 15,
+        "what": "white character"
+      },
+      {
+        "centre": [398, 221],
+        "radius": 14,
+        "what": "pink character / pickup"
+      }
     ]
-   ]
+  },
+  "cutouts": [
+    {
+      "name": "rock_nw",
+      "polygon_px": [
+        [215, 22],
+        [262, 5],
+        [318, 14],
+        [334, 42],
+        [300, 72],
+        [250, 82],
+        [218, 62]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_ne",
+      "polygon_px": [
+        [408, 40],
+        [440, 28],
+        [472, 30],
+        [492, 62],
+        [472, 92],
+        [430, 92],
+        [408, 72]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_e",
+      "polygon_px": [
+        [368, 142],
+        [410, 124],
+        [452, 124],
+        [516, 176],
+        [506, 206],
+        [450, 212],
+        [372, 202]
+      ],
+      "fade": true
+    },
+    {
+      "name": "pillar_c",
+      "polygon_px": [
+        [257, 140],
+        [290, 134],
+        [301, 160],
+        [291, 180],
+        [261, 176]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_s",
+      "polygon_px": [
+        [248, 268],
+        [310, 247],
+        [362, 264],
+        [366, 360],
+        [248, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_sw",
+      "polygon_px": [
+        [0, 234],
+        [60, 244],
+        [102, 290],
+        [96, 360],
+        [0, 360]
+      ],
+      "fade": true
+    }
   ],
-  "clean_px": [
-   {
-    "centre": [
-     110,
-     85
+  "fade_prefixes": ["rock", "pillar"],
+  "arena": {
+    "plan_box": [-0.29, 0.236, 0.46, 0.84],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [28, 50],
+        "min_sat": 50,
+        "min_val": 120
+      }
     ],
-    "radius": 20,
-    "what": "carrot"
-   },
-   {
-    "centre": [
-     97,
-     224
+    "walkable_polygons": [
+      {
+        "name": "stone disc under the rotating croissant (the croissant is a visual-only hazard: no collision)",
+        "polygon": [
+          [0.061, 0.719],
+          [0.0564, 0.742],
+          [0.0434, 0.7614],
+          [0.024, 0.7744],
+          [0.001, 0.779],
+          [-0.022, 0.7744],
+          [-0.0414, 0.7614],
+          [-0.0544, 0.742],
+          [-0.059, 0.719],
+          [-0.0544, 0.696],
+          [-0.0414, 0.6766],
+          [-0.022, 0.6636],
+          [0.001, 0.659],
+          [0.024, 0.6636],
+          [0.0434, 0.6766],
+          [0.0564, 0.696]
+        ]
+      }
     ],
-    "radius": 18,
-    "what": "eggplant"
-   },
-   {
-    "centre": [
-     350,
-     213
-    ],
-    "radius": 16,
-    "what": "coffee"
-   },
-   {
-    "centre": [
-     346,
-     240
-    ],
-    "radius": 11,
-    "what": "banana"
-   },
-   {
-    "centre": [
-     512,
-     108
-    ],
-    "radius": 15,
-    "what": "white character"
-   },
-   {
-    "centre": [
-     398,
-     221
-    ],
-    "radius": 14,
-    "what": "pink character / pickup"
-   }
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in reference frame f470 ground footprint (every arena cell is observed)"
+  },
+  "roster": ["carrot", "banana", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "SKY ISLANDS (`sky_islands`) \u2014 the third map reconstructed from the master gameplay video (shot S7; FRAME MODE: reference",
+    "frame f470): grass islands on cliff pillars over a void, boulders, and a stone disc with a rotating croissant (a hazard drawn as",
+    "presentation only). Every cell is OBSERVED in the reference frame; nothing outside it exists. With falling DEFERRED the void only",
+    "blocks, so the islands are separate pockets \u2014 an OPEN owner decision (falling / dashing across gaps is not an approved mechanic)."
+  ],
+  "character_scale": 0.8,
+  "animated": [
+    {
+      "name": "croissant",
+      "plan_centre": [0.001, 0.719],
+      "radius": 0.11,
+      "z": 0.03,
+      "hue": [8, 22],
+      "min_sat": 80,
+      "min_val": 90,
+      "frames": 36,
+      "period_s": 4.8,
+      "direction": 1,
+      "evidence": "MEASURED: rotation of the croissant's colour centroid about the disc centre on the rectified plane z 0.03, f450-f484: +2.52 deg/frame (75.6 deg/s, CCW from above), residual 3.3 deg. The ground under it is INFERRED (inpainted). Hazard: presentation only, no collision or knockback (GAMEPLAY INTERACTION: DEFERRED).",
+      "hub_hue": [20, 35]
+    }
   ]
- },
- "cutouts": [
-  {
-   "name": "rock_nw",
-   "polygon_px": [
-    [
-     215,
-     22
-    ],
-    [
-     262,
-     5
-    ],
-    [
-     318,
-     14
-    ],
-    [
-     334,
-     42
-    ],
-    [
-     300,
-     72
-    ],
-    [
-     250,
-     82
-    ],
-    [
-     218,
-     62
-    ]
-   ],
-   "fade": true
-  },
-  {
-   "name": "rock_ne",
-   "polygon_px": [
-    [
-     408,
-     40
-    ],
-    [
-     440,
-     28
-    ],
-    [
-     472,
-     30
-    ],
-    [
-     492,
-     62
-    ],
-    [
-     472,
-     92
-    ],
-    [
-     430,
-     92
-    ],
-    [
-     408,
-     72
-    ]
-   ],
-   "fade": true
-  },
-  {
-   "name": "rock_e",
-   "polygon_px": [
-    [
-     368,
-     142
-    ],
-    [
-     410,
-     124
-    ],
-    [
-     452,
-     124
-    ],
-    [
-     516,
-     176
-    ],
-    [
-     506,
-     206
-    ],
-    [
-     450,
-     212
-    ],
-    [
-     372,
-     202
-    ]
-   ],
-   "fade": true
-  },
-  {
-   "name": "pillar_c",
-   "polygon_px": [
-    [
-     257,
-     140
-    ],
-    [
-     290,
-     134
-    ],
-    [
-     301,
-     160
-    ],
-    [
-     291,
-     180
-    ],
-    [
-     261,
-     176
-    ]
-   ],
-   "fade": true
-  },
-  {
-   "name": "rock_s",
-   "polygon_px": [
-    [
-     248,
-     268
-    ],
-    [
-     310,
-     247
-    ],
-    [
-     362,
-     264
-    ],
-    [
-     366,
-     360
-    ],
-    [
-     248,
-     360
-    ]
-   ],
-   "fade": true
-  },
-  {
-   "name": "rock_sw",
-   "polygon_px": [
-    [
-     0,
-     234
-    ],
-    [
-     60,
-     244
-    ],
-    [
-     102,
-     290
-    ],
-    [
-     96,
-     360
-    ],
-    [
-     0,
-     360
-    ]
-   ],
-   "fade": true
-  }
- ],
- "fade_prefixes": [
-  "rock",
-  "pillar"
- ],
- "arena": {
-  "plan_box": [
-   -0.29,
-   0.236,
-   0.46,
-   0.84
-  ],
-  "player_radius": 36,
-  "walkable": [
-   {
-    "hue": [
-     28,
-     50
-    ],
-    "min_sat": 50,
-    "min_val": 120
-   }
-  ],
-  "walkable_polygons": [
-   {
-    "name": "stone disc under the rotating croissant (the croissant is a visual-only hazard: no collision)",
-    "polygon": [
-     [
-      0.061,
-      0.719
-     ],
-     [
-      0.0564,
-      0.742
-     ],
-     [
-      0.0434,
-      0.7614
-     ],
-     [
-      0.024,
-      0.7744
-     ],
-     [
-      0.001,
-      0.779
-     ],
-     [
-      -0.022,
-      0.7744
-     ],
-     [
-      -0.0414,
-      0.7614
-     ],
-     [
-      -0.0544,
-      0.742
-     ],
-     [
-      -0.059,
-      0.719
-     ],
-     [
-      -0.0544,
-      0.696
-     ],
-     [
-      -0.0414,
-      0.6766
-     ],
-     [
-      -0.022,
-      0.6636
-     ],
-     [
-      0.001,
-      0.659
-     ],
-     [
-      0.024,
-      0.6636
-     ],
-     [
-      0.0434,
-      0.6766
-     ],
-     [
-      0.0564,
-      0.696
-     ]
-    ]
-   }
-  ],
-  "spawn_clearance": 20,
-  "note": "plan_box = the rectangle inscribed in reference frame f470 ground footprint (every arena cell is observed)"
- },
- "roster": [
-  "carrot",
-  "banana",
-  "coffee",
-  "bread",
-  "watermelon",
-  "icecream"
- ],
- "rules_doc": [
-  "SKY ISLANDS (`sky_islands`) \u2014 the third map reconstructed from the master gameplay video (shot S7; FRAME MODE: reference",
-  "frame f470): grass islands on cliff pillars over a void, boulders, and a stone disc with a rotating croissant (a hazard drawn as",
-  "presentation only). Every cell is OBSERVED in the reference frame; nothing outside it exists. With falling DEFERRED the void only",
-  "blocks, so the islands are separate pockets \u2014 an OPEN owner decision (falling / dashing across gaps is not an approved mechanic)."
- ],
- "character_scale": 0.8,
- "animated": [
-  {
-   "name": "croissant",
-   "plan_centre": [
-    0.001,
-    0.719
-   ],
-   "radius": 0.11,
-   "z": 0.03,
-   "hue": [
-    8,
-    22
-   ],
-   "min_sat": 80,
-   "min_val": 90,
-   "frames": 36,
-   "period_s": 4.8,
-   "direction": 1,
-   "evidence": "MEASURED: rotation of the croissant's colour centroid about the disc centre on the rectified plane z 0.03, f450-f484: +2.52 deg/frame (75.6 deg/s, CCW from above), residual 3.3 deg. The ground under it is INFERRED (inpainted). Hazard: presentation only, no collision or knockback (GAMEPLAY INTERACTION: DEFERRED).",
-   "hub_hue": [
-    20,
-    35
-   ]
-  }
- ]
 }
