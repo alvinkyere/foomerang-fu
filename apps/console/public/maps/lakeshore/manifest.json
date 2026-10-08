@@ -1,0 +1,129 @@
+{
+  "map": "lakeshore",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.010764291469910184, -0.000490006008989223, 1.0006914138793945],
+    "world": {
+      "unitsPerPlanUnit": 2000,
+      "planOriginX": -0.287,
+      "planOriginY": 0.848
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S1's vanishing-point scans hit the scan's lower bound (f ~450-490, d_n at the 400 px limit: an organic shoreline with few straight verticals) -> the median of the maps measured with confidence (f 1240 @640, pitch 57.8).",
+    "track": "window f43-f73 around reference f58 (ECC median 0.95).",
+    "framing": "OBSERVED: reference frame f58's own camera.",
+    "world_scale": "MEASURED: the banana in f58 is ~37 x 20 px (mid-motion) against 33-43 x 17 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1)."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "log_ne",
+      "file": "occ_log_ne.webp",
+      "x": 1449,
+      "y": 0,
+      "depth": 168.0,
+      "fade": true
+    },
+    {
+      "key": "log_n",
+      "file": "occ_log_n.webp",
+      "x": 582,
+      "y": 72,
+      "depth": 339.0,
+      "fade": true
+    },
+    {
+      "key": "crates_n",
+      "file": "occ_crates_n.webp",
+      "x": 525,
+      "y": 249,
+      "depth": 411.0,
+      "fade": false
+    },
+    {
+      "key": "trees_w",
+      "file": "occ_trees_w.webp",
+      "x": 0,
+      "y": 141,
+      "depth": 588.0,
+      "fade": true
+    },
+    {
+      "key": "crate_e",
+      "file": "occ_crate_e.webp",
+      "x": 1554,
+      "y": 528,
+      "depth": 639.0,
+      "fade": false
+    },
+    {
+      "key": "bamboo_s",
+      "file": "occ_bamboo_s.webp",
+      "x": 1149,
+      "y": 726,
+      "depth": 960.0,
+      "fade": true
+    },
+    {
+      "key": "log_s",
+      "file": "occ_log_s.webp",
+      "x": 339,
+      "y": 837,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/lakeshore.json; bake_map.py, bake_chars.py, package_map.py)"
+}

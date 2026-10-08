@@ -95,6 +95,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1216, height: 878 }),
       background: '#9fcf5c',
     }),
+    // seat 1 is the shot's pack cast (S1: banana); its eggplant has no pack model yet; 2-6 are pack characters
+    lakeshore: Object.freeze({
+      id: 'lakeshore',
+      assetDir: 'maps/lakeshore/',
+      roster: Object.freeze([
+        'banana',
+        'carrot',
+        'coffee',
+        'bread',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1106, height: 800 }),
+      background: '#4f8a99',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

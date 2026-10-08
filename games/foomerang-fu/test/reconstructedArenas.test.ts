@@ -13,6 +13,10 @@ import {
   POND_GARDEN_BOOK_SPOTS,
   POND_GARDEN_SPAWNS,
   POND_GARDEN_WALLS,
+  LAKESHORE_ARENA,
+  LAKESHORE_BOOK_SPOTS,
+  LAKESHORE_SPAWNS,
+  LAKESHORE_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -34,6 +38,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'lakeshore',
+    arena: LAKESHORE_ARENA,
+    walls: LAKESHORE_WALLS,
+    spawns: LAKESHORE_SPAWNS,
+    books: LAKESHORE_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'pond_garden',
     arena: POND_GARDEN_ARENA,

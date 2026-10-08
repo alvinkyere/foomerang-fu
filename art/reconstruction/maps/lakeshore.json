@@ -1,0 +1,193 @@
+{
+  "map": "lakeshore",
+  "shots": "S1 (f34-f83); reference f58",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.010764291469910184, -0.000490006008989223, 1.0006914138793945]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S1's vanishing-point scans hit the scan's lower bound (f ~450-490, d_n at the 400 px limit: an organic shoreline with few straight verticals) -> the median of the maps measured with confidence (f 1240 @640, pitch 57.8).",
+      "track": "window f43-f73 around reference f58 (ECC median 0.95).",
+      "framing": "OBSERVED: reference frame f58's own camera.",
+      "world_scale": "MEASURED: the banana in f58 is ~37 x 20 px (mid-motion) against 33-43 x 17 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1)."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2000,
+    "plan_origin_x": -0.287,
+    "plan_origin_y": 0.848
+  },
+  "character_scale": 1.0,
+  "frame_mode": {
+    "camera_key": "lakeshore",
+    "reference_frame": 58,
+    "window": [43, 73],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [295, 168],
+        "radius": 18,
+        "what": "eggplant"
+      },
+      {
+        "centre": [185, 232],
+        "radius": 19,
+        "what": "banana"
+      },
+      {
+        "centre": [237, 200],
+        "radius": 10,
+        "what": "boomerang"
+      },
+      {
+        "centre": [196, 300],
+        "radius": 13,
+        "what": "small character"
+      },
+      {
+        "centre": [505, 37],
+        "radius": 13,
+        "what": "character on the log"
+      },
+      {
+        "centre": [245, 195],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [254, 190],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [263, 185],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [272, 180],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [281, 175],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [290, 170],
+        "radius": 7,
+        "what": "boomerang trail"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "log_n",
+      "polygon_px": [
+        [195, 70],
+        [245, 25],
+        [292, 35],
+        [296, 76],
+        [240, 113],
+        [198, 100]
+      ],
+      "fade": true
+    },
+    {
+      "name": "crates_n",
+      "polygon_px": [
+        [176, 95],
+        [205, 84],
+        [226, 110],
+        [221, 137],
+        [195, 137],
+        [176, 116]
+      ]
+    },
+    {
+      "name": "crate_e",
+      "polygon_px": [
+        [519, 190],
+        [540, 177],
+        [554, 195],
+        [549, 213],
+        [527, 213]
+      ]
+    },
+    {
+      "name": "log_s",
+      "polygon_px": [
+        [114, 300],
+        [155, 280],
+        [202, 298],
+        [206, 360],
+        [128, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "trees_w",
+      "polygon_px": [
+        [0, 48],
+        [62, 54],
+        [120, 90],
+        [120, 142],
+        [82, 196],
+        [30, 196],
+        [0, 170]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bamboo_s",
+      "polygon_px": [
+        [384, 248],
+        [410, 243],
+        [452, 264],
+        [442, 320],
+        [394, 320]
+      ],
+      "fade": true
+    },
+    {
+      "name": "log_ne",
+      "polygon_px": [
+        [484, 0],
+        [562, 0],
+        [562, 52],
+        [520, 56],
+        [484, 30]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["bamboo", "log", "trees"],
+  "arena": {
+    "plan_box": [-0.287, 0.266, 0.448, 0.848],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["banana", "carrot", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "LAKESHORE (`lakeshore`) \u2014 reconstructed from the master gameplay video (shot S1; FRAME MODE: reference frame f58): a grass",
+    "promontory into water with a log bench, crates, red maples, bamboo and lily pads. Every cell is OBSERVED in the reference",
+    "frame; ground behind cut-outs is INFERRED walkable; water only blocks (no water mechanic). Camera lens/pitch INFERRED",
+    "(a prior from the maps measured with confidence). No hazards; no new mechanic."
+  ]
+}

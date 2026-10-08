@@ -111,3 +111,12 @@ export {
   POND_GARDEN_WIDTH,
 } from './pondGardenArena';
 export type { PondGardenWall } from './pondGardenArena';
+export {
+  LAKESHORE_ARENA,
+  LAKESHORE_BOOK_SPOTS,
+  LAKESHORE_HEIGHT,
+  LAKESHORE_SPAWNS,
+  LAKESHORE_WALLS,
+  LAKESHORE_WIDTH,
+} from './lakeshoreArena';
+export type { LakeshoreWall } from './lakeshoreArena';
