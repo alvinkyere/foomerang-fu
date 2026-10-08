@@ -120,3 +120,12 @@ export {
   LAKESHORE_WIDTH,
 } from './lakeshoreArena';
 export type { LakeshoreWall } from './lakeshoreArena';
+export {
+  FARM_PLOTS_ARENA,
+  FARM_PLOTS_BOOK_SPOTS,
+  FARM_PLOTS_HEIGHT,
+  FARM_PLOTS_SPAWNS,
+  FARM_PLOTS_WALLS,
+  FARM_PLOTS_WIDTH,
+} from './farmPlotsArena';
+export type { FarmPlotsWall } from './farmPlotsArena';

@@ -110,6 +110,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1106, height: 800 }),
       background: '#4f8a99',
     }),
+    // seat 1 is the shot's pack cast (S2: carrot); its sushi has no pack model yet; 2-6 are pack characters
+    farm_plots: Object.freeze({
+      id: 'farm_plots',
+      assetDir: 'maps/farm_plots/',
+      roster: Object.freeze([
+        'carrot',
+        'banana',
+        'coffee',
+        'bread',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1106, height: 803 }),
+      background: '#9fd06a',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

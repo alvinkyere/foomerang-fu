@@ -17,6 +17,10 @@ import {
   LAKESHORE_BOOK_SPOTS,
   LAKESHORE_SPAWNS,
   LAKESHORE_WALLS,
+  FARM_PLOTS_ARENA,
+  FARM_PLOTS_BOOK_SPOTS,
+  FARM_PLOTS_SPAWNS,
+  FARM_PLOTS_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -38,6 +42,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'farm_plots',
+    arena: FARM_PLOTS_ARENA,
+    walls: FARM_PLOTS_WALLS,
+    spawns: FARM_PLOTS_SPAWNS,
+    books: FARM_PLOTS_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'lakeshore',
     arena: LAKESHORE_ARENA,

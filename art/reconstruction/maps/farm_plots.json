@@ -1,0 +1,237 @@
+{
+  "map": "farm_plots",
+  "shots": "S2 (f84-f144); reference f114",
+  "camera": {
+    "f": 1837.0,
+    "pose": {
+      "pitch_deg": 55.2,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.004853309592323695, -0.000598993300605118, 0.9852325320243835]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "MEASURED (MEDIUM): vanishing-point scans of S2 agree across segments: f [1837, 1873, 1697] px @640, pitch [55.8, 55.2, 54.7] deg (nadir support [736, 555, 493]).",
+      "track": "window f99-f129 around reference f114 (ECC median 0.81).",
+      "framing": "OBSERVED: reference frame f114's own camera.",
+      "world_scale": "MEASURED: the carrot in f114 is ~35 x 25 px against 50 x 30 px baked through this camera at the plaza fit -> character_scale 0.70 (+-0.07); 2857 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2857,
+    "plan_origin_x": -0.198,
+    "plan_origin_y": 0.834
+  },
+  "character_scale": 0.7,
+  "frame_mode": {
+    "camera_key": "farm_plots",
+    "reference_frame": 114,
+    "window": [99, 129],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [332, 65],
+        "radius": 20,
+        "what": "sushi"
+      },
+      {
+        "centre": [256, 290],
+        "radius": 19,
+        "what": "carrot"
+      },
+      {
+        "centre": [380, 168],
+        "radius": 25,
+        "what": "dark character + slash"
+      },
+      {
+        "centre": [16, 205],
+        "radius": 20,
+        "what": "shield pickup (drawn live by the game)"
+      },
+      {
+        "centre": [300, 312],
+        "radius": 6,
+        "what": "-"
+      },
+      {
+        "centre": [330, 100],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [342, 113],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [355, 127],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [367, 141],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [380, 155],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [392, 168],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [405, 182],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [417, 196],
+        "radius": 8,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [430, 210],
+        "radius": 8,
+        "what": "boomerang trail"
+      }
+    ],
+    "inpaint_px": [
+      {
+        "centre": [332, 65],
+        "radius": 20,
+        "what": "sushi (stationary through the window)"
+      },
+      {
+        "centre": [16, 205],
+        "radius": 22,
+        "what": "shield pickup (stationary)"
+      },
+      {
+        "centre": [335, 92],
+        "radius": 16,
+        "what": "smoke trail (effect)"
+      },
+      {
+        "centre": [381, 136],
+        "radius": 12,
+        "what": "spark (effect)"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "gate_n",
+      "polygon_px": [
+        [160, 18],
+        [446, 12],
+        [446, 82],
+        [418, 82],
+        [418, 42],
+        [187, 42],
+        [187, 82],
+        [160, 82]
+      ],
+      "fade": true
+    },
+    {
+      "name": "crate_w",
+      "polygon_px": [
+        [127, 128],
+        [145, 118],
+        [161, 130],
+        [159, 153],
+        [142, 158],
+        [127, 148]
+      ]
+    },
+    {
+      "name": "crates_c",
+      "polygon_px": [
+        [383, 215],
+        [405, 205],
+        [422, 222],
+        [425, 255],
+        [405, 262],
+        [385, 245]
+      ]
+    },
+    {
+      "name": "boulder_ne",
+      "polygon_px": [
+        [470, 45],
+        [492, 30],
+        [512, 40],
+        [515, 85],
+        [490, 92],
+        [472, 80]
+      ],
+      "fade": true
+    },
+    {
+      "name": "boulder_e",
+      "polygon_px": [
+        [585, 95],
+        [615, 75],
+        [640, 82],
+        [640, 160],
+        [608, 160],
+        [588, 130]
+      ],
+      "fade": true
+    },
+    {
+      "name": "boulder_w",
+      "polygon_px": [
+        [0, 152],
+        [25, 150],
+        [42, 180],
+        [40, 222],
+        [0, 225]
+      ],
+      "fade": true
+    },
+    {
+      "name": "plant",
+      "polygon_px": [
+        [278, 292],
+        [300, 288],
+        [310, 305],
+        [302, 328],
+        [282, 328]
+      ]
+    }
+  ],
+  "fade_prefixes": ["boulder", "gate"],
+  "arena": {
+    "plan_box": [-0.198, 0.189, 0.553, 0.834],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      },
+      {
+        "hue": [8, 22],
+        "min_sat": 50,
+        "min_val": 110
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["carrot", "banana", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "FARM PLOTS (`farm_plots`) \u2014 reconstructed from the master gameplay video (shot S2; FRAME MODE: reference frame f114): a lawn",
+    "with a purple gate frame, crates and boulders, and two dirt plots edged by water channels. Every cell is OBSERVED in the",
+    "reference frame; ground behind cut-outs is INFERRED walkable; water only blocks (no water mechanic). Camera MEASURED (MEDIUM).",
+    "No hazards; no new mechanic."
+  ]
+}

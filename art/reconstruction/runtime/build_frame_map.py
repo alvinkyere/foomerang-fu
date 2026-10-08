@@ -28,6 +28,8 @@ for c in fm.get('clean_px', []): m = np.zeros(dev.shape, np.uint8); cv2.circle(m
 for poly in fm.get('keep_px', []):          # regions that legitimately change (animated props): keep the reference pixels
     m = np.zeros(dev.shape, np.uint8); cv2.fillPoly(m, [np.array(poly, np.int32)], 1); dev &= m == 0
 clean = np.where(dev[..., None], med, ref).clip(0, 255).astype(np.uint8)
+for c in fm.get('inpaint_px', []):          # a mover that stayed put through the window (the median has it too): inpaint (INFERRED)
+    m = np.zeros(dev.shape, np.uint8); cv2.circle(m, tuple(c['centre']), c['radius'], 255, -1); clean = cv2.inpaint(clean, m, 5, cv2.INPAINT_TELEA)
 up = cv2.resize(clean, (W, H), interpolation=cv2.INTER_CUBIC); cv2.imwrite(os.path.join(OUT, 'ground.png'), up)
 cv2.imwrite(os.path.join(OUT, 'movers_mask.png'), dev.astype(np.uint8) * 255)
 Hi = np.linalg.inv(Href)
