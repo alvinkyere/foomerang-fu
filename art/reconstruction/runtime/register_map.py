@@ -36,7 +36,10 @@ def maps(s):
     row = (f"    // {NOTE}\n" if NOTE else '') + f"    {MAP}: Object.freeze({{\n      id: '{MAP}',\n      assetDir: 'maps/{MAP}/',\n      roster: Object.freeze([{', '.join(repr(r) for r in roster)}] as const),\n      arena: Object.freeze({{ width: {W}, height: {H} }}),\n      background: '{BG}',\n    }}),\n"
     return s.replace("  });\n\nexport const reconstructedMapFor", row + "  });\n\nexport const reconstructedMapFor", 1)
 edit('apps/console/src/render/reconstructed/maps.ts', maps)
-def e2e(s):
-    return re.sub(r"for \(const map of \[([^\]]*)\] as const\)", lambda m: m.group(0) if f"'{MAP}'" in m.group(1) else f"for (const map of [{m.group(1)}, '{MAP}'] as const)", s, count=1)
+def e2e(s):          # rebuild the list from its names (it may have been reformatted with a trailing comma)
+    def fix(m):
+        names = re.findall(r"'([a-z_]+)'", m.group(1)); names += [] if MAP in names else [MAP]
+        return 'for (const map of [' + ', '.join(f"'{n}'" for n in names) + '] as const)'
+    return re.sub(r"for \(const map of \[([^\]]*)\] as const\)", fix, s, count=1)
 edit('integration/e2e/reconstructedMaps.e2e.ts', e2e)
 print('registered', MAP, W, 'x', H)

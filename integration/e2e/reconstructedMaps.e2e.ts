@@ -15,8 +15,8 @@ for (const map of [
   'sky_islands',
   'pond_garden',
   'lakeshore',
-  ,
   'farm_plots',
+  'flooded_ruins',
 ] as const)
   test(`${map} draws in the real game: six CPUs, baked layers and pack characters, no errors`, async ({
     hostAt,

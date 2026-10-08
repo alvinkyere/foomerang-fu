@@ -125,6 +125,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1106, height: 803 }),
       background: '#9fd06a',
     }),
+    // seat 1 is the shot's pack cast (S8: banana); 2-6 are pack characters
+    flooded_ruins: Object.freeze({
+      id: 'flooded_ruins',
+      assetDir: 'maps/flooded_ruins/',
+      roster: Object.freeze([
+        'banana',
+        'carrot',
+        'coffee',
+        'bread',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1154, height: 834 }),
+      background: '#4d7f86',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

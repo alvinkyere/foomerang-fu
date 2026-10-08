@@ -1,0 +1,348 @@
+{
+  "map": "flooded_ruins",
+  "shots": "S8 (f546-f650); reference f598",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.0030975130583659315, -0.017327900903903785, 1.043364405632019]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S8's vanishing-point segments disagree (f 1212/1308/1554 @640, pitch 60/54/53.5; nadir support ~600) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+      "track": "window f583-f613 around reference f598 (ECC median 0.75).",
+      "framing": "OBSERVED: reference frame f598's own camera.",
+      "world_scale": "MEASURED: the banana in f598 is ~35 px tall against 32-41 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1)."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2000,
+    "plan_origin_x": -0.285,
+    "plan_origin_y": 0.867
+  },
+  "character_scale": 1.0,
+  "frame_mode": {
+    "camera_key": "flooded_ruins",
+    "reference_frame": 598,
+    "window": [583, 613],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [180, 165],
+        "radius": 22,
+        "what": "banana"
+      },
+      {
+        "centre": [270, 272],
+        "radius": 19,
+        "what": "character with a pink glow"
+      },
+      {
+        "centre": [480, 250],
+        "radius": 31,
+        "what": "character inside an effect"
+      }
+    ],
+    "inpaint_px": [
+      {
+        "centre": [180, 158],
+        "radius": 22,
+        "what": "banana (stationary through the window)"
+      },
+      {
+        "centre": [270, 270],
+        "radius": 19,
+        "what": "character with a pink glow (stationary)"
+      },
+      {
+        "centre": [478, 250],
+        "radius": 31,
+        "what": "character inside an effect (stationary)"
+      },
+      {
+        "centre": [285, 100],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [305, 100],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [325, 101],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [345, 102],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [365, 103],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [385, 104],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [405, 105],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [425, 105],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [445, 106],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [465, 107],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [485, 108],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [505, 109],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [525, 110],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [400, 165],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [413, 174],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [426, 183],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [440, 192],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [453, 201],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [466, 210],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      },
+      {
+        "centre": [480, 220],
+        "radius": 5,
+        "what": "pink aiming line (effect)"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "pillar_nw",
+      "polygon_px": [
+        [25, 30],
+        [60, 25],
+        [68, 95],
+        [35, 100],
+        [22, 80]
+      ],
+      "fade": true
+    },
+    {
+      "name": "block_n",
+      "polygon_px": [
+        [188, 35],
+        [210, 30],
+        [222, 80],
+        [200, 88],
+        [188, 70]
+      ],
+      "fade": true
+    },
+    {
+      "name": "block_c",
+      "polygon_px": [
+        [255, 118],
+        [328, 115],
+        [330, 158],
+        [258, 162]
+      ]
+    },
+    {
+      "name": "block_w",
+      "polygon_px": [
+        [98, 165],
+        [155, 163],
+        [157, 200],
+        [100, 202]
+      ]
+    },
+    {
+      "name": "block_sw",
+      "polygon_px": [
+        [175, 212],
+        [200, 200],
+        [230, 232],
+        [220, 258],
+        [195, 255]
+      ]
+    },
+    {
+      "name": "block_e",
+      "polygon_px": [
+        [355, 215],
+        [395, 195],
+        [408, 215],
+        [372, 250],
+        [355, 240]
+      ]
+    },
+    {
+      "name": "rock_moss",
+      "polygon_px": [
+        [382, 90],
+        [420, 75],
+        [455, 95],
+        [450, 130],
+        [410, 132]
+      ],
+      "fade": true
+    },
+    {
+      "name": "pillar_ne",
+      "polygon_px": [
+        [520, 42],
+        [550, 40],
+        [552, 95],
+        [525, 98]
+      ],
+      "fade": true
+    },
+    {
+      "name": "pillar_e",
+      "polygon_px": [
+        [585, 195],
+        [625, 190],
+        [630, 252],
+        [590, 255]
+      ],
+      "fade": true
+    },
+    {
+      "name": "pillar_sw",
+      "polygon_px": [
+        [0, 295],
+        [40, 292],
+        [80, 330],
+        [80, 360],
+        [0, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "block_s",
+      "polygon_px": [
+        [235, 325],
+        [300, 320],
+        [310, 360],
+        [235, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "block_s2",
+      "polygon_px": [
+        [390, 330],
+        [430, 327],
+        [432, 360],
+        [390, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bamboo_n",
+      "polygon_px": [
+        [418, 0],
+        [455, 0],
+        [455, 42],
+        [420, 42]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bamboo_e",
+      "polygon_px": [
+        [505, 58],
+        [528, 58],
+        [528, 105],
+        [505, 105]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["bamboo", "block", "pillar", "rock"],
+  "arena": {
+    "plan_box": [-0.285, 0.292, 0.45, 0.867],
+    "player_radius": 36,
+    "walkable": [],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)",
+    "walkable_px": [
+      [
+        [160, 30],
+        [262, 30],
+        [262, 95],
+        [330, 95],
+        [330, 30],
+        [430, 30],
+        [430, 55],
+        [540, 55],
+        [556, 300],
+        [556, 336],
+        [440, 300],
+        [365, 300],
+        [365, 346],
+        [140, 346],
+        [110, 240],
+        [118, 95],
+        [160, 95]
+      ]
+    ]
+  },
+  "roster": ["banana", "carrot", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "FLOODED RUINS (`flooded_ruins`) \u2014 reconstructed from the master gameplay video (shot S8; FRAME MODE: reference frame f598): a",
+    "dark stone-tile floor in shallow water, stone blocks, mossy rocks, pillars and bamboo. The walkable floor is an outline traced in",
+    "the reference frame (floor and water are too close in colour to classify); water only blocks (no water mechanic). Camera",
+    "lens/pitch INFERRED (a prior from the maps measured with confidence). No hazards; no new mechanic."
+  ]
+}

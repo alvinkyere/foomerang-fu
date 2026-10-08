@@ -129,3 +129,12 @@ export {
   FARM_PLOTS_WIDTH,
 } from './farmPlotsArena';
 export type { FarmPlotsWall } from './farmPlotsArena';
+export {
+  FLOODED_RUINS_ARENA,
+  FLOODED_RUINS_BOOK_SPOTS,
+  FLOODED_RUINS_HEIGHT,
+  FLOODED_RUINS_SPAWNS,
+  FLOODED_RUINS_WALLS,
+  FLOODED_RUINS_WIDTH,
+} from './floodedRuinsArena';
+export type { FloodedRuinsWall } from './floodedRuinsArena';

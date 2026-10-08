@@ -21,6 +21,10 @@ import {
   FARM_PLOTS_BOOK_SPOTS,
   FARM_PLOTS_SPAWNS,
   FARM_PLOTS_WALLS,
+  FLOODED_RUINS_ARENA,
+  FLOODED_RUINS_BOOK_SPOTS,
+  FLOODED_RUINS_SPAWNS,
+  FLOODED_RUINS_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -42,6 +46,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'flooded_ruins',
+    arena: FLOODED_RUINS_ARENA,
+    walls: FLOODED_RUINS_WALLS,
+    spawns: FLOODED_RUINS_SPAWNS,
+    books: FLOODED_RUINS_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'farm_plots',
     arena: FARM_PLOTS_ARENA,

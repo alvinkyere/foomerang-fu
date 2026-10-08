@@ -10,9 +10,11 @@ MAP, BAKE = sys.argv[1], sys.argv[2]; TS = '--ts' in sys.argv
 cfg = json.load(open(os.path.join(HERE, '..', 'maps', f'{MAP}.json'))); fm = cfg['frame_mode']; wm = cfg['world']; ar = cfg['arena']; u = wm['units_per_plan_unit']
 img = cv2.resize(cv2.imread(os.path.join(BAKE, 'ground.png')), (640, 360), interpolation=cv2.INTER_AREA); hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 walk = np.zeros((360, 640), bool)
-for c in ar['walkable']:
+for c in ar.get('walkable', []):
     lo, hi = c['hue']; walk |= (hsv[..., 0] >= lo) & (hsv[..., 0] <= hi) & (hsv[..., 1] >= c.get('min_sat', 0)) & (hsv[..., 2] >= c.get('min_val', 0))
 walk = cv2.morphologyEx(walk.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
+for poly in ar.get('walkable_px', []):          # a walkable outline traced in reference-frame px (where colour cannot separate floor from water)
+    m = np.zeros((360, 640), np.uint8); cv2.fillPoly(m, [np.array(poly, np.int32)], 1); walk |= m > 0
 Href = plane_H(fm['camera_key'], fm['reference_frame'], 0.0)
 # ground HIDDEN behind a cut-out (a rock, a tower) is unseen: it is taken as walkable (INFERRED: the surface continues behind it), except
 # the cut-out's own footprint (build_frame_map.py footprints.json), which blocks
