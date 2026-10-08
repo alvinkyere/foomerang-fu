@@ -1,0 +1,129 @@
+{
+  "map": "pond_garden",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.02488604468365055, -0.009891932520703056, 1.098354697227478],
+    "world": {
+      "unitsPerPlanUnit": 2000,
+      "planOriginX": -0.279,
+      "planOriginY": 0.921
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: vanishing-point scans of S0 disagree across segments (f 1675/1020/800, pitch 63/38/45; nadir support 180-315, too weak: an organic lawn scene) -> the median of the maps measured with confidence (harbour, sky, farm, toaster, twin: f 1240 @640, pitch 57.8).",
+    "track": "window f1-f31 around reference f16 (ECC median 0.81).",
+    "framing": "OBSERVED: reference frame f16's own camera (canvas = that frame at x3).",
+    "world_scale": "MEASURED: the banana in f16 is ~35 x 15 px against 31-39 x 16 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1); 2000 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "plinth_ne",
+      "file": "occ_plinth_ne.webp",
+      "x": 957,
+      "y": 0,
+      "depth": 354.0,
+      "fade": true
+    },
+    {
+      "key": "bench_n",
+      "file": "occ_bench_n.webp",
+      "x": 591,
+      "y": 231,
+      "depth": 384.0,
+      "fade": false
+    },
+    {
+      "key": "pots_n",
+      "file": "occ_pots_n.webp",
+      "x": 747,
+      "y": 336,
+      "depth": 420.0,
+      "fade": false
+    },
+    {
+      "key": "bamboo_island",
+      "file": "occ_bamboo_island.webp",
+      "x": 123,
+      "y": 357,
+      "depth": 756.0,
+      "fade": true
+    },
+    {
+      "key": "tree_maple",
+      "file": "occ_tree_maple.webp",
+      "x": 1443,
+      "y": 492,
+      "depth": 825.0,
+      "fade": true
+    },
+    {
+      "key": "bench_l",
+      "file": "occ_bench_l.webp",
+      "x": 738,
+      "y": 636,
+      "depth": 936.0,
+      "fade": false
+    },
+    {
+      "key": "pots_se",
+      "file": "occ_pots_se.webp",
+      "x": 1443,
+      "y": 771,
+      "depth": 939.0,
+      "fade": false
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/pond_garden.json; bake_map.py, bake_chars.py, package_map.py)"
+}

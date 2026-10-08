@@ -59,6 +59,7 @@ export const ARENA_CHOICES = [
   'market_plaza',
   'harbour_fort',
   'sky_islands',
+  'pond_garden',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice => {

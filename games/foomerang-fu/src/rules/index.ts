@@ -102,3 +102,12 @@ export type {
   SpawnRate,
 } from './powerups';
 export { PRIMITIVE_POWERUPS, powerupsFor } from './config';
+export {
+  POND_GARDEN_ARENA,
+  POND_GARDEN_BOOK_SPOTS,
+  POND_GARDEN_HEIGHT,
+  POND_GARDEN_SPAWNS,
+  POND_GARDEN_WALLS,
+  POND_GARDEN_WIDTH,
+} from './pondGardenArena';
+export type { PondGardenWall } from './pondGardenArena';

@@ -9,6 +9,10 @@ import {
   SKY_ISLANDS_BOOK_SPOTS,
   SKY_ISLANDS_SPAWNS,
   SKY_ISLANDS_WALLS,
+  POND_GARDEN_ARENA,
+  POND_GARDEN_BOOK_SPOTS,
+  POND_GARDEN_SPAWNS,
+  POND_GARDEN_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -30,6 +34,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'pond_garden',
+    arena: POND_GARDEN_ARENA,
+    walls: POND_GARDEN_WALLS,
+    spawns: POND_GARDEN_SPAWNS,
+    books: POND_GARDEN_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'harbour_fort',
     arena: HARBOUR_FORT_ARENA,
