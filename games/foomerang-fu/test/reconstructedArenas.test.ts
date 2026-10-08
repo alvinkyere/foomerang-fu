@@ -25,6 +25,10 @@ import {
   FLOODED_RUINS_BOOK_SPOTS,
   FLOODED_RUINS_SPAWNS,
   FLOODED_RUINS_WALLS,
+  HEDGE_MAZE_ARENA,
+  HEDGE_MAZE_BOOK_SPOTS,
+  HEDGE_MAZE_SPAWNS,
+  HEDGE_MAZE_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -46,6 +50,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'hedge_maze',
+    arena: HEDGE_MAZE_ARENA,
+    walls: HEDGE_MAZE_WALLS,
+    spawns: HEDGE_MAZE_SPAWNS,
+    books: HEDGE_MAZE_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'flooded_ruins',
     arena: FLOODED_RUINS_ARENA,

@@ -20,6 +20,8 @@ import {
   FARM_PLOTS_BOOK_SPOTS,
   FLOODED_RUINS_ARENA,
   FLOODED_RUINS_BOOK_SPOTS,
+  HEDGE_MAZE_ARENA,
+  HEDGE_MAZE_BOOK_SPOTS,
   type FuArena,
 } from '@foomerang/foomerang-fu';
 import type { ArenaChoice } from './powerupMode';
@@ -47,6 +49,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
   lakeshore: { arena: LAKESHORE_ARENA, bookSpots: LAKESHORE_BOOK_SPOTS, named: true },
   farm_plots: { arena: FARM_PLOTS_ARENA, bookSpots: FARM_PLOTS_BOOK_SPOTS, named: true },
   flooded_ruins: { arena: FLOODED_RUINS_ARENA, bookSpots: FLOODED_RUINS_BOOK_SPOTS, named: true },
+  hedge_maze: { arena: HEDGE_MAZE_ARENA, bookSpots: HEDGE_MAZE_BOOK_SPOTS, named: true },
 });
 
 /** Which arena choice a rules arena is (undefined for an arena not in the table). */

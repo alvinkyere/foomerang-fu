@@ -138,3 +138,12 @@ export {
   FLOODED_RUINS_WIDTH,
 } from './floodedRuinsArena';
 export type { FloodedRuinsWall } from './floodedRuinsArena';
+export {
+  HEDGE_MAZE_ARENA,
+  HEDGE_MAZE_BOOK_SPOTS,
+  HEDGE_MAZE_HEIGHT,
+  HEDGE_MAZE_SPAWNS,
+  HEDGE_MAZE_WALLS,
+  HEDGE_MAZE_WIDTH,
+} from './hedgeMazeArena';
+export type { HedgeMazeWall } from './hedgeMazeArena';

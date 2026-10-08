@@ -140,6 +140,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1154, height: 834 }),
       background: '#4d7f86',
     }),
+    // seats 1-5 are the shot's pack cast (S11: carrot, banana, coffee, icecream, bread); its eggplant has no pack model yet
+    hedge_maze: Object.freeze({
+      id: 'hedge_maze',
+      assetDir: 'maps/hedge_maze/',
+      roster: Object.freeze([
+        'carrot',
+        'banana',
+        'coffee',
+        'icecream',
+        'bread',
+        'watermelon',
+      ] as const),
+      arena: Object.freeze({ width: 1871, height: 1352 }),
+      background: '#a7d46a',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

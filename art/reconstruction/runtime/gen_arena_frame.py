@@ -22,7 +22,9 @@ hidden = np.zeros((360, 640), np.uint8)
 for c in cfg.get('cutouts', []): cv2.fillPoly(hidden, [np.array(c['polygon_px'], np.int32)], 1)
 fp_path = os.path.join(BAKE, 'footprints.json'); FOOT = [np.array(v, np.float32).reshape(-1, 1, 2) for v in json.load(open(fp_path)).values()] if os.path.exists(fp_path) else []
 FOOT = [cv2.convexHull(f) for f in FOOT if len(f) >= 3]
-bx0, bx1, by0, by1 = ar['plan_box']; W = round((bx1 - bx0) * u); H = round((by1 - by0) * u); R = ar['player_radius']; GRID = 40
+bx0, bx1, by0, by1 = ar['plan_box']; W = round((bx1 - bx0) * u); H = round((by1 - by0) * u); R = ar['player_radius']
+GRID = ar.get('grid', 40)          # 20 for thin-walled maps: walls are then padded to the rules' minimum thickness below
+MINT = 40          # >= the rules' minimum wall thickness (a player radius)
 assert abs(bx0 - wm['plan_origin_x']) < 1e-9 and abs(by1 - wm['plan_origin_y']) < 1e-9, 'world origin = arena top-left corner'
 polys = [np.array(p['polygon'], np.float32).reshape(-1, 1, 2) for p in ar.get('walkable_polygons', [])]
 def open_cell(xw, yw):
@@ -34,7 +36,13 @@ def open_cell(xw, yw):
     if hidden[int(py), int(px)]: return True          # behind a cut-out: INFERRED walkable
     return bool(walk[int(py), int(px)])
 nx, ny = math.ceil(W / GRID), math.ceil(H / GRID)
-B = np.array([[not open_cell((c + 0.5) * GRID, (r + 0.5) * GRID) for c in range(nx)] for r in range(ny)])
+# a cell blocks when at least a quarter of its 3 x 3 samples do: thin walls (a maze) narrower than a cell still block, and are then
+# at least the rules' minimum wall thickness
+SUB = [(0.17, 0.17), (0.5, 0.17), (0.83, 0.17), (0.17, 0.5), (0.5, 0.5), (0.83, 0.5), (0.17, 0.83), (0.5, 0.83), (0.83, 0.83)]
+B = np.array([[sum(not open_cell((c + a) * GRID, (r + b) * GRID) for a, b in SUB) >= 3 for c in range(nx)] for r in range(ny)])
+if GRID < MINT: B = cv2.dilate(B.astype(np.uint8), np.ones((2, 2), np.uint8)) > 0          # thin walls -> at least the minimum thickness
+k_ = int(math.ceil((2 * R + 8) / GRID))          # gaps narrower than a body are impassable and trap the collision solver: close them
+B = cv2.morphologyEx(B.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((k_, k_), np.uint8), borderType=cv2.BORDER_CONSTANT, borderValue=0) > 0
 B = ~(cv2.morphologyEx((~B).astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8)) > 0)          # open floor needs room for a player
 walls = []; left = B.copy()
 while left.any():
@@ -43,7 +51,10 @@ while left.any():
     h = 1
     while r + h < ny and left[r + h, c:c + w].all(): h += 1
     left[r:r + h, c:c + w] = False
-    x0, x1, y0, y1 = c * GRID, min((c + w) * GRID, W), r * GRID, min((r + h) * GRID, H); x0, y0 = min(x0, x1 - GRID), min(y0, y1 - GRID)
+    x0, x1, y0, y1 = c * GRID, min((c + w) * GRID, W), r * GRID, min((r + h) * GRID, H)
+    if x1 - x0 < MINT: cx_ = (x0 + x1) / 2; x0, x1 = max(0, min(cx_ - MINT / 2, W - MINT)), 0; x1 = x0 + MINT          # thin wall: padded, centred
+    if y1 - y0 < MINT: cy_ = (y0 + y1) / 2; y0 = max(0, min(cy_ - MINT / 2, H - MINT)); y1 = y0 + MINT
+    x0, y0, x1, y1 = int(round(x0)), int(round(y0)), int(round(x1)), int(round(y1))
     walls.append(dict(id=f'BLOCK{len(walls)}', kind='BLOCK', x=int(x0), y=int(y0), width=int(x1 - x0), height=int(y1 - y0)))
 def d2rect(p, w):
     dx = max(w['x'] - p[0], 0, p[0] - (w['x'] + w['width'])); dy = max(w['y'] - p[1], 0, p[1] - (w['y'] + w['height'])); return math.hypot(dx, dy)

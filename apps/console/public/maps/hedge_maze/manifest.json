@@ -1,0 +1,145 @@
+{
+  "map": "hedge_maze",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.00018403730922448777, -0.03585192189922022, 1.0484201908111572],
+    "world": {
+      "unitsPerPlanUnit": 3226,
+      "planOriginX": -0.29,
+      "planOriginY": 0.853
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S11's vanishing-point segments disagree (f 1212/1817/1336 @640, pitch 60/47.8/57.5; the maze walls are low, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+    "track": "window f946-f970 around reference f958 (ECC median 0.85). The shot zooms; f958 is its widest view (the whole maze).",
+    "framing": "OBSERVED: reference frame f958's own camera.",
+    "world_scale": "REFERENCE-CONSTRAINED by the rules (OWNER DECISION PENDING): at the footage's character scale (the carrot in f958 is ~30 px tall against 32 px baked -> 0.95) the maze corridors (~40 px wall to wall) are narrower than the rules' player body (radius 36, a game-core constant) plus a minimum-thickness wall, so the maze interior could not be entered. character_scale 0.62 (3226 world units per plan unit) makes the corridors admit a player: characters are drawn ~35% smaller than in the footage on this map. Alternatives: keep footage scale (maze interior impassable) or a rules change (not approved)."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "tree_ne",
+      "file": "occ_tree_ne.webp",
+      "x": 1617,
+      "y": 42,
+      "depth": 300.0,
+      "fade": true
+    },
+    {
+      "key": "tree_nw",
+      "file": "occ_tree_nw.webp",
+      "x": 0,
+      "y": 0,
+      "depth": 312.0,
+      "fade": true
+    },
+    {
+      "key": "rock_nw",
+      "file": "occ_rock_nw.webp",
+      "x": 447,
+      "y": 192,
+      "depth": 324.0,
+      "fade": true
+    },
+    {
+      "key": "post",
+      "file": "occ_post.webp",
+      "x": 1149,
+      "y": 261,
+      "depth": 354.0,
+      "fade": false
+    },
+    {
+      "key": "rock_e",
+      "file": "occ_rock_e.webp",
+      "x": 1461,
+      "y": 273,
+      "depth": 504.0,
+      "fade": true
+    },
+    {
+      "key": "rock_w",
+      "file": "occ_rock_w.webp",
+      "x": 267,
+      "y": 537,
+      "depth": 750.0,
+      "fade": true
+    },
+    {
+      "key": "rock_se",
+      "file": "occ_rock_se.webp",
+      "x": 1707,
+      "y": 612,
+      "depth": 756.0,
+      "fade": true
+    },
+    {
+      "key": "rock_s",
+      "file": "occ_rock_s.webp",
+      "x": 1182,
+      "y": 846,
+      "depth": 978.0,
+      "fade": true
+    },
+    {
+      "key": "tree_sw",
+      "file": "occ_tree_sw.webp",
+      "x": 51,
+      "y": 861,
+      "depth": 1050.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/hedge_maze.json; bake_map.py, bake_chars.py, package_map.py)"
+}
