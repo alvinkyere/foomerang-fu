@@ -38,6 +38,6 @@ Matched by colour regions, silhouette, face placement and thickness across sever
 | Milk carton                  | S15 f1231                                | **milk**         | blue/white carton                                                               | not started                                                        |
 | Eggplant                     | S0 f16, S1, S7, S11 f983, S12, S10 couch | **none in pack** | purple body, green calyx                                                        | reference-fitted reconstruction required                           |
 | Sushi roll                   | S2 f114, S16, S18 f1423, S10 couch       | **none in pack** | black nori, white rice top, red roe and green garnish                           | reference-fitted reconstruction required                           |
-| Bacon                        | not yet identified in the video          | **bacon**        | —                                                                               | in the roster even if absent from the video                        |
+| Bacon                        | S14 f1150 (hex_grove)                    | **bacon**        | red wavy rasher                                                                 | in hex_grove (seat 1); size MEASURED there (0.75)                  |
 
 Characters without a pack model (eggplant, sushi) are **reference-fitted reconstructions**, not exact source models.

@@ -1,0 +1,129 @@
+{
+  "map": "hex_grove",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.029663392725750165, -0.08454612875437217, 1.1359508037567139],
+    "world": {
+      "unitsPerPlanUnit": 2667,
+      "planOriginX": -0.344,
+      "planOriginY": 0.878
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S14's vanishing-point segments disagree (f 1212/1449/1587 @640, pitch 60/39.6/52.9; organic hex patches, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+    "track": "window f1142-f1158 around reference f1150 (ECC median 0.64; the camera dollies in, height 1.00 -> 1.23). f1150 is chosen because the fire effect has not started (fire pixels 0 before f1160).",
+    "framing": "OBSERVED: reference frame f1150's own camera.",
+    "world_scale": "MEASURED: the bacon in f1150 is ~22 px tall against 29-31 px baked side-on through this camera at the plaza fit -> character_scale 0.75 (+-0.08); 2667 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "tree_nw",
+      "file": "occ_tree_nw.webp",
+      "x": 102,
+      "y": 0,
+      "depth": 216.0,
+      "fade": true
+    },
+    {
+      "key": "rock_ne",
+      "file": "occ_rock_ne.webp",
+      "x": 1341,
+      "y": 141,
+      "depth": 291.0,
+      "fade": false
+    },
+    {
+      "key": "tree_c",
+      "file": "occ_tree_c.webp",
+      "x": 1047,
+      "y": 132,
+      "depth": 495.0,
+      "fade": true
+    },
+    {
+      "key": "rock_e",
+      "file": "occ_rock_e.webp",
+      "x": 1371,
+      "y": 606,
+      "depth": 756.0,
+      "fade": false
+    },
+    {
+      "key": "rock_c",
+      "file": "occ_rock_c.webp",
+      "x": 771,
+      "y": 597,
+      "depth": 765.0,
+      "fade": false
+    },
+    {
+      "key": "plant_sw",
+      "file": "occ_plant_sw.webp",
+      "x": 183,
+      "y": 852,
+      "depth": 1035.0,
+      "fade": true
+    },
+    {
+      "key": "tree_s",
+      "file": "occ_tree_s.webp",
+      "x": 1191,
+      "y": 987,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "bacon": {
+      "file": "char_bacon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/hex_grove.json; bake_map.py, bake_chars.py, package_map.py)"
+}

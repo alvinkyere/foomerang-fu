@@ -185,6 +185,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1782, height: 1171 }),
       background: '#efe7cf',
     }),
+    // seat 1 is the shot's pack cast (S14: bacon); 2-6 are pack characters
+    hex_grove: Object.freeze({
+      id: 'hex_grove',
+      assetDir: 'maps/hex_grove/',
+      roster: Object.freeze([
+        'bacon',
+        'carrot',
+        'banana',
+        'coffee',
+        'bread',
+        'watermelon',
+      ] as const),
+      arena: Object.freeze({ width: 1675, height: 1211 }),
+      background: '#a9cf6c',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

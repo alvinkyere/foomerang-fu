@@ -37,6 +37,10 @@ import {
   TWIN_LOG_RINK_BOOK_SPOTS,
   TWIN_LOG_RINK_SPAWNS,
   TWIN_LOG_RINK_WALLS,
+  HEX_GROVE_ARENA,
+  HEX_GROVE_BOOK_SPOTS,
+  HEX_GROVE_SPAWNS,
+  HEX_GROVE_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -58,6 +62,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'hex_grove',
+    arena: HEX_GROVE_ARENA,
+    walls: HEX_GROVE_WALLS,
+    spawns: HEX_GROVE_SPAWNS,
+    books: HEX_GROVE_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'twin_log_rink',
     arena: TWIN_LOG_RINK_ARENA,

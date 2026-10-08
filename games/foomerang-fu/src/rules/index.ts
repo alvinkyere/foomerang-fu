@@ -165,3 +165,12 @@ export {
   TWIN_LOG_RINK_WIDTH,
 } from './twinLogRinkArena';
 export type { TwinLogRinkWall } from './twinLogRinkArena';
+export {
+  HEX_GROVE_ARENA,
+  HEX_GROVE_BOOK_SPOTS,
+  HEX_GROVE_HEIGHT,
+  HEX_GROVE_SPAWNS,
+  HEX_GROVE_WALLS,
+  HEX_GROVE_WIDTH,
+} from './hexGroveArena';
+export type { HexGroveWall } from './hexGroveArena';

@@ -66,6 +66,7 @@ export const ARENA_CHOICES = [
   'hedge_maze',
   'toaster_dock',
   'twin_log_rink',
+  'hex_grove',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice => {
