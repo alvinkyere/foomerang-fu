@@ -1,0 +1,186 @@
+{
+  "map": "twin_log_rink",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 2877.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 66.9,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.00021233930817081024, 0.0077521715539854135, 1.0061802864074707],
+    "world": {
+      "unitsPerPlanUnit": 2667,
+      "planOriginX": -0.334,
+      "planOriginY": 0.674
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "MEASURED: vanishing-point segments of S18 agree closely: f [938, 959, 995] px @640, pitch [66.9, 67.4, 65.7] deg -> f 959, pitch 66.9 (S18 is the map's widest shot; S13/S19 are closer views).",
+    "track": "window f1408-f1438 around reference f1423 (ECC median 0.91).",
+    "framing": "OBSERVED: reference frame f1423's own camera.",
+    "world_scale": "MEASURED: the banana in f1423 is ~22 px tall against 25-34 px baked through this camera at the plaza fit -> character_scale 0.75 (+-0.08); 2667 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "tree_ne",
+      "file": "occ_tree_ne.webp",
+      "x": 1662,
+      "y": 0,
+      "depth": 180.0,
+      "fade": true
+    },
+    {
+      "key": "planter_n2",
+      "file": "occ_planter_n2.webp",
+      "x": 1077,
+      "y": 87,
+      "depth": 204.0,
+      "fade": true
+    },
+    {
+      "key": "planter_n1",
+      "file": "occ_planter_n1.webp",
+      "x": 522,
+      "y": 72,
+      "depth": 225.0,
+      "fade": true
+    },
+    {
+      "key": "tree_nw",
+      "file": "occ_tree_nw.webp",
+      "x": 0,
+      "y": 87,
+      "depth": 345.0,
+      "fade": true
+    },
+    {
+      "key": "planter_w1",
+      "file": "occ_planter_w1.webp",
+      "x": 207,
+      "y": 213,
+      "depth": 456.0,
+      "fade": true
+    },
+    {
+      "key": "planter_e1",
+      "file": "occ_planter_e1.webp",
+      "x": 1533,
+      "y": 261,
+      "depth": 510.0,
+      "fade": true
+    },
+    {
+      "key": "planter_w2",
+      "file": "occ_planter_w2.webp",
+      "x": 243,
+      "y": 672,
+      "depth": 924.0,
+      "fade": true
+    },
+    {
+      "key": "planter_e2",
+      "file": "occ_planter_e2.webp",
+      "x": 1422,
+      "y": 717,
+      "depth": 966.0,
+      "fade": true
+    },
+    {
+      "key": "planter_s",
+      "file": "occ_planter_s.webp",
+      "x": 732,
+      "y": 843,
+      "depth": 1008.0,
+      "fade": true
+    },
+    {
+      "key": "tree_se",
+      "file": "occ_tree_se.webp",
+      "x": 1707,
+      "y": 783,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [
+    {
+      "key": "log_w",
+      "file": "anim_log_w.webp",
+      "x": 412,
+      "y": 243,
+      "width": 606,
+      "height": 544,
+      "frames": 36,
+      "periodS": 10.32,
+      "depths": [
+        389.77, 387.85, 387.2, 387.06, 388.56, 393.32, 405.22, 423.11, 444.59, 468.95, 496.55,
+        524.52, 552.02, 579.63, 607.13, 632.84, 655.3, 674.12, 687.78, 689.84, 690.69, 690.99,
+        689.52, 684.49, 671.96, 652.69, 629.85, 604.28, 575.8, 547.42, 520.0, 492.9, 466.33, 441.76,
+        420.68, 403.22
+      ]
+    },
+    {
+      "key": "log_e",
+      "file": "anim_log_e.webp",
+      "x": 887,
+      "y": 226,
+      "width": 604,
+      "height": 542,
+      "frames": 36,
+      "periodS": 9.5,
+      "depths": [
+        654.87, 662.25, 663.78, 664.06, 663.42, 661.89, 652.59, 636.3, 616.51, 593.78, 568.06,
+        541.6, 516.01, 490.63, 464.52, 440.33, 419.25, 401.09, 386.71, 379.47, 377.95, 377.68,
+        378.3, 379.79, 388.82, 403.95, 422.52, 444.12, 469.03, 494.89, 520.22, 545.73, 572.44,
+        597.75, 619.98, 639.36
+      ]
+    }
+  ],
+  "characters": {
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/twin_log_rink.json; bake_map.py, bake_chars.py, package_map.py)"
+}

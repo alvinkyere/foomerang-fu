@@ -65,6 +65,7 @@ export const ARENA_CHOICES = [
   'flooded_ruins',
   'hedge_maze',
   'toaster_dock',
+  'twin_log_rink',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice => {

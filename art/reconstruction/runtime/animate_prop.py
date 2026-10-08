@@ -33,11 +33,15 @@ for a in cfg.get('animated', []):
     mask = cv2.GaussianBlur(cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)), (0, 0), 1.0)
     # ground under the prop (INFERRED): the base it turns on is rotationally symmetric, so the hidden part takes the texture seen
     # half a turn away (rotated 180 degrees about the centre); anything still uncovered is inpainted
-    hole = cv2.dilate(mask, np.ones((9, 9), np.uint8)) > 40
+    d_ = a.get('hole_dilate', 9); hole = cv2.dilate(mask, np.ones((d_, d_), np.uint8)) > 40          # the prop's shaded rim / end caps too
+    if a.get('keep_hub_radius'):          # the pivot itself stays (a stump the prop turns on)
+        cv2.circle(hole_u8 := hole.astype(np.uint8), (int(piv[0]), int(piv[1])), int(a['keep_hub_radius'] * S), 0, -1); hole = hole_u8 > 0
+        cv2.circle(mask, (int(piv[0]), int(piv[1])), int(a['keep_hub_radius'] * S), 0, -1)
     R180 = cv2.getRotationMatrix2D(piv, 180, 1.0)
     rot_tex = cv2.warpAffine(tex, R180, (n, n)); rot_hole = cv2.warpAffine(hole.astype(np.uint8), R180, (n, n)) > 0
-    filled = tex.copy(); use = hole & ~rot_hole; filled[use] = rot_tex[use]
-    rest = (hole & rot_hole).astype(np.uint8) * 255; filled = cv2.inpaint(filled, rest, 5, cv2.INPAINT_TELEA)
+    filled = tex.copy(); use = hole & ~rot_hole if a.get('fill', 'symmetric') == 'symmetric' else np.zeros_like(hole)          # 'inpaint': a plain surface
+    filled[use] = rot_tex[use]
+    rest = (hole & ~use).astype(np.uint8) * 255; filled = cv2.inpaint(filled, rest, 5, cv2.INPAINT_TELEA)
     back = cv2.warpPerspective(filled, np.linalg.inv(M), (W, H), flags=cv2.INTER_LINEAR)
     cover = cv2.warpPerspective(hole.astype(np.uint8) * 255, np.linalg.inv(M), (W, H), flags=cv2.INTER_LINEAR)
     k_ = (cv2.GaussianBlur(cover, (0, 0), 2) / 255.0)[..., None]; ground = (k_ * back + (1 - k_) * ground).astype(np.uint8)

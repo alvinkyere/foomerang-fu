@@ -170,6 +170,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1169, height: 778 }),
       background: '#e9cf7a',
     }),
+    // seats 1-2 are the shots' pack cast (S13/S18/S19: banana, carrot); its eggplant and sushi have no pack model yet
+    twin_log_rink: Object.freeze({
+      id: 'twin_log_rink',
+      assetDir: 'maps/twin_log_rink/',
+      roster: Object.freeze([
+        'banana',
+        'carrot',
+        'icecream',
+        'bread',
+        'coffee',
+        'watermelon',
+      ] as const),
+      arena: Object.freeze({ width: 1782, height: 1171 }),
+      background: '#efe7cf',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

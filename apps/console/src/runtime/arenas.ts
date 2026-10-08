@@ -24,6 +24,8 @@ import {
   HEDGE_MAZE_BOOK_SPOTS,
   TOASTER_DOCK_ARENA,
   TOASTER_DOCK_BOOK_SPOTS,
+  TWIN_LOG_RINK_ARENA,
+  TWIN_LOG_RINK_BOOK_SPOTS,
   type FuArena,
 } from '@foomerang/foomerang-fu';
 import type { ArenaChoice } from './powerupMode';
@@ -53,6 +55,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
   flooded_ruins: { arena: FLOODED_RUINS_ARENA, bookSpots: FLOODED_RUINS_BOOK_SPOTS, named: true },
   hedge_maze: { arena: HEDGE_MAZE_ARENA, bookSpots: HEDGE_MAZE_BOOK_SPOTS, named: true },
   toaster_dock: { arena: TOASTER_DOCK_ARENA, bookSpots: TOASTER_DOCK_BOOK_SPOTS, named: true },
+  twin_log_rink: { arena: TWIN_LOG_RINK_ARENA, bookSpots: TWIN_LOG_RINK_BOOK_SPOTS, named: true },
 });
 
 /** Which arena choice a rules arena is (undefined for an arena not in the table). */

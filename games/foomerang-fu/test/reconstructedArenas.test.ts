@@ -33,6 +33,10 @@ import {
   TOASTER_DOCK_BOOK_SPOTS,
   TOASTER_DOCK_SPAWNS,
   TOASTER_DOCK_WALLS,
+  TWIN_LOG_RINK_ARENA,
+  TWIN_LOG_RINK_BOOK_SPOTS,
+  TWIN_LOG_RINK_SPAWNS,
+  TWIN_LOG_RINK_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -54,6 +58,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'twin_log_rink',
+    arena: TWIN_LOG_RINK_ARENA,
+    walls: TWIN_LOG_RINK_WALLS,
+    spawns: TWIN_LOG_RINK_SPAWNS,
+    books: TWIN_LOG_RINK_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'toaster_dock',
     arena: TOASTER_DOCK_ARENA,

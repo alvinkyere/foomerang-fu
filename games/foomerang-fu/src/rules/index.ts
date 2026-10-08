@@ -156,3 +156,12 @@ export {
   TOASTER_DOCK_WIDTH,
 } from './toasterDockArena';
 export type { ToasterDockWall } from './toasterDockArena';
+export {
+  TWIN_LOG_RINK_ARENA,
+  TWIN_LOG_RINK_BOOK_SPOTS,
+  TWIN_LOG_RINK_HEIGHT,
+  TWIN_LOG_RINK_SPAWNS,
+  TWIN_LOG_RINK_WALLS,
+  TWIN_LOG_RINK_WIDTH,
+} from './twinLogRinkArena';
+export type { TwinLogRinkWall } from './twinLogRinkArena';
