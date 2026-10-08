@@ -1,0 +1,54 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "console": {
+      "root": "apps/console",
+      "framework": "vite"
+    },
+    "controller": {
+      "root": "apps/controller",
+      "framework": "vite"
+    },
+    "server": {
+      "root": "apps/server",
+      "runtime": "node",
+      "entrypoint": "src/main.ts"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/socket.io/(.*)",
+      "destination": {
+        "service": "server",
+        "path": "/"
+      }
+    },
+    {
+      "source": "/socket.io",
+      "destination": {
+        "service": "server",
+        "path": "/"
+      }
+    },
+    {
+      "source": "/controller/(.*)",
+      "destination": {
+        "service": "controller",
+        "path": "/$1"
+      }
+    },
+    {
+      "source": "/controller",
+      "destination": {
+        "service": "controller",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "console"
+      }
+    }
+  ]
+}

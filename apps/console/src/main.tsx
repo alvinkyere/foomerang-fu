@@ -30,11 +30,17 @@ const root = createRoot(rootElement);
 
 // Both addresses are explicit, validated configuration — never inferred from network interfaces.
 // (FOOMERANG_* variables hold URLs and are readable by the page; they must never hold secrets.)
+// On standard web ports (e.g. Vercel deployment without port in location), default to same-origin routing.
+const defaultControllerUrl =
+  window.location.port === '' ? `${window.location.origin}/controller` : undefined;
+const defaultServerUrl = window.location.port === '' ? window.location.origin : undefined;
+
 const config = resolveConsoleConfig({
   protocol: window.location.protocol,
   hostname: window.location.hostname,
-  controllerUrl: import.meta.env['FOOMERANG_CONTROLLER_URL'] as string | undefined,
-  serverUrl: import.meta.env['FOOMERANG_SERVER_URL'] as string | undefined,
+  controllerUrl:
+    (import.meta.env['FOOMERANG_CONTROLLER_URL'] as string | undefined) ?? defaultControllerUrl,
+  serverUrl: (import.meta.env['FOOMERANG_SERVER_URL'] as string | undefined) ?? defaultServerUrl,
 });
 
 if (!config.ok) {

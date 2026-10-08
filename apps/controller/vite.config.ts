@@ -12,6 +12,7 @@ const https =
     : undefined;
 
 export default defineConfig({
+  base: process.env['VITE_BASE_URL'] ?? (process.env['VERCEL'] ? '/controller/' : './'),
   plugins: [react()],
   // `host: true` listens on the LAN so a real phone can load the page from a dev machine.
   server: { host: true, port: 5173, ...(https ? { https } : {}) },

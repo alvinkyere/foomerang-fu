@@ -1,0 +1,6 @@
+/.turbo
+/docs
+/art
+*.mp4
+/integration
+dist
