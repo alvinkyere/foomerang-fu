@@ -230,6 +230,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1606, height: 1160 }),
       background: '#4f8fa0',
     }),
+    // seats 1-3 are the shot's pack cast (S17: avocado, carrot, icecream); its eggplant has no pack model yet
+    diamond_walls: Object.freeze({
+      id: 'diamond_walls',
+      assetDir: 'maps/diamond_walls/',
+      roster: Object.freeze([
+        'avocado',
+        'carrot',
+        'icecream',
+        'banana',
+        'bread',
+        'coffee',
+      ] as const),
+      arena: Object.freeze({ width: 1760, height: 1271 }),
+      background: '#b9d977',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

@@ -192,3 +192,12 @@ export {
   CROSS_POND_WIDTH,
 } from './crossPondArena';
 export type { CrossPondWall } from './crossPondArena';
+export {
+  DIAMOND_WALLS_ARENA,
+  DIAMOND_WALLS_BOOK_SPOTS,
+  DIAMOND_WALLS_HEIGHT,
+  DIAMOND_WALLS_SPAWNS,
+  DIAMOND_WALLS_WALLS,
+  DIAMOND_WALLS_WIDTH,
+} from './diamondWallsArena';
+export type { DiamondWallsWall } from './diamondWallsArena';

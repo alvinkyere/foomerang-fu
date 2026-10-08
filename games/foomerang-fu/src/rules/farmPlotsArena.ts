@@ -21,22 +21,22 @@ export interface FarmPlotsWall extends Rect {
 }
 
 export const FARM_PLOTS_WALLS: readonly FarmPlotsWall[] = Object.freeze([
-  Object.freeze({ id: 'BLOCK0', kind: 'BLOCK', x: 80, y: 80, width: 120, height: 40 }),
-  Object.freeze({ id: 'BLOCK1', kind: 'BLOCK', x: 320, y: 80, width: 80, height: 40 }),
-  Object.freeze({ id: 'BLOCK2', kind: 'BLOCK', x: 840, y: 80, width: 266, height: 40 }),
-  Object.freeze({ id: 'BLOCK3', kind: 'BLOCK', x: 120, y: 120, width: 80, height: 80 }),
+  Object.freeze({ id: 'BLOCK0', kind: 'BLOCK', x: 0, y: 0, width: 1106, height: 80 }),
+  Object.freeze({ id: 'BLOCK1', kind: 'BLOCK', x: 0, y: 80, width: 200, height: 120 }),
+  Object.freeze({ id: 'BLOCK2', kind: 'BLOCK', x: 320, y: 80, width: 80, height: 40 }),
+  Object.freeze({ id: 'BLOCK3', kind: 'BLOCK', x: 840, y: 80, width: 266, height: 40 }),
   Object.freeze({ id: 'BLOCK4', kind: 'BLOCK', x: 920, y: 120, width: 186, height: 40 }),
   Object.freeze({ id: 'BLOCK5', kind: 'BLOCK', x: 200, y: 160, width: 40, height: 40 }),
   Object.freeze({ id: 'BLOCK6', kind: 'BLOCK', x: 1000, y: 160, width: 40, height: 120 }),
-  Object.freeze({ id: 'BLOCK7', kind: 'BLOCK', x: 800, y: 200, width: 40, height: 80 }),
-  Object.freeze({ id: 'BLOCK8', kind: 'BLOCK', x: 760, y: 240, width: 40, height: 40 }),
-  Object.freeze({ id: 'BLOCK9', kind: 'BLOCK', x: 1040, y: 240, width: 40, height: 40 }),
-  Object.freeze({ id: 'BLOCK10', kind: 'BLOCK', x: 920, y: 280, width: 80, height: 40 }),
-  Object.freeze({ id: 'BLOCK11', kind: 'BLOCK', x: 160, y: 440, width: 360, height: 280 }),
-  Object.freeze({ id: 'BLOCK12', kind: 'BLOCK', x: 80, y: 480, width: 80, height: 120 }),
-  Object.freeze({ id: 'BLOCK13', kind: 'BLOCK', x: 520, y: 480, width: 40, height: 240 }),
-  Object.freeze({ id: 'BLOCK14', kind: 'BLOCK', x: 1040, y: 480, width: 40, height: 323 }),
-  Object.freeze({ id: 'BLOCK15', kind: 'BLOCK', x: 120, y: 600, width: 40, height: 203 }),
+  Object.freeze({ id: 'BLOCK7', kind: 'BLOCK', x: 0, y: 200, width: 80, height: 603 }),
+  Object.freeze({ id: 'BLOCK8', kind: 'BLOCK', x: 800, y: 200, width: 40, height: 80 }),
+  Object.freeze({ id: 'BLOCK9', kind: 'BLOCK', x: 760, y: 240, width: 40, height: 40 }),
+  Object.freeze({ id: 'BLOCK10', kind: 'BLOCK', x: 1040, y: 240, width: 40, height: 40 }),
+  Object.freeze({ id: 'BLOCK11', kind: 'BLOCK', x: 920, y: 280, width: 80, height: 40 }),
+  Object.freeze({ id: 'BLOCK12', kind: 'BLOCK', x: 160, y: 440, width: 360, height: 280 }),
+  Object.freeze({ id: 'BLOCK13', kind: 'BLOCK', x: 80, y: 480, width: 80, height: 323 }),
+  Object.freeze({ id: 'BLOCK14', kind: 'BLOCK', x: 520, y: 480, width: 40, height: 240 }),
+  Object.freeze({ id: 'BLOCK15', kind: 'BLOCK', x: 1040, y: 480, width: 40, height: 323 }),
   Object.freeze({ id: 'BLOCK16', kind: 'BLOCK', x: 760, y: 640, width: 40, height: 163 }),
   Object.freeze({ id: 'BLOCK17', kind: 'BLOCK', x: 160, y: 720, width: 280, height: 40 }),
   Object.freeze({ id: 'BLOCK18', kind: 'BLOCK', x: 560, y: 720, width: 40, height: 83 }),
@@ -47,24 +47,24 @@ export const FARM_PLOTS_WALLS: readonly FarmPlotsWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const FARM_PLOTS_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 688, y: 656 }),
-  Object.freeze({ x: 48, y: 176 }),
-  Object.freeze({ x: 784, y: 48 }),
-  Object.freeze({ x: 48, y: 752 }),
-  Object.freeze({ x: 1040, y: 400 }),
-  Object.freeze({ x: 432, y: 336 }),
+  Object.freeze({ x: 624, y: 432 }),
+  Object.freeze({ x: 144, y: 272 }),
+  Object.freeze({ x: 1040, y: 368 }),
+  Object.freeze({ x: 464, y: 144 }),
+  Object.freeze({ x: 880, y: 656 }),
+  Object.freeze({ x: 784, y: 144 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const FARM_PLOTS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 464, y: 48 }),
-  Object.freeze({ x: 720, y: 368 }),
-  Object.freeze({ x: 976, y: 656 }),
-  Object.freeze({ x: 48, y: 432 }),
-  Object.freeze({ x: 208, y: 304 }),
-  Object.freeze({ x: 592, y: 208 }),
-  Object.freeze({ x: 272, y: 48 }),
-  Object.freeze({ x: 880, y: 496 }),
+  Object.freeze({ x: 368, y: 368 }),
+  Object.freeze({ x: 624, y: 656 }),
+  Object.freeze({ x: 816, y: 368 }),
+  Object.freeze({ x: 624, y: 240 }),
+  Object.freeze({ x: 304, y: 208 }),
+  Object.freeze({ x: 752, y: 528 }),
+  Object.freeze({ x: 912, y: 496 }),
+  Object.freeze({ x: 496, y: 304 }),
 ]);
 
 export const FARM_PLOTS_ARENA: FuArena = Object.freeze({

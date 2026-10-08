@@ -49,6 +49,10 @@ import {
   CROSS_POND_BOOK_SPOTS,
   CROSS_POND_SPAWNS,
   CROSS_POND_WALLS,
+  DIAMOND_WALLS_ARENA,
+  DIAMOND_WALLS_BOOK_SPOTS,
+  DIAMOND_WALLS_SPAWNS,
+  DIAMOND_WALLS_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -70,6 +74,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'diamond_walls',
+    arena: DIAMOND_WALLS_ARENA,
+    walls: DIAMOND_WALLS_WALLS,
+    spawns: DIAMOND_WALLS_SPAWNS,
+    books: DIAMOND_WALLS_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'cross_pond',
     arena: CROSS_POND_ARENA,

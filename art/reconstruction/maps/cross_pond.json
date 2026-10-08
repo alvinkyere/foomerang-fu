@@ -208,7 +208,9 @@
         [70, 20]
       ]
     ],
-    "walkable_px_note": "the grass bank ring traced in reference frame f1276 (its thin south strip is lost to colour classification at 40-unit cells)"
+    "walkable_px_note": "the grass bank ring traced in reference frame f1276 (its thin south strip is lost to colour classification at 40-unit cells)",
+    "close_border": false,
+    "close_border_note": "OFF here: the grass banks run along the frame edge; with it on, the 1-cell edge strips close and the arena splits into pockets too small for six spread spawns. Some edge strips are narrower than a body, so movement round the bank ring is partly blocked. Resolved properly by the OWNER DECISION on the rotating raft (it bridges the banks in the footage)."
   },
   "roster": ["carrot", "banana", "bread", "coffee", "watermelon", "icecream"],
   "rules_doc": [

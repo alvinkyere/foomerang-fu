@@ -1,0 +1,129 @@
+{
+  "map": "diamond_walls",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.056047806926705614, -0.004403407857863768, 1.034713864326477],
+    "world": {
+      "unitsPerPlanUnit": 3077,
+      "planOriginX": -0.342,
+      "planOriginY": 0.872
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S17's vanishing-point segments disagree (f 1956/1111/1442 @640, pitch 37.5/49.5/48; the walls run diagonally, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+    "track": "window f1349-f1369 around reference f1359 (the camera dollies through the shot).",
+    "framing": "OBSERVED: reference frame f1359's own camera.",
+    "world_scale": "MEASURED: the avocado and the carrot in f1359 are ~21 px tall against 32 px baked through this camera at the plaza fit -> character_scale 0.65 (+-0.07); 3077 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "tree_nw",
+      "file": "occ_tree_nw.webp",
+      "x": 261,
+      "y": 0,
+      "depth": 225.0,
+      "fade": true
+    },
+    {
+      "key": "tree_ne",
+      "file": "occ_tree_ne.webp",
+      "x": 1353,
+      "y": 0,
+      "depth": 288.0,
+      "fade": true
+    },
+    {
+      "key": "bamboo",
+      "file": "occ_bamboo.webp",
+      "x": 711,
+      "y": 261,
+      "depth": 444.0,
+      "fade": true
+    },
+    {
+      "key": "planter_c",
+      "file": "occ_planter_c.webp",
+      "x": 1011,
+      "y": 282,
+      "depth": 465.0,
+      "fade": false
+    },
+    {
+      "key": "planter_w",
+      "file": "occ_planter_w.webp",
+      "x": 333,
+      "y": 567,
+      "depth": 756.0,
+      "fade": false
+    },
+    {
+      "key": "tree_e",
+      "file": "occ_tree_e.webp",
+      "x": 1707,
+      "y": 513,
+      "depth": 816.0,
+      "fade": true
+    },
+    {
+      "key": "planter_s",
+      "file": "occ_planter_s.webp",
+      "x": 627,
+      "y": 846,
+      "depth": 1020.0,
+      "fade": false
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "avocado": {
+      "file": "char_avocado.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/diamond_walls.json; bake_map.py, bake_chars.py, package_map.py)"
+}

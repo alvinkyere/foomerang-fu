@@ -49,13 +49,17 @@ def spread_from(first):          # greedy farthest-point order from one start: e
     while len(out) < 6: out.append(max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in out)))
     return out
 def min_gap(ss): return min(math.hypot(a[0] - b[0], a[1] - b[1]) for i, a in enumerate(ss) for b in ss[i + 1:])
-spawns = max((spread_from(c) for c in cand[::max(1, len(cand) // 300)]), key=min_gap)          # the start that spreads six best
-for _ in range(20):          # improve the smallest gap: move each spawn to the open cell farthest from the others
-    better = False
-    for i in range(6):
-        rest = spawns[:i] + spawns[i + 1:]; best = max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in rest))
-        if min_gap(rest + [best]) > min_gap(spawns) + 1e-9: spawns[i] = best; better = True
-    if not better: break
+def improve(sp):          # move each spawn to the open cell farthest from the others while the smallest gap grows
+    sp = list(sp)
+    for _ in range(20):
+        better = False
+        for i in range(6):
+            rest = sp[:i] + sp[i + 1:]; best = max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in rest))
+            if min_gap(rest + [best]) > min_gap(sp) + 1e-9: sp[i] = best; better = True
+        if not better: break
+    return sp
+starts = sorted((spread_from(c) for c in cand[::max(1, len(cand) // 300)]), key=min_gap, reverse=True)[:10]
+spawns = max((improve(s0) for s0 in starts), key=min_gap)          # the best of ten improved starts
 order = [spawns[0]]          # farthest-point order again, so every prefix (2-6 players) is spread
 while len(order) < 6: order.append(max((p for p in spawns if p not in order), key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in order)))
 spawns = order
