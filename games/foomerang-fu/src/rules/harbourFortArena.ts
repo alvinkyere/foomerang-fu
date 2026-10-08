@@ -45,24 +45,24 @@ export const HARBOUR_FORT_WALLS: readonly HarbourFortWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const HARBOUR_FORT_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 720, y: 48 }),
-  Object.freeze({ x: 48, y: 624 }),
+  Object.freeze({ x: 624, y: 48 }),
   Object.freeze({ x: 1264, y: 688 }),
-  Object.freeze({ x: 112, y: 48 }),
-  Object.freeze({ x: 656, y: 592 }),
-  Object.freeze({ x: 1264, y: 112 }),
+  Object.freeze({ x: 48, y: 624 }),
+  Object.freeze({ x: 1264, y: 48 }),
+  Object.freeze({ x: 48, y: 48 }),
+  Object.freeze({ x: 720, y: 592 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const HARBOUR_FORT_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 336, y: 368 }),
-  Object.freeze({ x: 1008, y: 432 }),
-  Object.freeze({ x: 400, y: 80 }),
-  Object.freeze({ x: 48, y: 336 }),
-  Object.freeze({ x: 976, y: 144 }),
+  Object.freeze({ x: 368, y: 368 }),
+  Object.freeze({ x: 944, y: 176 }),
+  Object.freeze({ x: 1008, y: 496 }),
+  Object.freeze({ x: 80, y: 336 }),
+  Object.freeze({ x: 336, y: 80 }),
   Object.freeze({ x: 1264, y: 400 }),
   Object.freeze({ x: 336, y: 592 }),
-  Object.freeze({ x: 1072, y: 624 }),
+  Object.freeze({ x: 1072, y: 688 }),
 ]);
 
 export const HARBOUR_FORT_ARENA: FuArena = Object.freeze({

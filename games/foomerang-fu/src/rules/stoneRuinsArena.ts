@@ -62,24 +62,24 @@ export const STONE_RUINS_WALLS: readonly StoneRuinsWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const STONE_RUINS_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 592, y: 912 }),
-  Object.freeze({ x: 1264, y: 48 }),
-  Object.freeze({ x: 48, y: 496 }),
-  Object.freeze({ x: 1232, y: 720 }),
-  Object.freeze({ x: 720, y: 304 }),
-  Object.freeze({ x: 144, y: 912 }),
+  Object.freeze({ x: 1264, y: 368 }),
+  Object.freeze({ x: 48, y: 912 }),
+  Object.freeze({ x: 976, y: 912 }),
+  Object.freeze({ x: 784, y: 464 }),
+  Object.freeze({ x: 496, y: 912 }),
+  Object.freeze({ x: 944, y: 48 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const STONE_RUINS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 1072, y: 368 }),
+  Object.freeze({ x: 48, y: 496 }),
+  Object.freeze({ x: 1232, y: 720 }),
+  Object.freeze({ x: 1264, y: 48 }),
   Object.freeze({ x: 496, y: 560 }),
-  Object.freeze({ x: 944, y: 48 }),
-  Object.freeze({ x: 976, y: 912 }),
+  Object.freeze({ x: 1008, y: 304 }),
   Object.freeze({ x: 176, y: 688 }),
-  Object.freeze({ x: 880, y: 464 }),
-  Object.freeze({ x: 1264, y: 272 }),
-  Object.freeze({ x: 912, y: 240 }),
+  Object.freeze({ x: 272, y: 912 }),
+  Object.freeze({ x: 816, y: 208 }),
 ]);
 
 export const STONE_RUINS_ARENA: FuArena = Object.freeze({

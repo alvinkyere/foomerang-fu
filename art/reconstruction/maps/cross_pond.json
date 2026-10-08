@@ -1,0 +1,226 @@
+{
+  "map": "cross_pond",
+  "shots": "S16 (f1258-f1331); reference f1276",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.009276239833786063, 0.009999468511670606, 0.9440128803253174]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S16's vanishing-point segments disagree (f 1308/1570/1745 @640, pitch 55.5/47.3/50.3) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+      "track": "window f1262-f1290 around reference f1276 (ECC median 0.70). f1276 is chosen because explosions fill f1294-f1312.",
+      "framing": "OBSERVED: reference frame f1276's own camera.",
+      "world_scale": "MEASURED: the carrot body (orange blob) in f1276 is 16 x 15 px against 28 x 22 px baked -> character_scale 0.65 (+-0.1); 3077 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 3077,
+    "plan_origin_x": -0.252,
+    "plan_origin_y": 0.81
+  },
+  "character_scale": 0.65,
+  "frame_mode": {
+    "camera_key": "cross_pond",
+    "reference_frame": 1276,
+    "window": [1262, 1290],
+    "mover_threshold": 9999,
+    "clean_px": [],
+    "inpaint_px": [
+      {
+        "centre": [188, 93],
+        "radius": 16,
+        "what": "carrot"
+      },
+      {
+        "centre": [222, 105],
+        "radius": 14,
+        "what": "eggplant"
+      },
+      {
+        "centre": [190, 122],
+        "radius": 14,
+        "what": "character"
+      },
+      {
+        "centre": [225, 125],
+        "radius": 14,
+        "what": "banana"
+      },
+      {
+        "centre": [255, 121],
+        "radius": 9,
+        "what": "character"
+      },
+      {
+        "centre": [172, 150],
+        "radius": 11,
+        "what": "character"
+      },
+      {
+        "centre": [463, 103],
+        "radius": 19,
+        "what": "sushi"
+      },
+      {
+        "centre": [283, 265],
+        "radius": 19,
+        "what": "banana"
+      },
+      {
+        "centre": [345, 157],
+        "radius": 14,
+        "what": "glow effect"
+      },
+      {
+        "centre": [86, 107],
+        "radius": 10,
+        "what": "character"
+      }
+    ],
+    "note": "the raft rotates through the window, so the window median smears it: mover detection off and characters inpainted on the single reference frame"
+  },
+  "cutouts": [
+    {
+      "name": "rocks_w",
+      "polygon_px": [
+        [52, 185],
+        [110, 185],
+        [140, 255],
+        [90, 262],
+        [55, 240]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rocks_nw",
+      "polygon_px": [
+        [80, 0],
+        [160, 0],
+        [160, 62],
+        [85, 62]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rocks_ne",
+      "polygon_px": [
+        [395, 0],
+        [440, 0],
+        [440, 60],
+        [400, 60]
+      ],
+      "fade": true
+    },
+    {
+      "name": "wall_e",
+      "polygon_px": [
+        [475, 0],
+        [520, 0],
+        [530, 290],
+        [490, 300],
+        [470, 250]
+      ],
+      "fade": true
+    },
+    {
+      "name": "wall_s",
+      "polygon_px": [
+        [270, 282],
+        [480, 282],
+        [480, 320],
+        [270, 320]
+      ],
+      "fade": true
+    },
+    {
+      "name": "wall_sw",
+      "polygon_px": [
+        [0, 282],
+        [95, 282],
+        [95, 322],
+        [0, 322]
+      ],
+      "fade": true
+    },
+    {
+      "name": "wall_w",
+      "polygon_px": [
+        [0, 0],
+        [16, 0],
+        [12, 290],
+        [0, 290]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bushes_se",
+      "polygon_px": [
+        [460, 295],
+        [540, 295],
+        [540, 360],
+        [460, 360]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["bushes", "rocks", "wall"],
+  "arena": {
+    "plan_box": [-0.252, 0.27, 0.433, 0.81],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      },
+      {
+        "hue": [10, 24],
+        "min_sat": 55,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)",
+    "walkable_px": [
+      [
+        [17, 20],
+        [72, 20],
+        [72, 250],
+        [462, 250],
+        [462, 20],
+        [407, 20],
+        [407, 15],
+        [477, 15],
+        [477, 290],
+        [7, 290],
+        [7, 20]
+      ],
+      [
+        [70, 0],
+        [480, 0],
+        [480, 20],
+        [70, 20]
+      ]
+    ],
+    "walkable_px_note": "the grass bank ring traced in reference frame f1276 (its thin south strip is lost to colour classification at 40-unit cells)"
+  },
+  "roster": ["carrot", "banana", "bread", "coffee", "watermelon", "icecream"],
+  "rules_doc": [
+    "CROSS POND (`cross_pond`) \u2014 reconstructed from the master gameplay video (shot S16; FRAME MODE: reference frame f1276): a pond",
+    "ringed by grass banks and stone walls, with a cross-shaped wooden raft at its centre. In the footage the raft ROTATES (MEASURED",
+    "~24 deg/s clockwise); a rotating platform is a mechanic, so here it is STATIC at its reference orientation (drawing and rules",
+    "agree) \u2014 OWNER DECISION PENDING. Water only blocks (no water mechanic). Camera lens/pitch INFERRED. No new mechanic."
+  ],
+  "deferred": {
+    "rotating_raft": {
+      "measured": "-0.785 deg/frame (-23.6 deg/s, clockwise from above) over f1262-f1290, residual 6.0 deg",
+      "status": "OWNER DECISION PENDING: animate it (needs a moving-platform rule) or keep static"
+    }
+  }
+}

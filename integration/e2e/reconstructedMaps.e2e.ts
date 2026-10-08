@@ -22,6 +22,7 @@ for (const map of [
   'twin_log_rink',
   'hex_grove',
   'stone_ruins',
+  'cross_pond',
 ] as const)
   test(`${map} draws in the real game: six CPUs, baked layers and pack characters, no errors`, async ({
     hostAt,

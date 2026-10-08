@@ -47,24 +47,24 @@ export const FARM_PLOTS_WALLS: readonly FarmPlotsWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const FARM_PLOTS_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 688, y: 624 }),
+  Object.freeze({ x: 688, y: 656 }),
   Object.freeze({ x: 48, y: 176 }),
   Object.freeze({ x: 784, y: 48 }),
   Object.freeze({ x: 48, y: 752 }),
   Object.freeze({ x: 1040, y: 400 }),
-  Object.freeze({ x: 432, y: 304 }),
+  Object.freeze({ x: 432, y: 336 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const FARM_PLOTS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 720, y: 336 }),
-  Object.freeze({ x: 496, y: 48 }),
+  Object.freeze({ x: 464, y: 48 }),
+  Object.freeze({ x: 720, y: 368 }),
   Object.freeze({ x: 976, y: 656 }),
   Object.freeze({ x: 48, y: 432 }),
-  Object.freeze({ x: 272, y: 48 }),
   Object.freeze({ x: 208, y: 304 }),
-  Object.freeze({ x: 848, y: 496 }),
   Object.freeze({ x: 592, y: 208 }),
+  Object.freeze({ x: 272, y: 48 }),
+  Object.freeze({ x: 880, y: 496 }),
 ]);
 
 export const FARM_PLOTS_ARENA: FuArena = Object.freeze({

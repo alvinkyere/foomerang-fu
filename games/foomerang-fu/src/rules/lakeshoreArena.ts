@@ -46,23 +46,23 @@ export const LAKESHORE_WALLS: readonly LakeshoreWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const LAKESHORE_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 656, y: 752 }),
+  Object.freeze({ x: 688, y: 752 }),
   Object.freeze({ x: 48, y: 304 }),
   Object.freeze({ x: 912, y: 48 }),
   Object.freeze({ x: 1040, y: 464 }),
-  Object.freeze({ x: 624, y: 336 }),
   Object.freeze({ x: 272, y: 656 }),
+  Object.freeze({ x: 624, y: 336 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const LAKESHORE_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 784, y: 528 }),
   Object.freeze({ x: 496, y: 560 }),
+  Object.freeze({ x: 784, y: 528 }),
   Object.freeze({ x: 848, y: 272 }),
+  Object.freeze({ x: 496, y: 752 }),
   Object.freeze({ x: 336, y: 464 }),
   Object.freeze({ x: 752, y: 112 }),
   Object.freeze({ x: 1008, y: 304 }),
-  Object.freeze({ x: 496, y: 720 }),
   Object.freeze({ x: 624, y: 496 }),
 ]);
 

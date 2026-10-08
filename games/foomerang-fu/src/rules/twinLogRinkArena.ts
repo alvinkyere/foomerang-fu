@@ -49,7 +49,7 @@ export const TWIN_LOG_RINK_WALLS: readonly TwinLogRinkWall[] = Object.freeze([
 export const TWIN_LOG_RINK_SPAWNS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 944, y: 1008 }),
   Object.freeze({ x: 48, y: 336 }),
-  Object.freeze({ x: 1648, y: 240 }),
+  Object.freeze({ x: 1552, y: 240 }),
   Object.freeze({ x: 816, y: 240 }),
   Object.freeze({ x: 240, y: 1072 }),
   Object.freeze({ x: 1648, y: 944 }),
@@ -57,14 +57,14 @@ export const TWIN_LOG_RINK_SPAWNS: readonly Vec2[] = Object.freeze([
 
 /** Where Books may appear: open floor away from every spawn. */
 export const TWIN_LOG_RINK_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 1232, y: 560 }),
   Object.freeze({ x: 528, y: 656 }),
+  Object.freeze({ x: 1200, y: 592 }),
   Object.freeze({ x: 432, y: 272 }),
   Object.freeze({ x: 1296, y: 1104 }),
+  Object.freeze({ x: 1712, y: 560 }),
   Object.freeze({ x: 176, y: 688 }),
   Object.freeze({ x: 592, y: 1040 }),
-  Object.freeze({ x: 880, y: 592 }),
-  Object.freeze({ x: 1584, y: 592 }),
+  Object.freeze({ x: 848, y: 592 }),
 ]);
 
 export const TWIN_LOG_RINK_ARENA: FuArena = Object.freeze({

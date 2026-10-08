@@ -72,24 +72,24 @@ export const HEX_GROVE_WALLS: readonly HexGroveWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const HEX_GROVE_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 912, y: 80 }),
-  Object.freeze({ x: 48, y: 1136 }),
-  Object.freeze({ x: 1616, y: 1136 }),
-  Object.freeze({ x: 848, y: 1072 }),
-  Object.freeze({ x: 1616, y: 336 }),
-  Object.freeze({ x: 272, y: 432 }),
+  Object.freeze({ x: 880, y: 1136 }),
+  Object.freeze({ x: 1584, y: 48 }),
+  Object.freeze({ x: 304, y: 48 }),
+  Object.freeze({ x: 48, y: 880 }),
+  Object.freeze({ x: 1616, y: 880 }),
+  Object.freeze({ x: 944, y: 400 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const HEX_GROVE_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 1264, y: 784 }),
-  Object.freeze({ x: 752, y: 560 }),
-  Object.freeze({ x: 400, y: 848 }),
-  Object.freeze({ x: 464, y: 48 }),
-  Object.freeze({ x: 1328, y: 48 }),
-  Object.freeze({ x: 48, y: 720 }),
-  Object.freeze({ x: 1616, y: 688 }),
-  Object.freeze({ x: 528, y: 1136 }),
+  Object.freeze({ x: 464, y: 560 }),
+  Object.freeze({ x: 432, y: 1136 }),
+  Object.freeze({ x: 1168, y: 816 }),
+  Object.freeze({ x: 720, y: 48 }),
+  Object.freeze({ x: 1168, y: 48 }),
+  Object.freeze({ x: 1456, y: 496 }),
+  Object.freeze({ x: 784, y: 720 }),
+  Object.freeze({ x: 176, y: 432 }),
 ]);
 
 export const HEX_GROVE_ARENA: FuArena = Object.freeze({

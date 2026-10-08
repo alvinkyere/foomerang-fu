@@ -48,23 +48,23 @@ export const TOASTER_DOCK_WALLS: readonly ToasterDockWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const TOASTER_DOCK_SPAWNS: readonly Vec2[] = Object.freeze([
+  Object.freeze({ x: 464, y: 560 }),
+  Object.freeze({ x: 912, y: 48 }),
   Object.freeze({ x: 48, y: 48 }),
   Object.freeze({ x: 1104, y: 624 }),
-  Object.freeze({ x: 368, y: 720 }),
-  Object.freeze({ x: 784, y: 48 }),
-  Object.freeze({ x: 400, y: 272 }),
-  Object.freeze({ x: 48, y: 464 }),
+  Object.freeze({ x: 48, y: 496 }),
+  Object.freeze({ x: 464, y: 112 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const TOASTER_DOCK_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 752, y: 560 }),
+  Object.freeze({ x: 784, y: 592 }),
   Object.freeze({ x: 880, y: 304 }),
-  Object.freeze({ x: 304, y: 496 }),
-  Object.freeze({ x: 464, y: 48 }),
-  Object.freeze({ x: 624, y: 176 }),
-  Object.freeze({ x: 496, y: 560 }),
+  Object.freeze({ x: 272, y: 432 }),
+  Object.freeze({ x: 688, y: 176 }),
+  Object.freeze({ x: 336, y: 720 }),
   Object.freeze({ x: 944, y: 496 }),
+  Object.freeze({ x: 400, y: 304 }),
   Object.freeze({ x: 1104, y: 464 }),
 ]);
 

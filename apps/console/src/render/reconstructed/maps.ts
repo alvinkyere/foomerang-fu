@@ -215,6 +215,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       arena: Object.freeze({ width: 1330, height: 962 }),
       background: '#c9df9a',
     }),
+    // seats 1-2 are the shot's pack cast (S16: carrot, banana); its eggplant and sushi have no pack model yet
+    cross_pond: Object.freeze({
+      id: 'cross_pond',
+      assetDir: 'maps/cross_pond/',
+      roster: Object.freeze([
+        'carrot',
+        'banana',
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1606, height: 1160 }),
+      background: '#4f8fa0',
+    }),
   });
 
 export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | undefined =>

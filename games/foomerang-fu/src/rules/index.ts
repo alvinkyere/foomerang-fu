@@ -183,3 +183,12 @@ export {
   STONE_RUINS_WIDTH,
 } from './stoneRuinsArena';
 export type { StoneRuinsWall } from './stoneRuinsArena';
+export {
+  CROSS_POND_ARENA,
+  CROSS_POND_BOOK_SPOTS,
+  CROSS_POND_HEIGHT,
+  CROSS_POND_SPAWNS,
+  CROSS_POND_WALLS,
+  CROSS_POND_WIDTH,
+} from './crossPondArena';
+export type { CrossPondWall } from './crossPondArena';

@@ -44,22 +44,22 @@ export const POND_GARDEN_WALLS: readonly PondGardenWall[] = Object.freeze([
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const POND_GARDEN_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 688, y: 784 }),
-  Object.freeze({ x: 1168, y: 48 }),
+  Object.freeze({ x: 656, y: 784 }),
+  Object.freeze({ x: 1104, y: 48 }),
   Object.freeze({ x: 48, y: 272 }),
-  Object.freeze({ x: 112, y: 816 }),
-  Object.freeze({ x: 624, y: 240 }),
   Object.freeze({ x: 1168, y: 592 }),
+  Object.freeze({ x: 80, y: 816 }),
+  Object.freeze({ x: 592, y: 240 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const POND_GARDEN_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 368, y: 528 }),
+  Object.freeze({ x: 336, y: 528 }),
   Object.freeze({ x: 816, y: 496 }),
-  Object.freeze({ x: 336, y: 240 }),
-  Object.freeze({ x: 400, y: 816 }),
+  Object.freeze({ x: 368, y: 816 }),
+  Object.freeze({ x: 1104, y: 336 }),
   Object.freeze({ x: 48, y: 560 }),
-  Object.freeze({ x: 1104, y: 304 }),
+  Object.freeze({ x: 304, y: 240 }),
   Object.freeze({ x: 976, y: 752 }),
   Object.freeze({ x: 592, y: 560 }),
 ]);

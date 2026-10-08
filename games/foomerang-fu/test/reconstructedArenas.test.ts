@@ -45,6 +45,10 @@ import {
   STONE_RUINS_BOOK_SPOTS,
   STONE_RUINS_SPAWNS,
   STONE_RUINS_WALLS,
+  CROSS_POND_ARENA,
+  CROSS_POND_BOOK_SPOTS,
+  CROSS_POND_SPAWNS,
+  CROSS_POND_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -66,6 +70,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'cross_pond',
+    arena: CROSS_POND_ARENA,
+    walls: CROSS_POND_WALLS,
+    spawns: CROSS_POND_SPAWNS,
+    books: CROSS_POND_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'stone_ruins',
     arena: STONE_RUINS_ARENA,
