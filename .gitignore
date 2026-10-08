@@ -22,3 +22,4 @@ docs/garden/motion/
 art/reconstruction/licensed/
 art/reconstruction/output*/
 art/reconstruction/analysis/textures/
+__pycache__/

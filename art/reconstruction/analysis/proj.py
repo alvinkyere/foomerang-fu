@@ -1,11 +1,13 @@
-"""Shared projection helpers for the frozen camera (analysis/camera_take{A,B}.json). World: X right, Y away, Z up; units = reference camera height.
+"""Shared projection helpers for solved cameras (analysis/camera_take{A,B}.json for market_plaza, camera_<map>.json for other maps). World: X right, Y away, Z up; units = reference camera height.
  plane_H(take, frame, z) -> 3x3 matrix mapping world (X, Y, 1) on the plane Z=z to image pixels (640x360)."""
 import json, os, numpy as np, cv2
 HERE = os.path.dirname(os.path.abspath(__file__))
 _CAM = {}
 def cam(take):
     if take not in _CAM:
-        c = json.load(open(os.path.join(HERE, f'camera_take{take}.json'))); _CAM[take] = (c, {p['frame']: p for p in c['poses']})
+        fn = os.path.join(HERE, f'camera_take{take}.json')          # plaza takes 'A' / 'B'; other maps: camera_<map>.json
+        if not os.path.exists(fn): fn = os.path.join(HERE, f'camera_{take}.json')
+        c = json.load(open(fn)); _CAM[take] = (c, {p['frame']: p for p in c['poses']})
     return _CAM[take]
 def Rt(take, frame):
     c, P = cam(take); p = P[frame]; th = np.radians(p['pitch_deg']); yaw = np.radians(p['yaw_deg']); roll = np.radians(p['roll_deg']); C = np.array(p['C'])
@@ -13,7 +15,7 @@ def Rt(take, frame):
     Rz = np.array([[cy, sy, 0], [-sy, cy, 0], [0, 0, 1]]); cr, sr = np.cos(roll), np.sin(roll); Rr = np.array([[cr, -sr, 0], [sr, cr, 0], [0, 0, 1]])
     R = Rr @ R0 @ Rz; return R, -R @ C
 def K(take):
-    f = cam(take)[0]['f']; return np.array([[f, 0, 320], [0, f, 180], [0, 0, 1.]])
+    c = cam(take)[0]; f = c['f']; return np.array([[f, 0, c.get('cx', 320.0)], [0, f, c.get('cy', 180.0)], [0, 0, 1.]])
 def plane_H(take, frame, z=0.0):
     R, t = Rt(take, frame); return K(take) @ np.column_stack([R[:, 0], R[:, 1], R[:, 2] * z + t])
 def canvas(S, X0, Y1): return np.array([[S, 0, -X0 * S], [0, -S, Y1 * S], [0, 0, 1.]])

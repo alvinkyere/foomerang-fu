@@ -1,6 +1,31 @@
 {
   "map": "market_plaza",
   "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 2700.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 55.008641732929505,
+    "yawDeg": -1.20675586939306,
+    "rollDeg": 0.77223577225888,
+    "centre": [-0.07996035960614506, -0.1654559561589757, 1.1571011352706932],
+    "world": {
+      "unitsPerPlanUnit": 2000,
+      "planOriginX": -0.5,
+      "planOriginY": 1.0
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "fixed-K ground-homography pose solve (solve_pose_fixedK.py) with f = 900 px at 640 wide, chosen in pass 1 from plane self-calibration, the fountain ellipse aspect and pavilion face visibility",
+    "framing": "OBSERVED: take A, frame 233 (the whole playable plaza is in view)",
+    "confidence": "DISPUTED: the vanishing-point calibration (calib_vanishing.py horizon/nadir scans, validated to 2-3% on a render with a known camera) gives f ~1490-1530 px, pitch ~54.5 deg for take A; plaza vertical evidence is weak (support ~10x below harbour_fort). The game camera stays frozen at f = 900 pending review."
+  },
   "ground": "ground.webp",
   "occluders": [
     {
@@ -250,5 +275,5 @@
       "frames": 32
     }
   },
-  "provenance": "art/reconstruction (bake_plaza.py, bake_chars.py, package_plaza.py); camera = master video take A f233"
+  "provenance": "art/reconstruction (maps/market_plaza.json; bake_map.py, bake_chars.py, package_map.py)"
 }

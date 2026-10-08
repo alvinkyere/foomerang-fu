@@ -1,5 +1,6 @@
 """Bake character sprite atlases for the runtime: every pack character in the roster, seen through the frozen take-A camera at the
-screen centre, at N_YAW headings x the solved tilts (standing / airborne).  blender -b --python bake_chars.py -- <outdir> <width> <char,...>
+screen centre, at N_YAW headings x the solved tilts (standing / airborne).  FOO_MAP=<map> blender -b --python bake_chars.py -- <outdir> <width> <char,...>
+The camera is the map's game camera (maps/<map>.json): characters must be seen in the same perspective as the map's baked layers.
 Each cell is CELL x CELL px (RGBA); cells.json records, per character, the scale used and the ground-anchor pixel inside a cell.
 Materials follow the reconstruction (matte; Bread crust/crumb gains; Icecream desaturation)."""
 import bpy, json, math, os, sys
@@ -11,7 +12,11 @@ FILES = {'bread': ('bread.blend', 'bread'), 'coffee': ('Coffee.blend', 'coffee')
          'banana': ('banana.blend', 'NurbsPath.001'), 'carrot': ('Carrot.blend', 'carrot'), 'avocado': ('avocado.blend', 'Avocado'), 'donut': ('donut.blend', 'donut'),
          'milk': ('milk.blend', 'milk'), 'bacon': ('bacon.blend', 'bacon')}
 CSCALE = {'bread': 1.25, 'coffee': 1.0, 'watermelon': 1.14, 'icecream': 1.1}          # fitted on the plaza footage; others 1.0 until fitted on their maps
-cam = json.load(open(os.path.join(AN, 'camera_takeA.json'))); P = {p['frame']: p for p in cam['poses']}[233]; U = 100.0
+MAPCFG = json.load(open(os.path.join(HERE, '..', 'maps', f"{os.environ.get('FOO_MAP', 'market_plaza')}.json")))['camera']   # the map's game camera
+if 'pose' in MAPCFG: cam, P = dict(f=MAPCFG['f']), MAPCFG['pose']
+else:
+    cam = json.load(open(os.path.join(AN, f"camera_take{MAPCFG['solve']}.json"))); P = {p['frame']: p for p in cam['poses']}[MAPCFG['frame']]
+U = 100.0
 bpy.ops.wm.read_factory_settings(use_empty=True); sc = bpy.context.scene
 sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = 48; sc.cycles.use_denoising = True; sc.render.film_transparent = True
 sc.render.resolution_x = WIDTH; sc.render.resolution_y = HEIGHT; sc.render.use_border = True; sc.render.use_crop_to_border = True
