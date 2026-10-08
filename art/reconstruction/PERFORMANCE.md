@@ -8,7 +8,7 @@ window" is the console's own frame metric (2 s windows).
 **These are not universal performance claims.** They hold for this machine and these conditions only. Headless Chrome paces frames to
 60 Hz, so frame-time percentiles saturate at 16.7 ms and show only whether 60 is held, not the headroom above it.
 
-Conditions common to every row (2026-10-08): MacBook (Apple Silicon, 8 logical cores; GPU: integrated, headless Chrome's), HeadlessChrome
+Conditions common to every row (2026-10-08): iMac21,2 (Apple M1, 8 CPU cores, 7-core integrated GPU, 8 GB RAM; verified with sysctl / system_profiler), HeadlessChrome
 154.0.0.0, **dev console build** (Vite dev server, React dev mode), DPR 1, Phaser game 1920 × 1080 scaled to the viewport (`Scale.FIT`),
 30 s per run, effects on (Powerups high), no other heavy process running.
 
