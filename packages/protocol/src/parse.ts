@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  consoleClientMessageSchema,
+  consoleServerMessageSchema,
+  type ConsoleClientMessage,
+  type ConsoleServerMessage,
+} from './console';
 import { controllerContextMessageSchema, controllerContextSetMessageSchema } from './context';
 import { handshakeAcceptedMessageSchema, handshakeMessageSchema } from './client';
 import { inputEventMessageSchema, inputMoveMessageSchema } from './controller';
@@ -88,9 +94,32 @@ function isUnsupportedHandshake(raw: unknown): boolean {
 
 /** Never throws, whatever it is given. */
 export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
+  return parseClient(clientMessageSchema, raw);
+}
+
+/**
+ * The console-session flow's trust boundary (ADR-004): same rules (the version is negotiated once,
+ * in the handshake; anything malformed is INVALID_MESSAGE; never throws) over the console flow's
+ * own messages. Not used by the server until C3.
+ */
+export function parseConsoleClientMessage(raw: unknown): ParseResult<ConsoleClientMessage> {
+  return parseClient(consoleClientMessageSchema, raw);
+}
+
+/** Never throws. For phones and TVs validating what the server sends in the console flow. */
+export function parseConsoleServerMessage(raw: unknown): ParseResult<ConsoleServerMessage> {
+  try {
+    const result = consoleServerMessageSchema.safeParse(raw);
+    return result.success ? { ok: true, message: result.data } : invalid;
+  } catch {
+    return invalid;
+  }
+}
+
+function parseClient<T>(schema: z.ZodType<T>, raw: unknown): ParseResult<T> {
   try {
     if (isUnsupportedHandshake(raw)) return { ok: false, code: 'UNSUPPORTED_PROTOCOL' };
-    const result = clientMessageSchema.safeParse(raw);
+    const result = schema.safeParse(raw);
     return result.success ? { ok: true, message: result.data } : invalid;
   } catch {
     return invalid; // e.g. throwing getters, revoked proxies

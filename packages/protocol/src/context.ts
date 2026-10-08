@@ -23,7 +23,9 @@ export const SECONDARY_ACTION_LABELS = ['OPTIONS', 'DETAILS', 'REMOVE'] as const
 export type SecondaryActionLabel = (typeof SECONDARY_ACTION_LABELS)[number];
 
 /** `null`: the secondary button does nothing here, so the controller must not label it. */
-const secondaryActionSchema = z.strictObject({ label: z.enum(SECONDARY_ACTION_LABELS) }).nullable();
+export const secondaryActionSchema = z
+  .strictObject({ label: z.enum(SECONDARY_ACTION_LABELS) })
+  .nullable();
 export type SecondaryAction = z.infer<typeof secondaryActionSchema>;
 
 const contextPayloadShape = {

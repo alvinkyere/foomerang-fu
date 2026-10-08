@@ -236,6 +236,16 @@ General: all additions are **additive** to protocol version 1 while both flows c
 | `CONTROLLER_LEAVE` | phone→srv, plain | `{}` | controller | membership RELEASED now (no 60 s wait) |
 | `INPUT_MOVE` / `INPUT_EVENT` / `PLAYER_INPUT` | existing | unchanged; `PLAYER_INPUT.playerId` is a `controllerId` in console sessions (renamed `controllerId` in v2) | unchanged, plus: the system `MENU` is routed only from an **active participant** (dropped and counted otherwise); the host enforces the same rule again (defence in depth) | dedup windows keyed by `controllerId`, so they survive game changes |
 
+**As built in C2 (`packages/protocol/src/console.ts`; these refinements supersede the tables above where they differ):**
+- **No `CONTROLLER_PARTICIPATION` message.** Participation is part of the server → phone `CONTROLLER_CONTEXT` view: `{ context (incl. WAITING), secondaryAction, version, participation: null | { gameSessionId, status: PARTICIPANT | WAITING, seat? } }`, one atomic view, so a phone can never see GAMEPLAY before it knows whether it plays. `version` is the console's controller-view version (rises whenever any controller's view may change). Consistency is enforced on the wire (WAITING ⇔ a waiting participation; a participant has a seat; a waiting controller has none).
+- **No manifest `scope`.** The base console controller is a protocol constant (`CONSOLE_CONTROLLER`), never transmitted; `CONTROLLER_MANIFEST` stays the game's manifest, sent when a controller becomes a participant.
+- **Participants carry the TV's seat number** (`{ controllerId, seat }`, unique both ways): only the TV can number seats, because CPUs fill seats too. CPUs themselves never travel. (The C1 domain stores participants as controller ids; C4 adds the seat.)
+- **`CONTROLLER_INPUT`** (server → TV) replaces `PLAYER_INPUT` in the console flow, so a controller id is never carried in a field named `playerId`.
+- **Branded ids**: `ControllerId` and `GameSessionId` are distinct branded types (and a strict opaque-id format); the console session's own id and participant ids never travel (a participant is `(gameSessionId, controllerId)`).
+- **Game-scoped `MATCH_START` / `MATCH_END`** in the console flow *require* `gameSessionId`; the legacy `{}` form is unchanged in the legacy flow.
+- **Separate trust boundary until C3**: `parseConsoleClientMessage` / `parseConsoleServerMessage` over the console flow's own unions (shared messages reused by reference). The legacy `parseClientMessage` / `parseServerMessage` are unchanged and still reject every console-flow message; C3 adopts them together with the server handlers.
+- **Error codes** for the console flow (e.g. a full console) are added in the slice that first emits them, with the clients' copy, rather than in C2.
+
 Terminology: `ROOM_*` is wrong for the new concept (a "room" was one game's lobby). It is **not** renamed in place: the legacy family keeps working unchanged until removal (§10), and the new family uses `CONSOLE_*`, `CONTROLLER_*`, `GAME_*`. The `room-engine` package keeps its name for now (a rename is churn with no behaviour); the consumer UI says "join code", never "room" or "session".
 
 ## 7. Server model

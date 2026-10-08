@@ -85,6 +85,32 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 
 Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.
 
+### Console-session flow (Checkpoint C; schemas only, not yet served)
+
+Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**. A phone joins Foomerang as a *controller*; the TV seats controllers as *participants* of one game launch. Its own parsers (`parseConsoleClientMessage`, `parseConsoleServerMessage`) apply the same rules as the legacy boundary; the legacy parsers do **not** accept these messages until the server serves them (C3).
+
+| Type | Dir | Payload | Who may send it |
+| --- | --- | --- | --- |
+| `CONSOLE_OPEN` | TV→srv | `{}` | console without an identity |
+| `CONSOLE_OPENED` | srv→TV | `{ joinCode, hostToken }` | the opener |
+| `CONSOLE_UPDATED` | srv→TV | `{ joinCode, state: OPEN\|CLOSING\|CLOSED, hostConnection, controllers[{ controllerId, displayName, connection, membership }], game: null \| { gameSessionId, gameId, state: LOBBY\|STARTING\|PLAYING\|RESULTS, participants[{ controllerId, seat }] } }` (participants ⊆ members holding membership; no credentials) | the console's TV |
+| `CONSOLE_CLOSE` | TV→srv | `{}` | the TV |
+| `CONTROLLER_REMOVE` | TV→srv | `{ controllerId }` | the TV |
+| `GAME_LAUNCH` | TV→srv | `{ gameId }` | the TV |
+| `GAME_PARTICIPANTS` | TV→srv, state | `{ gameSessionId, participants[{ controllerId, seat }] }` (unique controller and seat, ≤ 16) | the TV |
+| `MATCH_START` / `MATCH_END` | TV→srv | `{ gameSessionId }` (required in this flow) | the TV |
+| `GAME_EXIT` | TV→srv | `{ gameSessionId }` | the TV |
+| `CONTROLLER_JOIN` | phone→srv | `{ joinCode, displayName }` | controller without an identity |
+| `CONTROLLER_JOINED` | srv→phone | `{ controllerId, reconnectToken }` | the joiner |
+| `CONTROLLER_RECONNECT` / `…RECONNECTED` | phone↔srv | `{ joinCode, reconnectToken }` / `{ controllerId, reconnectToken }` | controller without an identity / the owner |
+| `CONTROLLER_LEAVE` | phone→srv | `{}` | a controller |
+| `CONTROLLER_CONTEXT` (view) | srv→phone | `{ context: GAMEPLAY\|CONSOLE\|PAUSED\|RESULTS\|WAITING, secondaryAction, version, participation: null \| { gameSessionId, status: PARTICIPANT\|WAITING, seat? } }` | every controller |
+| `CONSOLE_STATUS` | srv→phone | `{ hostConnection }` | every controller |
+| `CONSOLE_ENDED` | srv→phone | `{ reason: CLOSED_BY_TV\|TV_GONE\|REMOVED }` | the controller concerned |
+| `CONTROLLER_INPUT` | srv→TV | `{ controllerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` | the console's TV |
+
+Shared with the legacy flow, by reference: `HANDSHAKE`, `HEARTBEAT`, `HOST_RECONNECT` / `HOST_RECONNECTED`, `INPUT_MOVE`, `INPUT_EVENT`, the TV's `CONTROLLER_CONTEXT` (four contexts; the TV can never set WAITING), `CONTROLLER_MANIFEST`, `ERROR`. `ControllerId` and `GameSessionId` are distinct branded types. The base console controller (`CONSOLE_CONTROLLER`) is a constant, never sent.
+
 ### Planned (not built): more control types (the manifest knows only `joystick` because that is all the controller implements), roster/status messages for controllers, match lifecycle (`MATCH_*`), `GAME_STATE`, room closing.
 
 ## Joystick semantics

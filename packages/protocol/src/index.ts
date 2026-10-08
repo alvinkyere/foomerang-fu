@@ -85,7 +85,12 @@ export type {
 export { heartbeatAckMessageSchema, heartbeatMessageSchema } from './heartbeat';
 export type { HeartbeatAckMessage, HeartbeatMessage } from './heartbeat';
 
-export { parseClientMessage, parseServerMessage } from './parse';
+export {
+  parseClientMessage,
+  parseConsoleClientMessage,
+  parseConsoleServerMessage,
+  parseServerMessage,
+} from './parse';
 export type { ClientMessage, ParseResult, ServerMessage } from './parse';
 
 export {
@@ -115,3 +120,74 @@ export type {
   SecondaryAction,
   SecondaryActionLabel,
 } from './context';
+
+// Console sessions (ADR-004, Checkpoint C): additive under protocol version 1; the server adopts
+// them in C3. The legacy ROOM_* flow above is unchanged.
+export {
+  CONSOLE_CONTROLLER,
+  CONSOLE_END_REASONS,
+  CONSOLE_STATES,
+  EFFECTIVE_CONTEXTS,
+  GAME_STATES,
+  MAX_WIRE_CONTROLLERS,
+  MEMBERSHIP_STATUSES,
+  PARTICIPATION_STATUSES,
+  consoleClientMessageSchema,
+  consoleCloseMessageSchema,
+  consoleEndedMessageSchema,
+  consoleOpenMessageSchema,
+  consoleOpenedMessageSchema,
+  consoleServerMessageSchema,
+  consoleStatusMessageSchema,
+  consoleUpdatedMessageSchema,
+  controllerIdSchema,
+  controllerInputMessageSchema,
+  controllerJoinMessageSchema,
+  controllerJoinedMessageSchema,
+  controllerLeaveMessageSchema,
+  controllerReconnectMessageSchema,
+  controllerReconnectedMessageSchema,
+  controllerRemoveMessageSchema,
+  controllerViewMessageSchema,
+  gameExitMessageSchema,
+  gameLaunchMessageSchema,
+  gameMatchEndMessageSchema,
+  gameMatchStartMessageSchema,
+  gameParticipantsMessageSchema,
+  gameSessionIdSchema,
+} from './console';
+export type {
+  ActiveGame,
+  ConsoleClientMessage,
+  ConsoleCloseMessage,
+  ConsoleEndReason,
+  ConsoleEndedMessage,
+  ConsoleOpenMessage,
+  ConsoleOpenedMessage,
+  ConsoleServerMessage,
+  ConsoleState,
+  ConsoleStatusMessage,
+  ConsoleUpdatedMessage,
+  ControllerEntry,
+  ControllerId,
+  ControllerInputMessage,
+  ControllerJoinMessage,
+  ControllerJoinedMessage,
+  ControllerLeaveMessage,
+  ControllerReconnectMessage,
+  ControllerReconnectedMessage,
+  ControllerRemoveMessage,
+  ControllerViewMessage,
+  EffectiveContext,
+  GameExitMessage,
+  GameLaunchMessage,
+  GameMatchEndMessage,
+  GameMatchStartMessage,
+  GameParticipantsMessage,
+  GameSessionId,
+  GameState,
+  MembershipStatus,
+  ParticipantEntry,
+  ParticipantRef,
+  ParticipationStatus,
+} from './console';

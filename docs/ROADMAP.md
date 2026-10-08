@@ -112,6 +112,7 @@ Rules for the design:
 - `CONTROLLER_CONTEXT` is **not** redesigned by C: B establishes physical input → semantic context → console / game action; C changes *when and what the controller connects to*, not what SLASH / THROW mean.
 - Design for the **second** game: a phone joins once, any game can be chosen, the game supplies its controls and config, play, return, choose another.
 **C1 — domain (committed):** `room-engine` gains the console-session aggregate (`ConsoleSession`, `GameSession`, controllers vs per-launch participants, context, WAITING / pause authority, TV-absence rules) behind `ConsoleRegistry`, a join-code space shared with the legacy `RoomRegistry`, and the connection / membership lifecycle extracted into one shared implementation. No protocol, server or app changes; the legacy room flow is untouched.
+**C2 — protocol (committed):** the console flow's wire vocabulary in `packages/protocol/src/console.ts` (CONSOLE_* / CONTROLLER_* / GAME_*, the per-phone view with WAITING and participation, branded `ControllerId` / `GameSessionId`), with its own parsers; additive under version 1; the legacy ROOM_* flow and its parsers unchanged. No server, controller or console behaviour.
 **Process:** no C implementation until A and B are passed and committed. Then **stop and present** the room / session migration design (state machines, protocol changes, compatibility strategy, migration plan) for review **before any existing room semantics change**.
 
 ## Process requirements
