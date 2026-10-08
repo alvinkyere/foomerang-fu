@@ -1,14 +1,15 @@
 import {
-  GARDEN_ARENA,
-  MARKET_PLAZA_ARENA,
   isFatigued,
   roundLabel,
   systemsView,
+  type FuArena,
   type FuEvent,
   type FuState,
 } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
+import { PLAYABLE_ARENAS, choiceOf } from '../runtime/arenas';
 import { isCpuId } from '../runtime/cpuRoster';
+import type { ArenaChoice } from '../runtime/powerupMode';
 import { SLOT_STYLES, type SlotAllocator } from '../runtime/slots';
 import {
   identityOf,
@@ -295,10 +296,12 @@ export function buildFuView(
     banner,
     round: state.round,
     hud,
-    ...(state.config.arena === GARDEN_ARENA
-      ? { arenaId: 'garden' as const }
-      : state.config.arena === MARKET_PLAZA_ARENA
-        ? { arenaId: 'market_plaza' as const }
-        : {}),
+    ...namedArena(state.config.arena),
   };
+}
+
+/** The production arena's name for the renderer (Garden or a reconstructed map); test arenas stay unnamed. */
+function namedArena(arena: FuArena): { readonly arenaId?: ArenaChoice } {
+  const choice = choiceOf(arena);
+  return choice !== undefined && PLAYABLE_ARENAS[choice].named ? { arenaId: choice } : {};
 }

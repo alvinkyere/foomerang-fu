@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MARKET_PLAZA_ARENA } from '@foomerang/foomerang-fu';
+import { HARBOUR_FORT_ARENA, MARKET_PLAZA_ARENA } from '@foomerang/foomerang-fu';
 import { describe, expect, it } from 'vitest';
 import { createMapCamera, parseMapCamera } from '../src/render/reconstructed/mapCamera';
 import {
@@ -71,6 +71,19 @@ describe('reconstructed maps', () => {
       width: MARKET_PLAZA_ARENA.width,
       height: MARKET_PLAZA_ARENA.height,
     });
+    expect(RECONSTRUCTED_MAPS.harbour_fort.arena).toEqual({
+      width: HARBOUR_FORT_ARENA.width,
+      height: HARBOUR_FORT_ARENA.height,
+    });
+  });
+
+  it('harbour_fort is selectable, seats its video cast first (avocado, watermelon) and has its own longer lens', () => {
+    expect(parseArenaParam('?arena=harbour_fort')).toBe('harbour_fort');
+    const map = reconstructedMapFor('harbour_fort');
+    expect(map?.roster.slice(0, 2)).toEqual(['avocado', 'watermelon']);
+    const plaza = parseMapCamera(manifestOf('maps/market_plaza/')['camera']);
+    const harbour = parseMapCamera(manifestOf('maps/harbour_fort/')['camera']);
+    expect(harbour.focalPx).toBeGreaterThan(1.5 * plaza.focalPx);
   });
 
   it('the plaza manifest camera is the solved take-A camera', () => {

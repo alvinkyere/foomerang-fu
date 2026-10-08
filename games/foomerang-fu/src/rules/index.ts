@@ -23,6 +23,15 @@ export {
   MARKET_PLAZA_WIDTH,
 } from './marketPlazaArena';
 export type { MarketPlazaWall } from './marketPlazaArena';
+export {
+  HARBOUR_FORT_ARENA,
+  HARBOUR_FORT_BOOK_SPOTS,
+  HARBOUR_FORT_HEIGHT,
+  HARBOUR_FORT_SPAWNS,
+  HARBOUR_FORT_WALLS,
+  HARBOUR_FORT_WIDTH,
+} from './harbourFortArena';
+export type { HarbourFortWall } from './harbourFortArena';
 export type { GardenRock, GardenWall } from './gardenArena';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {

@@ -1,0 +1,289 @@
+{
+  "map": "harbour_fort",
+  "camera": "harbour",
+  "primitives": [
+    {
+      "name": "tower_L",
+      "group": "gatehouse",
+      "type": "box",
+      "centre": [0.017, 0.765],
+      "size": [0.058, 0.055],
+      "height": 0.195,
+      "roof": {
+        "type": "pyramid",
+        "height": 0.06
+      },
+      "roof_overhang": 0.15,
+      "fidelity": "MEASURED front/width/height (triangulated lanterns); depth INFERRED",
+      "fallback": [196, 72, 60]
+    },
+    {
+      "name": "tower_R",
+      "group": "gatehouse",
+      "type": "box",
+      "centre": [0.161, 0.765],
+      "size": [0.056, 0.055],
+      "height": 0.195,
+      "roof": {
+        "type": "pyramid",
+        "height": 0.06
+      },
+      "roof_overhang": 0.15,
+      "fidelity": "MEASURED front/width/height; depth INFERRED",
+      "fallback": [196, 72, 60]
+    },
+    {
+      "name": "gate_body",
+      "group": "gatehouse",
+      "type": "box",
+      "centre": [0.089, 0.77],
+      "size": [0.088, 0.06],
+      "height": 0.16,
+      "fidelity": "REFERENCE-CONSTRAINED",
+      "fallback": [112, 84, 122]
+    },
+    {
+      "name": "bridge",
+      "group": "ground",
+      "type": "flat",
+      "polygon": [
+        [0.013, 0.64],
+        [0.181, 0.64],
+        [0.181, 0.737],
+        [0.013, 0.737]
+      ],
+      "z": 0.01,
+      "blocks": false,
+      "fidelity": "MEASURED",
+      "texture": "ground"
+    },
+    {
+      "name": "wall_bottom_L",
+      "group": "wall_south_L",
+      "type": "wall",
+      "path": [
+        [-0.23, 0.548],
+        [0.013, 0.548],
+        [0.013, 0.64]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_bottom_R",
+      "group": "wall_south_R",
+      "type": "wall",
+      "path": [
+        [0.181, 0.64],
+        [0.181, 0.53],
+        [0.505, 0.53]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_left",
+      "group": "wall_west",
+      "type": "wall",
+      "path": [
+        [-0.214, 0.548],
+        [-0.214, 0.65]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "crate_1",
+      "group": "crate_1",
+      "type": "box",
+      "centre": [-0.04, 0.612],
+      "size": [0.03, 0.03],
+      "height": 0.031,
+      "fidelity": "MEASURED",
+      "fallback": [120, 96, 120]
+    },
+    {
+      "name": "crate_2",
+      "group": "crate_2",
+      "type": "box",
+      "centre": [0.266, 0.612],
+      "size": [0.03, 0.03],
+      "height": 0.031,
+      "fidelity": "MEASURED",
+      "fallback": [120, 96, 120]
+    },
+    {
+      "name": "crate_3",
+      "group": "crate_3",
+      "type": "box",
+      "centre": [0.27, 0.79],
+      "size": [0.03, 0.03],
+      "height": 0.031,
+      "fidelity": "MEASURED",
+      "fallback": [120, 96, 120]
+    },
+    {
+      "name": "pot_1",
+      "group": "pot_1",
+      "type": "cylinder",
+      "centre": [-0.137, 0.603],
+      "radius": 0.0122,
+      "height": 0.032,
+      "taper": 0.7,
+      "fidelity": "MEASURED",
+      "fallback": [170, 110, 80]
+    },
+    {
+      "name": "pot_2",
+      "group": "pot_2",
+      "type": "cylinder",
+      "centre": [-0.104, 0.58],
+      "radius": 0.0122,
+      "height": 0.032,
+      "taper": 0.7,
+      "fidelity": "MEASURED",
+      "fallback": [170, 110, 80]
+    },
+    {
+      "name": "pot_3",
+      "group": "pot_3",
+      "type": "cylinder",
+      "centre": [0.212, 0.64],
+      "radius": 0.0184,
+      "height": 0.05,
+      "taper": 0.6,
+      "fidelity": "MEASURED",
+      "fallback": [170, 110, 80]
+    },
+    {
+      "name": "pot_4",
+      "group": "pot_4",
+      "type": "cylinder",
+      "centre": [0.267, 0.785],
+      "radius": 0.0153,
+      "height": 0.04,
+      "taper": 0.6,
+      "fidelity": "MEASURED",
+      "fallback": [170, 110, 80]
+    },
+    {
+      "name": "stall",
+      "group": "stall",
+      "type": "box",
+      "centre": [0.335, 0.801],
+      "size": [0.105, 0.06],
+      "height": 0.1,
+      "roof": {
+        "type": "gable",
+        "height": 0.035
+      },
+      "roof_overhang": 0.12,
+      "fidelity": "REFERENCE-CONSTRAINED",
+      "fallback": [205, 78, 62]
+    },
+    {
+      "name": "pot_5",
+      "group": "pot_5",
+      "type": "cylinder",
+      "centre": [0.236, 0.757],
+      "radius": 0.0092,
+      "height": 0.025,
+      "taper": 0.7,
+      "fidelity": "MEASURED",
+      "fallback": [170, 110, 80]
+    },
+    {
+      "name": "wall_right_0",
+      "group": "wall_east_0",
+      "type": "wall",
+      "path": [
+        [0.505, 0.53],
+        [0.505, 0.6]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_1",
+      "group": "wall_east_1",
+      "type": "wall",
+      "path": [
+        [0.505, 0.6],
+        [0.505, 0.67]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_2",
+      "group": "wall_east_2",
+      "type": "wall",
+      "path": [
+        [0.505, 0.67],
+        [0.505, 0.74]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_3",
+      "group": "wall_east_3",
+      "type": "wall",
+      "path": [
+        [0.505, 0.74],
+        [0.505, 0.81]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_4",
+      "group": "wall_east_4",
+      "type": "wall",
+      "path": [
+        [0.505, 0.81],
+        [0.505, 0.88]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_5",
+      "group": "wall_east_5",
+      "type": "wall",
+      "path": [
+        [0.505, 0.88],
+        [0.505, 1.02]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68]
+    }
+  ]
+}
