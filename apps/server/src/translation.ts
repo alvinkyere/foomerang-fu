@@ -1,5 +1,10 @@
 import type { ErrorCode } from '@foomerang/protocol';
 import type {
+  CloseFailure,
+  ConsoleJoinFailure,
+  ControllerFailure,
+  ControllerReconnectFailure,
+  HostFailure,
   CreateRoomFailure,
   RegistryJoinFailure,
   RegistryTransitionFailure,
@@ -48,4 +53,46 @@ export const TRANSITION_ERRORS: Readonly<Record<RegistryTransitionFailure, Error
   ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
   INVALID_TRANSITION: 'INVALID_STATE',
   NOT_ENOUGH_PLAYERS: 'NOT_ENOUGH_PLAYERS',
+};
+
+// --- console sessions (ADR-004) ------------------------------------------------------------------
+// The registry adds 'CONSOLE_NOT_FOUND' to every operation's failures. Consumer copy for the reused
+// codes still says "room" / "game" in places: the controller's words are revisited in C5.
+
+type NotFound = 'CONSOLE_NOT_FOUND';
+
+export const CONTROLLER_JOIN_ERRORS: Readonly<Record<ConsoleJoinFailure | NotFound, ErrorCode>> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  CONSOLE_NOT_JOINABLE: 'ROOM_CLOSING', // only a closing console refuses joins
+  INVALID_DISPLAY_NAME: 'INVALID_DISPLAY_NAME',
+  CONSOLE_FULL: 'CONSOLE_FULL',
+};
+
+export const CONTROLLER_RECONNECT_ERRORS: Readonly<
+  Record<ControllerReconnectFailure | NotFound, ErrorCode>
+> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  INVALID_CREDENTIAL: 'INVALID_RECONNECT_TOKEN',
+  MEMBERSHIP_RELEASED: 'SEAT_RELEASED',
+  CONSOLE_CLOSING: 'ROOM_CLOSING',
+};
+
+export const CONSOLE_HOST_ERRORS: Readonly<Record<HostFailure | NotFound, ErrorCode>> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  INVALID_CREDENTIAL: 'UNAUTHORIZED',
+  CONSOLE_CLOSING: 'ROOM_CLOSING',
+  ALREADY_DISCONNECTED: 'INTERNAL_ERROR', // never asked of a reconnect
+};
+
+/** The TV named a controller it cannot remove (unknown, not its own, or already gone). */
+export const CONTROLLER_REMOVE_ERRORS: Readonly<Record<ControllerFailure | NotFound, ErrorCode>> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  CONTROLLER_NOT_FOUND: 'INVALID_STATE',
+  ALREADY_RELEASED: 'INVALID_STATE',
+  ALREADY_DISCONNECTED: 'INVALID_STATE',
+};
+
+export const CONSOLE_CLOSE_ERRORS: Readonly<Record<CloseFailure | NotFound, ErrorCode>> = {
+  CONSOLE_NOT_FOUND: 'ROOM_NOT_FOUND',
+  INVALID_TRANSITION: 'INVALID_STATE',
 };

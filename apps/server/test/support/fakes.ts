@@ -1,15 +1,25 @@
-import { JOIN_CODE_ALPHABET, type ServerMessage } from '@foomerang/protocol';
 import {
+  JOIN_CODE_ALPHABET,
+  type ConsoleServerMessage,
+  type ServerMessage,
+} from '@foomerang/protocol';
+import {
+  toConsoleId,
+  toControllerId,
+  toGameSessionId,
   toHostId,
   toHostToken,
   toPlayerId,
   toReconnectToken,
   toRoomId,
+  type ConsoleEnvironment,
   type RoomEnvironment,
 } from '@foomerang/room-engine';
 import type { ServerTransport, TransportConnection } from '../../src/transport';
 
-type OfType<T extends ServerMessage['type']> = Extract<ServerMessage, { type: T }>;
+/** Both flows' server messages (the console flow adds its own). */
+export type AnyServerMessage = ServerMessage | ConsoleServerMessage;
+type OfType<T extends AnyServerMessage['type']> = Extract<AnyServerMessage, { type: T }>;
 
 /** An in-memory transport connection. Close events can be HELD BACK to reproduce races exactly. */
 export class FakeConnection implements TransportConnection {
@@ -108,15 +118,15 @@ export class FakeClient {
     return this;
   }
 
-  get received(): ServerMessage[] {
-    return this.connection.sent as ServerMessage[];
+  get received(): AnyServerMessage[] {
+    return this.connection.sent as AnyServerMessage[];
   }
 
-  all<T extends ServerMessage['type']>(type: T): OfType<T>[] {
+  all<T extends AnyServerMessage['type']>(type: T): OfType<T>[] {
     return this.received.filter((message): message is OfType<T> => message.type === type);
   }
 
-  last<T extends ServerMessage['type']>(type: T): OfType<T> | undefined {
+  last<T extends AnyServerMessage['type']>(type: T): OfType<T> | undefined {
     return this.all(type).at(-1);
   }
 
@@ -147,9 +157,21 @@ export function codeFor(n: number): string {
 }
 
 /** Deterministic environment with a hand-driven monotonic clock. Credentials are recognisable in tests. */
-export class TestEnvironment implements RoomEnvironment {
+export class TestEnvironment implements RoomEnvironment, ConsoleEnvironment {
   time = 1_000;
-  #n = { room: 0, player: 0, host: 0, reconnect: 0, hostToken: 0, code: 0 };
+  #n = {
+    room: 0,
+    player: 0,
+    host: 0,
+    reconnect: 0,
+    hostToken: 0,
+    code: 0,
+    console: 0,
+    controller: 0,
+    game: 0,
+  };
+  /** If set, join-code candidates are served from here first (to provoke collisions). */
+  readonly scriptedCodes: string[] = [];
   /** Set to make the next call to newPlayerId throw (simulates a system fault in the domain). */
   failNextPlayerId = false;
 
@@ -175,5 +197,8 @@ export class TestEnvironment implements RoomEnvironment {
     this.secrets.push(value);
     return toHostToken(value);
   };
-  nextJoinCodeCandidate = () => codeFor((this.#n.code += 1));
+  nextJoinCodeCandidate = () => this.scriptedCodes.shift() ?? codeFor((this.#n.code += 1));
+  newConsoleId = () => toConsoleId(`console-${(this.#n.console += 1)}`);
+  newControllerId = () => toControllerId(`controller-${(this.#n.controller += 1)}`);
+  newGameSessionId = () => toGameSessionId(`game-${(this.#n.game += 1)}`);
 }

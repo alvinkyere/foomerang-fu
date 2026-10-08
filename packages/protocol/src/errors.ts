@@ -23,6 +23,8 @@ export const ERROR_CODES = [
   'INTERNAL_ERROR',
   'NOT_ENOUGH_PLAYERS',
   'INVALID_STATE',
+  /** A console session already has its maximum of controllers (a console limit, not a game's). */
+  'CONSOLE_FULL',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

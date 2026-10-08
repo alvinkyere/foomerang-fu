@@ -287,9 +287,10 @@ export class Application {
     if (identity.kind === 'PLAYER') {
       this.#deps.registry.disconnectPlayer(identity.roomId, identity.playerId);
       this.#notifyHost(identity.roomId);
-    } else {
+    } else if (identity.kind === 'HOST') {
       this.#deps.registry.disconnectHost(identity.roomId);
     }
+    // Console-session identities are the ConsoleApplication's (the gateway routes them there).
   }
 
   /** Housekeeping: advance every room to now and tell hosts what changed. Correctness never depends on it. */

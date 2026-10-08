@@ -1,4 +1,10 @@
-import type { ServerMessage } from '@foomerang/protocol';
+import type {
+  ConsoleServerMessage,
+  ServerMessage as LegacyServerMessage,
+} from '@foomerang/protocol';
+
+/** Both flows' server messages (the console flow adds its own). */
+type ServerMessage = LegacyServerMessage | ConsoleServerMessage;
 import { io, type Socket } from 'socket.io-client';
 
 type OfType<T extends ServerMessage['type']> = Extract<ServerMessage, { type: T }>;

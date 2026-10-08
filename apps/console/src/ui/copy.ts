@@ -6,6 +6,7 @@ const SERVER_COPY: Record<ErrorCode, string> = {
   UNSUPPORTED_PROTOCOL: 'This console is out of date for the game server. Please reload the page.',
   ROOM_NOT_FOUND: 'This room no longer exists.',
   ROOM_FULL: 'The room is full.',
+  CONSOLE_FULL: 'No more controllers can connect right now.',
   INVALID_RECONNECT_TOKEN: 'This room can no longer be reclaimed.',
   RATE_LIMITED: 'Slow down a moment, then try again.',
   UNAUTHORIZED: 'This console no longer controls that room.',

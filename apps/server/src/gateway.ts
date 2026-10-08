@@ -1,5 +1,6 @@
 import { parseClientMessage, type ClientMessage, type ErrorCode } from '@foomerang/protocol';
 import type { Application } from './application';
+import type { ConsoleApplication } from './consoleApplication';
 import type { Diagnostics } from './diagnostics';
 import { classifyMessage, type MessageClass, type RateLimits } from './rateLimit';
 import type { CancelFn, Scheduler } from './scheduler';
@@ -15,6 +16,8 @@ export interface GatewayConfig {
 export interface GatewayDeps {
   readonly transport: ServerTransport;
   readonly application: Application;
+  /** The console-session flow (ADR-004). */
+  readonly consoles: ConsoleApplication;
   readonly scheduler: Scheduler;
   /** Monotonic milliseconds. Used for rate limiting only. */
   readonly now: () => number;
@@ -82,7 +85,10 @@ export class Gateway {
     this.#sessions.delete(session);
     if (this.#stopped) return;
     try {
-      this.#deps.application.sessionClosed(session);
+      const kind = session.identity?.kind;
+      if (kind === 'CONSOLE_HOST' || kind === 'CONTROLLER')
+        this.#deps.consoles.sessionClosed(session);
+      else this.#deps.application.sessionClosed(session);
     } catch (error) {
       this.#internalError(error);
     }
@@ -145,7 +151,7 @@ export class Gateway {
 
   /** ACTIVE connections only. */
   #dispatch(session: Session, message: ClientMessage): void {
-    const { application } = this.#deps;
+    const { application, consoles } = this.#deps;
     switch (message.type) {
       case 'HANDSHAKE':
         // Negotiation happens once per transport connection.
@@ -160,9 +166,39 @@ export class Gateway {
         if (!this.#mayActAsNewHost(session)) return this.#unauthorized(session);
         application.createRoom(session, message.payload.gameId);
         return;
-      case 'HOST_RECONNECT':
+      case 'HOST_RECONNECT': {
         if (!this.#mayActAsNewHost(session)) return this.#unauthorized(session);
-        application.reconnectHost(session, message.payload.joinCode, message.payload.hostToken);
+        // Join codes are unique across rooms and consoles: the code alone says which TV this is.
+        const { joinCode, hostToken } = message.payload;
+        if (consoles.owns(joinCode)) consoles.reconnectHost(session, joinCode, hostToken);
+        else application.reconnectHost(session, joinCode, hostToken);
+        return;
+      }
+
+      // --- console sessions (ADR-004) ---------------------------------------------------------
+      case 'CONSOLE_OPEN':
+        if (!this.#mayActAsNewHost(session)) return this.#unauthorized(session);
+        consoles.open(session);
+        return;
+      case 'CONSOLE_CLOSE':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        consoles.close(session);
+        return;
+      case 'CONTROLLER_REMOVE':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        consoles.remove(session, message.payload.controllerId);
+        return;
+      case 'CONTROLLER_JOIN':
+        if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
+        consoles.join(session, message.payload.joinCode, message.payload.displayName);
+        return;
+      case 'CONTROLLER_RECONNECT':
+        if (!this.#mayActAsNewPlayer(session)) return this.#unauthorized(session);
+        consoles.reconnect(session, message.payload.joinCode, message.payload.reconnectToken);
+        return;
+      case 'CONTROLLER_LEAVE':
+        if (session.identity?.kind !== 'CONTROLLER') return this.#unauthorized(session);
+        consoles.leave(session);
         return;
 
       case 'MATCH_START':
@@ -222,8 +258,9 @@ export class Gateway {
     }
   }
 
-  // Only a console without an identity may create or reclaim a room; only a controller without
-  // an identity may join or reconnect as a player. One connection, one identity.
+  // Only a console without an identity may create or reclaim a room or open / reclaim a console
+  // session; only a controller without an identity may join or reconnect (as a player, or as a
+  // console's controller). One connection, one identity.
   #mayActAsNewHost = (session: Session): boolean =>
     session.clientType === 'console' && session.identity === undefined;
   #mayActAsNewPlayer = (session: Session): boolean =>

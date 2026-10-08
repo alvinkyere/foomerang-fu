@@ -47,7 +47,7 @@ export type MessageClass = 'handshake' | 'room' | 'movement' | 'action' | 'heart
 
 export interface RateLimits {
   readonly handshake: BucketConfig;
-  /** ROOM_CREATE / ROOM_JOIN / PLAYER_RECONNECT / HOST_RECONNECT. */
+  /** ROOM_CREATE / ROOM_JOIN / PLAYER_RECONNECT / HOST_RECONNECT, and the console lifecycle requests. */
   readonly room: BucketConfig;
   readonly movement: BucketConfig;
   readonly action: BucketConfig;
@@ -85,6 +85,12 @@ const CLASS_BY_TYPE: Readonly<Record<string, MessageClass>> = Object.freeze({
   HOST_RECONNECT: 'room',
   MATCH_START: 'room',
   MATCH_END: 'room',
+  CONSOLE_OPEN: 'room',
+  CONSOLE_CLOSE: 'room',
+  CONTROLLER_JOIN: 'room',
+  CONTROLLER_RECONNECT: 'room',
+  CONTROLLER_LEAVE: 'room',
+  CONTROLLER_REMOVE: 'room',
   CONTROLLER_CONTEXT: 'action',
   INPUT_MOVE: 'movement',
   INPUT_EVENT: 'action',

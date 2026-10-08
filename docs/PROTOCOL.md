@@ -85,9 +85,9 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 
 Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.
 
-### Console-session flow (Checkpoint C; schemas only, not yet served)
+### Console-session flow (Checkpoint C; lifecycle served since C3, game operations from C4)
 
-Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**. A phone joins Foomerang as a *controller*; the TV seats controllers as *participants* of one game launch. Its own parsers (`parseConsoleClientMessage`, `parseConsoleServerMessage`) apply the same rules as the legacy boundary; the legacy parsers do **not** accept these messages until the server serves them (C3).
+Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**. A phone joins Foomerang as a *controller*; the TV seats controllers as *participants* of one game launch. Its own parsers (`parseConsoleClientMessage`, `parseConsoleServerMessage`) apply the same rules as the legacy boundary. **The server's trust boundary (`parseClientMessage`) has adopted the console lifecycle it serves since C3**: `CONSOLE_OPEN`, `CONSOLE_CLOSE`, `CONTROLLER_REMOVE`, `CONTROLLER_JOIN`, `CONTROLLER_RECONNECT`, `CONTROLLER_LEAVE`. The game operations (`GAME_*`, game-scoped `MATCH_*`) are still refused there (`INVALID_MESSAGE`) until C4 serves them.
 
 | Type | Dir | Payload | Who may send it |
 | --- | --- | --- | --- |
@@ -137,6 +137,8 @@ Stable machine identifiers; renaming or removing is a breaking change, adding is
 Added in Slice 8 (additive): the host message `MATCH_END` (PLAYING → RESULTS → LOBBY; host only; `INVALID_STATE` anywhere else). Added in Slice 6 (additive), each because the server's translation layer needed a distinct answer: `ROOM_NOT_JOINABLE`, `INVALID_DISPLAY_NAME`, `SEAT_RELEASED`, `ROOM_CLOSING`, `UNKNOWN_GAME`, `HANDSHAKE_REQUIRED` (anything but a handshake first, or no handshake in time), `INTERNAL_ERROR` (a server fault; never carries details).
 
 Added in Slice 8 (additive): `NOT_ENOUGH_PLAYERS` (the host asked to start with fewer players than the game needs) and `INVALID_STATE` (the room cannot make that transition now).
+
+Added in C3 (additive): `CONSOLE_FULL` (a console session already has its maximum of controllers: a console limit, never a game's). The other console-flow failures reuse existing codes: an unknown code `ROOM_NOT_FOUND`; a closing console `ROOM_CLOSING`; a dead reconnect credential `INVALID_RECONNECT_TOKEN`; a released membership `SEAT_RELEASED`; a TV credential that is not this console's `UNAUTHORIZED`; a controller the TV cannot remove `INVALID_STATE`.
 
 ## Identity (_planned_, designed in ARCHITECTURE)
 

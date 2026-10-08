@@ -30,6 +30,22 @@ export const msg = {
     payload: { action, phase: 'pressed' },
   }),
   heartbeat: (seq = 1) => ({ type: 'HEARTBEAT', seq }),
+  // console-session flow (ADR-004)
+  consoleOpen: () => ({ type: 'CONSOLE_OPEN', payload: {} }),
+  consoleClose: () => ({ type: 'CONSOLE_CLOSE', payload: {} }),
+  controllerJoin: (joinCode: string, displayName = 'Alvin') => ({
+    type: 'CONTROLLER_JOIN',
+    payload: { joinCode, displayName },
+  }),
+  controllerReconnect: (joinCode: string, reconnectToken: string) => ({
+    type: 'CONTROLLER_RECONNECT',
+    payload: { joinCode, reconnectToken },
+  }),
+  controllerLeave: () => ({ type: 'CONTROLLER_LEAVE', payload: {} }),
+  controllerRemove: (controllerId: string) => ({
+    type: 'CONTROLLER_REMOVE',
+    payload: { controllerId },
+  }),
 };
 
 export interface Rig {
@@ -51,6 +67,13 @@ export interface Rig {
     joinCode: string,
     name?: string,
   ): { client: FakeClient; playerId: string; reconnectToken: string };
+  /** A TV that has opened a console session (ADR-004). */
+  console(): { client: FakeClient; joinCode: string; hostToken: string };
+  /** A phone that has joined a console session as a controller. */
+  controller(
+    joinCode: string,
+    name?: string,
+  ): { client: FakeClient; controllerId: string; reconnectToken: string };
   /** Moves the monotonic clock AND the scheduler forward together (so the 1 s sweep fires). */
   advance(ms: number): void;
 }
@@ -100,6 +123,25 @@ export function createRig(options: Partial<ServerOptions> = {}): Rig {
       return {
         client,
         playerId: joined.payload.playerId,
+        reconnectToken: joined.payload.reconnectToken,
+      };
+    },
+    console() {
+      const client = rig.connect('console');
+      client.send(msg.consoleOpen());
+      const opened = client.last('CONSOLE_OPENED');
+      if (!opened) throw new Error(`test setup: console not opened: ${client.errors().join(',')}`);
+      return { client, joinCode: opened.payload.joinCode, hostToken: opened.payload.hostToken };
+    },
+    controller(joinCode, name = 'Alvin') {
+      const client = rig.connect('controller');
+      client.send(msg.controllerJoin(joinCode, name));
+      const joined = client.last('CONTROLLER_JOINED');
+      if (!joined)
+        throw new Error(`test setup: controller join failed: ${client.errors().join(',')}`);
+      return {
+        client,
+        controllerId: joined.payload.controllerId,
         reconnectToken: joined.payload.reconnectToken,
       };
     },

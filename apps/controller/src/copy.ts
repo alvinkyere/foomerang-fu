@@ -10,6 +10,7 @@ const SOMETHING_WRONG = 'Something went wrong. Please try again.';
 export const ERROR_COPY: Readonly<Record<ErrorCode, string>> = {
   ROOM_NOT_FOUND: 'We couldn’t find that room. Check the code on the screen.',
   ROOM_FULL: 'This game is full.',
+  CONSOLE_FULL: 'Foomerang already has as many controllers as it can take.',
   ROOM_NOT_JOINABLE: 'This game has already started.',
   INVALID_DISPLAY_NAME: 'Pick a name with 1 to 16 characters.',
   RATE_LIMITED: 'Too many tries. Wait a moment and try again.',

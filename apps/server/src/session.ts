@@ -1,5 +1,5 @@
-import type { ClientType, ServerMessage } from '@foomerang/protocol';
-import type { HostId, PlayerId, RoomId } from '@foomerang/room-engine';
+import type { ClientType, ConsoleServerMessage, ServerMessage } from '@foomerang/protocol';
+import type { ConsoleId, ControllerId, HostId, PlayerId, RoomId } from '@foomerang/room-engine';
 import { TokenBucket, type MessageClass, type RateLimits } from './rateLimit';
 import type { TransportConnection } from './transport';
 
@@ -25,6 +25,20 @@ export type SessionIdentity =
       readonly kind: 'HOST';
       readonly roomId: RoomId;
       readonly hostId: HostId;
+      readonly generation: number;
+    }
+  // Console sessions (ADR-004): distinct kinds, so a console TV is never a room host and a
+  // controller is never a player, whatever the message.
+  | {
+      readonly kind: 'CONSOLE_HOST';
+      readonly consoleId: ConsoleId;
+      readonly hostId: HostId;
+      readonly generation: number;
+    }
+  | {
+      readonly kind: 'CONTROLLER';
+      readonly consoleId: ConsoleId;
+      readonly controllerId: ControllerId;
       readonly generation: number;
     };
 
@@ -65,7 +79,7 @@ export class Session {
     return this.#buckets[messageClass].tryTake(nowMs);
   }
 
-  send(message: ServerMessage): void {
+  send(message: ServerMessage | ConsoleServerMessage): void {
     if (this.lifecycle === 'CLOSED') return;
     try {
       this.#connection.send(message);

@@ -439,14 +439,27 @@ describe('protocol version: still 1, negotiated once, for both flows', () => {
 });
 
 describe('compatibility: the legacy ROOM_* flow is untouched', () => {
-  it('the legacy trust boundary does not accept console-flow messages yet (C3 adopts them)', () => {
+  // C3 serves the console-session lifecycle; the game operations are adopted with their handlers in C4.
+  const ADOPTED_IN_C3 = [
+    'CONSOLE_OPEN',
+    'CONSOLE_CLOSE',
+    'CONTROLLER_REMOVE',
+    'CONTROLLER_JOIN',
+    'CONTROLLER_RECONNECT',
+    'CONTROLLER_LEAVE',
+  ];
+
+  it('the server’s trust boundary accepts exactly the console lifecycle the server serves (C3)', () => {
     for (const message of Object.values(CLIENT)) {
-      // MATCH_* with a gameSessionId is a console-flow message; the legacy MATCH_* stays {}.
-      expect(parseClientMessage(clone(message)), message.type).toEqual({
-        ok: false,
-        code: 'INVALID_MESSAGE',
-      });
+      const parsed = parseClientMessage(clone(message));
+      if (ADOPTED_IN_C3.includes(message.type)) {
+        expect(parsed, message.type).toEqual({ ok: true, message });
+      } else {
+        // GAME_* and the game-scoped MATCH_* (with a gameSessionId) wait for C4.
+        expect(parsed, message.type).toEqual({ ok: false, code: 'INVALID_MESSAGE' });
+      }
     }
+    expect(Object.keys(CLIENT).filter((t) => ADOPTED_IN_C3.includes(t))).toHaveLength(6);
     for (const message of Object.values(SERVER)) {
       expect(parseServerMessage(clone(message)).ok, message.type).toBe(false);
     }

@@ -24,6 +24,7 @@ describe('protocol error codes', () => {
       // Added in Slice 8 for host-driven match start:
       'NOT_ENOUGH_PLAYERS',
       'INVALID_STATE',
+      'CONSOLE_FULL',
     ]);
   });
 

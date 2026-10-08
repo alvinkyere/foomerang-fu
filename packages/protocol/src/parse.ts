@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import {
   consoleClientMessageSchema,
+  consoleCloseMessageSchema,
+  consoleOpenMessageSchema,
   consoleServerMessageSchema,
+  controllerJoinMessageSchema,
+  controllerLeaveMessageSchema,
+  controllerReconnectMessageSchema,
+  controllerRemoveMessageSchema,
   type ConsoleClientMessage,
   type ConsoleServerMessage,
 } from './console';
@@ -50,6 +56,14 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   controllerContextSetMessageSchema,
   roomJoinMessageSchema,
   playerReconnectMessageSchema,
+  // Console-session lifecycle (ADR-004), served since C3. The game operations (GAME_*, game-scoped
+  // MATCH_*) are adopted with their handlers in C4.
+  consoleOpenMessageSchema,
+  consoleCloseMessageSchema,
+  controllerRemoveMessageSchema,
+  controllerJoinMessageSchema,
+  controllerReconnectMessageSchema,
+  controllerLeaveMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
 

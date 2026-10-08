@@ -1,8 +1,15 @@
-import { RoomRegistry, type RoomEnvironment, type RoomTimings } from '@foomerang/room-engine';
+import {
+  ConsoleRegistry,
+  JoinCodeSpace,
+  RoomRegistry,
+  type ConsoleTimings,
+  type RoomTimings,
+} from '@foomerang/room-engine';
 import { Application, DEFAULT_GAMES, validateGames, type GameDefinition } from './application';
 import { BindingTable } from './bindings';
+import { ConsoleApplication } from './consoleApplication';
 import { Diagnostics, type DiagnosticsSnapshot } from './diagnostics';
-import { createNodeEnvironment } from './environment';
+import { createNodeEnvironment, type ServerEnvironment } from './environment';
 import { Gateway } from './gateway';
 import { DEFAULT_RATE_LIMITS, type RateLimits } from './rateLimit';
 import { realScheduler, type CancelFn, type Scheduler } from './scheduler';
@@ -16,10 +23,12 @@ export interface ServerOptions {
   readonly host?: string;
   /** Games the server can host (capacity etc.). Default: Foomerang Fu, 2–6 players. */
   readonly games?: Readonly<Record<string, GameDefinition>>;
-  readonly environment?: RoomEnvironment;
+  readonly environment?: ServerEnvironment;
   readonly scheduler?: Scheduler;
   readonly transport?: ServerTransport;
   readonly timings?: Partial<RoomTimings>;
+  /** Console-session durations (ADR-004): reconnecting window, membership reservation, TV absence. */
+  readonly consoleTimings?: Partial<ConsoleTimings>;
   /** Initial handshake deadline. Default 5000. */
   readonly handshakeTimeoutMs?: number;
   /** Housekeeping sweep interval. Default 1000. Correctness never depends on it. */
@@ -57,11 +66,18 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
   const diagnostics = new Diagnostics();
   const onInternalError = options.onInternalError ?? (() => undefined);
 
-  const registry = new RoomRegistry(
-    environment,
-    options.timings ? { timings: options.timings } : {},
-  );
+  // One join-code space for legacy rooms and console sessions, so a code never means both.
+  const joinCodes = new JoinCodeSpace();
+  const registry = new RoomRegistry(environment, {
+    joinCodes,
+    ...(options.timings ? { timings: options.timings } : {}),
+  });
+  const consoleRegistry = new ConsoleRegistry(environment, {
+    joinCodes,
+    ...(options.consoleTimings ? { timings: options.consoleTimings } : {}),
+  });
   const bindings = new BindingTable();
+  const consoles = new ConsoleApplication({ registry: consoleRegistry, bindings, diagnostics });
   const application = new Application({
     registry,
     bindings,
@@ -84,6 +100,7 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
   const gateway = new Gateway({
     transport,
     application,
+    consoles,
     scheduler,
     now: environment.now,
     diagnostics,
@@ -101,6 +118,7 @@ export function createFoomerangServer(options: ServerOptions = {}): FoomerangSer
   const sweep = (): void => {
     try {
       application.reconcileSweep();
+      consoles.reconcileSweep();
     } catch (error) {
       diagnostics.increment('internalErrors');
       try {
