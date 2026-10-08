@@ -7,22 +7,22 @@ inliers; same environment ≥ 40), not appearance alone.
 Non-gameplay shots (not maps): **S3** f145–200 title card "LOCAL MULTIPLAYER CHAOS" (yellow); **S6** f373–431 title card
 "RIDICULOUS POWER-UPS" (pink); **S10** f821–945 couch cinematic "UP TO 6 PLAYERS" (living-room set, cast on a sofa).
 
-| #   | Internal name   | Shots / frames                                 | Status                                       |
-| --- | --------------- | ---------------------------------------------- | -------------------------------------------- |
-| 1   | `pond_garden`   | S0 f0–33                                       | not started                                  |
-| 2   | `lakeshore`     | S1 f34–83                                      | not started                                  |
-| 3   | `farm_plots`    | S2 f84–144                                     | not started                                  |
-| 4   | `market_plaza`  | S4 f201–263, S5 f264–372                       | **reconstructed (Pass 1–6)**; not integrated |
-| 5   | `sky_islands`   | S7 f432–545                                    | not started                                  |
-| 6   | `flooded_ruins` | S8 f546–650                                    | not started                                  |
-| 7   | `harbour_fort`  | S9 f651–820                                    | not started                                  |
-| 8   | `hedge_maze`    | S11 f946–1021                                  | not started                                  |
-| 9   | `toaster_dock`  | S12 f1022–1088                                 | not started                                  |
-| 10  | `twin_log_rink` | S13 f1089–1141, S18 f1388–1459, S19 f1460–1487 | not started                                  |
-| 11  | `hex_grove`     | S14 f1142–1205                                 | not started                                  |
-| 12  | `stone_ruins`   | S15 f1206–1257                                 | not started                                  |
-| 13  | `cross_pond`    | S16 f1258–1331                                 | not started                                  |
-| 14  | `diamond_walls` | S17 f1332–1387                                 | not started                                  |
+| #   | Internal name   | Shots / frames                                 | Status                                     |
+| --- | --------------- | ---------------------------------------------- | ------------------------------------------ |
+| 1   | `pond_garden`   | S0 f0–33                                       | not started                                |
+| 2   | `lakeshore`     | S1 f34–83                                      | not started                                |
+| 3   | `farm_plots`    | S2 f84–144                                     | not started                                |
+| 4   | `market_plaza`  | S4 f201–263, S5 f264–372                       | reconstructed; in game (camera f DISPUTED) |
+| 5   | `sky_islands`   | S7 f432–545                                    | not started                                |
+| 6   | `flooded_ruins` | S8 f546–650                                    | not started                                |
+| 7   | `harbour_fort`  | S9 f651–820                                    | IN PROGRESS: proxy kit, in game            |
+| 8   | `hedge_maze`    | S11 f946–1021                                  | not started                                |
+| 9   | `toaster_dock`  | S12 f1022–1088                                 | not started                                |
+| 10  | `twin_log_rink` | S13 f1089–1141, S18 f1388–1459, S19 f1460–1487 | not started                                |
+| 11  | `hex_grove`     | S14 f1142–1205                                 | not started                                |
+| 12  | `stone_ruins`   | S15 f1206–1257                                 | not started                                |
+| 13  | `cross_pond`    | S16 f1258–1331                                 | not started                                |
+| 14  | `diamond_walls` | S17 f1332–1387                                 | not started                                |
 
 ## Per-map records
 

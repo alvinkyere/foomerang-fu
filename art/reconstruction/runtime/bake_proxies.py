@@ -72,7 +72,9 @@ for prim in kit['primitives']:
         pts = [shot_px(POSES[f], v) for v in V]
         inside = sum(-2 <= u <= 642 and -2 <= v <= 362 for u, v in pts) / len(pts); u, v = shot_px(POSES[f], (cx, cy, cz))
         return (-round(inside, 1), (u - 320) ** 2 + (v - 180) ** 2)
-    ranked = sorted(POSES, key=score); best = ranked[min(RANK * 7, len(ranked) - 1)]          # ranks ~7 frames apart: movers move
+    ranked = sorted(POSES, key=score); top = -score(ranked[0])[0]
+    seeing = [f for f in ranked if -score(f)[0] >= top - 0.05]          # only frames that see it about as fully as the best one
+    best = seeing[min(RANK * 7, len(seeing) - 1)] if len(seeing) > RANK * 7 else seeing[(RANK * 3) % len(seeing)]          # ranks apart: movers move
     if best not in projectors: projectors[best] = camera(f'SHOT{best}', SHOT_F, POSES[best])
     me = bpy.data.meshes.new(prim['name']); me.from_pydata([(x * U, y * U, z * U) for x, y, z in V], [], [tuple(f) for f in F]); uvl_ = me.uv_layers.new(name='UV')
     ob = bpy.data.objects.new(prim['name'], me); bpy.context.collection.objects.link(ob)

@@ -62,13 +62,13 @@
       "group": "wall_south_L",
       "type": "wall",
       "path": [
-        [-0.23, 0.548],
+        [-0.2, 0.548],
         [0.013, 0.548],
         [0.013, 0.64]
       ],
       "thickness": 0.032,
       "height": 0.04,
-      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fidelity": "MEASURED plan (observed from x -0.20; west of it the wall is ground paint, INFERRED); height REFERENCE-CONSTRAINED",
       "fallback": [112, 88, 118],
       "fallback_top": [80, 65, 68]
     },
@@ -84,20 +84,6 @@
       "thickness": 0.032,
       "height": 0.04,
       "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
-      "fallback": [112, 88, 118],
-      "fallback_top": [80, 65, 68]
-    },
-    {
-      "name": "wall_left",
-      "group": "wall_west",
-      "type": "wall",
-      "path": [
-        [-0.214, 0.548],
-        [-0.214, 0.65]
-      ],
-      "thickness": 0.032,
-      "height": 0.04,
-      "fidelity": "MEASURED",
       "fallback": [112, 88, 118],
       "fallback_top": [80, 65, 68]
     },

@@ -29,6 +29,10 @@
       {
         "centre": [0.225, 0.765],
         "radius": 0.028
+      },
+      {
+        "centre": [0.338, 0.57],
+        "radius": 0.03
       }
     ],
     "inferred_fill": [

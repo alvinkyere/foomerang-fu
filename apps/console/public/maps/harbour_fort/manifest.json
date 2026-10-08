@@ -152,16 +152,8 @@
     {
       "key": "wall_south_L",
       "file": "occ_wall_south_L.webp",
-      "x": 91,
+      "x": 163,
       "y": 516,
-      "depth": 813.24,
-      "fade": false
-    },
-    {
-      "key": "wall_west",
-      "file": "occ_wall_west.webp",
-      "x": 129,
-      "y": 497,
       "depth": 813.24,
       "fade": false
     },

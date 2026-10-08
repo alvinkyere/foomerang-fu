@@ -93,3 +93,32 @@ numpy, scipy) kept **outside the repo**; no JS dependency was added.
 - **Burst**: measured masks stored as exact pixel runs in the world plan (holes/specks survive; polygon tessellation had silently failed);
   dark threshold matched to the evaluation threshold.
 - **Teal**: classified REBUILD (geometry), not solved by rotation.
+
+## Per-map cameras and the map factory (Slice 9 generalization)
+
+Every map carries its OWN camera, solved from its footage and recorded with its evidence in `maps/<map>.json`; the runtime reads it
+from the map's manifest (`apps/console/src/render/reconstructed/mapCamera.ts`). Nothing in the renderer, the bake or the rules
+names a map: maps are rows in `render/reconstructed/maps.ts` and `runtime/arenas.ts`.
+
+**Why harbour_fort did not fit the plaza camera: the lens.** Vanishing-point calibration (`analysis/calib_vanishing.py`, horizon and
+nadir support scans; validated on a Pass-6 render with a known camera: nadir 650 vs true 630, horizon 1300 vs true 1285) gives
+harbour f = 1520–1554 px at 640 wide and pitch 55.4–57.2 deg in three independent segments of the shot (yaw, roll ~0). The plaza
+camera is f = 900 (39 deg horizontal FOV); harbour is ~23.5 deg. Not pose, not world scale (crate tops 0.035–0.040 vs 0.036 plan
+units), not framing alone. The same method gives **market_plaza take A f ~1490–1530, pitch ~54.5**, i.e. the frozen plaza f = 900 is
+probably wrong too; its vertical evidence is ~10x weaker than harbour's, the plaza runtime matches the footage as baked, and the
+plaza camera stays frozen as **DISPUTED** pending review. Shared lens presets are not factored yet (two maps are not a cluster).
+
+**Camera track for panned shots:** `analysis/track_pan.py` (fixed orientation, translation only; `FOO_FIXED_HEIGHT=1` when object
+sizes stay constant). The free-rotation homography chain drifted (yaw -27 deg in a shot whose walls never rotate) and a global
+re-registration against the median plan was tried and REJECTED (it pulled frames onto elevated walls). Check: `analysis/mosaic.py`.
+
+**Heights:** a dense plane sweep (`plane_sweep.py`, `heights_from_volume.py`) cannot measure structures that run along the camera's
+motion (no parallax), so heights come from triangulated KLT corners (`triangulate_tracks.py`) and from wireframe fits of measured
+primitives over reference frames (`overlay_proxies.py`).
+
+**Proxy-kit factory** (`runtime/build_proxy_map.sh <map> ...`): measured primitives (`maps/proxies/<map>.json`, each with a
+fidelity label) + a ground texture (`analysis/ground_texture.py`: median of the shot; unobserved cells filled by the classes listed in
+the map config, all INFERRED) → each primitive textured by projecting the frame that sees it best (`runtime/bake_proxies.py`; faces
+never seen take a fallback colour, INFERRED) → five passes from different frames, per-pixel median (movers drop out;
+`combine_passes.py`) → characters through the map camera (`bake_chars.py`, `FOO_MAP`) → `package_map.py`. Rules geometry:
+`runtime/gen_arena_proxies.py` (footprints + blocking water; water mechanics DEFERRED).
