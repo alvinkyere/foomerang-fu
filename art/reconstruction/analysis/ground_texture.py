@@ -2,7 +2,7 @@
 box, plus a coverage mask. Plan cells the footage never showed are INFERRED: filled with the nearest observed cell (so the floor,
 walls and water continue outward), and the mask is kept so reports can say exactly which pixels are inferred.
 Unobserved cells can instead take a CLASS fill from the map config's "inferred_fill": a list of {"polygon": plan polygon,
-"colour": [r, g, b] | "nearest"}, applied in order (later wins), so floors / water continue without streaking objects outward.
+"colour": [r, g, b] | "nearest", or "copy_offset": [dx, dy] to repeat observed texture from that far away}, applied in order (later wins), so floors / water continue without streaking objects outward.
 "clean": [{"centre": [x, y], "radius": r}] inpaints movers that stood still long enough to survive the median.
 python ground_texture.py <frames_dir> <camera_key> <first> <last> <step> <px_per_unit> <X0> <X1> <Y0> <Y1> <out.png> [map_config.json]
 (writes <out>.png, <out>_observed.png [255 = observed], <out>.json [box, px_per_unit, inferred fraction])"""
@@ -28,7 +28,11 @@ for c in CFG.get('clean', []):
 fill = cv2.GaussianBlur(fill, (0, 0), 3); nearest = fill.copy()
 for r in CFG.get('inferred_fill', []):
     m = np.zeros(obs.shape, np.uint8); cv2.fillPoly(m, [np.array([px(p) for p in r['polygon']], np.int32)], 255)
-    fill[m > 0] = nearest[m > 0] if r['colour'] == 'nearest' else r['colour'][::-1]
+    if 'copy_offset' in r:          # repeat the OBSERVED texture found copy_offset (plan units) away (INFERRED, but real texture)
+        dx, dy = r['copy_offset']; Tm = np.float32([[1, 0, -dx * S], [0, 1, dy * S]])
+        src_img = cv2.warpAffine(med, Tm, (med.shape[1], med.shape[0])); src_ok = cv2.warpAffine(obs.astype(np.uint8), Tm, (med.shape[1], med.shape[0])) > 0
+        sel = (m > 0) & src_ok; fill[sel] = src_img[sel]
+    else: fill[m > 0] = nearest[m > 0] if r['colour'] == 'nearest' else r['colour'][::-1]
 soft = cv2.GaussianBlur(obs.astype(np.float32), (0, 0), 6)[..., None] * obs[..., None]          # feather the observed / inferred seam
 tex = (soft * med + (1 - soft) * fill).astype(np.uint8)
 cv2.imwrite(OUT, tex); cv2.imwrite(OUT.replace('.png', '_observed.png'), obs.astype(np.uint8) * 255)

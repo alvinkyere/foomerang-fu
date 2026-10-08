@@ -9,19 +9,20 @@ python package_map.py <map> <env_bake_dir> <char_bake_dir> <out_dir>
 import sys, os, json, math, cv2, numpy as np
 MAP, ENV, CH, OUT = sys.argv[1:5]; os.makedirs(OUT, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__)); AN = os.path.join(HERE, '..', 'analysis'); sys.path.insert(0, AN)
-cfg = json.load(open(os.path.join(HERE, '..', 'maps', f'{MAP}.json'))); cc = cfg['camera']; W, H = cc['canvas']; SC = W / 640
+cfg = json.load(open(os.path.join(HERE, '..', 'maps', f'{MAP}.json'))); cc = cfg['camera']; W, H = cc['canvas']; SC = cc.get('scale', W / 640)
+PX, PY = cc.get('principal', [W / 2, H / 2])          # canvas px; off-centre when the canvas is larger than one view
 from proj import plane_H, cam as solved
 if 'pose' in cc: f640, pose = cc['f'], cc['pose']
 else: f640, pose = solved(cc['solve'])[0]['f'], solved(cc['solve'])[1][cc['frame']]
 wm = cfg['world']
-camera = dict(canvas=dict(width=W, height=H), focalPx=f640 * SC, principal=dict(x=W / 2, y=H / 2), pitchDeg=pose['pitch_deg'], yawDeg=pose['yaw_deg'],
+camera = dict(canvas=dict(width=W, height=H), focalPx=f640 * SC, principal=dict(x=PX, y=PY), pitchDeg=pose['pitch_deg'], yawDeg=pose['yaw_deg'],
               rollDeg=pose['roll_deg'], centre=list(pose['C']),
               world=dict(unitsPerPlanUnit=wm['units_per_plan_unit'], planOriginX=wm['plan_origin_x'], planOriginY=wm['plan_origin_y']))
 def screen_y(x_plan, y_plan):          # canvas y of a ground point (plan units), through the game camera
     th, yw, rl = (math.radians(pose[k]) for k in ('pitch_deg', 'yaw_deg', 'roll_deg')); s, c = math.sin(th), math.cos(th)
     R0 = np.array([[1, 0, 0], [0, -s, -c], [0, c, -s]]); Rz = np.array([[math.cos(yw), math.sin(yw), 0], [-math.sin(yw), math.cos(yw), 0], [0, 0, 1]])
     Rr = np.array([[math.cos(rl), -math.sin(rl), 0], [math.sin(rl), math.cos(rl), 0], [0, 0, 1]]); p = (Rr @ R0 @ Rz) @ (np.array([x_plan, y_plan, 0.0]) - pose['C'])
-    return float(f640 * SC * p[1] / p[2] + H / 2)
+    return float(f640 * SC * p[1] / p[2] + PY)
 F = cv2.resize(np.load(os.path.join(AN, cfg['light_field'])), (W, H), interpolation=cv2.INTER_CUBIC) if cfg.get('light_field') else np.ones((H, W), np.float32)
 g = cv2.imread(os.path.join(ENV, 'ground.png')).astype(np.float32) * F[..., None] if F.ndim == 2 else cv2.imread(os.path.join(ENV, 'ground.png')).astype(np.float32) * F
 cv2.imwrite(os.path.join(OUT, 'ground.webp'), np.clip(g, 0, 255).astype(np.uint8), [cv2.IMWRITE_WEBP_QUALITY, 92])

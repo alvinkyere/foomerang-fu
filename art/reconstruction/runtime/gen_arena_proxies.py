@@ -2,7 +2,7 @@
 plus WATER (cells of the ground texture in the measured water colour class). Water only BLOCKS, as a wall does: any water
 mechanic (drowning, pushing) is GAMEPLAY INTERACTION: DEFERRED - REQUIRES RULE APPROVAL. Blocked cells on a 40-unit lattice (the rules require walls at least a player radius thick)
 are merged greedily into rectangles; spawns and Book spots are farthest-point picks on open floor (as for market_plaza).
-The arena box (plan units) comes from the map config ("arena": {"plan_box": [x0, x1, y0, y1], "player_radius"}).
+The arena box (plan units) comes from the map config ("arena": {"plan_box": [x0, x1, y0, y1], "player_radius", "block_polygons"}).
 python gen_arena_proxies.py <map> <ground_tex.png> > <out.json>        (--ts <ConstPrefix> <export_doc> prints the TS module instead)"""
 import sys, os, json, math, cv2, numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, '..', 'analysis')); import proxies
@@ -16,6 +16,7 @@ bx0, bx1, by0, by1 = ar['plan_box']; W = round((bx1 - bx0) * u); H = round((by1 
 assert abs(bx0 - wm['plan_origin_x']) < 1e-9 and abs(by1 - wm['plan_origin_y']) < 1e-9, 'world origin = arena top-left corner'
 def plan(xw, yw): return xw / u + bx0, by1 - yw / u
 polys = [(p['name'], np.array(poly, np.float32)) for p in kit['primitives'] if p.get('blocks', True) and p['group'] != 'ground' for poly in proxies.footprint(p)]
+polys += [(b['name'], np.array(b['polygon'], np.float32)) for b in ar.get('block_polygons', [])]          # e.g. water seen through an arch
 nx, ny = math.ceil(W / GRID), math.ceil(H / GRID); B = np.zeros((ny, nx), bool); WT = np.zeros((ny, nx), bool); NAME = {}
 for r in range(ny):
     for c in range(nx):

@@ -9,6 +9,7 @@ import type {
   ViewEvent,
   WallView,
 } from '../../viewModel';
+import { followView } from '../../reconstructed/followView';
 import { createMapCamera, parseMapCamera, type MapCamera } from '../../reconstructed/mapCamera';
 import {
   characterFor,
@@ -27,7 +28,9 @@ import { Vfx } from '../garden/vfx';
  * simulation and never invents a position. Assets load at runtime from the map's folder under /maps/ (not bundled; outside
  * the code-asset budgets). Nothing here names a map: per-map facts are data (reconstructed/maps.ts and the manifest).
  */
-const BAKED_CANVAS = { width: 1920, height: 1080 } as const;
+/** The screen: every map is baked at the master video's 16:9 ×3; a larger baked canvas is panned (followView). */
+const SCREEN = { width: 1920, height: 1080 } as const;
+const EASE = 0.08;
 const BOOMERANG_HEIGHT = 24;
 const FADE_ALPHA = 0.45;
 interface Manifest {
@@ -259,7 +262,7 @@ class ReconstructedScene extends Phaser.Scene {
       cam,
     );
     this.#banner = this.add
-      .text(cam.canvas.width / 2, 64, '', {
+      .text(SCREEN.width / 2, 64, '', {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '54px',
         fontStyle: 'bold',
@@ -270,6 +273,7 @@ class ReconstructedScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(9000)
       .setVisible(false);
+    this.#frame(true);
     this.#ready?.();
     this.#ready = undefined;
   }
@@ -363,7 +367,25 @@ class ReconstructedScene extends Phaser.Scene {
     }
   }
 
+  /** Ease the view toward the living players (the footage's panning camera); the banner stays at the top of the screen. */
+  #frame(snap: boolean): void {
+    const cam = this.#cam;
+    if (cam === undefined) return;
+    const alive = [...this.#sprites]
+      .filter(([id]) => this.#view?.circles.find((q) => q.id === id)?.dead === false)
+      .map(([, s]) => s.screen);
+    const target = followView(alive, cam.canvas, SCREEN);
+    const main = this.cameras.main;
+    const k = snap ? 1 : EASE;
+    const zoom = main.zoom + (target.zoom - main.zoom) * k;
+    const cx = main.midPoint.x + (target.x + SCREEN.width / target.zoom / 2 - main.midPoint.x) * k;
+    const cy = main.midPoint.y + (target.y + SCREEN.height / target.zoom / 2 - main.midPoint.y) * k;
+    main.setZoom(zoom).centerOn(cx, cy);
+    this.#banner?.setPosition(cx, cy - SCREEN.height / zoom / 2 + 64 / zoom).setScale(1 / zoom);
+  }
+
   override update(time: number): void {
+    this.#frame(false);
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#vfx?.update(time);
   }
@@ -418,8 +440,8 @@ export function createReconstructedArena(
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: container,
-        width: BAKED_CANVAS.width,
-        height: BAKED_CANVAS.height,
+        width: SCREEN.width,
+        height: SCREEN.height,
         backgroundColor: map.background,
         banner: false,
         audio: { noAudio: true },

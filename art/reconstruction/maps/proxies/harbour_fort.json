@@ -14,7 +14,7 @@
         "height": 0.06
       },
       "roof_overhang": 0.15,
-      "fidelity": "MEASURED front/width/height (triangulated lanterns); depth INFERRED",
+      "fidelity": "MEASURED front/width/eave height (triangulated lanterns, image fit); depth and roof apex INFERRED (roof caps never fully in frame: shaded fallback)",
       "fallback": [196, 72, 60]
     },
     {
@@ -29,17 +29,17 @@
         "height": 0.06
       },
       "roof_overhang": 0.15,
-      "fidelity": "MEASURED front/width/height; depth INFERRED",
+      "fidelity": "MEASURED front/width/eave height (triangulated lanterns, image fit); depth and roof apex INFERRED (roof caps never fully in frame: shaded fallback)",
       "fallback": [196, 72, 60]
     },
     {
       "name": "gate_body",
       "group": "gatehouse",
       "type": "box",
-      "centre": [0.089, 0.77],
+      "centre": [0.089, 0.85],
       "size": [0.088, 0.06],
-      "height": 0.16,
-      "fidelity": "REFERENCE-CONSTRAINED",
+      "height": 0.12,
+      "fidelity": "REFERENCE-CONSTRAINED: depth and height fitted by region difference against f700 (front ~0.08 behind the tower fronts); top INFERRED",
       "fallback": [112, 84, 122]
     },
     {
@@ -73,21 +73,6 @@
       "fallback_top": [80, 65, 68]
     },
     {
-      "name": "wall_bottom_R",
-      "group": "wall_south_R",
-      "type": "wall",
-      "path": [
-        [0.181, 0.64],
-        [0.181, 0.53],
-        [0.505, 0.53]
-      ],
-      "thickness": 0.032,
-      "height": 0.04,
-      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
-      "fallback": [112, 88, 118],
-      "fallback_top": [80, 65, 68]
-    },
-    {
       "name": "crate_1",
       "group": "crate_1",
       "type": "box",
@@ -95,7 +80,9 @@
       "size": [0.03, 0.03],
       "height": 0.031,
       "fidelity": "MEASURED",
-      "fallback": [120, 96, 120]
+      "fallback": [120, 96, 120],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "crate_2",
@@ -105,7 +92,9 @@
       "size": [0.03, 0.03],
       "height": 0.031,
       "fidelity": "MEASURED",
-      "fallback": [120, 96, 120]
+      "fallback": [120, 96, 120],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "crate_3",
@@ -115,7 +104,9 @@
       "size": [0.03, 0.03],
       "height": 0.031,
       "fidelity": "MEASURED",
-      "fallback": [120, 96, 120]
+      "fallback": [120, 96, 120],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "pot_1",
@@ -126,7 +117,9 @@
       "height": 0.032,
       "taper": 0.7,
       "fidelity": "MEASURED",
-      "fallback": [170, 110, 80]
+      "fallback": [170, 110, 80],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "pot_2",
@@ -137,7 +130,9 @@
       "height": 0.032,
       "taper": 0.7,
       "fidelity": "MEASURED",
-      "fallback": [170, 110, 80]
+      "fallback": [170, 110, 80],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "pot_3",
@@ -148,7 +143,9 @@
       "height": 0.05,
       "taper": 0.6,
       "fidelity": "MEASURED",
-      "fallback": [170, 110, 80]
+      "fallback": [170, 110, 80],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "pot_4",
@@ -159,7 +156,9 @@
       "height": 0.04,
       "taper": 0.6,
       "fidelity": "MEASURED",
-      "fallback": [170, 110, 80]
+      "fallback": [170, 110, 80],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "stall",
@@ -185,7 +184,9 @@
       "height": 0.025,
       "taper": 0.7,
       "fidelity": "MEASURED",
-      "fallback": [170, 110, 80]
+      "fallback": [170, 110, 80],
+      "key": [234, 232, 205],
+      "key_tolerance": 0.12
     },
     {
       "name": "wall_right_0",
@@ -263,13 +264,88 @@
       "type": "wall",
       "path": [
         [0.505, 0.88],
-        [0.505, 1.02]
+        [0.505, 0.95]
       ],
       "thickness": 0.032,
       "height": 0.04,
       "fidelity": "MEASURED",
       "fallback": [112, 88, 118],
       "fallback_top": [80, 65, 68]
+    },
+    {
+      "name": "wall_right_6",
+      "group": "wall_east_6",
+      "type": "wall",
+      "path": [
+        [0.505, 0.95],
+        [0.505, 1.07]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "borrow": [0, -0.14],
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68],
+      "fidelity": "INFERRED (continues the observed east wall; texture repeated from 0.14 south)"
+    },
+    {
+      "name": "wall_bottom_W",
+      "group": "wall_south_W",
+      "type": "wall",
+      "path": [
+        [-0.45, 0.548],
+        [-0.2, 0.548]
+      ],
+      "thickness": 0.032,
+      "height": 0.04,
+      "borrow": [0.22, 0],
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68],
+      "fidelity": "INFERRED (continues the observed south wall west; texture repeated from 0.22 east)"
+    },
+    {
+      "group": "wall_south_R",
+      "type": "wall",
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68],
+      "name": "wall_bottom_R_west",
+      "path": [
+        [0.181, 0.64],
+        [0.181, 0.53],
+        [0.3, 0.53]
+      ]
+    },
+    {
+      "group": "wall_south_R",
+      "type": "wall",
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68],
+      "name": "wall_bottom_R_mid",
+      "path": [
+        [0.3, 0.53],
+        [0.38, 0.53]
+      ],
+      "exclude_frames": [809, 820],
+      "note": "a player's red scarf crosses this wall top in f809-f820 (red pixels at the projected rail); those frames are not projected"
+    },
+    {
+      "group": "wall_south_R",
+      "type": "wall",
+      "thickness": 0.032,
+      "height": 0.04,
+      "fidelity": "MEASURED plan; height REFERENCE-CONSTRAINED",
+      "fallback": [112, 88, 118],
+      "fallback_top": [80, 65, 68],
+      "name": "wall_bottom_R_east",
+      "path": [
+        [0.38, 0.53],
+        [0.505, 0.53]
+      ]
     }
   ]
 }
