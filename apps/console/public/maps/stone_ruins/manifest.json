@@ -1,0 +1,169 @@
+{
+  "map": "stone_ruins",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.0, 0.0, 1.0],
+    "world": {
+      "unitsPerPlanUnit": 2410,
+      "planOriginX": -0.276,
+      "planOriginY": 0.847
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S15's vanishing-point segments disagree (f 1487/1025/880 @640, pitch 41/34/30) and the window track fails (ECC ~0.2: slabs over voids carry parallax) -> the median of the maps measured with confidence (f 1240, pitch 57.8). LOW confidence.",
+    "track": "none usable: the single reference frame f1231 is used, movers inpainted (INFERRED).",
+    "framing": "OBSERVED: reference frame f1231 under the prior camera.",
+    "world_scale": "MEASURED (under the LOW-confidence camera): the carrot in f1231 is ~27 px tall against 33 px baked -> character_scale 0.83 (+-0.08); 2410 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "cliff_n",
+      "file": "occ_cliff_n.webp",
+      "x": 387,
+      "y": 0,
+      "depth": 144.0,
+      "fade": true
+    },
+    {
+      "key": "slab_nw",
+      "file": "occ_slab_nw.webp",
+      "x": 441,
+      "y": 201,
+      "depth": 414.0,
+      "fade": true
+    },
+    {
+      "key": "log_w",
+      "file": "occ_log_w.webp",
+      "x": 141,
+      "y": 297,
+      "depth": 450.0,
+      "fade": false
+    },
+    {
+      "key": "slab_e",
+      "file": "occ_slab_e.webp",
+      "x": 1341,
+      "y": 357,
+      "depth": 570.0,
+      "fade": true
+    },
+    {
+      "key": "slab_c",
+      "file": "occ_slab_c.webp",
+      "x": 771,
+      "y": 411,
+      "depth": 654.0,
+      "fade": true
+    },
+    {
+      "key": "slab_w",
+      "file": "occ_slab_w.webp",
+      "x": 312,
+      "y": 507,
+      "depth": 825.0,
+      "fade": true
+    },
+    {
+      "key": "slab_se",
+      "file": "occ_slab_se.webp",
+      "x": 1167,
+      "y": 552,
+      "depth": 840.0,
+      "fade": true
+    },
+    {
+      "key": "slab_s",
+      "file": "occ_slab_s.webp",
+      "x": 813,
+      "y": 732,
+      "depth": 954.0,
+      "fade": true
+    },
+    {
+      "key": "log_se",
+      "file": "occ_log_se.webp",
+      "x": 1431,
+      "y": 843,
+      "depth": 1014.0,
+      "fade": false
+    },
+    {
+      "key": "slab_s2",
+      "file": "occ_slab_s2.webp",
+      "x": 513,
+      "y": 873,
+      "depth": 1080.0,
+      "fade": true
+    },
+    {
+      "key": "tree_se",
+      "file": "occ_tree_se.webp",
+      "x": 1557,
+      "y": 882,
+      "depth": 1080.0,
+      "fade": true
+    },
+    {
+      "key": "cliff_e",
+      "file": "occ_cliff_e.webp",
+      "x": 1722,
+      "y": 267,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/stone_ruins.json; bake_map.py, bake_chars.py, package_map.py)"
+}

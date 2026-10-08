@@ -1,0 +1,215 @@
+{
+  "map": "stone_ruins",
+  "shots": "S15 (f1206-f1257); reference f1231",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.0, 0.0, 1.0]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S15's vanishing-point segments disagree (f 1487/1025/880 @640, pitch 41/34/30) and the window track fails (ECC ~0.2: slabs over voids carry parallax) -> the median of the maps measured with confidence (f 1240, pitch 57.8). LOW confidence.",
+      "track": "none usable: the single reference frame f1231 is used, movers inpainted (INFERRED).",
+      "framing": "OBSERVED: reference frame f1231 under the prior camera.",
+      "world_scale": "MEASURED (under the LOW-confidence camera): the carrot in f1231 is ~27 px tall against 33 px baked -> character_scale 0.83 (+-0.08); 2410 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2410,
+    "plan_origin_x": -0.276,
+    "plan_origin_y": 0.847
+  },
+  "character_scale": 0.83,
+  "frame_mode": {
+    "camera_key": "stone_ruins",
+    "reference_frame": 1231,
+    "window": [1231, 1231],
+    "mover_threshold": 9999,
+    "clean_px": [],
+    "inpaint_px": [
+      {
+        "centre": [133, 73],
+        "radius": 17,
+        "what": "character"
+      },
+      {
+        "centre": [257, 193],
+        "radius": 19,
+        "what": "character (pink)"
+      },
+      {
+        "centre": [570, 133],
+        "radius": 18,
+        "what": "carrot"
+      },
+      {
+        "centre": [20, 120],
+        "radius": 13,
+        "what": "character"
+      },
+      {
+        "centre": [618, 134],
+        "radius": 12,
+        "what": "character"
+      },
+      {
+        "centre": [315, 32],
+        "radius": 7,
+        "what": "boomerang"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "slab_nw",
+      "polygon_px": [
+        [148, 72],
+        [262, 68],
+        [275, 92],
+        [175, 138],
+        [148, 135]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_c",
+      "polygon_px": [
+        [258, 138],
+        [365, 158],
+        [368, 210],
+        [330, 218],
+        [260, 180]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_w",
+      "polygon_px": [
+        [105, 172],
+        [150, 170],
+        [248, 232],
+        [230, 272],
+        [150, 275],
+        [108, 192]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_e",
+      "polygon_px": [
+        [448, 120],
+        [540, 145],
+        [535, 190],
+        [450, 180]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_se",
+      "polygon_px": [
+        [390, 185],
+        [475, 190],
+        [510, 262],
+        [495, 280],
+        [400, 250]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_s",
+      "polygon_px": [
+        [272, 248],
+        [315, 245],
+        [390, 290],
+        [370, 318],
+        [275, 285]
+      ],
+      "fade": true
+    },
+    {
+      "name": "slab_s2",
+      "polygon_px": [
+        [172, 295],
+        [228, 292],
+        [262, 342],
+        [238, 360],
+        [175, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "log_w",
+      "polygon_px": [
+        [48, 105],
+        [90, 100],
+        [93, 140],
+        [55, 150]
+      ]
+    },
+    {
+      "name": "log_se",
+      "polygon_px": [
+        [478, 282],
+        [520, 282],
+        [520, 338],
+        [478, 338]
+      ]
+    },
+    {
+      "name": "tree_se",
+      "polygon_px": [
+        [520, 295],
+        [580, 295],
+        [580, 360],
+        [520, 360]
+      ],
+      "fade": true
+    },
+    {
+      "name": "cliff_n",
+      "polygon_px": [
+        [130, 0],
+        [320, 0],
+        [320, 48],
+        [135, 48]
+      ],
+      "fade": true
+    },
+    {
+      "name": "cliff_e",
+      "polygon_px": [
+        [575, 150],
+        [640, 90],
+        [640, 360],
+        [575, 360]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["cliff", "slab", "tree"],
+  "arena": {
+    "plan_box": [-0.276, 0.276, 0.448, 0.847],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["carrot", "banana", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "STONE RUINS (`stone_ruins`) \u2014 reconstructed from the master gameplay video (shot S15; FRAME MODE: reference frame f1231): a pale",
+    "lawn with large purple rock slabs casting long shadows, logs, golden bushes and pale void at the edges. Every cell is OBSERVED",
+    "in the reference frame, but the camera is a LOW-confidence prior (no usable vanishing points or track on this shot). Void only",
+    "blocks (falling DEFERRED). No hazards; no new mechanic."
+  ]
+}

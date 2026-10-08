@@ -41,6 +41,10 @@ import {
   HEX_GROVE_BOOK_SPOTS,
   HEX_GROVE_SPAWNS,
   HEX_GROVE_WALLS,
+  STONE_RUINS_ARENA,
+  STONE_RUINS_BOOK_SPOTS,
+  STONE_RUINS_SPAWNS,
+  STONE_RUINS_WALLS,
   createFuMatch,
   stepFu,
   type FuArena,
@@ -62,6 +66,14 @@ interface Case {
   readonly kinds: readonly string[];
 }
 const CASES: readonly Case[] = [
+  {
+    name: 'stone_ruins',
+    arena: STONE_RUINS_ARENA,
+    walls: STONE_RUINS_WALLS,
+    spawns: STONE_RUINS_SPAWNS,
+    books: STONE_RUINS_BOOK_SPOTS,
+    kinds: ['BLOCK'],
+  },
   {
     name: 'hex_grove',
     arena: HEX_GROVE_ARENA,

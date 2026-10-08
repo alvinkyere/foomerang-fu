@@ -174,3 +174,12 @@ export {
   HEX_GROVE_WIDTH,
 } from './hexGroveArena';
 export type { HexGroveWall } from './hexGroveArena';
+export {
+  STONE_RUINS_ARENA,
+  STONE_RUINS_BOOK_SPOTS,
+  STONE_RUINS_HEIGHT,
+  STONE_RUINS_SPAWNS,
+  STONE_RUINS_WALLS,
+  STONE_RUINS_WIDTH,
+} from './stoneRuinsArena';
+export type { StoneRuinsWall } from './stoneRuinsArena';
