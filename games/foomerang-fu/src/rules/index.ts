@@ -32,6 +32,15 @@ export {
   HARBOUR_FORT_WIDTH,
 } from './harbourFortArena';
 export type { HarbourFortWall } from './harbourFortArena';
+export {
+  SKY_ISLANDS_ARENA,
+  SKY_ISLANDS_BOOK_SPOTS,
+  SKY_ISLANDS_HEIGHT,
+  SKY_ISLANDS_SPAWNS,
+  SKY_ISLANDS_WALLS,
+  SKY_ISLANDS_WIDTH,
+} from './skyIslandsArena';
+export type { SkyIslandsWall } from './skyIslandsArena';
 export type { GardenRock, GardenWall } from './gardenArena';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {

@@ -130,5 +130,11 @@
     "ground_step": 2,
     "ground_box": [-0.42, 0.66, 0.46, 1.11],
     "ground_px_per_unit": 2000
-  }
+  },
+  "rules_doc": [
+    "HARBOUR FORT (`harbour_fort`) \u2014 the second map reconstructed from the master gameplay video (shot S9, frames 651\u2013820): a walled",
+    "courtyard with a gatehouse and drawbridge over a moat channel, a market stall, crates and pots. Presentation draws it; it never",
+    "decides what blocks anything. The courtyard south of y 0.93 (plan) is MEASURED; the strip north of it and west of x -0.27 is",
+    "INFERRED (the shot never shows it). World mapping: X = (x_plan + 0.27) * 2000, Y = (0.97 - y_plan) * 2000."
+  ]
 }

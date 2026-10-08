@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { HARBOUR_FORT_ARENA, MARKET_PLAZA_ARENA } from '@foomerang/foomerang-fu';
+import { HARBOUR_FORT_ARENA, MARKET_PLAZA_ARENA, SKY_ISLANDS_ARENA } from '@foomerang/foomerang-fu';
 import { describe, expect, it } from 'vitest';
 import { createMapCamera, parseMapCamera } from '../src/render/reconstructed/mapCamera';
 import {
@@ -75,6 +75,11 @@ describe('reconstructed maps', () => {
       width: HARBOUR_FORT_ARENA.width,
       height: HARBOUR_FORT_ARENA.height,
     });
+    expect(RECONSTRUCTED_MAPS.sky_islands.arena).toEqual({
+      width: SKY_ISLANDS_ARENA.width,
+      height: SKY_ISLANDS_ARENA.height,
+    });
+    expect(parseArenaParam('?arena=sky_islands')).toBe('sky_islands');
   });
 
   it('harbour_fort is selectable, seats its video cast first (avocado, watermelon) and has its own longer lens', () => {

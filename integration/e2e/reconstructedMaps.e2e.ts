@@ -9,7 +9,7 @@ import { expect, test } from './support/fixtures';
  */
 const OUT = join(process.cwd(), '..', 'art', 'reconstruction', 'output', 'runtime');
 
-for (const map of ['market_plaza', 'harbour_fort'] as const)
+for (const map of ['market_plaza', 'harbour_fort', 'sky_islands'] as const)
   test(`${map} draws in the real game: six CPUs, baked layers and pack characters, no errors`, async ({
     hostAt,
   }) => {

@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from proj import cam, K, Rt
 FD, KEY = sys.argv[1], sys.argv[2]; F0, F1 = int(sys.argv[3]), int(sys.argv[4]); OUT = sys.argv[5]
 MINLEN = int(sys.argv[6]) if len(sys.argv) > 6 else 20; MAXERR = float(sys.argv[7]) if len(sys.argv) > 7 else 0.8
+ZMIN = float(os.environ.get('FOO_ZMIN', '-0.03'))          # maps with cliffs and void below the ground need deeper points
 fr = [f for f in range(F0, F1 + 1) if f in cam(KEY)[1]]
 P = {f: K(KEY) @ np.column_stack(Rt(KEY, f)) for f in fr}
 IM = {f: cv2.imread(f'{FD}/f{f:04d}.png') for f in fr}; G = {f: cv2.cvtColor(IM[f], cv2.COLOR_BGR2GRAY) for f in fr}
@@ -34,7 +35,7 @@ for t in tracks:
     for f in fs: Pm = P[f]; x, y = t[f]; A += [x * Pm[2] - Pm[0], y * Pm[2] - Pm[1]]
     X = np.linalg.svd(np.array(A))[2][-1]; X = X[:3] / X[3]
     e = [np.linalg.norm((lambda q: q[:2] / q[2])(P[f] @ np.r_[X, 1]) - t[f]) for f in fs]
-    if max(e) > MAXERR or X[2] < -0.03 or X[2] > 0.6: continue
+    if max(e) > MAXERR or X[2] < ZMIN or X[2] > 0.6: continue
     f = fs[len(fs) // 2]; x, y = t[f].astype(int); c = IM[f][y, x][::-1]
     pts.append(dict(X=float(X[0]), Y=float(X[1]), Z=float(X[2]), err=float(np.mean(e)), n=len(fs), colour=[int(v) for v in c]))
 json.dump(pts, open(OUT, 'w'))

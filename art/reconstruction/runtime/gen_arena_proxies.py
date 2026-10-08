@@ -3,7 +3,7 @@ plus WATER (cells of the ground texture in the measured water colour class). Wat
 mechanic (drowning, pushing) is GAMEPLAY INTERACTION: DEFERRED - REQUIRES RULE APPROVAL. Blocked cells on a 40-unit lattice (the rules require walls at least a player radius thick)
 are merged greedily into rectangles; spawns and Book spots are farthest-point picks on open floor (as for market_plaza).
 The arena box (plan units) comes from the map config ("arena": {"plan_box": [x0, x1, y0, y1], "player_radius", "block_polygons"}).
-python gen_arena_proxies.py <map> <ground_tex.png> > <out.json>        (--ts <ConstPrefix> <export_doc> prints the TS module instead)"""
+python gen_arena_proxies.py <map> <ground_tex.png> > <out.json>        (--ts <CONST_PREFIX> prints the TS module instead; its doc is the map config's "rules_doc")"""
 import sys, os, json, math, cv2, numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, '..', 'analysis')); import proxies
 MAP, GT = sys.argv[1], sys.argv[2]; TS = '--ts' in sys.argv
@@ -40,13 +40,22 @@ def d2rect(p, w):
     dx = max(w['x'] - p[0], 0, p[0] - (w['x'] + w['width'])); dy = max(w['y'] - p[1], 0, p[1] - (w['y'] + w['height'])); return math.hypot(dx, dy)
 def clear(p, m): return all(d2rect(p, w) >= m for w in walls) and R + 10 <= p[0] <= W - R - 10 and R + 10 <= p[1] <= H - R - 10
 cand = [(x, y) for x in range(48, W - 47, 32) for y in range(48, H - 47, 32) if clear((x, y), R + 30)]
-spawns = [min(cand, key=lambda p: math.hypot(p[0] - W * 0.2, p[1] - H * 0.3))]
-while len(spawns) < 6: spawns.append(max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in spawns)))
+# spawns and Books only in the LARGEST connected walkable region: players must be able to reach each other
+_lab = cv2.connectedComponentsWithStats((~B).astype(np.uint8), connectivity=4)
+_big = 1 + int(np.argmax(_lab[2][1:, cv2.CC_STAT_AREA])) if _lab[0] > 1 else 0
+cand = [p for p in cand if _lab[1][min(ny - 1, int(p[1] // GRID)), min(nx - 1, int(p[0] // GRID))] == _big]
+def spread_from(first):          # greedy farthest-point order from one start: every prefix (2-6 players) is spread
+    out = [first]
+    while len(out) < 6: out.append(max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in out)))
+    return out
+def min_gap(ss): return min(math.hypot(a[0] - b[0], a[1] - b[1]) for i, a in enumerate(ss) for b in ss[i + 1:])
+spawns = max((spread_from(c) for c in cand[::max(1, len(cand) // 60)]), key=min_gap)          # the start that spreads six best
 books = []
 for _ in range(8): books.append(max(cand, key=lambda p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in spawns + books)))
 if not TS:
     print(json.dumps(dict(width=W, height=H, walls=walls, spawns=[dict(x=p[0], y=p[1]) for p in spawns], books=[dict(x=p[0], y=p[1]) for p in books]), indent=1)); sys.exit(0)
-P = sys.argv[sys.argv.index('--ts') + 1]; DOC = sys.argv[sys.argv.index('--ts') + 2]; T = ''.join(w.capitalize() for w in P.lower().split('_'))
+P = sys.argv[sys.argv.index('--ts') + 1]; DOC = '\n'.join(' * ' + line for line in cfg['rules_doc']);          # the map config owns the rules doc
+T = ''.join(w.capitalize() for w in P.lower().split('_'))
 v = lambda p: f'  Object.freeze({{ x: {p[0]}, y: {p[1]} }}),'
 print(f"""import type {{ Vec2 }} from '@foomerang/game-core';
 import type {{ FuArena, Rect }} from './arena';

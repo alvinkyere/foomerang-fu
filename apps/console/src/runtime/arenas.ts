@@ -4,6 +4,8 @@ import {
   GARDEN_BOOK_SPOTS,
   HARBOUR_FORT_ARENA,
   HARBOUR_FORT_BOOK_SPOTS,
+  SKY_ISLANDS_ARENA,
+  SKY_ISLANDS_BOOK_SPOTS,
   MARKET_PLAZA_ARENA,
   MARKET_PLAZA_BOOK_SPOTS,
   PRIMITIVE_ARENA,
@@ -32,6 +34,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
   garden: { arena: GARDEN_ARENA, bookSpots: GARDEN_BOOK_SPOTS, named: true },
   market_plaza: { arena: MARKET_PLAZA_ARENA, bookSpots: MARKET_PLAZA_BOOK_SPOTS, named: true },
   harbour_fort: { arena: HARBOUR_FORT_ARENA, bookSpots: HARBOUR_FORT_BOOK_SPOTS, named: true },
+  sky_islands: { arena: SKY_ISLANDS_ARENA, bookSpots: SKY_ISLANDS_BOOK_SPOTS, named: true },
 });
 
 /** Which arena choice a rules arena is (undefined for an arena not in the table). */

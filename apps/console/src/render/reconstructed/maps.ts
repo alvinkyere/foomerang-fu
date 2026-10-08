@@ -29,7 +29,10 @@ export interface ReconstructedMap {
   readonly background: string;
 }
 
-export type ReconstructedArena = Extract<ArenaChoice, 'market_plaza' | 'harbour_fort'>;
+export type ReconstructedArena = Extract<
+  ArenaChoice,
+  'market_plaza' | 'harbour_fort' | 'sky_islands'
+>;
 
 export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, ReconstructedMap>> =
   Object.freeze({
@@ -61,6 +64,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 1560, height: 940 }),
       background: '#56819a',
+    }),
+    // seats 1–2 are the shot's cast from the pack (S7: carrot, banana; its eggplant has no pack model yet); 3–6 are pack characters
+    sky_islands: Object.freeze({
+      id: 'sky_islands',
+      assetDir: 'maps/sky_islands/',
+      roster: Object.freeze([
+        'carrot',
+        'banana',
+        'coffee',
+        'bread',
+        'watermelon',
+        'icecream',
+      ] as const),
+      arena: Object.freeze({ width: 1315, height: 950 }),
+      background: '#dfe8f0',
     }),
   });
 

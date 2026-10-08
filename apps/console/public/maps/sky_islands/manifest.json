@@ -1,0 +1,120 @@
+{
+  "map": "sky_islands",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.026943807514746957, 0.034792488769983414, 0.9505549669265747],
+    "world": {
+      "unitsPerPlanUnit": 2500,
+      "planOriginX": -0.29,
+      "planOriginY": 0.84
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "MEASURED (MEDIUM): vanishing-point scans in three segments of S7: f 1265/1183/1271 px @640, pitch 57.7/59.4/56.2 deg; nadir support 1100-1770 (harbour 9500, plaza ~1000).",
+    "track": "MEASURED (window f450-f484 only): translating camera with free height (ECC median 0.84); the whole shot could not be registered cleanly (islands at several heights, cliffs and void below the ground carry parallax, a rotating hazard), so this map is built in FRAME MODE from one reference frame.",
+    "framing": "OBSERVED: the game camera is reference frame f470's own camera (canvas = that frame at x3); nothing outside it is shown.",
+    "world_scale": "MEASURED: the pack characters are one size on every map, so the world scale follows the footage's characters. The carrot in S7 is ~28 x 17 px (f440, f540) against 35 x 21 px for the plaza-fitted bake through this camera -> character_scale 0.80 (+-0.05); world units per plan unit = 2000 / 0.80 = 2500, so the rules' player radius (36) matches the drawn characters."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "rock_nw",
+      "file": "occ_rock_nw.webp",
+      "x": 642,
+      "y": 12,
+      "depth": 246.0,
+      "fade": true
+    },
+    {
+      "key": "rock_ne",
+      "file": "occ_rock_ne.webp",
+      "x": 1221,
+      "y": 81,
+      "depth": 276.0,
+      "fade": true
+    },
+    {
+      "key": "pillar_c",
+      "file": "occ_pillar_c.webp",
+      "x": 768,
+      "y": 399,
+      "depth": 540.0,
+      "fade": true
+    },
+    {
+      "key": "rock_e",
+      "file": "occ_rock_e.webp",
+      "x": 1101,
+      "y": 369,
+      "depth": 636.0,
+      "fade": true
+    },
+    {
+      "key": "rock_s",
+      "file": "occ_rock_s.webp",
+      "x": 741,
+      "y": 738,
+      "depth": 1080.0,
+      "fade": true
+    },
+    {
+      "key": "rock_sw",
+      "file": "occ_rock_sw.webp",
+      "x": 0,
+      "y": 699,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "characters": {
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/sky_islands.json; bake_map.py, bake_chars.py, package_map.py)"
+}

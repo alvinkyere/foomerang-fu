@@ -12,7 +12,10 @@ FILES = {'bread': ('bread.blend', 'bread'), 'coffee': ('Coffee.blend', 'coffee')
          'banana': ('banana.blend', 'NurbsPath.001'), 'carrot': ('Carrot.blend', 'carrot'), 'avocado': ('avocado.blend', 'Avocado'), 'donut': ('donut.blend', 'donut'),
          'milk': ('milk.blend', 'milk'), 'bacon': ('bacon.blend', 'bacon')}
 CSCALE = {'bread': 1.25, 'coffee': 1.0, 'watermelon': 1.14, 'icecream': 1.1}          # fitted on the plaza footage; others 1.0 until fitted on their maps
-MAPCFG = json.load(open(os.path.join(HERE, '..', 'maps', f"{os.environ.get('FOO_MAP', 'market_plaza')}.json")))['camera']   # the map's game camera
+# (each map then multiplies by its own character_scale, measured from its footage's characters)
+_MAP = json.load(open(os.path.join(HERE, '..', 'maps', f"{os.environ.get('FOO_MAP', 'market_plaza')}.json")))
+MAPCFG = _MAP['camera']   # the map's game camera
+KSCALE = _MAP.get('character_scale', 1.0)          # the map's MEASURED character size vs the plaza fit (pack models are one size)
 if 'pose' in MAPCFG: cam, P = dict(f=MAPCFG['f']), MAPCFG['pose']
 else:
     cam = json.load(open(os.path.join(AN, f"camera_take{MAPCFG['solve']}.json"))); P = {p['frame']: p for p in cam['poses']}[MAPCFG['frame']]
@@ -59,7 +62,7 @@ for name in CHARS:
             nt.links.new(lk.from_socket, mx.inputs['A']); nt.links.new(gm.outputs['Result'], mx.inputs['B']); nt.links.new(mx.outputs['Result'], bs.inputs['Base Color'])
         if name == 'icecream':
             hs = nt.nodes.new('ShaderNodeHueSaturation'); hs.inputs['Saturation'].default_value = 0.79; hs.inputs['Value'].default_value = 0.96; nt.links.new(lk.from_socket, hs.inputs['Color']); nt.links.new(hs.outputs['Color'], bs.inputs['Base Color'])
-    k = CSCALE.get(name, 1.0); meta['chars'][name] = dict(scale=k)
+    k = CSCALE.get(name, 1.0) * KSCALE; meta['chars'][name] = dict(scale=k)
     for tname, tdeg in TILTS.items():
         for j in range(N_YAW):
             yaw = 2 * math.pi * j / N_YAW
