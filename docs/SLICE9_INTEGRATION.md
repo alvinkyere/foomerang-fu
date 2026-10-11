@@ -1,0 +1,49 @@
+# Slice 9 visual integration: known limitations and follow-up backlog
+
+The owner-approved Slice 9 visual work (`slice9-market-plaza` at `dfb17d5`) was merged onto main (`30d77a3`) in `integrate/slice9-visuals`.
+This page records what that work does **not** do yet, so nobody mistakes it for finished. Slice 9 stays OPEN. The per-map detail is in
+`art/reconstruction/MAPS_STATUS.md`, and performance figures are in `art/reconstruction/PERFORMANCE.md`.
+
+## Arenas
+
+The console address chooses the arena: `?arena=<name>`. Garden is the default. There are 14 reconstructed maps: `market_plaza`,
+`harbour_fort`, `sky_islands`, `pond_garden`, `lakeshore`, `farm_plots`, `flooded_ruins`, `hedge_maze`, `toaster_dock`,
+`twin_log_rink`, `hex_grove`, `stone_ruins`, `cross_pond` and `diamond_walls`. **There is no in-game map selection screen.**
+
+- 12 maps are **frame mode**: each is one 640×360 frame of the reference video, upscaled to the game view. They are visibly soft at
+  1080p, and more so on a TV. The view does not pan.
+- 8 frame-mode cameras are INFERRED (a shared prior). The market_plaza camera is DISPUTED and frozen at f = 900.
+- Hazards and moving props (croissant, logs) are presentation only. Drops and water only block. The cross_pond raft is static. The
+  hex_grove fire is not reconstructed.
+- **harbour_fort defect:** a character walking through the gate is drawn on top of the gatehouse roof (depth order).
+
+## Characters
+
+- The game draws **sprite sheets rendered from the 10 supplied models**. It does not use the models themselves. Each sheet has 16
+  headings × 2 tilts (standing, and a 70-degree airborne tilt used for dash and death). The supplied models have no rig or animation,
+  so there are no arms or feet and no walk, throw, slash, hit, death or victory poses. Movement is a code hop, squash and lean.
+- All characters are rendered matte (specular 0, roughness 1). **Bread's crumb is paler and yellower, with an olive crust. Icecream is
+  desaturated** (×0.79 saturation). Both were tuned to the video. Other colours match the supplied textures.
+- **Donut and milk** have sheets but no map seats them, so they never appear. Bacon appears only on hex_grove. Avocado appears only on
+  harbour_fort and diamond_walls.
+- **Garden still uses its four code-drawn characters** (Bread, Coffee, Pumpkin, Fruit), not the supplied models.
+- Characters are about 40–65 px tall at 1920×1080.
+- The licensed models (`art/reconstruction/licensed`) and the reference video are not in git. Rebuilding the sprite sheets or map art
+  needs them. A backup is kept outside the repository.
+
+## Performance
+
+At 1920×1080 on an Apple M1 iMac, every arena holds 60 FPS with six CPUs. TV, 4K-backing and slow-CPU hardware are **unmeasured and
+remain a release blocker**. Earlier 6× CPU-throttle runs showed hitches.
+
+## Follow-up backlog (separate tasks, not part of the integration)
+
+1. Replace Garden's code-drawn characters with the supplied-model sprite sheets.
+2. Make all 10 supplied characters selectable (donut and milk currently never appear).
+3. Fix the harbour_fort gatehouse roof-occlusion defect.
+4. Improve character animation and on-screen readability (size, poses).
+5. Add an in-game map selection screen (today: `?arena=` only).
+6. Improve the low-resolution frame-mode maps.
+7. Validate on a physical TV and with physical phone controllers.
+8. Owner decisions still open: the market_plaza camera, drops and gaps, the cross_pond raft, the hedge_maze character scale,
+   hazard collision, and eggplant and sushi (no supplied model).
