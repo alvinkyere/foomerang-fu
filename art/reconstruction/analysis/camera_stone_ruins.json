@@ -1,0 +1,25 @@
+{
+ "f": 1240.0,
+ "cx": 320.0,
+ "cy": 180.0,
+ "model": "translating camera, orientation fixed (track_pan.py)",
+ "poses": [
+  {
+   "frame": 1231,
+   "pitch_deg": 57.79999999999999,
+   "yaw_deg": 0.0,
+   "roll_deg": 0.0,
+   "C": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "ecc": 1.0
+  }
+ ],
+ "evidence": {
+  "vanishing_points": [],
+  "f": 1240.0,
+  "pitch": 57.8
+ }
+}

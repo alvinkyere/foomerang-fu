@@ -1,0 +1,146 @@
+{
+  "map": "hex_grove",
+  "shots": "S14 (f1142-f1205); reference f1150 (before the fire)",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.029663392725750165, -0.08454612875437217, 1.1359508037567139]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S14's vanishing-point segments disagree (f 1212/1449/1587 @640, pitch 60/39.6/52.9; organic hex patches, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+      "track": "window f1142-f1158 around reference f1150 (ECC median 0.64; the camera dollies in, height 1.00 -> 1.23). f1150 is chosen because the fire effect has not started (fire pixels 0 before f1160).",
+      "framing": "OBSERVED: reference frame f1150's own camera.",
+      "world_scale": "MEASURED: the bacon in f1150 is ~22 px tall against 29-31 px baked side-on through this camera at the plaza fit -> character_scale 0.75 (+-0.08); 2667 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2667,
+    "plan_origin_x": -0.344,
+    "plan_origin_y": 0.878
+  },
+  "character_scale": 0.75,
+  "frame_mode": {
+    "camera_key": "hex_grove",
+    "reference_frame": 1150,
+    "window": [1142, 1158],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [270, 55],
+        "radius": 17,
+        "what": "bacon"
+      },
+      {
+        "centre": [467, 172],
+        "radius": 17,
+        "what": "character"
+      },
+      {
+        "centre": [138, 282],
+        "radius": 19,
+        "what": "character"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "tree_nw",
+      "polygon_px": [
+        [35, 0],
+        [102, 0],
+        [102, 72],
+        [40, 72]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_c",
+      "polygon_px": [
+        [350, 45],
+        [442, 45],
+        [440, 165],
+        [352, 165]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_ne",
+      "polygon_px": [
+        [448, 50],
+        [495, 48],
+        [497, 95],
+        [452, 97]
+      ]
+    },
+    {
+      "name": "rock_c",
+      "polygon_px": [
+        [258, 200],
+        [305, 205],
+        [308, 255],
+        [262, 255]
+      ]
+    },
+    {
+      "name": "rock_e",
+      "polygon_px": [
+        [458, 203],
+        [508, 203],
+        [508, 252],
+        [460, 252]
+      ]
+    },
+    {
+      "name": "plant_sw",
+      "polygon_px": [
+        [62, 285],
+        [105, 285],
+        [105, 345],
+        [62, 345]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_s",
+      "polygon_px": [
+        [398, 330],
+        [492, 330],
+        [492, 360],
+        [398, 360]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["plant", "tree"],
+  "arena": {
+    "plan_box": [-0.344, 0.284, 0.424, 0.878],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      },
+      {
+        "hue": [70, 95],
+        "min_sat": 40,
+        "min_val": 110
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["bacon", "carrot", "banana", "coffee", "bread", "watermelon"],
+  "rules_doc": [
+    "HEX GROVE (`hex_grove`) \u2014 reconstructed from the master gameplay video (shot S14; FRAME MODE: reference frame f1150, before the",
+    "fire): a lawn with teal hex-tile grass patches, autumn trees and stone blocks. In the footage fire spreads across the hex tiles;",
+    "that is a hazard mechanic and is not reconstructed as gameplay (GAMEPLAY INTERACTION: DEFERRED). Every cell is OBSERVED in the",
+    "reference frame; ground behind cut-outs is INFERRED walkable. Camera lens/pitch INFERRED. No new mechanic."
+  ]
+}

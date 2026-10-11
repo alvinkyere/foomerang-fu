@@ -18,15 +18,14 @@ certs/
 *.key
 docs/garden/motion/
 
-# licensed third-party character assets: never commit without explicit confirmation of redistribution terms
-art/reconstruction/licensed/
-# comparison output contains frames of the reference video: do not commit without confirming redistribution rights
-art/reconstruction/output/
-art/reconstruction/output_pass1/
-art/reconstruction/output_pass2/
+# Slice 9 reconstruction: licensed character models, video-derived renders and captured textures stay local
+# (no trailing slash on `licensed`: in a worktree it is a symlink to the main checkout's copy)
+art/reconstruction/licensed
+art/reconstruction/output*/
 art/reconstruction/analysis/textures/
-art/reconstruction/output_pass3/
+__pycache__/
+# owner visual-review captures (~430 MB of screenshots and recordings): kept out of the game history
+docs/review/visual-owner-review/
+# Vercel CLI link and local environment files
 .vercel
 .env*
-art/reconstruction/output_pass4/
-art/reconstruction/output_pass5/

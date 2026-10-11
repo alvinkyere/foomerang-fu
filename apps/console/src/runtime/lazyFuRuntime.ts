@@ -82,13 +82,12 @@ export class LazyFuRuntime implements MatchRuntime {
 
   start(players: readonly MatchPlayer[], nowMs: number): void {
     void loadFuRuntime().then(
-      ({ FuRuntime: Real, SYSTEMS_ARENA, GARDEN_ARENA }) => {
+      ({ FuRuntime: Real, PLAYABLE_ARENAS }) => {
         const real = new Real(
-          this.#arena === 'systems'
-            ? SYSTEMS_ARENA
-            : this.#arena === 'garden'
-              ? GARDEN_ARENA
-              : undefined,
+          // the primitive arena is the runtime's default
+          this.#arena === undefined || this.#arena === 'primitive'
+            ? undefined
+            : PLAYABLE_ARENAS[this.#arena].arena,
           this.#powerups,
           this.#enabled,
           this.#mode,

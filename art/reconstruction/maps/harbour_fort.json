@@ -1,0 +1,141 @@
+{
+  "map": "harbour_fort",
+  "shots": "S9 (f651-f820)",
+  "camera": {
+    "f": 1540,
+    "pose": {
+      "pitch_deg": 56.2,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.12, 0.0669, 1.0]
+    },
+    "canvas": [3440, 1935],
+    "evidence": {
+      "lens_and_pitch": "MEASURED: vanishing-point horizon/nadir scans over f655-f818 in three segments (f 1549/1520/1554 px at 640 wide, pitch 57.2/55.4/56.0 deg); the method recovers a known render camera to 2-3%. Nadir and horizon x ~325 px: yaw and roll ~0.",
+      "track": "MEASURED: translating camera at constant height (crate tops 43 vs 42 px at f655/f815), track_pan.py FOO_FIXED_HEIGHT=1, ECC median 0.88; the ground mosaic is sharp across the shot. Shot camera moves +0.32 x, -0.06 y (plan units = its height).",
+      "framing": "REFERENCE-CONSTRAINED: the game camera has the shot's own height (1.0, constant through the shot), lens and pitch, so characters and structures appear at the footage's scale; its position (x 0.12, y 0.067) lies inside the shot's own pan range (x 0..0.32, y -0.06..0.074). Like the shot's camera the view PANS: the baked canvas (3440 x 1935, the footage's 16:9 at x3) is the courtyard seen from that point, and the view follows the living players (render/reconstructed/followView.ts; zooming out only when they spread wider than the screen is an INFERRED rule). Perspective at the canvas edges is that single viewpoint's, not the panned camera's.",
+      "world_scale": "MEASURED: the footage's characters set the scale (pack models are one size): avocado ~47x20 px and watermelon ~49 px tall in f815 against 42 / 44 px for the plaza-fitted bake through this camera -> character_scale 1.1 (+-0.1; both mid-motion); world units per plan unit = 2000 / 1.1 = 1818. Crate tops (0.035-0.040 vs the plaza's 0.036 plan units) agree within that error."
+    },
+    "scale": 3
+  },
+  "world": {
+    "units_per_plan_unit": 1818,
+    "plan_origin_x": -0.27,
+    "plan_origin_y": 0.97
+  },
+  "fade_prefixes": ["gatehouse", "stall"],
+  "roster": ["avocado", "watermelon", "carrot", "bread", "coffee", "icecream"],
+  "ground": {
+    "clean": [
+      {
+        "centre": [0.225, 0.765],
+        "radius": 0.028
+      },
+      {
+        "centre": [0.333, 0.567],
+        "radius": 0.04
+      }
+    ],
+    "inferred_fill": [
+      {
+        "name": "moat (INFERRED)",
+        "polygon": [
+          [-0.4, 0.3],
+          [0.7, 0.3],
+          [0.7, 1.1],
+          [-0.4, 1.1]
+        ],
+        "colour": [86, 129, 148]
+      },
+      {
+        "name": "courtyard floor (INFERRED)",
+        "polygon": [
+          [-0.4, 0.565],
+          [0.49, 0.565],
+          [0.49, 1.1],
+          [-0.4, 1.1]
+        ],
+        "colour": [234, 232, 205]
+      },
+      {
+        "name": "south wall top continued west (INFERRED, observed rail colour)",
+        "polygon": [
+          [-0.4, 0.53],
+          [-0.2, 0.53],
+          [-0.2, 0.58],
+          [-0.4, 0.58]
+        ],
+        "colour": [80, 65, 68]
+      },
+      {
+        "name": "south wall face continued west (INFERRED, observed face colour)",
+        "polygon": [
+          [-0.4, 0.518],
+          [-0.2, 0.518],
+          [-0.2, 0.53],
+          [-0.4, 0.53]
+        ],
+        "colour": [106, 84, 98]
+      },
+      {
+        "name": "east wall continued north (INFERRED)",
+        "polygon": [
+          [0.488, 0.9],
+          [0.525, 0.9],
+          [0.525, 1.1],
+          [0.488, 1.1]
+        ],
+        "colour": "nearest"
+      },
+      {
+        "name": "west floor: observed floor repeated from 0.15 east (INFERRED)",
+        "polygon": [
+          [-0.45, 0.62],
+          [-0.26, 0.62],
+          [-0.26, 0.93],
+          [-0.45, 0.93]
+        ],
+        "copy_offset": [0.15, 0.0]
+      },
+      {
+        "name": "west south wall: observed wall repeated from 0.22 east (INFERRED)",
+        "polygon": [
+          [-0.45, 0.47],
+          [-0.24, 0.47],
+          [-0.24, 0.585],
+          [-0.45, 0.585]
+        ],
+        "copy_offset": [0.22, 0.0]
+      }
+    ]
+  },
+  "arena": {
+    "plan_box": [-0.27, 0.51, 0.5, 0.97],
+    "player_radius": 36,
+    "block_polygons": [
+      {
+        "name": "gate passage (water seen through the gatehouse arch; blocks only)",
+        "polygon": [
+          [0.04, 0.737],
+          [0.14, 0.737],
+          [0.14, 0.83],
+          [0.04, 0.83]
+        ]
+      }
+    ]
+  },
+  "shot": {
+    "camera_key": "harbour",
+    "frames": [651, 820],
+    "ground_step": 2,
+    "ground_box": [-0.42, 0.66, 0.46, 1.11],
+    "ground_px_per_unit": 2000
+  },
+  "rules_doc": [
+    "HARBOUR FORT (`harbour_fort`) \u2014 the second map reconstructed from the master gameplay video (shot S9, frames 651\u2013820): a walled",
+    "courtyard with a gatehouse and drawbridge over a moat channel, a market stall, crates and pots. Presentation draws it; it never",
+    "decides what blocks anything. The courtyard south of y 0.93 (plan) is MEASURED; the strip north of it and west of x -0.27 is",
+    "INFERRED (the shot never shows it). World mapping: X = (x_plan + 0.27) * 1818, Y = (0.97 - y_plan) * 1818 (scale from the footage's characters)."
+  ],
+  "character_scale": 1.1
+}

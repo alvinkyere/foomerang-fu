@@ -1,0 +1,199 @@
+{
+  "map": "pond_garden",
+  "shots": "S0 (f0-f33); reference f16",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.02488604468365055, -0.009891932520703056, 1.098354697227478]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: vanishing-point scans of S0 disagree across segments (f 1675/1020/800, pitch 63/38/45; nadir support 180-315, too weak: an organic lawn scene) -> the median of the maps measured with confidence (harbour, sky, farm, toaster, twin: f 1240 @640, pitch 57.8).",
+      "track": "window f1-f31 around reference f16 (ECC median 0.81).",
+      "framing": "OBSERVED: reference frame f16's own camera (canvas = that frame at x3).",
+      "world_scale": "MEASURED: the banana in f16 is ~35 x 15 px against 31-39 x 16 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1); 2000 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2000,
+    "plan_origin_x": -0.279,
+    "plan_origin_y": 0.921
+  },
+  "character_scale": 1.0,
+  "frame_mode": {
+    "camera_key": "pond_garden",
+    "reference_frame": 16,
+    "window": [1, 31],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [262, 225],
+        "radius": 18,
+        "what": "eggplant"
+      },
+      {
+        "centre": [390, 86],
+        "radius": 17,
+        "what": "banana"
+      },
+      {
+        "centre": [408, 135],
+        "radius": 15,
+        "what": "small character + effect"
+      },
+      {
+        "centre": [275, 212],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [291, 203],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [307, 194],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [323, 185],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [340, 176],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [356, 167],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [372, 158],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [388, 149],
+        "radius": 7,
+        "what": "boomerang trail"
+      },
+      {
+        "centre": [405, 140],
+        "radius": 7,
+        "what": "boomerang trail"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "bamboo_island",
+      "polygon_px": [
+        [42, 125],
+        [110, 120],
+        [135, 200],
+        [132, 250],
+        [80, 252],
+        [45, 220]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_maple",
+      "polygon_px": [
+        [482, 175],
+        [530, 165],
+        [575, 185],
+        [575, 240],
+        [540, 275],
+        [505, 272],
+        [482, 240]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bench_n",
+      "polygon_px": [
+        [198, 80],
+        [230, 78],
+        [268, 95],
+        [266, 125],
+        [230, 128],
+        [200, 112]
+      ]
+    },
+    {
+      "name": "bench_l",
+      "polygon_px": [
+        [247, 262],
+        [300, 213],
+        [328, 228],
+        [300, 272],
+        [302, 312],
+        [270, 312],
+        [247, 285]
+      ]
+    },
+    {
+      "name": "pots_n",
+      "polygon_px": [
+        [250, 113],
+        [298, 113],
+        [298, 140],
+        [250, 140]
+      ]
+    },
+    {
+      "name": "pots_se",
+      "polygon_px": [
+        [482, 258],
+        [512, 258],
+        [536, 285],
+        [535, 313],
+        [505, 313],
+        [482, 292]
+      ]
+    },
+    {
+      "name": "plinth_ne",
+      "polygon_px": [
+        [320, 0],
+        [440, 0],
+        [468, 60],
+        [468, 118],
+        [420, 118],
+        [320, 60]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["bamboo", "plinth", "tree"],
+  "arena": {
+    "plan_box": [-0.279, 0.329, 0.482, 0.921],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["banana", "carrot", "coffee", "bread", "watermelon", "icecream"],
+  "rules_doc": [
+    "POND GARDEN (`pond_garden`) \u2014 reconstructed from the master gameplay video (shot S0; FRAME MODE: reference frame f16): a lawn",
+    "with purple stone benches and kerbs, a bamboo island, a red maple with pots, and a raised plinth with a statue. Every cell is",
+    "OBSERVED in the reference frame; ground hidden behind cut-outs is INFERRED walkable. Camera lens/pitch INFERRED (a prior from",
+    "the maps measured with confidence; this shot has too few straight verticals). No hazards; no new mechanic."
+  ]
+}

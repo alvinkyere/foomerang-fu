@@ -1,0 +1,185 @@
+{
+  "map": "flooded_ruins",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.0030975130583659315, -0.017327900903903785, 1.043364405632019],
+    "world": {
+      "unitsPerPlanUnit": 2000,
+      "planOriginX": -0.285,
+      "planOriginY": 0.867
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S8's vanishing-point segments disagree (f 1212/1308/1554 @640, pitch 60/54/53.5; nadir support ~600) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+    "track": "window f583-f613 around reference f598 (ECC median 0.75).",
+    "framing": "OBSERVED: reference frame f598's own camera.",
+    "world_scale": "MEASURED: the banana in f598 is ~35 px tall against 32-41 px baked through this camera at the plaza fit -> character_scale 1.0 (+-0.1)."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "bamboo_n",
+      "file": "occ_bamboo_n.webp",
+      "x": 1251,
+      "y": 0,
+      "depth": 126.0,
+      "fade": true
+    },
+    {
+      "key": "block_n",
+      "file": "occ_block_n.webp",
+      "x": 561,
+      "y": 87,
+      "depth": 264.0,
+      "fade": true
+    },
+    {
+      "key": "pillar_ne",
+      "file": "occ_pillar_ne.webp",
+      "x": 1557,
+      "y": 117,
+      "depth": 294.0,
+      "fade": true
+    },
+    {
+      "key": "pillar_nw",
+      "file": "occ_pillar_nw.webp",
+      "x": 63,
+      "y": 72,
+      "depth": 300.0,
+      "fade": true
+    },
+    {
+      "key": "bamboo_e",
+      "file": "occ_bamboo_e.webp",
+      "x": 1512,
+      "y": 171,
+      "depth": 315.0,
+      "fade": true
+    },
+    {
+      "key": "rock_moss",
+      "file": "occ_rock_moss.webp",
+      "x": 1143,
+      "y": 222,
+      "depth": 396.0,
+      "fade": true
+    },
+    {
+      "key": "block_c",
+      "file": "occ_block_c.webp",
+      "x": 762,
+      "y": 342,
+      "depth": 486.0,
+      "fade": true
+    },
+    {
+      "key": "block_w",
+      "file": "occ_block_w.webp",
+      "x": 291,
+      "y": 486,
+      "depth": 606.0,
+      "fade": true
+    },
+    {
+      "key": "block_e",
+      "file": "occ_block_e.webp",
+      "x": 1062,
+      "y": 582,
+      "depth": 750.0,
+      "fade": true
+    },
+    {
+      "key": "pillar_e",
+      "file": "occ_pillar_e.webp",
+      "x": 1752,
+      "y": 567,
+      "depth": 765.0,
+      "fade": true
+    },
+    {
+      "key": "block_sw",
+      "file": "occ_block_sw.webp",
+      "x": 522,
+      "y": 597,
+      "depth": 774.0,
+      "fade": true
+    },
+    {
+      "key": "pillar_sw",
+      "file": "occ_pillar_sw.webp",
+      "x": 0,
+      "y": 873,
+      "depth": 1080.0,
+      "fade": true
+    },
+    {
+      "key": "block_s",
+      "file": "occ_block_s.webp",
+      "x": 702,
+      "y": 957,
+      "depth": 1080.0,
+      "fade": true
+    },
+    {
+      "key": "block_s2",
+      "file": "occ_block_s2.webp",
+      "x": 1167,
+      "y": 978,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/flooded_ruins.json; bake_map.py, bake_chars.py, package_map.py)"
+}

@@ -1,0 +1,137 @@
+{
+  "map": "cross_pond",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 3720.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 57.79999999999999,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.009276239833786063, 0.009999468511670606, 0.9440128803253174],
+    "world": {
+      "unitsPerPlanUnit": 3077,
+      "planOriginX": -0.252,
+      "planOriginY": 0.81
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "INFERRED: S16's vanishing-point segments disagree (f 1308/1570/1745 @640, pitch 55.5/47.3/50.3) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+    "track": "window f1262-f1290 around reference f1276 (ECC median 0.70). f1276 is chosen because explosions fill f1294-f1312.",
+    "framing": "OBSERVED: reference frame f1276's own camera.",
+    "world_scale": "MEASURED: the carrot body (orange blob) in f1276 is 16 x 15 px against 28 x 22 px baked -> character_scale 0.65 (+-0.1); 3077 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "rocks_ne",
+      "file": "occ_rocks_ne.webp",
+      "x": 1182,
+      "y": 0,
+      "depth": 180.0,
+      "fade": true
+    },
+    {
+      "key": "rocks_nw",
+      "file": "occ_rocks_nw.webp",
+      "x": 237,
+      "y": 0,
+      "depth": 186.0,
+      "fade": true
+    },
+    {
+      "key": "rocks_w",
+      "file": "occ_rocks_w.webp",
+      "x": 153,
+      "y": 552,
+      "depth": 786.0,
+      "fade": true
+    },
+    {
+      "key": "wall_w",
+      "file": "occ_wall_w.webp",
+      "x": 0,
+      "y": 0,
+      "depth": 870.0,
+      "fade": true
+    },
+    {
+      "key": "wall_e",
+      "file": "occ_wall_e.webp",
+      "x": 1407,
+      "y": 0,
+      "depth": 900.0,
+      "fade": true
+    },
+    {
+      "key": "wall_s",
+      "file": "occ_wall_s.webp",
+      "x": 807,
+      "y": 843,
+      "depth": 960.0,
+      "fade": true
+    },
+    {
+      "key": "wall_sw",
+      "file": "occ_wall_sw.webp",
+      "x": 0,
+      "y": 843,
+      "depth": 966.0,
+      "fade": true
+    },
+    {
+      "key": "bushes_se",
+      "file": "occ_bushes_se.webp",
+      "x": 1377,
+      "y": 882,
+      "depth": 1080.0,
+      "fade": true
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/cross_pond.json; bake_map.py, bake_chars.py, package_map.py)"
+}

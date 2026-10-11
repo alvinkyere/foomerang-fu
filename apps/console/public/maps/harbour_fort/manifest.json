@@ -1,0 +1,233 @@
+{
+  "map": "harbour_fort",
+  "canvas": [3440, 1935],
+  "camera": {
+    "canvas": {
+      "width": 3440,
+      "height": 1935
+    },
+    "focalPx": 4620,
+    "principal": {
+      "x": 1720.0,
+      "y": 967.5
+    },
+    "pitchDeg": 56.2,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [0.12, 0.0669, 1.0],
+    "world": {
+      "unitsPerPlanUnit": 1818,
+      "planOriginX": -0.27,
+      "planOriginY": 0.97
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "MEASURED: vanishing-point horizon/nadir scans over f655-f818 in three segments (f 1549/1520/1554 px at 640 wide, pitch 57.2/55.4/56.0 deg); the method recovers a known render camera to 2-3%. Nadir and horizon x ~325 px: yaw and roll ~0.",
+    "track": "MEASURED: translating camera at constant height (crate tops 43 vs 42 px at f655/f815), track_pan.py FOO_FIXED_HEIGHT=1, ECC median 0.88; the ground mosaic is sharp across the shot. Shot camera moves +0.32 x, -0.06 y (plan units = its height).",
+    "framing": "REFERENCE-CONSTRAINED: the game camera has the shot's own height (1.0, constant through the shot), lens and pitch, so characters and structures appear at the footage's scale; its position (x 0.12, y 0.067) lies inside the shot's own pan range (x 0..0.32, y -0.06..0.074). Like the shot's camera the view PANS: the baked canvas (3440 x 1935, the footage's 16:9 at x3) is the courtyard seen from that point, and the view follows the living players (render/reconstructed/followView.ts; zooming out only when they spread wider than the screen is an INFERRED rule). Perspective at the canvas edges is that single viewpoint's, not the panned camera's.",
+    "world_scale": "MEASURED: the footage's characters set the scale (pack models are one size): avocado ~47x20 px and watermelon ~49 px tall in f815 against 42 / 44 px for the plaza-fitted bake through this camera -> character_scale 1.1 (+-0.1; both mid-motion); world units per plan unit = 2000 / 1.1 = 1818. Crate tops (0.035-0.040 vs the plaza's 0.036 plan units) agree within that error."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "wall_east_6",
+      "file": "occ_wall_east_6.webp",
+      "x": 2939,
+      "y": 0,
+      "depth": 389.71,
+      "fade": false
+    },
+    {
+      "key": "wall_east_5",
+      "file": "occ_wall_east_5.webp",
+      "x": 3000,
+      "y": 208,
+      "depth": 582.93,
+      "fade": false
+    },
+    {
+      "key": "wall_east_4",
+      "file": "occ_wall_east_4.webp",
+      "x": 3039,
+      "y": 398,
+      "depth": 788.33,
+      "fade": false
+    },
+    {
+      "key": "crate_3",
+      "file": "occ_crate_3.webp",
+      "x": 2221,
+      "y": 684,
+      "depth": 846.33,
+      "fade": false
+    },
+    {
+      "key": "stall",
+      "file": "occ_stall.webp",
+      "x": 2317,
+      "y": 426,
+      "depth": 858.67,
+      "fade": true
+    },
+    {
+      "key": "pot_4",
+      "file": "occ_pot_4.webp",
+      "x": 2214,
+      "y": 696,
+      "depth": 862.69,
+      "fade": false
+    },
+    {
+      "key": "pot_5",
+      "file": "occ_pot_5.webp",
+      "x": 2125,
+      "y": 826,
+      "depth": 931.14,
+      "fade": false
+    },
+    {
+      "key": "gatehouse",
+      "file": "occ_gatehouse.webp",
+      "x": 1113,
+      "y": 207,
+      "depth": 963.81,
+      "fade": true
+    },
+    {
+      "key": "wall_east_3",
+      "file": "occ_wall_east_3.webp",
+      "x": 3080,
+      "y": 600,
+      "depth": 1007.1,
+      "fade": false
+    },
+    {
+      "key": "wall_east_2",
+      "file": "occ_wall_east_2.webp",
+      "x": 3123,
+      "y": 815,
+      "depth": 1240.59,
+      "fade": false
+    },
+    {
+      "key": "pot_3",
+      "file": "occ_pot_3.webp",
+      "x": 2015,
+      "y": 1145,
+      "depth": 1354.06,
+      "fade": false
+    },
+    {
+      "key": "crate_1",
+      "file": "occ_crate_1.webp",
+      "x": 984,
+      "y": 1271,
+      "depth": 1442.64,
+      "fade": false
+    },
+    {
+      "key": "crate_2",
+      "file": "occ_crate_2.webp",
+      "x": 2249,
+      "y": 1271,
+      "depth": 1442.64,
+      "fade": false
+    },
+    {
+      "key": "pot_1",
+      "file": "occ_pot_1.webp",
+      "x": 609,
+      "y": 1325,
+      "depth": 1465.31,
+      "fade": false
+    },
+    {
+      "key": "wall_east_1",
+      "file": "occ_wall_east_1.webp",
+      "x": 3170,
+      "y": 1046,
+      "depth": 1490.33,
+      "fade": false
+    },
+    {
+      "key": "pot_2",
+      "file": "occ_pot_2.webp",
+      "x": 733,
+      "y": 1410,
+      "depth": 1550.63,
+      "fade": false
+    },
+    {
+      "key": "wall_south_L",
+      "file": "occ_wall_south_L.webp",
+      "x": 250,
+      "y": 1149,
+      "depth": 1687.41,
+      "fade": false
+    },
+    {
+      "key": "wall_south_W",
+      "file": "occ_wall_south_W.webp",
+      "x": 0,
+      "y": 1486,
+      "depth": 1687.41,
+      "fade": false
+    },
+    {
+      "key": "wall_east_0",
+      "file": "occ_wall_east_0.webp",
+      "x": 3219,
+      "y": 1292,
+      "depth": 1758.09,
+      "fade": false
+    },
+    {
+      "key": "wall_south_R",
+      "file": "occ_wall_south_R.webp",
+      "x": 1898,
+      "y": 1149,
+      "depth": 1758.09,
+      "fade": false
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "avocado": {
+      "file": "char_avocado.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/harbour_fort.json; bake_map.py, bake_chars.py, package_map.py)"
+}

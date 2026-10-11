@@ -1,0 +1,129 @@
+{
+  "map": "farm_plots",
+  "canvas": [1920, 1080],
+  "camera": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080
+    },
+    "focalPx": 5511.0,
+    "principal": {
+      "x": 960.0,
+      "y": 540.0
+    },
+    "pitchDeg": 55.2,
+    "yawDeg": 0.0,
+    "rollDeg": 0.0,
+    "centre": [-0.004853309592323695, -0.000598993300605118, 0.9852325320243835],
+    "world": {
+      "unitsPerPlanUnit": 2857,
+      "planOriginX": -0.198,
+      "planOriginY": 0.834
+    }
+  },
+  "camera_evidence": {
+    "lens_and_pitch": "MEASURED (MEDIUM): vanishing-point scans of S2 agree across segments: f [1837, 1873, 1697] px @640, pitch [55.8, 55.2, 54.7] deg (nadir support [736, 555, 493]).",
+    "track": "window f99-f129 around reference f114 (ECC median 0.81).",
+    "framing": "OBSERVED: reference frame f114's own camera.",
+    "world_scale": "MEASURED: the carrot in f114 is ~35 x 25 px against 50 x 30 px baked through this camera at the plaza fit -> character_scale 0.70 (+-0.07); 2857 world units per plan unit."
+  },
+  "ground": "ground.webp",
+  "occluders": [
+    {
+      "key": "gate_n",
+      "file": "occ_gate_n.webp",
+      "x": 477,
+      "y": 33,
+      "depth": 246.0,
+      "fade": true
+    },
+    {
+      "key": "boulder_ne",
+      "file": "occ_boulder_ne.webp",
+      "x": 1407,
+      "y": 87,
+      "depth": 276.0,
+      "fade": true
+    },
+    {
+      "key": "crate_w",
+      "file": "occ_crate_w.webp",
+      "x": 378,
+      "y": 351,
+      "depth": 474.0,
+      "fade": false
+    },
+    {
+      "key": "boulder_e",
+      "file": "occ_boulder_e.webp",
+      "x": 1752,
+      "y": 222,
+      "depth": 480.0,
+      "fade": true
+    },
+    {
+      "key": "boulder_w",
+      "file": "occ_boulder_w.webp",
+      "x": 0,
+      "y": 447,
+      "depth": 675.0,
+      "fade": true
+    },
+    {
+      "key": "crates_c",
+      "file": "occ_crates_c.webp",
+      "x": 1146,
+      "y": 612,
+      "depth": 786.0,
+      "fade": false
+    },
+    {
+      "key": "plant",
+      "file": "occ_plant.webp",
+      "x": 831,
+      "y": 861,
+      "depth": 984.0,
+      "fade": false
+    }
+  ],
+  "animated": [],
+  "characters": {
+    "carrot": {
+      "file": "char_carrot.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "banana": {
+      "file": "char_banana.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "coffee": {
+      "file": "char_coffee.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "bread": {
+      "file": "char_bread.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "watermelon": {
+      "file": "char_watermelon.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    },
+    "icecream": {
+      "file": "char_icecream.webp",
+      "cell": 192,
+      "anchor": [96.0, 138.0],
+      "frames": 32
+    }
+  },
+  "provenance": "art/reconstruction (maps/farm_plots.json; bake_map.py, bake_chars.py, package_map.py)"
+}

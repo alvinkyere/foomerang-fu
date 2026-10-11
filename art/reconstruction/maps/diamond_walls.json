@@ -1,0 +1,158 @@
+{
+  "map": "diamond_walls",
+  "shots": "S17 (f1332-f1387); reference f1359",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.056047806926705614, -0.004403407857863768, 1.034713864326477]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S17's vanishing-point segments disagree (f 1956/1111/1442 @640, pitch 37.5/49.5/48; the walls run diagonally, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+      "track": "window f1349-f1369 around reference f1359 (the camera dollies through the shot).",
+      "framing": "OBSERVED: reference frame f1359's own camera.",
+      "world_scale": "MEASURED: the avocado and the carrot in f1359 are ~21 px tall against 32 px baked through this camera at the plaza fit -> character_scale 0.65 (+-0.07); 3077 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 3077,
+    "plan_origin_x": -0.342,
+    "plan_origin_y": 0.872
+  },
+  "character_scale": 0.65,
+  "frame_mode": {
+    "camera_key": "diamond_walls",
+    "reference_frame": 1359,
+    "window": [1349, 1369],
+    "mover_threshold": 9999,
+    "clean_px": [],
+    "inpaint_px": [
+      {
+        "centre": [328, 70],
+        "radius": 16,
+        "what": "eggplant"
+      },
+      {
+        "centre": [152, 197],
+        "radius": 17,
+        "what": "icecream"
+      },
+      {
+        "centre": [350, 138],
+        "radius": 16,
+        "what": "character"
+      },
+      {
+        "centre": [350, 253],
+        "radius": 18,
+        "what": "avocado"
+      },
+      {
+        "centre": [396, 283],
+        "radius": 19,
+        "what": "carrot"
+      },
+      {
+        "centre": [408, 52],
+        "radius": 8,
+        "what": "effect"
+      }
+    ],
+    "note": "automatic mover detection off (the camera dollies: raised blocks misalign in the window median); characters inpainted"
+  },
+  "cutouts": [
+    {
+      "name": "tree_nw",
+      "polygon_px": [
+        [88, 0],
+        [128, 0],
+        [128, 75],
+        [95, 75]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_ne",
+      "polygon_px": [
+        [452, 0],
+        [522, 0],
+        [522, 96],
+        [460, 96]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_e",
+      "polygon_px": [
+        [570, 172],
+        [628, 172],
+        [628, 272],
+        [575, 272]
+      ],
+      "fade": true
+    },
+    {
+      "name": "bamboo",
+      "polygon_px": [
+        [238, 88],
+        [270, 88],
+        [270, 148],
+        [238, 148]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_c",
+      "polygon_px": [
+        [338, 95],
+        [388, 95],
+        [388, 155],
+        [338, 155]
+      ]
+    },
+    {
+      "name": "planter_w",
+      "polygon_px": [
+        [112, 190],
+        [143, 190],
+        [143, 252],
+        [112, 252]
+      ]
+    },
+    {
+      "name": "planter_s",
+      "polygon_px": [
+        [210, 283],
+        [246, 283],
+        [246, 340],
+        [210, 340]
+      ]
+    }
+  ],
+  "fade_prefixes": ["bamboo", "tree"],
+  "arena": {
+    "plan_box": [-0.342, 0.23, 0.459, 0.872],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)"
+  },
+  "roster": ["avocado", "carrot", "icecream", "banana", "bread", "coffee"],
+  "rules_doc": [
+    "DIAMOND WALLS (`diamond_walls`) \u2014 reconstructed from the master gameplay video (shot S17; FRAME MODE: reference frame f1359): a",
+    "lawn with long diagonal purple walls around two dark diamond-shaped sunken blocks, planters, bamboo and trees. Every cell is",
+    "OBSERVED in the reference frame; ground behind cut-outs is INFERRED walkable. Camera lens/pitch INFERRED (a prior from the maps",
+    "measured with confidence). No hazards; no new mechanic."
+  ]
+}

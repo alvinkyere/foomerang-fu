@@ -3,12 +3,11 @@ import {
   CpuController,
   FREE_FOR_ALL,
   GARDEN_ARENA,
-  GARDEN_BOOK_SPOTS,
+  MARKET_PLAZA_ARENA,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
   SYSTEMS_ARENA,
-  SYSTEMS_POWERUP_SPOTS,
   systemsView,
   powerupsFor,
   createFuMatch,
@@ -26,6 +25,7 @@ import {
 import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
 import { buildFuView } from '../render/fuView';
+import { PLAYABLE_ARENAS, choiceOf } from './arenas';
 import type { ArenaView } from '../render/viewModel';
 import { FrameStepper } from './frameStepper';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
@@ -56,7 +56,8 @@ const MAX_PENDING_EVENTS = 256;
  * When several arrive before one step the RULES decide (SLASH, then THROW, then DASH), never the
  * order they arrived in.
  */
-export { SYSTEMS_ARENA, GARDEN_ARENA };
+export { SYSTEMS_ARENA, GARDEN_ARENA, MARKET_PLAZA_ARENA };
+export { PLAYABLE_ARENAS } from './arenas';
 
 export class FuRuntime implements MatchRuntime {
   state: FuState | undefined;
@@ -89,14 +90,8 @@ export class FuRuntime implements MatchRuntime {
     this.#mode = mode;
     this.#arena = arena;
     this.#enabled = enabled;
-    const spots =
-      arena === PRIMITIVE_ARENA
-        ? PRIMITIVE_POWERUPS.spots
-        : arena === SYSTEMS_ARENA
-          ? SYSTEMS_POWERUP_SPOTS
-          : arena === GARDEN_ARENA
-            ? GARDEN_BOOK_SPOTS
-            : undefined; // an arena with no places to put Books has none
+    const choice = choiceOf(arena);
+    const spots = choice === undefined ? undefined : PLAYABLE_ARENAS[choice].bookSpots; // no places to put Books: none
     this.#powerups =
       spots === undefined || powerups === 'off'
         ? undefined

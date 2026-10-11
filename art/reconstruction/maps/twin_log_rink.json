@@ -1,0 +1,261 @@
+{
+  "map": "twin_log_rink",
+  "shots": "S13 f1089-f1141, S18 f1388-f1459, S19 f1460-f1487; reference f1423 (S18)",
+  "camera": {
+    "f": 959.0,
+    "pose": {
+      "pitch_deg": 66.9,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [-0.00021233930817081024, 0.0077521715539854135, 1.0061802864074707]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "MEASURED: vanishing-point segments of S18 agree closely: f [938, 959, 995] px @640, pitch [66.9, 67.4, 65.7] deg -> f 959, pitch 66.9 (S18 is the map's widest shot; S13/S19 are closer views).",
+      "track": "window f1408-f1438 around reference f1423 (ECC median 0.91).",
+      "framing": "OBSERVED: reference frame f1423's own camera.",
+      "world_scale": "MEASURED: the banana in f1423 is ~22 px tall against 25-34 px baked through this camera at the plaza fit -> character_scale 0.75 (+-0.08); 2667 world units per plan unit."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 2667,
+    "plan_origin_x": -0.334,
+    "plan_origin_y": 0.674
+  },
+  "character_scale": 0.75,
+  "frame_mode": {
+    "camera_key": "twin_log_rink",
+    "reference_frame": 1423,
+    "window": [1408, 1438],
+    "mover_threshold": 130,
+    "clean_px": [
+      {
+        "centre": [185, 205],
+        "radius": 19,
+        "what": "banana"
+      },
+      {
+        "centre": [320, 62],
+        "radius": 18,
+        "what": "eggplant"
+      },
+      {
+        "centre": [445, 140],
+        "radius": 12,
+        "what": "effect"
+      }
+    ],
+    "keep_px": [
+      [
+        [200, 60],
+        [310, 60],
+        [320, 180],
+        [230, 200],
+        [200, 150]
+      ],
+      [
+        [370, 140],
+        [470, 140],
+        [480, 265],
+        [400, 265],
+        [370, 180]
+      ]
+    ],
+    "inpaint_px": [
+      {
+        "centre": [350, 68],
+        "radius": 28,
+        "what": "carrot + fight (in the window median too)"
+      },
+      {
+        "centre": [275, 47],
+        "radius": 15,
+        "what": "character (in the window median too)"
+      },
+      {
+        "centre": [385, 325],
+        "radius": 18,
+        "what": "sushi (in the window median too)"
+      },
+      {
+        "centre": [215, 92],
+        "radius": 10,
+        "what": "character (in the window median too)"
+      }
+    ]
+  },
+  "cutouts": [
+    {
+      "name": "planter_w1",
+      "polygon_px": [
+        [70, 120],
+        [105, 72],
+        [135, 95],
+        [100, 152],
+        [70, 140]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_n1",
+      "polygon_px": [
+        [175, 40],
+        [220, 25],
+        [245, 50],
+        [240, 62],
+        [195, 75],
+        [178, 65]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_n2",
+      "polygon_px": [
+        [360, 32],
+        [440, 30],
+        [442, 68],
+        [362, 68]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_e1",
+      "polygon_px": [
+        [512, 95],
+        [545, 88],
+        [575, 150],
+        [560, 170],
+        [530, 165]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_w2",
+      "polygon_px": [
+        [82, 245],
+        [100, 225],
+        [168, 280],
+        [160, 305],
+        [135, 308],
+        [82, 265]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_s",
+      "polygon_px": [
+        [245, 290],
+        [318, 282],
+        [330, 318],
+        [268, 336],
+        [245, 320]
+      ],
+      "fade": true
+    },
+    {
+      "name": "planter_e2",
+      "polygon_px": [
+        [475, 295],
+        [540, 240],
+        [560, 262],
+        [555, 295],
+        [495, 322],
+        [475, 305]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_nw",
+      "polygon_px": [
+        [0, 30],
+        [40, 30],
+        [40, 115],
+        [0, 115]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_ne",
+      "polygon_px": [
+        [555, 0],
+        [600, 0],
+        [600, 60],
+        [555, 60]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_se",
+      "polygon_px": [
+        [570, 262],
+        [640, 262],
+        [640, 360],
+        [575, 360]
+      ],
+      "fade": true
+    }
+  ],
+  "fade_prefixes": ["planter", "tree"],
+  "arena": {
+    "plan_box": [-0.334, 0.334, 0.235, 0.674],
+    "player_radius": 36,
+    "walkable": [],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)",
+    "walkable_px": [
+      [
+        [75, 20],
+        [565, 20],
+        [588, 60],
+        [588, 300],
+        [565, 350],
+        [62, 350],
+        [40, 300],
+        [42, 60]
+      ]
+    ]
+  },
+  "roster": ["banana", "carrot", "icecream", "bread", "coffee", "watermelon"],
+  "rules_doc": [
+    "TWIN LOG RINK (`twin_log_rink`) \u2014 reconstructed from the master gameplay video (shots S13/S18/S19; FRAME MODE: reference frame",
+    "f1423 of the widest shot): a cream arena in an octagonal boundary with two ice circles, each with a log turning on a pivot",
+    "(counter-rotating at the MEASURED rates), purple planter benches and pots. The logs are presentation only (no collision, no",
+    "knockback) and the ice is not slippery: both GAMEPLAY INTERACTION: DEFERRED. Walkable = the octagon traced in the reference frame."
+  ],
+  "animated": [
+    {
+      "name": "log_w",
+      "plan_centre": [-0.0892, 0.4386],
+      "radius": 0.11,
+      "z": 0.03,
+      "hue": [12, 22],
+      "min_sat": 50,
+      "min_val": 110,
+      "frames": 36,
+      "period_s": 10.32,
+      "direction": 1,
+      "evidence": "MEASURED: the log's far end about its pivot on the rectified plane z 0.03, f1408-f1438: +1.163 deg/frame (34.9 deg/s CCW from above), residual 4.4 deg. Presentation only (no collision / knockback: GAMEPLAY INTERACTION: DEFERRED).",
+      "hole_dilate": 31,
+      "fill": "inpaint",
+      "keep_hub_radius": 0.015
+    },
+    {
+      "name": "log_e",
+      "plan_centre": [0.0835, 0.446],
+      "radius": 0.11,
+      "z": 0.03,
+      "hue": [12, 22],
+      "min_sat": 50,
+      "min_val": 110,
+      "frames": 36,
+      "period_s": 9.5,
+      "direction": -1,
+      "evidence": "MEASURED: -1.262 deg/frame (37.9 deg/s clockwise from above), residual 4.2 deg; counter-rotates with the west log. Presentation only.",
+      "hole_dilate": 31,
+      "fill": "inpaint",
+      "keep_hub_radius": 0.015
+    }
+  ]
+}

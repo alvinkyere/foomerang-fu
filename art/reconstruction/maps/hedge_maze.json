@@ -1,0 +1,184 @@
+{
+  "map": "hedge_maze",
+  "shots": "S11 (f946-f1021); reference f958",
+  "camera": {
+    "f": 1240.0,
+    "pose": {
+      "pitch_deg": 57.79999999999999,
+      "yaw_deg": 0.0,
+      "roll_deg": 0.0,
+      "C": [0.00018403730922448777, -0.03585192189922022, 1.0484201908111572]
+    },
+    "canvas": [1920, 1080],
+    "scale": 3,
+    "evidence": {
+      "lens_and_pitch": "INFERRED: S11's vanishing-point segments disagree (f 1212/1817/1336 @640, pitch 60/47.8/57.5; the maze walls are low, few verticals) -> the median of the maps measured with confidence (f 1240, pitch 57.8).",
+      "track": "window f946-f970 around reference f958 (ECC median 0.85). The shot zooms; f958 is its widest view (the whole maze).",
+      "framing": "OBSERVED: reference frame f958's own camera.",
+      "world_scale": "REFERENCE-CONSTRAINED by the rules (OWNER DECISION PENDING): at the footage's character scale (the carrot in f958 is ~30 px tall against 32 px baked -> 0.95) the maze corridors (~40 px wall to wall) are narrower than the rules' player body (radius 36, a game-core constant) plus a minimum-thickness wall, so the maze interior could not be entered. character_scale 0.62 (3226 world units per plan unit) makes the corridors admit a player: characters are drawn ~35% smaller than in the footage on this map. Alternatives: keep footage scale (maze interior impassable) or a rules change (not approved)."
+    }
+  },
+  "world": {
+    "units_per_plan_unit": 3226,
+    "plan_origin_x": -0.29,
+    "plan_origin_y": 0.853
+  },
+  "character_scale": 0.62,
+  "frame_mode": {
+    "camera_key": "hedge_maze",
+    "reference_frame": 958,
+    "window": [946, 970],
+    "mover_threshold": 9999,
+    "clean_px": [
+      {
+        "centre": [225, 90],
+        "radius": 16,
+        "what": "eggplant"
+      },
+      {
+        "centre": [330, 112],
+        "radius": 17,
+        "what": "icecream"
+      },
+      {
+        "centre": [282, 215],
+        "radius": 19,
+        "what": "carrot"
+      },
+      {
+        "centre": [362, 212],
+        "radius": 17,
+        "what": "banana"
+      },
+      {
+        "centre": [283, 268],
+        "radius": 19,
+        "what": "coffee"
+      }
+    ],
+    "note": "automatic mover detection off (wall parallax); only the named circles are cleaned"
+  },
+  "cutouts": [
+    {
+      "name": "rock_nw",
+      "polygon_px": [
+        [150, 72],
+        [178, 65],
+        [205, 80],
+        [203, 103],
+        [175, 108],
+        [152, 98]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_w",
+      "polygon_px": [
+        [90, 190],
+        [120, 180],
+        [148, 195],
+        [148, 245],
+        [118, 250],
+        [92, 235]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_e",
+      "polygon_px": [
+        [490, 100],
+        [515, 92],
+        [535, 108],
+        [532, 165],
+        [505, 168],
+        [488, 150]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_se",
+      "polygon_px": [
+        [570, 210],
+        [592, 205],
+        [602, 220],
+        [600, 250],
+        [574, 252]
+      ],
+      "fade": true
+    },
+    {
+      "name": "rock_s",
+      "polygon_px": [
+        [395, 290],
+        [425, 283],
+        [455, 295],
+        [455, 322],
+        [420, 326],
+        [397, 315]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_nw",
+      "polygon_px": [
+        [0, 0],
+        [62, 0],
+        [62, 100],
+        [0, 104]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_ne",
+      "polygon_px": [
+        [540, 15],
+        [612, 15],
+        [612, 100],
+        [548, 100]
+      ],
+      "fade": true
+    },
+    {
+      "name": "tree_sw",
+      "polygon_px": [
+        [18, 288],
+        [80, 288],
+        [82, 348],
+        [22, 350]
+      ],
+      "fade": true
+    },
+    {
+      "name": "post",
+      "polygon_px": [
+        [384, 88],
+        [398, 88],
+        [398, 118],
+        [384, 118]
+      ]
+    }
+  ],
+  "fade_prefixes": ["rock", "tree"],
+  "arena": {
+    "plan_box": [-0.29, 0.29, 0.434, 0.853],
+    "player_radius": 36,
+    "walkable": [
+      {
+        "hue": [25, 55],
+        "min_sat": 45,
+        "min_val": 120
+      }
+    ],
+    "walkable_polygons": [],
+    "spawn_clearance": 20,
+    "note": "plan_box = the rectangle inscribed in the reference frame's ground footprint (every arena cell is observed)",
+    "grid": 20
+  },
+  "roster": ["carrot", "banana", "coffee", "icecream", "bread", "watermelon"],
+  "rules_doc": [
+    "HEDGE MAZE (`hedge_maze`) \u2014 reconstructed from the master gameplay video (shot S11; FRAME MODE: reference frame f958, the",
+    "shot's widest view): a lawn with thin purple maze walls, boulders, crystal stumps and an autumn-forest border. Every cell is",
+    "OBSERVED in the reference frame; thin walls block as rules cells at least a player radius thick; ground behind cut-outs is",
+    "INFERRED walkable. Camera lens/pitch INFERRED (a prior from the maps measured with confidence). No hazards; no new mechanic."
+  ]
+}
