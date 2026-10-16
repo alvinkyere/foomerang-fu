@@ -12,6 +12,7 @@ import type {
 import { animationFrame, type AnimatedProp } from '../../reconstructed/animatedProp';
 import { followView } from '../../reconstructed/followView';
 import { createMapCamera, parseMapCamera, type MapCamera } from '../../reconstructed/mapCamera';
+import { layerParts, parseMapLayers } from '../../reconstructed/mapLayers';
 import {
   characterFor,
   headingFrame,
@@ -24,7 +25,8 @@ import { Vfx } from '../vfx';
 /**
  * The renderer for every map reconstructed from the master gameplay video (art/reconstruction). Everything visible is BAKED
  * from the reconstruction through the map's own solved game camera (shipped in its manifest, reconstructed/mapCamera.ts): a
- * ground layer with the cast shadows, every tall object as its own layer depth-sorted by its footprint, and pack-character
+ * ground layer with the cast shadows, every tall object as its own layer depth-sorted by its footprint (column by column where
+ * the manifest gives its ground-contact slices: reconstructed/mapLayers.ts), and pack-character
  * atlases (16 headings × standing/airborne). The renderer only places them from the authoritative view: it never steps the
  * simulation and never invents a position. Assets load at runtime from the map's folder under /maps/ (not bundled; outside
  * the code-asset budgets). Nothing here names a map: per-map facts are data (reconstructed/maps.ts and the manifest).
@@ -38,14 +40,7 @@ interface Manifest {
   readonly map: string;
   readonly camera: unknown;
   readonly ground: string;
-  readonly occluders: readonly {
-    key: string;
-    file: string;
-    x: number;
-    y: number;
-    depth: number;
-    fade?: boolean;
-  }[];
+  readonly occluders: readonly { key: string; file: string }[];
   readonly animated?: readonly AnimatedProp[];
   readonly characters: Readonly<
     Record<string, { file: string; cell: number; anchor: [number, number]; frames: number }>
@@ -65,6 +60,7 @@ class CharacterSprite {
     readonly kind: PackCharacter,
     cell: number,
     anchor: readonly [number, number],
+    readonly scale: number,
   ) {
     this.#shadow = scene.add.ellipse(0, 0, 10, 6, 0x33402a, 0.32);
     this.#ring = scene.add.ellipse(0, 0, 10, 6).setStrokeStyle(3, 0xffffff, 0.85).setFillStyle();
@@ -82,9 +78,9 @@ class CharacterSprite {
     const airborne = c.dashing !== undefined || c.dead;
     this.sprite.setFrame((airborne ? 16 : 0) + this.#heading);
     // movement bounce (the reference characters hop while they run); none while standing
-    const hop = speed > 40 ? Math.abs(Math.sin(now / 75)) * 7 : 0;
+    const hop = speed > 40 ? Math.abs(Math.sin(now / 75)) * 7 * this.scale : 0;
     const squash = speed > 40 ? 1 - 0.06 * (1 - Math.abs(Math.sin(now / 75))) : 1;
-    this.sprite.setPosition(g.x, g.y - hop).setScale(1 / squash, squash);
+    this.sprite.setPosition(g.x, g.y - hop).setScale(this.scale / squash, this.scale * squash);
     const rx = c.radius * s.sx;
     const ry = c.radius * s.sy;
     this.#shadow.setPosition(g.x + 3, g.y + 2).setSize(rx * 1.7, ry * 1.1);
@@ -201,12 +197,13 @@ class ReconstructedScene extends Phaser.Scene {
   readonly #previous = new Map<string, { x: number; y: number; t: number }>();
   readonly #boomerangs = new Map<string, BoomerangArt>();
   readonly #books = new Map<number, BookArt>();
+  /** Each object layer: its drawn parts (one per depth slice), faded together while any part hides a living player. */
   readonly #occluders: {
-    image: Phaser.GameObjects.Image;
-    depth: number;
+    parts: { image: Phaser.GameObjects.Image; depth: number; bounds: Phaser.Geom.Rectangle }[];
     alpha: number;
     fade: boolean;
   }[] = [];
+  #characterScale = 1;
   #manifest: Manifest | undefined;
   readonly #animated: { image: Phaser.GameObjects.Image; prop: AnimatedProp }[] = [];
   #cam: MapCamera | undefined;
@@ -254,10 +251,22 @@ class ReconstructedScene extends Phaser.Scene {
     const cam = createMapCamera(parseMapCamera(m.camera));
     this.#manifest = m;
     this.#cam = cam;
+    const layers = parseMapLayers(m);
+    this.#characterScale = layers.characterScale;
     this.add.image(0, 0, 'map-ground').setOrigin(0, 0).setDepth(-1e6);
-    for (const o of m.occluders) {
-      const image = this.add.image(o.x, o.y, `map-occ-${o.key}`).setOrigin(0, 0).setDepth(o.depth);
-      this.#occluders.push({ image, depth: o.depth, alpha: 1, fade: o.fade === true });
+    for (const o of layers.occluders) {
+      const key = `map-occ-${o.key}`;
+      const source = this.textures.get(key).getSourceImage();
+      const parts = layerParts(o, source.width).map((part) => ({
+        image: this.add
+          .image(o.x, o.y, key)
+          .setOrigin(0, 0)
+          .setCrop(part.cropX, 0, part.width, source.height)
+          .setDepth(part.depth),
+        depth: part.depth,
+        bounds: new Phaser.Geom.Rectangle(o.x + part.cropX, o.y, part.width, source.height),
+      }));
+      this.#occluders.push({ parts, alpha: 1, fade: o.fade });
     }
     for (const prop of m.animated ?? [])
       this.#animated.push({
@@ -311,7 +320,7 @@ class ReconstructedScene extends Phaser.Scene {
         const kind = characterFor(this.#map.roster, c.number);
         const meta = this.#manifest.characters[kind];
         if (meta === undefined) continue;
-        sprite = new CharacterSprite(this, kind, meta.cell, meta.anchor);
+        sprite = new CharacterSprite(this, kind, meta.cell, meta.anchor, this.#characterScale);
         this.#sprites.set(c.id, sprite);
       }
       const prev = this.#previous.get(c.id);
@@ -370,13 +379,16 @@ class ReconstructedScene extends Phaser.Scene {
       .map(([, s]) => s);
     for (const o of this.#occluders) {
       if (!o.fade) continue;
-      const b = o.image.getBounds();
-      const hides = people.some(
-        (s) => s.screen.y < o.depth && Phaser.Geom.Rectangle.Overlaps(b, s.sprite.getBounds()),
+      const hides = o.parts.some((part) =>
+        people.some(
+          (s) =>
+            s.screen.y < part.depth &&
+            Phaser.Geom.Rectangle.Overlaps(part.bounds, s.sprite.getBounds()),
+        ),
       );
       const target = hides ? FADE_ALPHA : 1;
       o.alpha += (target - o.alpha) * 0.3;
-      o.image.setAlpha(o.alpha);
+      for (const part of o.parts) part.image.setAlpha(o.alpha);
     }
   }
 

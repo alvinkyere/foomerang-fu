@@ -1,0 +1,25 @@
+{
+  "source": "environ2.avif (1280x720 still)",
+  "f_1280": 2577.3696520623716,
+  "f_1920": 3866.0544780935575,
+  "pitch_deg": 56.17331643398828,
+  "yaw_deg": 0.0,
+  "roll_deg": 0.0,
+  "C": [0.0, 0.0, 1.1],
+  "principal_1280": [640.0, 360.0],
+  "evidence": {
+    "vanishing_points": {
+      "f": 2577.3696520623716,
+      "pitch": 56.17331643398828,
+      "horizon": [639.5490929281875, -3486.1528124539905],
+      "nadir": [639.3023876054318, 2087.137388265583],
+      "boot_f": [2569.0635585747464, 2600.052188914404, 2641.3495418736775],
+      "boot_pitch": [55.56529058988188, 56.09652494640274, 56.32048298115746]
+    },
+    "fountain": {
+      "measured_aspect": 0.8091,
+      "predicted_aspect": 0.8433,
+      "note": "water outline biased flat by the near rim occluding the near water edge"
+    }
+  }
+}

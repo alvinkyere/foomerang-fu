@@ -15,7 +15,10 @@ development/test pin (it disables rotation). The 14 reconstructed maps: `market_
 
 - 12 maps are **frame mode**: each is one 640×360 frame of the reference video, upscaled to the game view. They are visibly soft at
   1080p, and more so on a TV. The view does not pan.
-- 8 frame-mode cameras are INFERRED (a shared prior). The market_plaza camera is DISPUTED and frozen at f = 900.
+- 8 frame-mode cameras are INFERRED (a shared prior).
+- `market_plaza` is now **environ2** (the owner's reference still, `environ2.avif`), built image-exact with its own
+  vanishing-point camera, object layers with per-column depth, and collision from the image: see
+  `art/reconstruction/environ2/README.md`. The previous video plaza and its DISPUTED camera are retired.
 - Hazards and moving props (croissant, logs) are presentation only. Drops and water only block. The cross_pond raft is static. The
   hex_grove fire is not reconstructed.
 - **harbour_fort defect:** a character walking through the gate is drawn on top of the gatehouse roof (depth order).
@@ -47,5 +50,5 @@ remain a release blocker**. Earlier 6× CPU-throttle runs showed hitches.
 5. ~~Add an in-game map selection screen~~ superseded: the map changes every match (owner decision, 2026-10-15).
 6. Improve the low-resolution frame-mode maps.
 7. Validate on a physical TV and with physical phone controllers.
-8. Owner decisions still open: the market_plaza camera, drops and gaps, the cross_pond raft, the hedge_maze character scale,
+8. Owner decisions still open: drops and gaps, the cross_pond raft, the hedge_maze character scale,
    hazard collision, and eggplant and sushi (no supplied model).

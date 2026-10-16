@@ -9,10 +9,25 @@ import {
   headingFrame,
   reconstructedMapFor,
 } from '../src/render/reconstructed/maps';
+import { PLAYABLE_ARENAS } from '../src/runtime/arenas';
 import { parseArenaParam } from '../src/runtime/powerupMode';
 
 // Maps reconstructed from the master gameplay video are registered as DATA (asset folder, seat roster); everything else about a
 // map — camera, layers, character atlases — ships in its manifest, so adding a map needs no renderer branch.
+
+/** A body of radius r at p overlaps a wall rectangle (the rules' own test: strictly inside its radius). */
+const insideAWall = (
+  p: { x: number; y: number },
+  r: number,
+  walls: readonly { x: number; y: number; width: number; height: number }[],
+): boolean =>
+  walls.some(
+    (w) =>
+      Math.hypot(
+        p.x - Math.min(Math.max(p.x, w.x), w.x + w.width),
+        p.y - Math.min(Math.max(p.y, w.y), w.y + w.height),
+      ) < r,
+  );
 
 const manifestOf = (dir: string): Record<string, unknown> =>
   JSON.parse(readFileSync(join(__dirname, '..', 'public', dir, 'manifest.json'), 'utf8')) as Record<
@@ -48,19 +63,19 @@ describe('reconstructed maps', () => {
       const manifest = manifestOf(map.assetDir);
       expect(manifest['map']).toBe(map.id);
       const camera = createMapCamera(parseMapCamera(manifest['camera']));
-      // the arena's corners are on the canvas: the map's own camera frames its own arena
-      for (const [x, y] of [
-        [0, 0],
-        [map.arena.width, 0],
-        [0, map.arena.height],
-        [map.arena.width, map.arena.height],
-      ] as const) {
-        const p = camera.project(x, y);
-        expect(p.x).toBeGreaterThanOrEqual(0);
-        expect(p.x).toBeLessThanOrEqual(camera.canvas.width);
-        expect(p.y).toBeGreaterThanOrEqual(0);
-        expect(p.y).toBeLessThanOrEqual(camera.canvas.height);
-      }
+      // the map's own camera frames its own arena: every place a player can stand (not inside a wall) is on the canvas. (A
+      // perspective view's arena corners may lie off it — environ2's bottom corners do — but only inside solid ground.)
+      const walls = PLAYABLE_ARENAS[map.id].arena.walls ?? [];
+      for (let x = 36; x <= map.arena.width - 36; x += 24)
+        for (let y = 36; y <= map.arena.height - 36; y += 24) {
+          if (insideAWall({ x, y }, 36, walls)) continue;
+          const p = camera.project(x, y);
+          const where = `${map.id} (${x}, ${y})`;
+          expect(p.x, where).toBeGreaterThanOrEqual(0);
+          expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width);
+          expect(p.y, where).toBeGreaterThanOrEqual(0);
+          expect(p.y, where).toBeLessThanOrEqual(camera.canvas.height);
+        }
       const characters = manifest['characters'] as Record<string, unknown>;
       for (const kind of map.roster) expect(characters[kind]).toBeDefined();
     },
@@ -82,19 +97,38 @@ describe('reconstructed maps', () => {
     expect(parseArenaParam('?arena=sky_islands')).toBe('sky_islands');
   });
 
-  it('harbour_fort is selectable, seats its video cast first (avocado, watermelon) and has its own longer lens', () => {
+  it('harbour_fort is selectable, seats its video cast first (avocado, watermelon) and has its own lens', () => {
     expect(parseArenaParam('?arena=harbour_fort')).toBe('harbour_fort');
     const map = reconstructedMapFor('harbour_fort');
     expect(map?.roster.slice(0, 2)).toEqual(['avocado', 'watermelon']);
     const plaza = parseMapCamera(manifestOf('maps/market_plaza/')['camera']);
     const harbour = parseMapCamera(manifestOf('maps/harbour_fort/')['camera']);
-    expect(harbour.focalPx).toBeGreaterThan(1.5 * plaza.focalPx);
+    expect(harbour.focalPx).toBeCloseTo(4620, 0);
+    expect(harbour.focalPx).not.toBeCloseTo(plaza.focalPx, 0);
   });
 
-  it('the plaza manifest camera is the solved take-A camera', () => {
-    const camera = createMapCamera(parseMapCamera(manifestOf('maps/market_plaza/')['camera']));
-    const p = camera.project(900, 650, 60);
-    expect(p.x).toBeCloseTo(984.638, 2);
-    expect(p.y).toBeCloseTo(458.573, 2);
+  it('the plaza manifest camera is environ2’s solved camera (f 2577.4 px at 1280 wide, pitch 56.17°, on the 1920 canvas)', () => {
+    const config = parseMapCamera(manifestOf('maps/market_plaza/')['camera']);
+    expect(config.focalPx).toBeCloseTo(2577.37 * 1.5, 1);
+    expect(config.pitchDeg).toBeCloseTo(56.173, 2);
+    expect([config.canvas.width, config.canvas.height]).toEqual([1920, 1080]);
+    const camera = createMapCamera(config);
+    // the fountain's centre (its base circle, fitted on the ground) lies on the plaza's mirror axis, x = 651.25 × 1.5
+    const fountain = camera.project(864.5, 663.5);
+    expect(Math.abs(fountain.x - 651.25 * 1.5)).toBeLessThan(1);
+    // the arena's west edge is the fence line: fence 30's foot (42, 343) and fence 31's (4, 576), at 1280 wide
+    for (const [fx, fy] of [
+      [42, 343],
+      [4, 576],
+    ] as const) {
+      const y = fy * 1.5;
+      // walk down the west edge (world x = 0) to the fence foot's row and compare its canvas x
+      let best = Number.POSITIVE_INFINITY;
+      for (let wy = 0; wy <= MARKET_PLAZA_ARENA.height; wy += 0.5) {
+        const p = camera.project(0, wy);
+        if (Math.abs(p.y - y) < 0.5) best = Math.min(best, Math.abs(p.x - fx * 1.5));
+      }
+      expect(best, `fence foot (${fx}, ${fy})`).toBeLessThan(3);
+    }
   });
 });

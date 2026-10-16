@@ -13,16 +13,16 @@ import {
 import { circleHitsWalls, wallsOf } from '../src/rules/arena';
 import { DT, R, at, input, make } from './support/fixtures';
 
-// market_plaza: the first map reconstructed from the master gameplay video (art/reconstruction). Its geometry is DATA owned by
-// the rules (generated from the measured reconstruction by art/reconstruction/runtime/gen_plaza_arena.py). These tests check
-// the data; the approved mechanics are unchanged — the plaza adds no new mechanic.
+// market_plaza: the plaza of environ2.avif (the owner's reference still, art/reconstruction/environ2). Its geometry is DATA owned
+// by the rules, generated from the image and its solved camera by art/reconstruction/environ2/arena_environ2.py. These tests
+// check the data; the approved mechanics are unchanged — the plaza adds no new mechanic.
 
 const walls = wallsOf(MARKET_PLAZA_ARENA);
 
 describe('market_plaza: the arena data', () => {
-  it('is an 1750 × 1300 arena with solid stalls, fountain and crates, six spawns and no Slice 6 systems', () => {
-    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([1750, 1300]);
-    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([1750, 1300]);
+  it('is environ2’s 1729 × 1108 plaza (fence to fence, far wall to the frame), six spawns, no Slice 6 systems', () => {
+    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([1729, 1108]);
+    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([1729, 1108]);
     expect(MARKET_PLAZA_ARENA.spawns).toHaveLength(6);
     expect(MARKET_PLAZA_ARENA.gates ?? []).toEqual([]);
     expect(MARKET_PLAZA_ARENA.platforms ?? []).toEqual([]);
@@ -31,6 +31,15 @@ describe('market_plaza: the arena data', () => {
     expect(createFuMatch([{ id: 'a', slot: 0 }], { arena: MARKET_PLAZA_ARENA }).config.arena).toBe(
       MARKET_PLAZA_ARENA,
     );
+  });
+
+  it('stalls, the fountain, crates, pots, poles and the sign are solid (the owner’s decision); so is the raised terrace', () => {
+    const kinds = new Set(MARKET_PLAZA_WALLS.map((w) => w.kind));
+    for (const kind of ['STALL', 'FOUNTAIN', 'CRATE', 'POT', 'POLE', 'SIGN', 'TERRACE'] as const)
+      expect(kinds.has(kind), kind).toBe(true);
+    // the fountain's base is a circle of radius 162 around (864.5, 663.5): its centre blocks, a body clear of its rim does not
+    expect(circleHitsWalls({ x: 864.5, y: 663.5 }, 1, walls)).toBe(true);
+    expect(circleHitsWalls({ x: 864.5, y: 663.5 + 162 + 40 + R }, R, walls)).toBe(false);
   });
 
   it('every obstacle lies inside the boundary, has a positive size and a unique id; the fountain centre is solid', () => {
@@ -63,7 +72,7 @@ describe('market_plaza: the arena data', () => {
         const a = MARKET_PLAZA_SPAWNS[i];
         const b = MARKET_PLAZA_SPAWNS[j];
         expect(Math.hypot((a?.x ?? 0) - (b?.x ?? 0), (a?.y ?? 0) - (b?.y ?? 0))).toBeGreaterThan(
-          400,
+          700,
         );
       }
   });

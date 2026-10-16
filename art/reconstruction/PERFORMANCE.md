@@ -12,6 +12,9 @@ Conditions common to every row (2026-10-08): iMac21,2 (Apple M1, 8 CPU cores, 7-
 154.0.0.0, **dev console build** (Vite dev server, React dev mode), DPR 1, Phaser game 1920 × 1080 scaled to the viewport (`Scale.FIT`),
 30 s per run, effects on (Powerups high), no other heavy process running.
 
+> The `market_plaza` rows below measured the PREVIOUS (video) plaza. `market_plaza` is now environ2 (31 layers in 386 depth
+> slices); it has not been re-measured yet.
+
 | Map          | Viewport  | Canvas backing | CPU throttle | Avg FPS | 1% low FPS | p50 / p95 / p99 ms | Worst frame (2 s windows) |
 | ------------ | --------- | -------------- | ------------ | ------- | ---------- | ------------------ | ------------------------- |
 | harbour_fort | 1920×1080 | 1920×1080      | 1×           | 60.00   | 59.52      | 16.7 / 16.7 / 16.8 | 25.7                      |

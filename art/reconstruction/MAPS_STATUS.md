@@ -20,22 +20,22 @@ All 14 maps are selectable with `?arena=<map>`, draw in the real game (rules →
 
 Character scale is MEASURED per map from the footage's characters (pack models are one size), except hedge_maze (rules-constrained).
 
-| Map           | Shot / ref | Camera f @640, pitch | Camera evidence      | Char. scale  | Moving props                          |
-| ------------- | ---------- | -------------------- | -------------------- | ------------ | ------------------------------------- |
-| market_plaza  | S4/S5 f233 | 900, 55              | frozen; **DISPUTED** | 1.0 (fit)    | —                                     |
-| harbour_fort  | S9 pan     | 1540, 56.2           | MEASURED             | 1.1          | —                                     |
-| sky_islands   | S7 f470    | 1240, 57.8           | MEDIUM               | 0.80         | croissant 75.6°/s (MEASURED)          |
-| pond_garden   | S0 f16     | 1240, 57.8           | INFERRED prior       | 1.0          | —                                     |
-| lakeshore     | S1 f58     | 1240, 57.8           | INFERRED prior       | 1.0          | —                                     |
-| farm_plots    | S2 f114    | 1837, 55.2           | MEASURED (MEDIUM)    | 0.70         | —                                     |
-| flooded_ruins | S8 f598    | 1240, 57.8           | INFERRED prior       | 1.0          | —                                     |
-| hedge_maze    | S11 f958   | 1240, 57.8           | INFERRED prior       | 0.62 (rules) | —                                     |
-| toaster_dock  | S12 f1055  | 1225, 63.9           | MEASURED (MEDIUM)    | 0.90         | —                                     |
-| twin_log_rink | S18 f1423  | 959, 66.9            | MEASURED             | 0.75         | two logs 34.9 / −37.9°/s (MEASURED)   |
-| hex_grove     | S14 f1150  | 1240, 57.8           | INFERRED prior       | 0.75         | fire spread: not reconstructed        |
-| stone_ruins   | S15 f1231  | 1240, 57.8           | INFERRED prior, LOW  | 0.83         | —                                     |
-| cross_pond    | S16 f1276  | 1240, 57.8           | INFERRED prior       | 0.65         | raft ~24°/s MEASURED, kept **static** |
-| diamond_walls | S17 f1359  | 1240, 57.8           | INFERRED prior       | 0.65         | —                                     |
+| Map           | Shot / ref | Camera f @640, pitch | Camera evidence     | Char. scale  | Moving props                          |
+| ------------- | ---------- | -------------------- | ------------------- | ------------ | ------------------------------------- |
+| market_plaza  | environ2   | 1718, 56.2 (*)       | MEASURED (VP)       | 1.14 (fit)   | —                                     |
+| harbour_fort  | S9 pan     | 1540, 56.2           | MEASURED            | 1.1          | —                                     |
+| sky_islands   | S7 f470    | 1240, 57.8           | MEDIUM              | 0.80         | croissant 75.6°/s (MEASURED)          |
+| pond_garden   | S0 f16     | 1240, 57.8           | INFERRED prior      | 1.0          | —                                     |
+| lakeshore     | S1 f58     | 1240, 57.8           | INFERRED prior      | 1.0          | —                                     |
+| farm_plots    | S2 f114    | 1837, 55.2           | MEASURED (MEDIUM)   | 0.70         | —                                     |
+| flooded_ruins | S8 f598    | 1240, 57.8           | INFERRED prior      | 1.0          | —                                     |
+| hedge_maze    | S11 f958   | 1240, 57.8           | INFERRED prior      | 0.62 (rules) | —                                     |
+| toaster_dock  | S12 f1055  | 1225, 63.9           | MEASURED (MEDIUM)   | 0.90         | —                                     |
+| twin_log_rink | S18 f1423  | 959, 66.9            | MEASURED            | 0.75         | two logs 34.9 / −37.9°/s (MEASURED)   |
+| hex_grove     | S14 f1150  | 1240, 57.8           | INFERRED prior      | 0.75         | fire spread: not reconstructed        |
+| stone_ruins   | S15 f1231  | 1240, 57.8           | INFERRED prior, LOW | 0.83         | —                                     |
+| cross_pond    | S16 f1276  | 1240, 57.8           | INFERRED prior      | 0.65         | raft ~24°/s MEASURED, kept **static** |
+| diamond_walls | S17 f1359  | 1240, 57.8           | INFERRED prior      | 0.65         | —                                     |
 
 The prior (f 1240, pitch 57.8) is the median of the maps measured with confidence; on organic scenes (lawns, shorelines) the
 vanishing-point scans disagree across segments, so those cameras are INFERRED. In frame mode the camera mainly sets character and
@@ -43,7 +43,8 @@ prop perspective and the world scale; the drawn map is the footage frame itself.
 
 ## Owner decisions open
 
-1. **market_plaza camera** — frozen at f = 900 (DISPUTED; VP evidence ~1500). Revisit only with an A/B at the same checkpoints.
+1. ~~**market_plaza camera**~~ — resolved: market_plaza is now environ2 (owner's still, its own measured camera; see
+   `environ2/README.md`). (*) f = 2577.4 px at 1280 wide, given here at 640 for comparison.
 2. **Drops and gaps** (sky_islands, flooded_ruins, stone_ruins) — void/water only block, so islands are pockets; spawns go to the
    largest region. Falling / crossing gaps would need a rule.
 3. **cross_pond raft** — rotates in the footage (MEASURED ~24°/s clockwise) and bridges the banks; a moving platform is a mechanic,

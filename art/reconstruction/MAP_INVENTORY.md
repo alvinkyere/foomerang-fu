@@ -7,22 +7,22 @@ inliers; same environment ≥ 40), not appearance alone.
 Non-gameplay shots (not maps): **S3** f145–200 title card "LOCAL MULTIPLAYER CHAOS" (yellow); **S6** f373–431 title card
 "RIDICULOUS POWER-UPS" (pink); **S10** f821–945 couch cinematic "UP TO 6 PLAYERS" (living-room set, cast on a sofa).
 
-| #   | Internal name   | Shots / frames                                 | Status                                     |
-| --- | --------------- | ---------------------------------------------- | ------------------------------------------ |
-| 1   | `pond_garden`   | S0 f0–33                                       | in game (frame mode; see MAPS_STATUS.md)   |
-| 2   | `lakeshore`     | S1 f34–83                                      | in game (frame mode; see MAPS_STATUS.md)   |
-| 3   | `farm_plots`    | S2 f84–144                                     | in game (frame mode; see MAPS_STATUS.md)   |
-| 4   | `market_plaza`  | S4 f201–263, S5 f264–372                       | reconstructed; in game (camera f DISPUTED) |
-| 5   | `sky_islands`   | S7 f432–545                                    | in game (frame mode; see MAPS_STATUS.md)   |
-| 6   | `flooded_ruins` | S8 f546–650                                    | in game (frame mode; see MAPS_STATUS.md)   |
-| 7   | `harbour_fort`  | S9 f651–820                                    | in game (proxy kit; see MAPS_STATUS.md)    |
-| 8   | `hedge_maze`    | S11 f946–1021                                  | in game (frame mode; see MAPS_STATUS.md)   |
-| 9   | `toaster_dock`  | S12 f1022–1088                                 | in game (frame mode; see MAPS_STATUS.md)   |
-| 10  | `twin_log_rink` | S13 f1089–1141, S18 f1388–1459, S19 f1460–1487 | in game (frame mode; see MAPS_STATUS.md)   |
-| 11  | `hex_grove`     | S14 f1142–1205                                 | in game (frame mode; see MAPS_STATUS.md)   |
-| 12  | `stone_ruins`   | S15 f1206–1257                                 | in game (frame mode; see MAPS_STATUS.md)   |
-| 13  | `cross_pond`    | S16 f1258–1331                                 | in game (frame mode; see MAPS_STATUS.md)   |
-| 14  | `diamond_walls` | S17 f1332–1387                                 | in game (frame mode; see MAPS_STATUS.md)   |
+| #   | Internal name   | Shots / frames                                 | Status                                       |
+| --- | --------------- | ---------------------------------------------- | -------------------------------------------- |
+| 1   | `pond_garden`   | S0 f0–33                                       | in game (frame mode; see MAPS_STATUS.md)     |
+| 2   | `lakeshore`     | S1 f34–83                                      | in game (frame mode; see MAPS_STATUS.md)     |
+| 3   | `farm_plots`    | S2 f84–144                                     | in game (frame mode; see MAPS_STATUS.md)     |
+| 4   | `market_plaza`  | S4 f201–263, S5 f264–372                       | replaced in game by environ2 (see environ2/) |
+| 5   | `sky_islands`   | S7 f432–545                                    | in game (frame mode; see MAPS_STATUS.md)     |
+| 6   | `flooded_ruins` | S8 f546–650                                    | in game (frame mode; see MAPS_STATUS.md)     |
+| 7   | `harbour_fort`  | S9 f651–820                                    | in game (proxy kit; see MAPS_STATUS.md)      |
+| 8   | `hedge_maze`    | S11 f946–1021                                  | in game (frame mode; see MAPS_STATUS.md)     |
+| 9   | `toaster_dock`  | S12 f1022–1088                                 | in game (frame mode; see MAPS_STATUS.md)     |
+| 10  | `twin_log_rink` | S13 f1089–1141, S18 f1388–1459, S19 f1460–1487 | in game (frame mode; see MAPS_STATUS.md)     |
+| 11  | `hex_grove`     | S14 f1142–1205                                 | in game (frame mode; see MAPS_STATUS.md)     |
+| 12  | `stone_ruins`   | S15 f1206–1257                                 | in game (frame mode; see MAPS_STATUS.md)     |
+| 13  | `cross_pond`    | S16 f1258–1331                                 | in game (frame mode; see MAPS_STATUS.md)     |
+| 14  | `diamond_walls` | S17 f1332–1387                                 | in game (frame mode; see MAPS_STATUS.md)     |
 
 ## Per-map records
 
