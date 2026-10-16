@@ -7,7 +7,7 @@ Status: v0.1 (Slice 8). Package: `apps/console` (Vite + React + Phaser). It is t
 ```
 /  CONSOLE HOME ──select Foomerang Fu──► GAME PAGE ──PLAY──► real room ──► JOIN (QR + code + seats)
    (the shell: no query, no flag)           │                                  │ phones and CPUs take seats
-                                            └─ How to Play / Game Settings     └──START GAME──► ARENA (Garden)
+                                            └─ How to Play / Game Settings     └──START GAME──► ARENA (a new map every match)
    system bar: Players · Controllers · Settings · Help · About                      │ match over: Return to lobby
                                                                                      ▼
                                           Close room (asks first) ◄──────────── JOIN again, same room

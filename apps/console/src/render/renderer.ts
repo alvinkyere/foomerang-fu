@@ -1,3 +1,4 @@
+import type { ArenaChoice } from '../runtime/powerupMode';
 import type { ArenaView, SystemsViewModel, WallView } from './viewModel';
 
 /** Where a drawn circle actually is, in world units — read back from the renderer, not assumed. */
@@ -29,4 +30,11 @@ export interface ArenaRenderer {
   destroy(): void;
 }
 
-export type ArenaRendererLoader = (container: HTMLElement) => Promise<ArenaRenderer>;
+/**
+ * Loads a renderer for one match's map (`arena`: absent for games without maps, which use the
+ * primitive renderer). A new map means a new renderer.
+ */
+export type ArenaRendererLoader = (
+  container: HTMLElement,
+  arena?: ArenaChoice,
+) => Promise<ArenaRenderer>;

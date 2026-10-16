@@ -2,7 +2,6 @@ import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
 import {
   CpuController,
   FREE_FOR_ALL,
-  GARDEN_ARENA,
   MARKET_PLAZA_ARENA,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
@@ -56,7 +55,7 @@ const MAX_PENDING_EVENTS = 256;
  * When several arrive before one step the RULES decide (SLASH, then THROW, then DASH), never the
  * order they arrived in.
  */
-export { SYSTEMS_ARENA, GARDEN_ARENA, MARKET_PLAZA_ARENA };
+export { SYSTEMS_ARENA, MARKET_PLAZA_ARENA };
 export { PLAYABLE_ARENAS } from './arenas';
 
 export class FuRuntime implements MatchRuntime {

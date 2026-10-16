@@ -79,7 +79,7 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
   }
 }
 
-/** The drawing calls an effect uses: a Phaser Graphics fits, and so does Garden's projected ground pen. */
+/** The drawing calls an effect uses: a Phaser Graphics fits, and so does a map's projected ground pen. */
 export interface Pen {
   clear(): unknown;
   fillStyle(color: number, alpha?: number): unknown;
@@ -120,7 +120,7 @@ export interface Effect {
 
 /**
  * Brief feedback at the place something happened. Everything is drawn through a PEN, so the same effects serve the flat
- * primitive arenas (the pen is a Phaser Graphics) and Garden (the pen projects the ground plane through its camera).
+ * primitive arenas (the pen is a Phaser Graphics) and the maps (the pen projects the ground plane through the map's camera).
  */
 export function spawnEffect(
   scene: Phaser.Scene,

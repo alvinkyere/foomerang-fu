@@ -3,8 +3,8 @@ import type { ArenaChoice } from '../../runtime/powerupMode';
 import { reconstructedMapFor } from '../reconstructed/maps';
 
 /**
- * Phaser is a large dependency, so it is a separate chunk that is fetched only when an arena is needed; Garden's renderer is
- * a further chunk that only Garden players download.
+ * Phaser is a large dependency, so it is a separate chunk that is fetched only when an arena is needed; the maps' renderer
+ * is a further chunk.
  */
 export const phaserRendererFor =
   (arena: ArenaChoice): ArenaRendererLoader =>
@@ -13,10 +13,6 @@ export const phaserRendererFor =
     if (reconstructed !== undefined) {
       const { createReconstructedArena } = await import('./reconstructed/ReconstructedArena');
       return createReconstructedArena(container, reconstructed);
-    }
-    if (arena === 'garden') {
-      const { createGardenArena } = await import('./garden/GardenArena');
-      return createGardenArena(container);
     }
     const { createPhaserArena } = await import('./PhaserArena');
     return createPhaserArena(container);

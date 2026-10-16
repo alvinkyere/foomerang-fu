@@ -8,7 +8,7 @@ const holes = (host: Host, name: string) =>
 test('Game Settings names Free For All, and Hide & Seek is visible, says Coming soon and cannot be chosen', async ({
   hostAt,
 }) => {
-  const host = await hostAt('?powerups=off');
+  const host = await hostAt('?arena=market_plaza&powerups=off');
   await host.page.getByRole('button', { name: 'Foomerang Fu', exact: true }).click();
   await host.page.getByRole('button', { name: 'Game Settings' }).click();
   const sheet = host.page.getByRole('dialog', { name: 'Game Settings' });
@@ -23,7 +23,7 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   hostAt,
 }) => {
   test.setTimeout(180_000);
-  const host = await hostAt('?kills=3&powerups=off');
+  const host = await hostAt('?arena=market_plaza&kills=3&powerups=off');
   await host.createRoom();
   await host.addCpu('Hard');
   await host.addCpu('Hard');
@@ -87,7 +87,7 @@ test('a person who joins while the match is running connects and waits; the rema
   newPhone,
 }) => {
   test.setTimeout(180_000);
-  const host = await hostAt('?kills=2&powerups=off');
+  const host = await hostAt('?arena=market_plaza&kills=2&powerups=off');
   const code = await host.createRoom();
   await host.addCpu('Hard');
   await host.addCpu('Hard');
@@ -117,7 +117,7 @@ test('reloading the console page mid-match loses the match, says so, and returns
   hostAt,
 }) => {
   test.setTimeout(120_000);
-  const host = await hostAt('?kills=14&powerups=off');
+  const host = await hostAt('?arena=market_plaza&kills=14&powerups=off');
   await host.createRoom();
   await host.addCpu('Easy');
   await host.addCpu('Easy');

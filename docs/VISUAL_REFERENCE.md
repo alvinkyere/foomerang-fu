@@ -2,7 +2,7 @@
 
 Two references, two jobs (the hierarchy the project owner set for the Master Gameplay Fidelity Pass):
 
-* **`Garden Map - Fu.jpeg`** is authoritative for the **Garden arena only**: where the walls, openings, boulders, portals, levers, vegetation and the boundary are (see docs/GARDEN.md). It is not a reference for the whole game.
+* ~~`Garden Map - Fu.jpeg`~~: the Garden arena and its reference image were **removed** on 2026-10-15 at the owner's request.
 * **`foomerang-fu gameplay.mp4`** is authoritative for **how Foomerang Fu looks, moves and presents itself**: camera feel, character construction and animation, effects, lighting, shadows, materials, depth, pacing, and the restraint of the interface. The video's own arenas do **not** replace Garden. *Garden image → where things are. Gameplay video → how the game looks, moves and presents itself.*
 
 ## 1. The file

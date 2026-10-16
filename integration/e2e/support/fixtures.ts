@@ -13,6 +13,8 @@ import type { StackInfo } from './stack';
 /** The shape of the console's DEV-only read-only snapshot (a deep copy; see apps/console/src/debugHook.ts). */
 export interface Snapshot {
   phase: string;
+  /** The map of the current (or last) Foomerang Fu match. */
+  arena: string | null;
   joinCode: string | undefined;
   roomState: string | undefined;
   roster: { playerId: string; displayName: string; connection: string; seat: string }[];

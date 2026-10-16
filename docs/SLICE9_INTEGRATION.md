@@ -6,9 +6,12 @@ This page records what that work does **not** do yet, so nobody mistakes it for 
 
 ## Arenas
 
-The console address chooses the arena: `?arena=<name>`. Garden is the default. There are 14 reconstructed maps: `market_plaza`,
+**Every match is on a different map, always** (2026-10-15, owner decision): a shuffle bag over the 14 reconstructed maps, so every map
+is played before any comes back, and never the same map twice in a row (rematches included). The **Garden map was removed** at the
+owner's request (its characters were not the supplied models); `?arena=garden` no longer exists. `?arena=<name>` remains only as a
+development/test pin (it disables rotation). The 14 reconstructed maps: `market_plaza`,
 `harbour_fort`, `sky_islands`, `pond_garden`, `lakeshore`, `farm_plots`, `flooded_ruins`, `hedge_maze`, `toaster_dock`,
-`twin_log_rink`, `hex_grove`, `stone_ruins`, `cross_pond` and `diamond_walls`. **There is no in-game map selection screen.**
+`twin_log_rink`, `hex_grove`, `stone_ruins`, `cross_pond` and `diamond_walls`. There is no map selection screen (rotation instead).
 
 - 12 maps are **frame mode**: each is one 640×360 frame of the reference video, upscaled to the game view. They are visibly soft at
   1080p, and more so on a TV. The view does not pan.
@@ -26,7 +29,6 @@ The console address chooses the arena: `?arena=<name>`. Garden is the default. T
   desaturated** (×0.79 saturation). Both were tuned to the video. Other colours match the supplied textures.
 - **Donut and milk** have sheets but no map seats them, so they never appear. Bacon appears only on hex_grove. Avocado appears only on
   harbour_fort and diamond_walls.
-- **Garden still uses its four code-drawn characters** (Bread, Coffee, Pumpkin, Fruit), not the supplied models.
 - Characters are about 40–65 px tall at 1920×1080.
 - The licensed models (`art/reconstruction/licensed`) and the reference video are not in git. Rebuilding the sprite sheets or map art
   needs them. A backup is kept outside the repository.
@@ -38,11 +40,11 @@ remain a release blocker**. Earlier 6× CPU-throttle runs showed hitches.
 
 ## Follow-up backlog (separate tasks, not part of the integration)
 
-1. Replace Garden's code-drawn characters with the supplied-model sprite sheets.
+1. (Done 2026-10-15 by removal: the Garden map is gone.)
 2. Make all 10 supplied characters selectable (donut and milk currently never appear).
 3. Fix the harbour_fort gatehouse roof-occlusion defect.
 4. Improve character animation and on-screen readability (size, poses).
-5. Add an in-game map selection screen (today: `?arena=` only).
+5. ~~Add an in-game map selection screen~~ superseded: the map changes every match (owner decision, 2026-10-15).
 6. Improve the low-resolution frame-mode maps.
 7. Validate on a physical TV and with physical phone controllers.
 8. Owner decisions still open: the market_plaza camera, drops and gaps, the cross_pond raft, the hedge_maze character scale,

@@ -51,7 +51,7 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   newPhone,
 }) => {
   test.setTimeout(240_000);
-  const host = await hostAt('?kills=2&powerups=off');
+  const host = await hostAt('?arena=market_plaza&kills=2&powerups=off');
   const code = await host.createRoom(); // the last time anyone touches the TV
   const tv = host.page;
 

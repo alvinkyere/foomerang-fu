@@ -1,5 +1,5 @@
 /**
- * A small painter's toolkit on Canvas 2D. Garden's look (soft shading, soft shadows, painterly ground, plush characters) is
+ * A small painter's toolkit on Canvas 2D. The maps' painted effects (soft shading, soft shadows) are
  * BAKED into textures with it once, when the scene starts; at run time Phaser only places and animates the baked sprites. It
  * uses nothing but the browser's own canvas: no new dependency, and no asset is downloaded (every texture is generated).
  */
@@ -78,7 +78,7 @@ export function polyPath(ctx: Ctx, pts: readonly P[]): void {
 
 /**
  * Draws ONLY the soft shadow of a shape: the shape is drawn far off the canvas and its shadow is thrown back onto it, so the
- * hard shape never shows. This is how every shadow in Garden gets its soft edge (portable: no `filter` needed).
+ * hard shape never shows. This is how every painted shadow gets its soft edge (portable: no `filter` needed).
  */
 export function softShadow(
   ctx: Ctx,

@@ -49,6 +49,8 @@ export function ArenaScreen({
   const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
   const lastHud = useRef('');
   const context = useSyncExternalStore(runtime.subscribeContext, runtime.context);
+  // The map of THIS match: a rematch on a rotating console is on another map, so the renderer is swapped.
+  const arena = useSyncExternalStore(runtime.subscribeArena, runtime.arena);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -107,7 +109,7 @@ export function ArenaScreen({
       }
     });
 
-    loadRenderer(container).then(
+    loadRenderer(container, arena).then(
       (loaded) => {
         if (cancelled) {
           loaded.destroy();
@@ -128,7 +130,7 @@ export function ArenaScreen({
       renderer = undefined;
       onRenderer?.(undefined);
     };
-  }, [runtime, loadRenderer, createLoop, now, onRenderer]);
+  }, [runtime, arena, loadRenderer, createLoop, now, onRenderer]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

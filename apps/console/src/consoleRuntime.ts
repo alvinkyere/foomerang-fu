@@ -3,6 +3,7 @@ import type { ControllerContext, SecondaryActionLabel } from '@foomerang/protoco
 import { HostSession, type HostStore, type HostTransportFactory } from './host';
 import { deriveContext } from './runtime/controllerContext';
 import { InputRouter, type MenuAction } from './runtime/controllerInput';
+import { MapRotation } from './runtime/mapRotation';
 import { MatchDirector, createRuntimeFor, warmUpFor } from './runtime/matchDirector';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './runtime/powerupMode';
@@ -15,8 +16,14 @@ export interface ConsoleRuntimeOptions {
   readonly now?: () => number;
   /** How quickly Foomerang Fu's pickups appear (the page address's `?powerups=`); default normal. */
   readonly powerups?: PowerupMode;
-  /** Which arena Foomerang Fu is played in (the page address's `?arena=`); default the baseline arena. */
-  readonly arena?: ArenaChoice;
+  /**
+   * Which map Foomerang Fu is played on. `'rotate'` (the product): a different rendered map every
+   * match, always. A map name pins it (the page address's `?arena=`, for development and tests).
+   * Absent: the baseline test arena.
+   */
+  readonly arena?: ArenaChoice | 'rotate';
+  /** The rotation's randomness, in [0, 1) (tests make it deterministic); default Math.random. */
+  readonly random?: () => number;
   /** Which powers a Book may award (the page address's `?enable=`); default all five. */
   readonly enabled?: readonly PowerKind[];
   /** Test/playtest only (the page address's `?kills=`): fewer kills to win, so a match ends in seconds. Default 14. */
@@ -39,6 +46,10 @@ export interface ConsoleRuntime {
   readonly menu: MenuInput;
   /** What the phones' controls mean right now. */
   readonly context: () => ControllerContext;
+  /** The map of the current (or last) Foomerang Fu match; undefined before any, or for another game. */
+  readonly arena: () => ArenaChoice | undefined;
+  /** Told whenever a match begins on a map (a rematch on a rotating console changes it). */
+  readonly subscribeArena: (listener: () => void) => () => void;
   /** Told whenever the context changes (for the screens that follow it: the pause menu). */
   readonly subscribeContext: (listener: () => void) => () => void;
   /** Open the pause menu: only while a match is being played. The game truly freezes. */
@@ -67,18 +78,28 @@ export interface ConsoleRuntime {
  */
 export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRuntime {
   const now = options.now ?? ((): number => performance.now());
-  const director = new MatchDirector(
-    (gameId, mode) =>
-      createRuntimeFor(
-        gameId,
-        options.powerups,
-        options.enabled,
-        options.arena,
-        mode,
-        options.targetKills,
-      ),
-    warmUpFor,
-  );
+  // Every match chooses its map here, so the rules and the renderer are told the same one.
+  const rotation = new MapRotation(options.random);
+  let arena: ArenaChoice | undefined;
+  const arenaListeners = new Set<() => void>();
+  const director = new MatchDirector((gameId, mode) => {
+    const choice =
+      gameId !== 'foomerang-fu'
+        ? undefined
+        : options.arena === 'rotate'
+          ? rotation.next()
+          : options.arena;
+    arena = choice;
+    for (const listener of [...arenaListeners]) listener();
+    return createRuntimeFor(
+      gameId,
+      options.powerups,
+      options.enabled,
+      choice,
+      mode,
+      options.targetKills,
+    );
+  }, warmUpFor);
   const session = new HostSession({
     transportFactory: options.transportFactory,
     ...(options.store ? { store: options.store } : {}),
@@ -175,6 +196,11 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       },
     },
     context: () => router.context,
+    arena: () => arena,
+    subscribeArena: (listener) => {
+      arenaListeners.add(listener);
+      return () => void arenaListeners.delete(listener);
+    },
     subscribeContext: (listener) => {
       contextListeners.add(listener);
       return () => void contextListeners.delete(listener);
@@ -207,6 +233,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       stopPump?.();
       menuListeners.clear();
       contextListeners.clear();
+      arenaListeners.clear();
       session.dispose();
     },
   };

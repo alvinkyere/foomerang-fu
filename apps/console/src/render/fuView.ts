@@ -300,7 +300,7 @@ export function buildFuView(
   };
 }
 
-/** The production arena's name for the renderer (Garden or a reconstructed map); test arenas stay unnamed. */
+/** The production arena's name for the renderer (a reconstructed map); test arenas stay unnamed. */
 function namedArena(arena: FuArena): { readonly arenaId?: ArenaChoice } {
   const choice = choiceOf(arena);
   return choice !== undefined && PLAYABLE_ARENAS[choice].named ? { arenaId: choice } : {};

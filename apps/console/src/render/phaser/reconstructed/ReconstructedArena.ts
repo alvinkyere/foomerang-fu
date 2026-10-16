@@ -19,7 +19,7 @@ import {
   type ReconstructedMap,
 } from '../../reconstructed/maps';
 import { POWER_STYLE, toNumber } from '../effects';
-import { Vfx } from '../garden/vfx';
+import { Vfx } from '../vfx';
 
 /**
  * The renderer for every map reconstructed from the master gameplay video (art/reconstruction). Everything visible is BAKED
@@ -363,7 +363,7 @@ class ReconstructedScene extends Phaser.Scene {
     this.#vfx?.event(event, POWER_STYLE.BLAST_BOOMERANG.color);
   }
 
-  /** A tall object in front of a living player that overlaps their silhouette fades, so nobody is hidden (as in Garden). */
+  /** A tall object in front of a living player that overlaps their silhouette fades, so nobody is hidden. */
   #fadeWhatHidesSomeone(): void {
     const people = [...this.#sprites]
       .filter(([id]) => this.#view?.circles.find((q) => q.id === id)?.dead === false)

@@ -488,7 +488,11 @@ Bundle (`pnpm build`, gzip): initial JS **126.6 kB** (budget 130; +2.3 kB for th
 
 Is 14 the right number, and is a match of a few minutes the right length? Do you feel the race (whose meter is closest) without staring at the strip? Is the strip readable from the couch without cluttering the arena? Does the floor penalty feel fair? Does the champion screen, rematch and return flow feel right? Does a latecomer waiting feel acceptable?
 
-## Slice 9: Production Content — Garden (engineering complete, **not yet played**; the visual gate is the owner's)
+## Slice 9: Production Content — Garden (**REMOVED 2026-10-15** at the owner's request; kept below as history only)
+
+> The Garden map and everything specific to it (rules arena, renderer, code-drawn characters, tests, tooling, reference image) were
+> deleted: its characters were not the supplied models. Foomerang Fu now plays the 14 maps reconstructed from the reference video,
+> **a different map every match** (see docs/SLICE9_INTEGRATION.md).
 
 **Slice 9 — Garden: engineering complete. Not PASS.** One production arena, **Garden**, reconstructed from the repository's `Garden Map - Fu.jpeg` (2752 × 1566, 1.757 : 1) — see **docs/GARDEN.md** for the measurement method, the measured layout, the camera, the geometry, the characters, the combat presentation, the occlusion rule, the CPU results, the screenshot comparison, the known visual discrepancies and the performance numbers. Two independent gates: **(A) gameplay/engineering** — Garden behaves as a Foomerang Fu arena (all approved mechanics, the full Free For All, CPUs); **(B) visual fidelity** — does it look like the reference. Passing tests does not imply passing (B); the owner judges it.
 

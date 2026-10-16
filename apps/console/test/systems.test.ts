@@ -30,13 +30,19 @@ const slots = () => {
   return s;
 };
 
-describe('?arena= (a page-address choice between Garden, the Slice 6 arena and the baseline test arena)', () => {
-  it('knows exactly "systems" and "primitive"; anything else is Garden, the production arena', () => {
+describe('?arena= (a page-address choice: the reconstructed maps, the Slice 6 arena, the baseline test arena)', () => {
+  it('knows "systems" and "primitive" exactly; anything else (the removed Garden included) is no pin', () => {
     expect(parseArenaParam('?arena=systems')).toBe('systems');
     expect(parseArenaParam('?arena=primitive')).toBe('primitive');
-    expect(parseArenaParam('?arena=garden')).toBe('garden');
-    for (const junk of ['', '?arena=', '?arena=SYSTEMS', '?arena=Primitive', '?arenas=systems']) {
-      expect(parseArenaParam(junk), junk).toBe('garden');
+    for (const junk of [
+      '',
+      '?arena=',
+      '?arena=garden',
+      '?arena=SYSTEMS',
+      '?arena=Primitive',
+      '?arenas=systems',
+    ]) {
+      expect(parseArenaParam(junk), junk).toBeUndefined();
     }
   });
 

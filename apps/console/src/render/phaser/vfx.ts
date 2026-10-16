@@ -1,19 +1,19 @@
 import * as Phaser from 'phaser';
-import { POWER_STYLE, toNumber } from '../effects';
-import { groundScale, project } from '../../garden/camera';
+import { POWER_STYLE, toNumber } from './effects';
 
 /** A map's projection: world (x, y, height) → canvas pixels, and the ground scale there. */
 export interface VfxCamera {
   project(x: number, y: number, z?: number): { readonly x: number; readonly y: number };
   groundScale(x: number, y: number): { readonly sx: number; readonly sy: number };
 }
-export const GARDEN_VFX_CAMERA: VfxCamera = { project, groundScale };
-import type { ViewEvent } from '../../viewModel';
-import { LIGHT } from './environment';
+import type { ViewEvent } from '../viewModel';
 import { makeCanvas, polyPath, rng, roundedPath, type P } from './paint';
 
+/** The direction the maps' light comes from (shadows fall away from it), in world units per unit of height. */
+const LIGHT = { x: 0.95, y: 1.0 } as const;
+
 /**
- * Garden's effects, in the reference video's language: flat, shape-driven, saturated shapes with soft opacity — a hot disc,
+ * The maps' effects, in the reference video's language: flat, shape-driven, saturated shapes with soft opacity — a hot disc,
  * a shock ring, chunky dark debris, sparks, soft dust puffs, a burst of the victim's own colours — never photoreal smoke.
  * They follow the rules' events (positions, the exact blast radius, the exact swing arc and reach); they never decide
  * anything, and they are short, so the floor is left clean.
@@ -221,13 +221,13 @@ export class Vfx {
   readonly #kindOf: (id: string | undefined) => string | undefined;
   #seed = 1;
 
-  /** The projection of the arena this effect layer draws in (Garden's camera unless a map supplies its own). */
+  /** The projection of the arena this effect layer draws in (each map supplies its own). */
   readonly #cam: VfxCamera;
 
   constructor(
     scene: Phaser.Scene,
     kindOf: (id: string | undefined) => string | undefined,
-    cam: VfxCamera = GARDEN_VFX_CAMERA,
+    cam: VfxCamera,
   ) {
     this.#cam = cam;
     this.#scene = scene;

@@ -1,7 +1,0 @@
-{
- "meanAbsColourDiff": 17.98,
- "stoneMaskIoU": 0.75,
- "stoneMaskWithin5px": 0.954,
- "referenceStonePixels": 177067,
- "implementationStonePixels": 201517
-}

@@ -88,7 +88,7 @@ test('Foomerang Fu: a CPU can be removed and its difficulty changed before the m
  * evaluation harness without a browser). Reports the host's frame rate, what deciding for the CPUs costs
  * per step, and how much simulation time the host had to discard.
  */
-test('six Hard CPUs on Garden (the stress case, nobody on a phone): host frame rate, frame time, CPU decision cost and discarded simulation', async ({
+test('six Hard CPUs on a reconstructed map (the stress case, nobody on a phone): host frame rate, frame time, CPU decision cost and discarded simulation', async ({
   browser,
   stack,
 }) => {
@@ -98,7 +98,7 @@ test('six Hard CPUs on Garden (the stress case, nobody on a phone): host frame r
   const [vw, vh] = (process.env['FOOMERANG_E2E_VIEWPORT'] ?? '1600x900').split('x').map(Number);
   const context = await browser.newContext({ viewport: { width: vw ?? 1600, height: vh ?? 900 } });
   const { Host: HostClass } = await import('./support/fixtures');
-  const arena = process.env['FOOMERANG_E2E_ARENA'] ?? 'garden';
+  const arena = process.env['FOOMERANG_E2E_ARENA'] ?? 'market_plaza';
   const host = new HostClass(
     await context.newPage(),
     `${stack.consoleUrl}/?arena=${arena}&kills=14&powerups=high`,

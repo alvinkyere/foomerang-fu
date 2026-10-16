@@ -64,7 +64,7 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins → CPUs → 
   newPhone,
 }) => {
   test.setTimeout(240_000);
-  const host = await hostAt('?kills=2&powerups=off');
+  const host = await hostAt('?arena=market_plaza&kills=2&powerups=off');
   const page = host.page;
 
   await expect.poll(() => focusId(page)).toBe('tile-foomerang-fu'); // Home is up and focused

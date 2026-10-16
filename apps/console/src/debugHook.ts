@@ -11,6 +11,8 @@ import type { ArenaRenderer } from './render/renderer';
  */
 export interface DebugSnapshot {
   readonly phase: string;
+  /** The map of the current (or last) Foomerang Fu match: it changes every match. */
+  readonly arena: string | null;
   readonly joinCode: string | undefined;
   readonly roomState: string | undefined;
   readonly roster: readonly {
@@ -63,6 +65,7 @@ export function installDebugHook(
       }
       const snapshot: DebugSnapshot = {
         phase: state.phase,
+        arena: runtime.arena() ?? null,
         joinCode: state.joinCode,
         roomState: state.roomState,
         roster: state.roster.map((r) => ({ ...r })),

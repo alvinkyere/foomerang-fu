@@ -58,7 +58,8 @@ if (!config.ok) {
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
     powerups: parsePowerupsParam(window.location.search),
-    arena: parseArenaParam(window.location.search),
+    // A different map every match, unless the address pins one (development and tests).
+    arena: parseArenaParam(window.location.search) ?? 'rotate',
     ...enabledOption,
     ...killsOption,
   });
@@ -85,11 +86,7 @@ if (!config.ok) {
         gameId={parseGameParam(window.location.search)}
         controllerBaseUrl={config.controllerBaseUrl}
         warnings={config.warnings}
-        loadRenderer={phaserRendererFor(
-          parseGameParam(window.location.search) === 'foomerang-fu'
-            ? parseArenaParam(window.location.search)
-            : 'primitive',
-        )}
+        loadRenderer={(container, arena) => phaserRendererFor(arena ?? 'primitive')(container)}
         onRenderer={onRenderer}
       />
     </StrictMode>,

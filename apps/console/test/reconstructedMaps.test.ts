@@ -21,11 +21,11 @@ const manifestOf = (dir: string): Record<string, unknown> =>
   >;
 
 describe('reconstructed maps', () => {
-  it('market_plaza is a distinct, selectable reconstructed map; Garden is not one', () => {
+  it('market_plaza is a distinct, selectable reconstructed map; the Garden no longer exists', () => {
     expect(parseArenaParam('?arena=market_plaza')).toBe('market_plaza');
     expect(reconstructedMapFor('market_plaza')?.assetDir).toBe('maps/market_plaza/');
-    expect(reconstructedMapFor('garden')).toBeUndefined();
-    expect(parseArenaParam('')).toBe('garden');
+    expect(parseArenaParam('?arena=garden')).toBeUndefined(); // not a choice any more: rotate
+    expect(parseArenaParam('')).toBeUndefined(); // no pin: the console rotates
   });
 
   it('seats 1–6 on the plaza are six different pack characters (the plaza video cast)', () => {
