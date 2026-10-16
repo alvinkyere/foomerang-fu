@@ -10,7 +10,7 @@ import {
   reconstructedMapFor,
 } from '../src/render/reconstructed/maps';
 import { PLAYABLE_ARENAS } from '../src/runtime/arenas';
-import { parseArenaParam } from '../src/runtime/powerupMode';
+import { parseArenaParam, productArena } from '../src/runtime/powerupMode';
 
 // Maps reconstructed from the master gameplay video are registered as DATA (asset folder, seat roster); everything else about a
 // map — camera, layers, character atlases — ships in its manifest, so adding a map needs no renderer branch.
@@ -41,6 +41,13 @@ describe('reconstructed maps', () => {
     expect(reconstructedMapFor('market_plaza')?.assetDir).toBe('maps/market_plaza/');
     expect(parseArenaParam('?arena=garden')).toBeUndefined(); // not a choice any more: rotate
     expect(parseArenaParam('')).toBeUndefined(); // no pin: the console rotates
+  });
+
+  it('the product plays only the market plaza (the owner, 2026-10-16: perfect it first); a dev pin still picks a map', () => {
+    expect(productArena('')).toBe('market_plaza');
+    expect(productArena('?kills=3&powerups=off')).toBe('market_plaza');
+    expect(productArena('?arena=garden')).toBe('market_plaza'); // unknown: the plaza, never a rotation
+    expect(productArena('?arena=harbour_fort')).toBe('harbour_fort'); // development and tests only
   });
 
   it('seats 1–6 on the plaza are six different pack characters (the plaza video cast)', () => {

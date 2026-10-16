@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
 import {
-  parseArenaParam,
+  productArena,
   parseEnabledParam,
   parseKillsParam,
   parsePowerupsParam,
@@ -58,8 +58,8 @@ if (!config.ok) {
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
     powerups: parsePowerupsParam(window.location.search),
-    // A different map every match, unless the address pins one (development and tests).
-    arena: parseArenaParam(window.location.search) ?? 'rotate',
+    // Only the market plaza, unless the address pins a map (development and tests).
+    arena: productArena(window.location.search),
     ...enabledOption,
     ...killsOption,
   });

@@ -48,9 +48,9 @@ export function parseKillsParam(search: string): number | undefined {
 }
 
 /**
- * A pinned map (`?arena=`): for development and tests only. The product rotates (a different map
- * every match). `systems` and `primitive` are the test arenas; the reconstructed maps are named as
- * in the table. Absent or unknown (the removed Garden included): no pin, so the console rotates.
+ * A pinned map (`?arena=`): for development and tests only. `systems` and `primitive` are the test
+ * arenas; the reconstructed maps are named as in the table. Absent or unknown (the removed Garden
+ * included): no pin.
  */
 export const ARENA_CHOICES = [
   'primitive',
@@ -77,3 +77,11 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
     ? (value as ArenaChoice)
     : undefined;
 };
+
+/**
+ * The map the product plays: only the market plaza (the owner, 2026-10-16: the plaza is perfected
+ * first, and what is learned there builds the other maps), unless the address pins one for
+ * development and tests. (Per-match rotation, `'rotate'`, stays available to the runtime.)
+ */
+export const productArena = (search: string): ArenaChoice =>
+  parseArenaParam(search) ?? 'market_plaza';

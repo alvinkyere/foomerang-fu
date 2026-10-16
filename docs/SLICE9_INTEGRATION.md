@@ -6,7 +6,12 @@ This page records what that work does **not** do yet, so nobody mistakes it for 
 
 ## Arenas
 
-**Every match is on a different map, always** (2026-10-15, owner decision): a shuffle bag over the 14 reconstructed maps, so every map
+**Only the market plaza, every match** (2026-10-16, owner decision): the plaza (environ2) is perfected first — gameplay,
+effects, everything — and what is learned there is then used to build the other maps. The product therefore does not switch maps;
+`?arena=<name>` still pins another map for development and tests. The per-match rotation below stays in the runtime (`'rotate'`),
+unused by the product.
+
+Before that (2026-10-15, owner decision, superseded): **every match on a different map, always**: a shuffle bag over the 14 reconstructed maps, so every map
 is played before any comes back, and never the same map twice in a row (rematches included). The **Garden map was removed** at the
 owner's request (its characters were not the supplied models); `?arena=garden` no longer exists. `?arena=<name>` remains only as a
 development/test pin (it disables rotation). The 14 reconstructed maps: `market_plaza`,

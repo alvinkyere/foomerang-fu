@@ -17,9 +17,9 @@ export interface ConsoleRuntimeOptions {
   /** How quickly Foomerang Fu's pickups appear (the page address's `?powerups=`); default normal. */
   readonly powerups?: PowerupMode;
   /**
-   * Which map Foomerang Fu is played on. `'rotate'` (the product): a different rendered map every
-   * match, always. A map name pins it (the page address's `?arena=`, for development and tests).
-   * Absent: the baseline test arena.
+   * Which map Foomerang Fu is played on. A map name pins it (the product: the market plaza; the
+   * page address's `?arena=` picks another for development and tests). `'rotate'`: a different
+   * rendered map every match. Absent: the baseline test arena.
    */
   readonly arena?: ArenaChoice | 'rotate';
   /** The rotation's randomness, in [0, 1) (tests make it deterministic); default Math.random. */

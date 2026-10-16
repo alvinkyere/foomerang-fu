@@ -9,6 +9,7 @@ import '../shell/tokens.css';
 import '../shell/components.css';
 import { DebugOverlay } from './DebugOverlay';
 import { ChampionScreen, ScoreStrip, ScoreToasts, Standings, type Pulse } from './Hud';
+import { addScoreToasts, type ScoreToastState } from './scoreToasts';
 import { useHostState } from './useStore';
 
 // Module-level so their identity is stable: the effect below must not restart (and destroy the
@@ -46,6 +47,7 @@ export function ArenaScreen({
   const [hud, setHud] = useState<HudView | undefined>(undefined);
   const [waiting, setWaiting] = useState<readonly string[]>([]);
   const [toasts, setToasts] = useState<readonly ScoreEventView[]>([]);
+  const toastState = useRef<ScoreToastState>({ toasts: [], serial: 0 });
   const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
   const lastHud = useRef('');
   const context = useSyncExternalStore(runtime.subscribeContext, runtime.context);
@@ -83,8 +85,9 @@ export function ArenaScreen({
         setWaiting(waitingNow);
       }
       if (next.scoreEvents.length > 0) {
-        const fresh = next.scoreEvents;
-        setToasts((old) => [...old, ...fresh].slice(-4));
+        const { added: fresh, ...kept } = addScoreToasts(toastState.current, next.scoreEvents);
+        toastState.current = kept;
+        setToasts(kept.toasts);
         setPulses((old) => ({
           ...old,
           ...Object.fromEntries(
