@@ -14,6 +14,12 @@ Run in order (OpenCV 4.11, NumPy; Python 3):
 | 4    | `arena_environ2.py`   | `step4_arena.json`, `step4_arena_overlay.png`, rules module  | 1729 × 1108 arena, 51 wall rectangles by kind, 6 spawns ≥ 736 apart, 8 Book spots                                                                                                                              |
 | 5    | `package_environ2.py` | `apps/console/public/maps/market_plaza/`                     | the 1920×1080 canvas (Lanczos ×1.5 once; ground + layers still reproduce it exactly), camera ×1.5, character scale 1.144                                                                                       |
 
+Step 6 (the final comparison, 2026-10-16), from the running game's own canvas pixels (WebGL, 1920 × 1080, two CPU players,
+`?arena=market_plaza`): away from what the game draws on top (players, rings, boomerangs, hit effects), the canvas equals the
+packaged plate exactly (0 pixels differ). Against `environ2.avif` itself, 2.74% of pixels differ by more than 12 levels:
+20,305 of them where environ2's characters and effects were removed, the rest the two game players (`step6_comparison.png`).
+Performance: `../PERFORMANCE.md`.
+
 Measured, not chosen:
 
 - **World scale.** A player's circle (radius 36) is as large against environ2's characters (45 px tall at the fountain) as it

@@ -12,8 +12,17 @@ Conditions common to every row (2026-10-08): iMac21,2 (Apple M1, 8 CPU cores, 7-
 154.0.0.0, **dev console build** (Vite dev server, React dev mode), DPR 1, Phaser game 1920 × 1080 scaled to the viewport (`Scale.FIT`),
 30 s per run, effects on (Powerups high), no other heavy process running.
 
-> The `market_plaza` rows below measured the PREVIOUS (video) plaza. `market_plaza` is now environ2 (31 layers in 386 depth
-> slices); it has not been re-measured yet.
+> The `market_plaza` rows in the table below measured the PREVIOUS (video) plaza. `market_plaza` is now environ2 (31 layers drawn
+> as 386 depth slices), re-measured 2026-10-16 with the same test on the same machine (one run each, 30 s, six Hard CPUs):
+>
+> | Map                     | Viewport  | CPU throttle | Avg FPS | 1% low FPS | p50 / p95 / p99 ms | Worst frame (2 s windows) | Discarded simulation |
+> | ----------------------- | --------- | ------------ | ------- | ---------- | ------------------ | ------------------------- | -------------------- |
+> | market_plaza (environ2) | 1920×1080 | 1×           | 60.00   | 59.52      | 16.7 / 16.7 / 16.8 | 28.3                      | 33 ms                |
+> | market_plaza (environ2) | 1920×1080 | 6×           | 57.27   | 20.36      | 16.7 / 16.8 / 33.4 | 88.8                      | 1500 ms              |
+>
+> At 1× it holds 60 like the previous plaza (worst frame better: 28.3 vs 36.1 ms). Under a 6× CPU throttle it is worse (1% low
+> 20.4 vs 28.4 FPS, worst 88.8 vs 80.1 ms), plausibly the 386 slice images against the previous 23 layers; one run each, so
+> not yet separated from run-to-run variance.
 
 | Map          | Viewport  | Canvas backing | CPU throttle | Avg FPS | 1% low FPS | p50 / p95 / p99 ms | Worst frame (2 s windows) |
 | ------------ | --------- | -------------- | ------------ | ------- | ---------- | ------------------ | ------------------------- |
