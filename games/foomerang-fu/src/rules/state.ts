@@ -27,6 +27,8 @@ export interface FuPlayer {
   readonly inventory: Inventory;
   /** Slice 6: indices of hazards whose ACTIVE window already met this player's shield (they cannot be hit by it again until it ends). */
   readonly hazardSpared: readonly number[];
+  /** Seconds this player has been outside the arena's safe zone without a break (0 inside it, and for the dead). */
+  readonly outsideFor: number;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
@@ -149,6 +151,7 @@ export function startRound(
       fatigue: RESTED,
       inventory: carried.get(spec.id) ?? NO_POWERS,
       hazardSpared: Object.freeze([]),
+      outsideFor: 0,
     });
   });
 

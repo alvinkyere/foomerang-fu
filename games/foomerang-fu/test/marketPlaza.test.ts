@@ -20,9 +20,9 @@ import { DT, R, at, input, make } from './support/fixtures';
 const walls = wallsOf(MARKET_PLAZA_ARENA);
 
 describe('market_plaza: the arena data', () => {
-  it('is environ2’s 1729 × 1108 plaza (fence to fence, far wall to the frame), six spawns, no Slice 6 systems', () => {
-    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([1729, 1108]);
-    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([1729, 1108]);
+  it('is environ2’s plaza plus the outside sand beyond each fence: 2209 × 1108, six spawns, no Slice 6 systems', () => {
+    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([2209, 1108]);
+    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([2209, 1108]);
     expect(MARKET_PLAZA_ARENA.spawns).toHaveLength(6);
     expect(MARKET_PLAZA_ARENA.gates ?? []).toEqual([]);
     expect(MARKET_PLAZA_ARENA.platforms ?? []).toEqual([]);
@@ -37,9 +37,32 @@ describe('market_plaza: the arena data', () => {
     const kinds = new Set(MARKET_PLAZA_WALLS.map((w) => w.kind));
     for (const kind of ['STALL', 'FOUNTAIN', 'CRATE', 'POT', 'POLE', 'SIGN', 'TERRACE'] as const)
       expect(kinds.has(kind), kind).toBe(true);
-    // the fountain's base is a circle of radius 162 around (864.5, 663.5): its centre blocks, a body clear of its rim does not
-    expect(circleHitsWalls({ x: 864.5, y: 663.5 }, 1, walls)).toBe(true);
-    expect(circleHitsWalls({ x: 864.5, y: 663.5 + 162 + 40 + R }, R, walls)).toBe(false);
+    // the fountain's base is a circle of radius 162 around (1104.5, 663.5): its centre blocks, a body clear of its rim does not
+    expect(circleHitsWalls({ x: 1104.5, y: 663.5 }, 1, walls)).toBe(true);
+    expect(circleHitsWalls({ x: 1104.5, y: 663.5 + 162 + 40 + R }, R, walls)).toBe(false);
+  });
+
+  it('its border is the two dashed lines on the sand: the safe zone runs from world x 271 to 1939', () => {
+    expect(MARKET_PLAZA_ARENA.safeZone).toEqual({
+      x: 271,
+      y: 0,
+      width: 1668,
+      height: MARKET_PLAZA_HEIGHT,
+    });
+  });
+
+  it('beyond the dashed lines a player can walk out onto open sand (no wall there), and every spawn is inside them', () => {
+    for (const y of [300, 500, 700, 900]) {
+      expect(circleHitsWalls({ x: 140, y }, R, walls), `west outside at y ${y}`).toBe(false);
+      expect(
+        circleHitsWalls({ x: MARKET_PLAZA_WIDTH - 140, y }, R, walls),
+        `east outside at y ${y}`,
+      ).toBe(false);
+    }
+    for (const p of MARKET_PLAZA_SPAWNS) {
+      expect(p.x).toBeGreaterThan(271);
+      expect(p.x).toBeLessThan(1939);
+    }
   });
 
   it('every obstacle lies inside the boundary, has a positive size and a unique id; the fountain centre is solid', () => {

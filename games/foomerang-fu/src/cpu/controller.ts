@@ -121,6 +121,8 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
 export class CpuController {
   readonly #id: string;
   readonly #profile: Profile;
+  /** The arena's border (its safe zone), read from the state each decision. */
+  #zone: Rect | undefined;
   readonly #rng: Rng;
   readonly #delay: number;
   readonly #phase: number;
@@ -275,6 +277,20 @@ export class CpuController {
 
     const onPlatform = view.systems.platforms.some((pl) => inRect(here, pl.rect));
 
+    // 0. the border: outside the safe zone a player explodes, so a CPU that finds itself out there heads straight back in
+    const zone = state.config.arena.safeZone;
+    this.#zone = zone;
+    if (zone !== undefined && !inRect(here, zone)) {
+      const margin = state.config.playerRadius + 30;
+      const to = {
+        x: Math.min(Math.max(here.x, zone.x + margin), zone.x + zone.width - margin),
+        y: Math.min(Math.max(here.y, zone.y + margin), zone.y + zone.height - margin),
+      };
+      const d = Math.hypot(to.x - here.x, to.y - here.y) || 1;
+      this.#move = { x: (to.x - here.x) / d, y: (to.y - here.y) / d };
+      return;
+    }
+
     // 1. the floor: get off danger it can see (Easy only reacts once it is ACTIVE; the others on WARNING)
     for (const h of view.systems.hazards) {
       const danger =
@@ -427,6 +443,13 @@ export class CpuController {
   /** Would walking along `heading` for the next third of a second put it on a hazard it considers dangerous? */
   #walksIntoDanger(heading: Vec2, here: Vec2, view: Observation): boolean {
     const p = this.#profile;
+    const zone = this.#zone;
+    if (zone !== undefined && inRect(here, zone))
+      for (const k of [0.15, 0.3]) {
+        const reach = 420 * k;
+        if (!inRect({ x: here.x + heading.x * reach, y: here.y + heading.y * reach }, zone))
+          return true;
+      }
     for (const h of view.systems.hazards) {
       const danger =
         h.phase === 'ACTIVE' ||

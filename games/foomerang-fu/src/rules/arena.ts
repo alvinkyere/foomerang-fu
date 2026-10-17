@@ -26,6 +26,11 @@ export interface FuArena {
   readonly platforms?: readonly PlatformSpec[];
   /** Slice 6: periodically lethal floor zones. */
   readonly hazards?: readonly HazardSpec[];
+  /**
+   * The border (the plaza's dashed lines): players may leave this rectangle, but one whose centre stays outside it for
+   * `outsideLimitSeconds` explodes. Absent: no border.
+   */
+  readonly safeZone?: Rect;
 }
 
 const NO_WALLS: readonly Rect[] = Object.freeze([]);

@@ -18,7 +18,7 @@ import type { FuArena, Rect } from './arena';
  * bunting's rope and the rugs are not. No gates, platforms or hazards: no new mechanic.
  */
 
-export const MARKET_PLAZA_WIDTH = 1729;
+export const MARKET_PLAZA_WIDTH = 2209;
 export const MARKET_PLAZA_HEIGHT = 1108;
 
 export interface MarketPlazaWall extends Rect {
@@ -27,80 +27,86 @@ export interface MarketPlazaWall extends Rect {
 }
 
 export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
-  Object.freeze({ id: 'EDGE0', kind: 'EDGE', x: 0, y: 0, width: 240, height: 40 }),
-  Object.freeze({ id: 'CRATE0', kind: 'CRATE', x: 440, y: 0, width: 120, height: 120 }),
-  Object.freeze({ id: 'TERRACE0', kind: 'TERRACE', x: 560, y: 0, width: 640, height: 80 }),
-  Object.freeze({ id: 'CRATE1', kind: 'CRATE', x: 1200, y: 0, width: 40, height: 80 }),
-  Object.freeze({ id: 'POLE0', kind: 'POLE', x: 1240, y: 0, width: 40, height: 40 }),
-  Object.freeze({ id: 'POT0', kind: 'POT', x: 1400, y: 0, width: 280, height: 40 }),
-  Object.freeze({ id: 'EDGE1', kind: 'EDGE', x: 0, y: 40, width: 40, height: 120 }),
-  Object.freeze({ id: 'STALL0', kind: 'STALL', x: 40, y: 40, width: 200, height: 40 }),
-  Object.freeze({ id: 'POT1', kind: 'POT', x: 1400, y: 40, width: 120, height: 40 }),
-  Object.freeze({ id: 'STALL1', kind: 'STALL', x: 1520, y: 40, width: 160, height: 120 }),
-  Object.freeze({ id: 'STALL2', kind: 'STALL', x: 40, y: 80, width: 160, height: 80 }),
-  Object.freeze({ id: 'CRATE2', kind: 'CRATE', x: 200, y: 80, width: 80, height: 80 }),
-  Object.freeze({ id: 'TERRACE1', kind: 'TERRACE', x: 560, y: 80, width: 440, height: 40 }),
-  Object.freeze({ id: 'CRATE3', kind: 'CRATE', x: 1000, y: 80, width: 80, height: 80 }),
-  Object.freeze({ id: 'TERRACE2', kind: 'TERRACE', x: 1160, y: 80, width: 40, height: 40 }),
-  Object.freeze({ id: 'POT2', kind: 'POT', x: 1440, y: 80, width: 80, height: 40 }),
-  Object.freeze({ id: 'SIGN0', kind: 'SIGN', x: 600, y: 120, width: 120, height: 40 }),
-  Object.freeze({ id: 'TERRACE3', kind: 'TERRACE', x: 720, y: 120, width: 280, height: 40 }),
-  Object.freeze({ id: 'STALL3', kind: 'STALL', x: 1480, y: 120, width: 40, height: 40 }),
-  Object.freeze({ id: 'STALL4', kind: 'STALL', x: 480, y: 280, width: 80, height: 160 }),
-  Object.freeze({ id: 'POT3', kind: 'POT', x: 560, y: 280, width: 80, height: 80 }),
-  Object.freeze({ id: 'STALL5', kind: 'STALL', x: 1200, y: 280, width: 40, height: 200 }),
-  Object.freeze({ id: 'STALL6', kind: 'STALL', x: 1240, y: 320, width: 40, height: 120 }),
-  Object.freeze({ id: 'STALL7', kind: 'STALL', x: 400, y: 360, width: 80, height: 40 }),
-  Object.freeze({ id: 'STALL8', kind: 'STALL', x: 560, y: 360, width: 40, height: 40 }),
-  Object.freeze({ id: 'STALL9', kind: 'STALL', x: 1120, y: 360, width: 80, height: 40 }),
-  Object.freeze({ id: 'STALL10', kind: 'STALL', x: 1280, y: 360, width: 40, height: 40 }),
-  Object.freeze({ id: 'STALL11', kind: 'STALL', x: 440, y: 400, width: 40, height: 40 }),
-  Object.freeze({ id: 'STALL12', kind: 'STALL', x: 480, y: 440, width: 40, height: 40 }),
-  Object.freeze({ id: 'FOUNTAIN0', kind: 'FOUNTAIN', x: 800, y: 480, width: 160, height: 360 }),
-  Object.freeze({ id: 'FOUNTAIN1', kind: 'FOUNTAIN', x: 720, y: 520, width: 80, height: 280 }),
-  Object.freeze({ id: 'FOUNTAIN2', kind: 'FOUNTAIN', x: 960, y: 520, width: 40, height: 280 }),
-  Object.freeze({ id: 'FOUNTAIN3', kind: 'FOUNTAIN', x: 1000, y: 560, width: 40, height: 200 }),
-  Object.freeze({ id: 'EDGE2', kind: 'EDGE', x: 1689, y: 560, width: 40, height: 548 }),
-  Object.freeze({ id: 'STALL13', kind: 'STALL', x: 240, y: 600, width: 120, height: 160 }),
-  Object.freeze({ id: 'FOUNTAIN4', kind: 'FOUNTAIN', x: 680, y: 600, width: 40, height: 160 }),
-  Object.freeze({ id: 'STALL14', kind: 'STALL', x: 1360, y: 600, width: 120, height: 160 }),
-  Object.freeze({ id: 'POT4', kind: 'POT', x: 1400, y: 760, width: 80, height: 40 }),
-  Object.freeze({ id: 'FOUNTAIN5', kind: 'FOUNTAIN', x: 760, y: 800, width: 40, height: 40 }),
-  Object.freeze({ id: 'CRATE4', kind: 'CRATE', x: 280, y: 840, width: 120, height: 120 }),
-  Object.freeze({ id: 'EDGE3', kind: 'EDGE', x: 1680, y: 840, width: 40, height: 268 }),
-  Object.freeze({ id: 'CRATE5', kind: 'CRATE', x: 200, y: 880, width: 80, height: 80 }),
-  Object.freeze({ id: 'POT5', kind: 'POT', x: 200, y: 960, width: 120, height: 40 }),
-  Object.freeze({ id: 'EDGE4', kind: 'EDGE', x: 0, y: 1000, width: 40, height: 108 }),
-  Object.freeze({ id: 'POT6', kind: 'POT', x: 200, y: 1000, width: 80, height: 80 }),
-  Object.freeze({ id: 'POLE1', kind: 'POLE', x: 1000, y: 1000, width: 80, height: 40 }),
-  Object.freeze({ id: 'POLE2', kind: 'POLE', x: 640, y: 1040, width: 80, height: 40 }),
-  Object.freeze({ id: 'POLE3', kind: 'POLE', x: 1000, y: 1040, width: 40, height: 40 }),
-  Object.freeze({ id: 'CRATE6', kind: 'CRATE', x: 1040, y: 1040, width: 80, height: 68 }),
-  Object.freeze({ id: 'EDGE5', kind: 'EDGE', x: 40, y: 1068, width: 1000, height: 40 }),
-  Object.freeze({ id: 'EDGE6', kind: 'EDGE', x: 1120, y: 1068, width: 560, height: 40 }),
+  Object.freeze({ id: 'STALL0', kind: 'STALL', x: 280, y: 0, width: 200, height: 80 }),
+  Object.freeze({ id: 'CRATE0', kind: 'CRATE', x: 680, y: 0, width: 120, height: 120 }),
+  Object.freeze({ id: 'TERRACE0', kind: 'TERRACE', x: 800, y: 0, width: 640, height: 80 }),
+  Object.freeze({ id: 'CRATE1', kind: 'CRATE', x: 1440, y: 0, width: 40, height: 80 }),
+  Object.freeze({ id: 'POLE0', kind: 'POLE', x: 1480, y: 0, width: 40, height: 40 }),
+  Object.freeze({ id: 'POT0', kind: 'POT', x: 1640, y: 0, width: 280, height: 40 }),
+  Object.freeze({ id: 'POT1', kind: 'POT', x: 1640, y: 40, width: 120, height: 40 }),
+  Object.freeze({ id: 'STALL1', kind: 'STALL', x: 1760, y: 40, width: 160, height: 120 }),
+  Object.freeze({ id: 'STALL2', kind: 'STALL', x: 280, y: 80, width: 160, height: 80 }),
+  Object.freeze({ id: 'CRATE2', kind: 'CRATE', x: 440, y: 80, width: 80, height: 80 }),
+  Object.freeze({ id: 'TERRACE1', kind: 'TERRACE', x: 800, y: 80, width: 440, height: 40 }),
+  Object.freeze({ id: 'CRATE3', kind: 'CRATE', x: 1240, y: 80, width: 80, height: 80 }),
+  Object.freeze({ id: 'TERRACE2', kind: 'TERRACE', x: 1400, y: 80, width: 40, height: 40 }),
+  Object.freeze({ id: 'POT2', kind: 'POT', x: 1680, y: 80, width: 80, height: 40 }),
+  Object.freeze({ id: 'SIGN0', kind: 'SIGN', x: 840, y: 120, width: 120, height: 40 }),
+  Object.freeze({ id: 'TERRACE3', kind: 'TERRACE', x: 960, y: 120, width: 280, height: 40 }),
+  Object.freeze({ id: 'STALL3', kind: 'STALL', x: 1720, y: 120, width: 40, height: 40 }),
+  Object.freeze({ id: 'STALL4', kind: 'STALL', x: 720, y: 280, width: 80, height: 160 }),
+  Object.freeze({ id: 'POT3', kind: 'POT', x: 800, y: 280, width: 80, height: 80 }),
+  Object.freeze({ id: 'STALL5', kind: 'STALL', x: 1440, y: 280, width: 40, height: 200 }),
+  Object.freeze({ id: 'STALL6', kind: 'STALL', x: 1480, y: 320, width: 40, height: 120 }),
+  Object.freeze({ id: 'STALL7', kind: 'STALL', x: 640, y: 360, width: 80, height: 40 }),
+  Object.freeze({ id: 'STALL8', kind: 'STALL', x: 800, y: 360, width: 40, height: 40 }),
+  Object.freeze({ id: 'STALL9', kind: 'STALL', x: 1360, y: 360, width: 80, height: 40 }),
+  Object.freeze({ id: 'STALL10', kind: 'STALL', x: 1520, y: 360, width: 40, height: 40 }),
+  Object.freeze({ id: 'STALL11', kind: 'STALL', x: 680, y: 400, width: 40, height: 40 }),
+  Object.freeze({ id: 'STALL12', kind: 'STALL', x: 720, y: 440, width: 40, height: 40 }),
+  Object.freeze({ id: 'FOUNTAIN0', kind: 'FOUNTAIN', x: 1040, y: 480, width: 160, height: 360 }),
+  Object.freeze({ id: 'FOUNTAIN1', kind: 'FOUNTAIN', x: 960, y: 520, width: 80, height: 280 }),
+  Object.freeze({ id: 'FOUNTAIN2', kind: 'FOUNTAIN', x: 1200, y: 520, width: 40, height: 280 }),
+  Object.freeze({ id: 'FOUNTAIN3', kind: 'FOUNTAIN', x: 1240, y: 560, width: 40, height: 200 }),
+  Object.freeze({ id: 'STALL13', kind: 'STALL', x: 480, y: 600, width: 120, height: 160 }),
+  Object.freeze({ id: 'FOUNTAIN4', kind: 'FOUNTAIN', x: 920, y: 600, width: 40, height: 160 }),
+  Object.freeze({ id: 'STALL14', kind: 'STALL', x: 1600, y: 600, width: 120, height: 160 }),
+  Object.freeze({ id: 'POT4', kind: 'POT', x: 1640, y: 760, width: 80, height: 40 }),
+  Object.freeze({ id: 'FOUNTAIN5', kind: 'FOUNTAIN', x: 1000, y: 800, width: 40, height: 40 }),
+  Object.freeze({ id: 'CRATE4', kind: 'CRATE', x: 520, y: 840, width: 120, height: 120 }),
+  Object.freeze({ id: 'CRATE5', kind: 'CRATE', x: 440, y: 880, width: 80, height: 80 }),
+  Object.freeze({ id: 'POT5', kind: 'POT', x: 440, y: 960, width: 120, height: 40 }),
+  Object.freeze({ id: 'POT6', kind: 'POT', x: 440, y: 1000, width: 80, height: 80 }),
+  Object.freeze({ id: 'POLE1', kind: 'POLE', x: 1240, y: 1000, width: 80, height: 40 }),
+  Object.freeze({ id: 'POLE2', kind: 'POLE', x: 880, y: 1040, width: 80, height: 40 }),
+  Object.freeze({ id: 'POLE3', kind: 'POLE', x: 1240, y: 1040, width: 40, height: 40 }),
+  Object.freeze({ id: 'CRATE6', kind: 'CRATE', x: 1280, y: 1040, width: 80, height: 68 }),
+  Object.freeze({ id: 'EDGE0', kind: 'EDGE', x: 0, y: 1068, width: 1280, height: 40 }),
+  Object.freeze({ id: 'EDGE1', kind: 'EDGE', x: 1360, y: 1068, width: 849, height: 40 }),
 ] as const);
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
 export const MARKET_PLAZA_SPAWNS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 848, y: 976 }),
-  Object.freeze({ x: 1680, y: 240 }),
-  Object.freeze({ x: 48, y: 240 }),
-  Object.freeze({ x: 112, y: 976 }),
-  Object.freeze({ x: 1584, y: 976 }),
-  Object.freeze({ x: 944, y: 240 }),
+  Object.freeze({ x: 1104, y: 240 }),
+  Object.freeze({ x: 1872, y: 976 }),
+  Object.freeze({ x: 368, y: 976 }),
+  Object.freeze({ x: 368, y: 240 }),
+  Object.freeze({ x: 1104, y: 976 }),
+  Object.freeze({ x: 1840, y: 240 }),
 ]);
 
 /** Where Books may appear: open floor away from every spawn. */
 export const MARKET_PLAZA_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  Object.freeze({ x: 496, y: 560 }),
-  Object.freeze({ x: 1232, y: 624 }),
-  Object.freeze({ x: 1328, y: 112 }),
-  Object.freeze({ x: 368, y: 48 }),
-  Object.freeze({ x: 48, y: 624 }),
-  Object.freeze({ x: 1616, y: 592 }),
-  Object.freeze({ x: 496, y: 944 }),
-  Object.freeze({ x: 1200, y: 976 }),
+  Object.freeze({ x: 1488, y: 624 }),
+  Object.freeze({ x: 720, y: 592 }),
+  Object.freeze({ x: 1488, y: 176 }),
+  Object.freeze({ x: 720, y: 208 }),
+  Object.freeze({ x: 752, y: 944 }),
+  Object.freeze({ x: 1872, y: 592 }),
+  Object.freeze({ x: 368, y: 592 }),
+  Object.freeze({ x: 1456, y: 976 }),
 ]);
+
+/**
+ * The border: the two dashed lines on the sand (left and right, measured in environ2 at world x 271 and 1939). Players
+ * may cross them; one who stays outside for the config's outsideLimitSeconds explodes (owner, 2026-10-17).
+ */
+export const MARKET_PLAZA_SAFE_ZONE: Rect = Object.freeze({
+  x: 271,
+  y: 0,
+  width: 1668,
+  height: MARKET_PLAZA_HEIGHT,
+});
 
 export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({
   width: MARKET_PLAZA_WIDTH,
@@ -109,4 +115,5 @@ export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({
     MARKET_PLAZA_WALLS.map(({ x, y, width, height }) => Object.freeze({ x, y, width, height })),
   ),
   spawns: MARKET_PLAZA_SPAWNS,
+  safeZone: MARKET_PLAZA_SAFE_ZONE,
 });

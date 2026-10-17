@@ -1141,6 +1141,25 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       credit: -1,
     });
   });
+  // The border: time outside the safe zone, continuous; at the limit the player explodes (no shield can stop it)
+  const zone = config.arena.safeZone;
+  const outsideFor = players.map((p) =>
+    zone === undefined || !p.alive || inRect(positionOf(p.id), zone)
+      ? 0
+      : (state.players.find((q) => q.id === p.id)?.outsideFor ?? 0) + dt,
+  );
+  const exploding = new Set<number>();
+  outsideFor.forEach((t, v) => {
+    if (t < config.outsideLimitSeconds - EPSILON) return;
+    exploding.add(v);
+    (contacts[v] as Contact[]).push({
+      attacker: count,
+      rank: 3,
+      weapon: -1,
+      source: 'OUT_OF_BOUNDS',
+      credit: -1,
+    });
+  });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
   const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
   const deathOf = new Map<string, Death>(); // victim → how they died and who is credited (Slice 8)
@@ -1150,7 +1169,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       (x, y) => x.attacker - y.attacker || x.rank - y.rank || x.weapon - y.weapon,
     );
     if (list.length === 0) return;
-    if (has(v, 'GUARD')) {
+    if (has(v, 'GUARD') && !exploding.has(v)) {
       // A guard absorbs exactly ONE lethal contact and is spent; the weapon cannot hit them again this leg/swing.
       const first = list.shift() as Contact;
       inventory[v] = removePower(inventory[v] as Inventory, 'GUARD'); // the shield breaks: its slot is free
@@ -1189,7 +1208,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (killing !== undefined) {
       killedBy.set(
         victim.id,
-        killing.source === 'HAZARD' ? ARENA_ID : (players[killing.attacker] as FuPlayer).id,
+        killing.source === 'HAZARD' || killing.source === 'OUT_OF_BOUNDS'
+          ? ARENA_ID
+          : (players[killing.attacker] as FuPlayer).id,
       );
       deathOf.set(victim.id, {
         victimId: victim.id,
@@ -1296,12 +1317,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const sparedSame =
       spared.length === base.hazardSpared.length &&
       spared.every((v, k) => v === base.hazardSpared[k]);
-    return base.inventory === owned && sparedSame
+    const outside = p.alive ? (outsideFor[index] ?? 0) : 0;
+    return base.inventory === owned && sparedSame && base.outsideFor === outside
       ? base
       : Object.freeze({
           ...base,
           inventory: owned,
           hazardSpared: sparedSame ? base.hazardSpared : Object.freeze(spared),
+          outsideFor: outside,
         });
   });
 

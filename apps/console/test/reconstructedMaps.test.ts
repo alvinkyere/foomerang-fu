@@ -72,8 +72,16 @@ describe('reconstructed maps', () => {
       const camera = createMapCamera(parseMapCamera(manifest['camera']));
       // the map's own camera frames its own arena: every place a player can stand (not inside a wall) is on the canvas. (A
       // perspective view's arena corners may lie off it — environ2's bottom corners do — but only inside solid ground.)
-      const walls = PLAYABLE_ARENAS[map.id].arena.walls ?? [];
-      for (let x = 36; x <= map.arena.width - 36; x += 24)
+      const rules = PLAYABLE_ARENAS[map.id].arena;
+      const walls = rules.walls ?? [];
+      // a map with a border (the plaza) has open sand beyond it that the camera reaches by following the players: only the
+      // ground inside the border must be on the canvas
+      const xFrom = rules.safeZone?.x ?? 36;
+      const xTo =
+        rules.safeZone === undefined
+          ? map.arena.width - 36
+          : rules.safeZone.x + rules.safeZone.width;
+      for (let x = xFrom; x <= xTo; x += 24)
         for (let y = 36; y <= map.arena.height - 36; y += 24) {
           if (insideAWall({ x, y }, 36, walls)) continue;
           const p = camera.project(x, y);
@@ -121,18 +129,19 @@ describe('reconstructed maps', () => {
     expect([config.canvas.width, config.canvas.height]).toEqual([1920, 1080]);
     const camera = createMapCamera(config);
     // the fountain's centre (its base circle, fitted on the ground) lies on the plaza's mirror axis, x = 651.25 × 1.5
-    const fountain = camera.project(864.5, 663.5);
+    const fountain = camera.project(1104.5, 663.5);
     expect(Math.abs(fountain.x - 651.25 * 1.5)).toBeLessThan(1);
-    // the arena's west edge is the fence line: fence 30's foot (42, 343) and fence 31's (4, 576), at 1280 wide
+    // the fence line is 240 units inside the arena's west edge (beyond it: the outside sand): fence 30's foot (42, 343) and
+    // fence 31's (4, 576), at 1280 wide
     for (const [fx, fy] of [
       [42, 343],
       [4, 576],
     ] as const) {
       const y = fy * 1.5;
-      // walk down the west edge (world x = 0) to the fence foot's row and compare its canvas x
+      // walk down the west fence line (the safe zone's edge) to the fence foot's row and compare its canvas x
       let best = Number.POSITIVE_INFINITY;
       for (let wy = 0; wy <= MARKET_PLAZA_ARENA.height; wy += 0.5) {
-        const p = camera.project(0, wy);
+        const p = camera.project(240, wy);
         if (Math.abs(p.y - y) < 0.5) best = Math.min(best, Math.abs(p.x - fx * 1.5));
       }
       expect(best, `fence foot (${fx}, ${fy})`).toBeLessThan(3);

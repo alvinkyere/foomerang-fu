@@ -585,6 +585,19 @@ No randomness is used yet, so there is no seed; when randomness arrives it must 
 - A press becomes `slash: true` or `throw: true` for exactly one step. If both are pending before one step, both are passed in and the rules resolve it (SLASH wins).
 - A controller reload or reconnect starts with nothing held and sends nothing until a finger presses: a test proves no action is manufactured.
 
+## The border (market plaza; owner, 2026-10-17)
+
+An arena may have a **safe zone** (`FuArena.safeZone`). On the plaza it is the strip between the two dashed lines on the sand;
+beyond them lies open sand, about three character widths deep, that players may walk onto. A living player whose centre stays
+outside the safe zone for `outsideLimitSeconds` (5 s) **explodes**: an environment death (`HIT` with source `OUT_OF_BOUNDS`,
+nobody credited, the victim loses a kill like any environment death). No shield stops it. The timer (`FuPlayer.outsideFor`)
+counts continuous time outside and resets the moment the player steps back in, on death and at each round. Spawns and Book
+spots are always inside the safe zone. CPUs never walk out, and one that finds itself outside heads straight back in. The 3D
+plaza's camera slides sideways to keep a player who walks out in view.
+
+Still to come (approved): the controller vibrates harder the longer a player is outside (a red pulse on iPhone), and the
+character blinks light red with an arrow above its head pointing back inside.
+
 ## Presentation (all derived, none fed back)
 
 - Each player: colour + number + **shape** + name (colour is never the only cue).

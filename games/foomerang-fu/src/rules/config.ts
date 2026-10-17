@@ -86,6 +86,8 @@ export interface FuConfig {
   readonly exclusivePairs?: readonly (readonly [PowerKind, PowerKind])[];
   /** How long the round-over state is shown before the next round starts, seconds. */
   readonly roundEndSeconds: number;
+  /** How long a player may stay outside the arena's safe zone (continuously) before they explode, seconds. */
+  readonly outsideLimitSeconds: number;
 }
 
 export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
@@ -116,6 +118,7 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   seed: 1,
   twinSpreadRadians: (13 * Math.PI) / 180,
   roundEndSeconds: 2.5,
+  outsideLimitSeconds: 5,
 });
 
 /**
@@ -181,6 +184,7 @@ export function assertValidConfig(config: FuConfig): void {
     ['overdriveDashFactor', config.overdriveDashFactor],
     ['blastRadius', config.blastRadius],
     ['roundEndSeconds', config.roundEndSeconds],
+    ['outsideLimitSeconds', config.outsideLimitSeconds],
   ];
   for (const [name, value] of numbers) {
     if (!positive(value)) throw new RangeError(`${name} must be a positive, finite number`);
@@ -237,6 +241,19 @@ export function assertValidConfig(config: FuConfig): void {
     config.playerRadius,
     slots.map((slot) => spawnPosition(slot, arena)),
   );
+  const zone = arena.safeZone;
+  if (zone !== undefined) {
+    if (
+      !(zone.width > 0 && zone.height > 0) ||
+      zone.x < 0 ||
+      zone.y < 0 ||
+      zone.x + zone.width > arena.width ||
+      zone.y + zone.height > arena.height
+    )
+      throw new RangeError('the safe zone must lie inside the arena');
+    if (slots.some((slot) => !inRect(spawnPosition(slot, arena), zone)))
+      throw new RangeError('every spawn must be inside the safe zone');
+  }
   if (
     config.playerSpeed * config.overdriveMoveFactor * FIXED_TIMESTEP_SECONDS >=
     config.playerRadius

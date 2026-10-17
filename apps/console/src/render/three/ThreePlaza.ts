@@ -17,6 +17,8 @@ import { characterHeight, sceneSpace } from './plazaSpace';
 
 const CANVAS = { width: 1920, height: 1080 } as const;
 const BOOMERANG_HEIGHT = 24;
+/** How far (scene units) the camera may slide sideways to follow a player out onto the sand beyond the dashed lines. */
+const FOLLOW_LIMIT = 14;
 const FADE_OPACITY = 0.35;
 /** Top-level objects that may turn see-through when they hide a player. */
 const FADEABLE = /^(stall_|TREE|BUNTING|BANNER|SIGN)/;
@@ -225,6 +227,7 @@ class Plaza {
   #view: ArenaView | undefined;
   #circles: DrawnCircle[] = [];
   #virtual: number | undefined;
+  #restX = 0;
   readonly #resize: ResizeObserver;
 
   constructor(
@@ -256,6 +259,7 @@ class Plaza {
     const th = (config.pitchDeg * Math.PI) / 180;
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
+    this.#restX = cx;
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -617,8 +621,35 @@ class Plaza {
     }
   }
 
+  /**
+   * The camera follows a player who walks out beyond the dashed lines: it slides sideways (never turns or zooms) just far
+   * enough to keep everyone inside the screen's edge margin, and eases back when they return. Presentation only.
+   */
+  #follow(): void {
+    // the camera never turns (yaw and roll are 0), so a point's screen x is (x - camera x) / (depth * tan(half fov)): the slide
+    // each player needs is measured from the RESTING camera, so the camera holds steady while they stay out
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.aspect;
+    const margin = 0.9;
+    let right = 0;
+    let left = 0;
+    for (const [id, ch] of this.#characters) {
+      const c = this.#view?.circles.find((q) => q.id === id);
+      if (c === undefined || c.dead) continue;
+      const p = ch.sprite.position;
+      const half = p.clone().sub(this.camera.position).dot(forward) * tanHalf * margin;
+      right = Math.max(right, p.x - this.#restX - half);
+      left = Math.min(left, p.x - this.#restX + half);
+    }
+    // players beyond both edges at once: the camera splits the difference (nobody far off-screen)
+    const wanted = Math.max(-FOLLOW_LIMIT, Math.min(FOLLOW_LIMIT, right + left));
+    this.camera.position.x += (this.#restX + wanted - this.camera.position.x) * 0.1;
+  }
+
   #frame(t: number): void {
     const time = this.#virtual ?? t;
+    this.#follow();
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {

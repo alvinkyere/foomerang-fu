@@ -42,8 +42,11 @@ px_per_plan = np.linalg.norm(project(g + [1e-3, 0, 0]) - project(g)) / 1e-3
 U = round(px_per_plan / (RADIUS_PER_HEIGHT * CHAR_HEIGHT_PX / PLAYER_RADIUS))      # world units per plan unit
 
 # ---- the arena rectangle -------------------------------------------------------------------------------------------------
-X_LEFT = float(np.mean([unproject(42, 343)[0], unproject(4, 576)[0]]))            # fence 30 and fence 31 feet
-X_RIGHT = float(unproject(1260, 342)[0])                                          # fence 32 foot
+# the plaza runs fence to fence; beyond the fences (the dashed lines) lies OUTSIDE: open sand of our own, about three character
+# widths deep each side, where a player may go but explodes if they stay (the rules' safe zone; owner, 2026-10-17)
+OUTSIDE = 240                                                                     # world units each side
+X_LEFT = float(np.mean([unproject(42, 343)[0], unproject(4, 576)[0]])) - OUTSIDE / U   # fence 30 and fence 31 feet
+X_RIGHT = float(unproject(1260, 342)[0]) + OUTSIDE / U                                # fence 32 foot
 Y_FAR = float(unproject(651.25, 62)[1])                                           # the far wall's base
 Y_NEAR = float(unproject(651.25, H_IMG)[1])                                       # the frame's bottom edge
 WIDTH, HEIGHT = round((X_RIGHT - X_LEFT) * U), round((Y_FAR - Y_NEAR) * U)
@@ -153,8 +156,10 @@ def blocker_at(xw, yw):
     """What blocks this world point (a wall kind), or None."""
     X, Y = plan_of(xw, yw)
     px, py = project([X, Y, 0])
-    if not (0 <= px < W_IMG and 0 <= py < H_IMG):
-        return 'EDGE'                                     # never observed: out of bounds
+    if not (0 <= py < H_IMG):
+        return 'EDGE'                                     # beyond the far wall or the near edge: out of bounds
+    if not (0 <= px < W_IMG):
+        return None                                       # the outside sand beyond the fences: open
     if terrace[int(py), int(px)]:
         return 'TERRACE'
     for k, f in FOOT.items():
@@ -229,6 +234,12 @@ cand = [(x, y) for x in range(48, WIDTH - 47, 32) for y in range(48, HEIGHT - 47
 lab = cv2.connectedComponentsWithStats((~B).astype(np.uint8), connectivity=4)
 big = 1 + int(np.argmax(lab[2][1:, cv2.CC_STAT_AREA]))
 cand = [p for p in cand if lab[1][min(ny - 1, int(p[1] // GRID)), min(nx - 1, int(p[0] // GRID))] == big]
+# the dashed lines: dash marks read in environ2 (image px) unprojected to the ground, then to world x (they stand at x = const)
+DASHES = {'left': [(90, 166), (72, 280), (60, 366), (49, 436), (29, 553), (21, 613)],
+          'right': [(1211, 167), (1230, 281), (1243, 368), (1252, 428), (1278, 557), (1276, 632)]}
+SAFE = [round(float(np.median([world_of(*unproject(x + 0.5, y + 0.5)[:2])[0] for x, y in DASHES[k]]))) for k in ('left', 'right')]
+cand = [p for p in cand if SAFE[0] + Rp + 30 <= p[0] <= SAFE[1] - Rp - 30]          # spawns and Books inside the dashed lines
+
 dist = lambda a, b: math.hypot(a[0] - b[0], a[1] - b[1])
 
 
@@ -276,7 +287,7 @@ result = dict(width=WIDTH, height=HEIGHT, player_radius=PLAYER_RADIUS, camera=ca
                             base_fit_median_px=round(fountain_fit_px, 2)),
               footprints_world={k: [[round(v, 1) for v in world_of(*p)] for p in pts] for k, pts in footprints.items()},
               walls=walls, spawns=[dict(x=p[0], y=p[1]) for p in spawns], books=[dict(x=p[0], y=p[1]) for p in books],
-              open_cells=len(cand), min_spawn_gap=round(min_gap(spawns), 1))
+              open_cells=len(cand), min_spawn_gap=round(min_gap(spawns), 1), safe_zone=[SAFE[0], SAFE[1]])
 json.dump(result, open(os.path.join(OUT, 'arena.json'), 'w'), indent=1)
 
 # ---- proof image: walls (red), footprints (yellow), spawns (green, numbered), Book spots (blue) over the map ----------------
@@ -350,7 +361,15 @@ ts.append("""]);
 export const MARKET_PLAZA_BOOK_SPOTS: readonly Vec2[] = Object.freeze([""")
 ts += [pt(p) for p in books]
 ts.append("""]);
-
+""")
+ts.append(f"""
+/**
+ * The border: the two dashed lines on the sand (left and right, measured in environ2 at world x {SAFE[0]} and {SAFE[1]}). Players
+ * may cross them; one who stays outside for the config's outsideLimitSeconds explodes (owner, 2026-10-17).
+ */
+export const MARKET_PLAZA_SAFE_ZONE: Rect = Object.freeze({{ x: {SAFE[0]}, y: 0, width: {SAFE[1] - SAFE[0]}, height: MARKET_PLAZA_HEIGHT }});
+""")
+ts.append("""
 export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({
   width: MARKET_PLAZA_WIDTH,
   height: MARKET_PLAZA_HEIGHT,
@@ -358,6 +377,7 @@ export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({
     MARKET_PLAZA_WALLS.map(({ x, y, width, height }) => Object.freeze({ x, y, width, height })),
   ),
   spawns: MARKET_PLAZA_SPAWNS,
+  safeZone: MARKET_PLAZA_SAFE_ZONE,
 });
 """)
 open(os.path.join(OUT, 'marketPlazaArena.ts'), 'w').write('\n'.join(ts))

@@ -15,7 +15,7 @@ pal = np.load(PAL_PATH)
 FP = json.load(open('floor_plan.json'))
 A = json.load(open('../step4_arena.json'))
 w = A['camera']['world']
-X0, X1, Y0, Y1 = -40.0, 41.5, 52.0, 99.0           # plan extent (BU)
+X0, X1, Y0, Y1 = -58.0, 59.5, 50.0, 99.0           # plan extent (BU): the plaza and the outside sand beyond the fences
 K = 60.0                                          # px per BU
 W, H = int((X1 - X0) * K), int((Y1 - Y0) * K)
 to_px = lambda X, Y: ((X - X0) * K, (Y1 - Y) * K)
@@ -111,7 +111,7 @@ cx, cy, R0 = F['cx'] * 100, F['cy'] * 100, F['R0'] * 100
 ring = [(cx + (R0 + 0.9) * math.cos(t), cy + (R0 + 0.9) * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 180, endpoint=False)]
 fill(ring, (140, 226, 246))
 # dashed border lines (world x 31 and 1699)
-for xw in (31, 1699):
+for xw in A['safe_zone']:                          # the dashed lines are the rules' border (the safe zone's edges)
     X = (xw / w['unitsPerPlanUnit'] + w['planOriginX']) * 100
     for k in range(20):
         y = 53 + 2.4 * k
