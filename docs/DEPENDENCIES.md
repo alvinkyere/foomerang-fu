@@ -26,6 +26,16 @@
 
 During Slice 7's clean-clone verification `pnpm install` had silently added a `minimumReleaseAgeExclude` entry for `@vitejs/plugin-react@6.1.2`. That was removed; the version was pinned to the aged 6.1.1 and the lockfile re-resolved. The standing rule above and its guard test exist because of it. (Slice 8 hit the same situation: 6.1.2 is only hours old today. The answer is the pin, not an exclusion.)
 
+## The plaza in real-time 3D (owner-approved 2026-10-17; registry facts verified 2026-10-17)
+
+| Package | Version | Where | Why | Registry facts |
+| --- | --- | --- | --- | --- |
+| `three` | 0.185.1 (exact) | console | Draws the market plaza in real-time 3D (our own lit models, real shadows, characters standing in the scene); lazy-loaded; confined to `src/render/three` (lint-enforced, tested). | MIT; **no dependencies**; published 2026-07-01 (0.186.x exists, not needed). ~156 kB gzip as its own lazy chunk (with GLTFLoader). |
+| `@types/three` | 0.185.1 (exact) | console (dev) | Type declarations for `three`. Never bundled. | MIT; published 2026-07-09. Pulls in, as declared dependencies: `fflate` 0.8.3, `meshoptimizer` 1.1.1, `@tweenjs/tween.js` 23.1.3, `@dimforge/rapier3d-compat` 0.12.0, `@types/webxr`, `@types/stats.js` — installed for typing only; none is imported or bundled. No install scripts. |
+
+The console's lazy-chunk budget was raised deliberately (380 → 540 kB gzip, `scripts/check-bundle-size.mjs`): the total now holds two
+alternative renderers (three.js for the plaza, Phaser for every other map), and a match downloads only one of them.
+
 ## Not dependencies (tools run outside the repository)
 
 During verification, a throwaway QR decoder and the system `openssl` were used to check the QR pixels and to create throwaway TLS certificates for tests. Neither is a repository dependency; `openssl` is required by the TLS tests and the TLS E2E variant (present on macOS and the CI image).

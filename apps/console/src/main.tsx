@@ -11,7 +11,7 @@ import {
 } from './runtime/powerupMode';
 import { createHostStore } from './host';
 import type { ArenaRenderer } from './render/renderer';
-import { phaserRendererFor } from './render/phaser/loadPhaserRenderer';
+import { arenaRendererFor } from './render/loadArenaRenderer';
 import { App } from './ui/App';
 import { ConfigError } from './ui/ConfigError';
 import './styles.css';
@@ -86,7 +86,7 @@ if (!config.ok) {
         gameId={parseGameParam(window.location.search)}
         controllerBaseUrl={config.controllerBaseUrl}
         warnings={config.warnings}
-        loadRenderer={(container, arena) => phaserRendererFor(arena ?? 'primitive')(container)}
+        loadRenderer={(container, arena) => arenaRendererFor(arena ?? 'primitive')(container)}
         onRenderer={onRenderer}
       />
     </StrictMode>,

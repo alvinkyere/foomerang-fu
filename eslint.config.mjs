@@ -22,6 +22,8 @@ const FRAMEWORKS_AND_RENDERER = [
   'react-dom/*',
   'phaser',
   'phaser/*',
+  'three',
+  'three/*',
 ];
 const NODE_BUILTINS = [
   'node:*',
@@ -93,11 +95,12 @@ export default tseslint.config(
     rules: pureRules,
   },
 
-  // Phaser in the console lives in ONE directory (and is lazy-loaded from there). React, the
-  // session and the runtime see only the ArenaRenderer interface.
+  // Phaser in the console lives in ONE directory, three.js (the plaza's real-time 3D renderer) in
+  // another, each lazy-loaded from there. React, the session and the runtime see only the
+  // ArenaRenderer interface.
   {
     files: ['apps/console/src/**/*.{ts,tsx}'],
-    ignores: ['apps/console/src/render/phaser/**'],
+    ignores: ['apps/console/src/render/phaser/**', 'apps/console/src/render/three/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -109,6 +112,46 @@ export default tseslint.config(
               regex: '^phaser(/.*)?$',
               message:
                 'Phaser may only be imported inside apps/console/src/render/phaser (the renderer boundary).',
+            },
+            {
+              regex: '^three(/.*)?$',
+              message:
+                'three.js may only be imported inside apps/console/src/render/three (the 3D renderer boundary).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['apps/console/src/render/phaser/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: SOCKET_IO, message: SOCKET_IO_MESSAGE },
+            {
+              regex: '^three(/.*)?$',
+              message:
+                'three.js may only be imported inside apps/console/src/render/three (the 3D renderer boundary).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['apps/console/src/render/three/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: SOCKET_IO, message: SOCKET_IO_MESSAGE },
+            {
+              regex: '^phaser(/.*)?$',
+              message: 'The 3D renderer does not use Phaser.',
             },
           ],
         },

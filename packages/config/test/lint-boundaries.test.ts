@@ -115,6 +115,38 @@ describe('architecture boundaries enforced by lint', () => {
     });
   });
 
+  describe('three.js stays inside the console’s 3D renderer directory', () => {
+    it('is rejected in console UI, runtime, session code and the Phaser renderer', async () => {
+      for (const file of [
+        'apps/console/src/ui/x.tsx',
+        'apps/console/src/runtime/x.ts',
+        'apps/console/src/host/x.ts',
+        'apps/console/src/render/viewModel.ts',
+        'apps/console/src/render/phaser/x.ts',
+      ]) {
+        expect(await ruleIds(file, "import 'three';\nexport {};\n"), file).toContain(
+          'no-restricted-imports',
+        );
+        expect(
+          await ruleIds(file, "import 'three/examples/jsm/loaders/GLTFLoader.js';\nexport {};\n"),
+          file,
+        ).toContain('no-restricted-imports');
+      }
+    });
+
+    it('is rejected in pure code', async () => {
+      expect(
+        await ruleIds('games/foomerang-fu/src/rules/x.ts', "import 'three';\nexport {};\n"),
+      ).toContain('no-restricted-imports');
+    });
+
+    it('is allowed in apps/console/src/render/three', async () => {
+      expect(
+        await ruleIds('apps/console/src/render/three/x.ts', "import 'three';\nexport {};\n"),
+      ).toEqual([]);
+    });
+  });
+
   describe('Socket.IO stays behind the transport boundary', () => {
     it('is rejected anywhere outside a SocketIOTransport file', async () => {
       for (const file of [

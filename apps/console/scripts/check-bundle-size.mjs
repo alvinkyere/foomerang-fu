@@ -12,7 +12,10 @@ import { gzipSync } from 'node:zlib';
 // Raised on purpose (console shell migration, reviewed): the first screen is now the whole console shell
 // (home, game page, settings, join, focus/input system, icons, characters), not a lobby form. Measured:
 // JS 126.9 -> 139.9 kB, CSS 1.7 -> 7.6 kB gzip. The arena and Phaser stay lazy.
-const BUDGET_GZIP_BYTES = { initialJs: 145_000, initialCss: 10_000, lazyJs: 380_000 };
+// Raised on purpose (the plaza in real-time 3D, owner-approved 2026-10-17): the lazy total now holds TWO alternative
+// renderers — three.js for the market plaza (~156 kB) and Phaser for every other map (~324 kB). A match downloads only
+// one of them. Measured lazy total 522.6 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 145_000, initialCss: 10_000, lazyJs: 540_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
