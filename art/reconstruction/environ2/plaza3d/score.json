@@ -1,0 +1,7 @@
+{
+  "exact_percent": 99.85,
+  "within2_percent": 99.88,
+  "within8_percent": 99.93,
+  "pixels_over_8": 654,
+  "pixels": 921600
+}

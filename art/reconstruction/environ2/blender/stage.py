@@ -144,3 +144,39 @@ def height_at(ground_px, top_row):
         else:
             hi = mid
     return g, (lo + hi) / 2
+
+
+def paint_from_camera(obj, image, name='paint'):
+    """Give `obj` the painting as its surface: a UV map that projects every vertex through environ2's camera onto `image` (the
+    clean plate), and an unlit material that shows that image at those UVs (nearest texel, so the camera sees it unfiltered).
+    Seen from the camera it reproduces the painting's pixels exactly wherever the model's shape matches the painted object."""
+    me = obj.data
+    uv = me.uv_layers.new(name='camera')
+    mw = obj.matrix_world
+    for loop in me.loops:
+        x, y = project(mw @ me.vertices[loop.vertex_index].co)
+        uv.data[loop.index].uv = (x / W, 1 - y / H)
+    m = bpy.data.materials.get(name)
+    if m is None:
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+        nt = m.node_tree
+        for n in list(nt.nodes):
+            nt.nodes.remove(n)
+        tex = nt.nodes.new('ShaderNodeTexImage')
+        tex.image = image
+        tex.interpolation = 'Closest'
+        # the lookup uses the shading point's exact position on screen (Window coordinates): a projected UV map, interpolated
+        # perspective-correctly across a large face, drifts by a pixel or more from the true screen position
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        em = nt.nodes.new('ShaderNodeEmission')
+        out = nt.nodes.new('ShaderNodeOutputMaterial')
+        mp = nt.nodes.new('ShaderNodeMapping')
+        mp.inputs['Location'].default_value = (float(os.environ.get('PAINT_DX', '0')) / W, float(os.environ.get('PAINT_DY', '0')) / H, 0)
+        nt.links.new(tc.outputs['Window'], mp.inputs['Vector'])
+        nt.links.new(mp.outputs['Vector'], tex.inputs['Vector'])
+        nt.links.new(tex.outputs['Color'], em.inputs['Color'])
+        nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    me.materials.clear()
+    me.materials.append(m)
+    return m
