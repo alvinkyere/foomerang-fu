@@ -42,7 +42,10 @@ for m in bpy.data.materials:
                 n.interpolation = 'Linear'
 step = sc.frame_end + 1
 everything = [o for o in sc.objects if o.type == 'MESH']
+ONLY = os.environ.get('ONLY_GROUPS')
 for key, prefixes in GROUPS.items():
+    if ONLY and key not in ONLY.split(','):
+        continue
     keep = members(prefixes)
     for o in everything:
         o.hide_render = o not in keep

@@ -3,7 +3,8 @@ Each motion has the form  A * (sin(2 pi t / T + phase) - sin(phase))  : zero at 
  * the bunting's pennants swing on the rope, each a little behind the one before (a wave running along the rope); the rope sways
  * the banners' cloths ripple, more toward their free edge
  * the hex canopies sway gently on their legs; the round tree's leaf clumps breathe
- * the fountain's water shimmers (drifting bands of slightly brighter water)
+ * the fountain's water ripples: rings spreading from the juicer, white glints drifting across, a moving light pattern
+   (the only motion present at rest: the water is never still)
 The small fill pieces that complete each outline are attached to the part they belong to (the nearest one), so they move with it.
 Blender -b --python animate.py -- <plaza.blend> <out_dir> [frames]"""
 import sys, os, math
@@ -102,7 +103,8 @@ for i, (n, o) in enumerate(sorted((n, o) for n, o in objs.items() if n.startswit
         drive(o, 'scale', ax, wave(0.035, 0.45 * i))
     drive(o, 'location', 0, wave(0.05, 0.45 * i + 1.0))
 
-# ---- water: its painted surface shimmers (bands of slightly brighter water drifting across it) --------------------------------
+# ---- water: cartoon ripples over the painted water -- rings spreading out from the juicer, white glints drifting across, and a
+# moving light pattern. They loop (every phase advances by whole turns per loop) and sit on top of the painted surface.
 water = objs.get('FOUNTAIN_water')
 if water:
     m = water.data.materials[0].copy()
@@ -111,8 +113,13 @@ if water:
     tex = next(n for n in nt.nodes if n.type == 'TEX_IMAGE')
     em = next(n for n in nt.nodes if n.type == 'EMISSION')
     geo = nt.nodes.new('ShaderNodeNewGeometry')
-    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
-    nt.links.new(geo.outputs['Position'], sep.inputs['Vector'])
+    V = world_verts(water)
+    centre = sum(V, Vector()) / len(V)
+    radius = max((v - centre).length for v in V)
+    rel = nt.nodes.new('ShaderNodeVectorMath')
+    rel.operation = 'SUBTRACT'
+    rel.inputs[1].default_value = tuple(centre)
+    nt.links.new(geo.outputs['Position'], rel.inputs[0])
 
     def val(expr):
         n = nt.nodes.new('ShaderNodeValue')
@@ -121,31 +128,57 @@ if water:
         d.driver.expression = expr
         return n.outputs[0]
 
-    def mth(op, a, b):
+    def mth(op, a, b=0.0, c=None):
         n = nt.nodes.new('ShaderNodeMath')
         n.operation = op
-        for i, x in enumerate((a, b)):
+        for i, x in enumerate((a, b) if c is None else (a, b, c)):
             if isinstance(x, (int, float)):
                 n.inputs[i].default_value = x
             else:
                 nt.links.new(x, n.inputs[i])
         return n.outputs[0]
-    amp = val(f"sin(pi * frame / {T}) ** 2")                       # 0 at the loop's start and end: the rest frame is exact
-    t = val(f"2 * pi * frame / {T}")
-    band = mth('SINE', mth('ADD', mth('ADD', mth('MULTIPLY', sep.outputs['X'], 1.3), mth('MULTIPLY', sep.outputs['Y'], 0.9)),
-                           mth('MULTIPLY', t, 2.0)), 0.0)
-    band2 = mth('SINE', mth('SUBTRACT', mth('MULTIPLY', sep.outputs['Y'], 2.1), t), 0.0)
-    gain = mth('ADD', mth('MULTIPLY', mth('MULTIPLY', mth('ADD', band, band2), amp), 0.045), 1.0)
-    mul = nt.nodes.new('ShaderNodeMix')
-    mul.data_type = 'RGBA'
-    mul.blend_type = 'MULTIPLY'
-    mul.inputs['Factor'].default_value = 1.0
-    nt.links.new(tex.outputs['Color'], mul.inputs['A'])
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(rel.outputs['Vector'], sep.inputs['Vector'])
+    dist = nt.nodes.new('ShaderNodeVectorMath')
+    dist.operation = 'LENGTH'
+    nt.links.new(rel.outputs['Vector'], dist.inputs[0])
+    r = dist.outputs['Value']
+    turn = val(f"2 * pi * frame / {T}")
+    # rings: thin bright bands travelling outward (3 rings across the basin, 2 passes per loop), wobbling a little
+    wob = mth('MULTIPLY', mth('SINE', mth('ADD', mth('MULTIPLY', mth('ARCTAN2', sep.outputs['Y'], sep.outputs['X']), 5.0),
+                                             mth('MULTIPLY', turn, 1.0))), 0.25)
+    ring_arg = mth('SUBTRACT', mth('ADD', mth('MULTIPLY', r, 2 * math.pi * 3 / radius), wob), mth('MULTIPLY', turn, 2.0))
+    ring = mth('POWER', mth('MULTIPLY', mth('ADD', mth('SINE', ring_arg), 1.0), 0.5), 14.0)        # sharp bands
+    inner = mth('SMOOTH_MAX', mth('SUBTRACT', r, radius * 0.48), 0.0, 0.3)                       # rings start outside the juicer
+    ring = mth('MULTIPLY', ring, mth('MINIMUM', mth('MULTIPLY', inner, 1.5), 1.0))
+    edge = mth('SUBTRACT', 1.0, mth('POWER', mth('DIVIDE', r, radius), 6.0))                     # fade out at the rim
+    ring = mth('MULTIPLY', mth('MULTIPLY', ring, mth('MAXIMUM', edge, 0.0)), 0.55)
+    # glints: small bright dashes drifting round the basin (a wave texture in angle and radius)
+    ang = mth('ARCTAN2', sep.outputs['Y'], sep.outputs['X'])
+    g_arg = mth('ADD', mth('ADD', mth('MULTIPLY', ang, 9.0), mth('MULTIPLY', r, 2.3)), turn)
+    g2 = mth('SINE', mth('SUBTRACT', mth('MULTIPLY', r, 3.1), mth('MULTIPLY', turn, 3.0)))
+    glint = mth('POWER', mth('MAXIMUM', mth('MULTIPLY', mth('SINE', g_arg), g2), 0.0), 18.0)
+    glint = mth('MULTIPLY', mth('MULTIPLY', glint, mth('MAXIMUM', edge, 0.0)), 0.9)
+    # light pattern: slow broad bright/dark drift
+    caus = mth('MULTIPLY', mth('ADD', mth('SINE', mth('ADD', mth('MULTIPLY', sep.outputs['X'], 0.9), turn)),
+                               mth('SINE', mth('SUBTRACT', mth('MULTIPLY', sep.outputs['Y'], 1.1), turn))), 0.06)
+    white = mth('MINIMUM', mth('ADD', ring, glint), 0.8)
+    lit = nt.nodes.new('ShaderNodeMix')
+    lit.data_type = 'RGBA'
+    lit.blend_type = 'MULTIPLY'
+    lit.inputs['Factor'].default_value = 1.0
+    nt.links.new(tex.outputs['Color'], lit.inputs['A'])
     gcol = nt.nodes.new('ShaderNodeCombineColor')
     for ch in ('Red', 'Green', 'Blue'):
-        nt.links.new(gain, gcol.inputs[ch])
-    nt.links.new(gcol.outputs['Color'], mul.inputs['B'])
-    nt.links.new(mul.outputs['Result'], em.inputs['Color'])
+        nt.links.new(mth('ADD', caus, 1.0), gcol.inputs[ch])
+    nt.links.new(gcol.outputs['Color'], lit.inputs['B'])
+    mix = nt.nodes.new('ShaderNodeMix')
+    mix.data_type = 'RGBA'
+    mix.blend_type = 'MIX'
+    nt.links.new(white, mix.inputs['Factor'])
+    nt.links.new(lit.outputs['Result'], mix.inputs['A'])
+    mix.inputs['B'].default_value = (0.92, 1.0, 1.0, 1.0)
+    nt.links.new(mix.outputs['Result'], em.inputs['Color'])
 
 # ---- fills follow the part they complete (attached last: moving a part's pivot must not drag them) --------------------------------------------------------------------------------
 parts = [o for n, o in objs.items() if 'FILL_fill' not in n and n != 'GROUND']
