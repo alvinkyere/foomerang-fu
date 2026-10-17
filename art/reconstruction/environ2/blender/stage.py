@@ -72,3 +72,75 @@ def project(p_bu):
     co = bpy.context.scene.camera
     q = co.matrix_world.inverted() @ Vector(p_bu)
     return (PP[0] + F * q.x / -q.z, PP[1] - F * q.y / -q.z)
+
+
+def light():
+    """environ2's light: a warm sun travelling west, slightly away from the viewer and down (its shadows fall west and toward the
+    viewer), and a cool sky fill. Shared by every model so they are all lit alike."""
+    sc = bpy.context.scene
+    sun = bpy.data.lights.new('SUN', 'SUN')
+    sun.energy = float(os.environ.get('FOO_SUN', '3.2'))
+    sun.color = (1.0, 0.95, 0.85)
+    sun.angle = math.radians(8)
+    so = bpy.data.objects.new('SUN', sun)
+    sc.collection.objects.link(so)
+    so.rotation_euler = Vector((-1.0, 0.25, -float(os.environ.get('FOO_SUN_DOWN', '1.1')))).to_track_quat('-Z', 'Y').to_euler()
+    wd = bpy.data.worlds.new('W')
+    wd.use_nodes = True
+    bg = wd.node_tree.nodes['Background']
+    bg.inputs['Color'].default_value = (0.75, 0.80, 0.90, 1)
+    bg.inputs['Strength'].default_value = float(os.environ.get('FOO_SKY', '0.9'))
+    sc.world = wd
+
+
+def material(name, rgb, rough=0.8):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    p = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    p.inputs['Base Color'].default_value = (*rgb, 1)
+    p.inputs['Roughness'].default_value = rough
+    return m
+
+
+def render_with_ids(out_dir, stem, parts, region):
+    """Render the beauty pass (Cycles) over `region` (x0, y0, x1, y1 px), then every part flat in its id colour (Workbench):
+    <stem>_render.png and <stem>_ids.png. `parts` maps material name -> id colour (0/1 per channel)."""
+    sc = bpy.context.scene
+    x0, y0, x1, y1 = region
+    sc.render.use_border, sc.render.use_crop_to_border = True, False
+    sc.render.border_min_x, sc.render.border_max_x = x0 / W, x1 / W
+    sc.render.border_min_y, sc.render.border_max_y = 1 - y1 / H, 1 - y0 / H
+    sc.render.filepath = os.path.join(out_dir, f'{stem}_render.png')
+    bpy.ops.render.render(write_still=True)
+    for m in bpy.data.materials:
+        m.diffuse_color = (*parts.get(m.name, (0, 0, 0)), 1)
+    sc.render.engine = 'BLENDER_WORKBENCH'
+    sc.display.shading.light = 'FLAT'
+    sc.display.shading.color_type = 'MATERIAL'
+    sc.display.shading.show_shadows = False
+    sc.render.filepath = os.path.join(out_dir, f'{stem}_ids.png')
+    bpy.ops.render.render(write_still=True)
+
+
+def ray_to_vertical_plane(px, py, a, b):
+    """The point seen at pixel (px, py) on the vertical plane through ground points a and b (BU, (x, y))."""
+    co = bpy.context.scene.camera
+    m = co.matrix_world
+    d = (m.to_3x3() @ Vector(((px - PP[0]) / F, -(py - PP[1]) / F, -1.0))).normalized()
+    o = m.translation
+    n = Vector((b[1] - a[1], -(b[0] - a[0]), 0)).normalized()
+    t = (Vector((a[0], a[1], 0)) - o).dot(n) / d.dot(n)
+    return o + d * t
+
+
+def height_at(ground_px, top_row):
+    """How tall a vertical post standing at the ground point seen at `ground_px` must be for its top to appear at `top_row`."""
+    g = ray_to_z(*ground_px, 0.0)
+    lo, hi = 0.0, 40.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if project((g.x, g.y, mid))[1] > top_row:
+            lo = mid
+        else:
+            hi = mid
+    return g, (lo + hi) / 2
