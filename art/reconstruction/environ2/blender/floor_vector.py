@@ -4,14 +4,13 @@
  * drawn exactly (symmetric, straight): the pavement, its three edge stripes, the sand ring round the fountain, the six rugs with
    their border and fringes, the dashed border lines
 Everything is drawn anti-aliased at high resolution, so the floor stays crisp on any screen.
-python floor_vector.py <labels.npy> <palette.npy> <out.png> <out.json>"""
+python floor_vector.py <step2_clean.png> <step-3 masks dir> <out.png> <out.json>"""
 import sys, json, math
 import cv2, numpy as np
 import fit_stall as fs
 
-LAB_PATH, PAL_PATH, OUT_PNG, OUT_JSON = sys.argv[1:5]
-L = np.load(LAB_PATH)
-pal = np.load(PAL_PATH)
+GROUND_TEX, MASKS, OUT_PNG, OUT_JSON = sys.argv[1:5]
+import os
 FP = json.load(open('floor_plan.json'))
 A = json.load(open('../step4_arena.json'))
 w = A['camera']['world']
@@ -30,49 +29,86 @@ def fill(poly_plan, bgr, target=None):
                  lineType=cv2.LINE_AA, shift=4)
 
 
-lab_pal = cv2.cvtColor(pal.reshape(1, -1, 3), cv2.COLOR_BGR2LAB)[0].astype(int)
-pavement_family = [k for k, (l, a, b) in enumerate(lab_pal) if l > 195 and b < 152]
-order = np.argsort(-np.bincount(L.ravel(), minlength=len(pal)))
+# 1. environ2's floor colour as a clean field, from the floor environ2 SHOWS: each plan texel samples the clean plate where the
+#    camera sees it; texels under an object or beyond the frame are filled from the surrounding sand or pavement. Brush grain is
+#    removed (mean-shift: flat regions with crisp edges, then a gentle edge-preserving smooth); sand and pavement are smoothed
+#    separately so the pavement's edge stays crisp. The pavement's side arms run on to the floor's edge (off environ2's frame).
+import glob
+PLATE = cv2.imread(GROUND_TEX)
+objects = np.zeros(PLATE.shape[:2], np.uint8)
+for f in glob.glob(os.path.join(MASKS, 'mask_*.npy')):
+    objects |= (np.load(f) > 0).astype(np.uint8)
+hsv_ = cv2.cvtColor(PLATE, cv2.COLOR_BGR2HSV)
+objects |= (((hsv_[..., 0] < 8) | (hsv_[..., 0] > 160)) & (hsv_[..., 1] > 80)).astype(np.uint8)   # the painted rugs: ours are drawn
+objects = cv2.dilate(objects, np.ones((7, 7), np.uint8))
+K2 = 30.0
+W2, H2 = int((X1 - X0) * K2), int((Y1 - Y0) * K2)
+gx, gy = np.meshgrid(X0 + (np.arange(W2) + 0.5) / K2, Y1 - (np.arange(H2) + 0.5) / K2)
+uv = fs.proj(np.stack([gx.ravel() * 1.0, gy.ravel() * 1.0, np.zeros(gx.size)], 1))   # plan BU -> image px
+ux = uv[:, 0].reshape(H2, W2).astype(np.float32) - 0.5
+uy = uv[:, 1].reshape(H2, W2).astype(np.float32) - 0.5
+field2 = cv2.remap(PLATE, ux, uy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+inframe = (ux >= 0) & (ux < PLATE.shape[1] - 1) & (uy >= 0) & (uy < PLATE.shape[0] - 1)
+under = cv2.remap(objects, ux, uy, cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=1) > 0
+valid = inframe & ~under
+pave = [((X0 if X < -36.0 else (X1 if X > 37.0 else X)), Y) for X, Y in FP['pavement']]
+to_px2 = lambda X, Y: ((X - X0) * K2, (Y1 - Y) * K2)
+pm2 = np.zeros((H2, W2), np.uint8)
+cv2.fillPoly(pm2, [np.round(np.array([to_px2(X, Y) for X, Y in pave]) * S).astype(np.int32)], 1, shift=4)
 
 
-def traced(labels, mask_fn=None):
-    """Each traced region's outer contours (camera px), unprojected to the plan, filled with its colour."""
-    for k in order:
-        if k not in labels:
-            continue
-        m = (L == k).astype(np.uint8)
-        cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        for c, h in zip(cs, hier[0]):
-            if cv2.contourArea(c) < 25 or h[3] != -1:
-                continue
-            c = cv2.approxPolyDP(c, 0.8, True)[:, 0].astype(float) + 0.5
-            plan = [tuple(fs.unproj(x, y, 0)[:2]) for x, y in c]
-            fill(plan, pal[k])
+def fill_from(img_, mask):
+    """Each texel the mean of the valid texels of its kind nearby (wider and wider until it finds some)."""
+    out = np.zeros(img_.shape, np.float32)
+    have = np.zeros(mask.shape, np.float32)
+    for sigma in (2, 6, 18, 54, 160, 480, 1400):
+        m = cv2.GaussianBlur(mask.astype(np.float32), (0, 0), sigma)
+        v = cv2.GaussianBlur(img_.astype(np.float32) * mask[..., None], (0, 0), sigma)
+        est = v / np.maximum(m[..., None], 1e-6)
+        take = ((m > 0.02) & (have == 0))[..., None]
+        out = np.where(take, est, out)
+        have = np.maximum(have, (m > 0.02).astype(np.float32))
+    mean = img_[mask].mean(0)
+    return np.where((have == 0)[..., None], mean, out)
 
 
-# 1. the sand tones (everything) 2. the pavement, exact 3. shade and light shapes on the pavement, clipped to it
-traced([k for k in range(len(pal)) if k not in pavement_family])
-pave = FP['pavement']
-PAVE = (212, 244, 247)                            # BGR cream
-fill(pave, PAVE)
-pave_mask = np.zeros((H, W), np.uint8)
-fill(pave, (255, 255, 255), target=pave_mask) if False else None
+pave_ok = valid & (cv2.erode(pm2, np.ones((5, 5), np.uint8)) > 0)
+sand_ok = valid & (cv2.dilate(pm2, np.ones((5, 5), np.uint8)) == 0)
+pf = np.where(pave_ok[..., None], field2.astype(np.float32), fill_from(field2, pave_ok))
+sf = np.where(sand_ok[..., None], field2.astype(np.float32), fill_from(field2, sand_ok))
+# beyond environ2's frame the ground settles to plain sand / plain pavement over 3 BU: clean open ground, no echoes of the frame
+dist = cv2.distanceTransform((~inframe).astype(np.uint8), cv2.DIST_L2, 5) / K2
+t = np.clip(dist / 3.0, 0, 1)[..., None]
+edge = (cv2.dilate(inframe.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0) & ~cv2.erode(inframe.astype(np.uint8), np.ones((61, 61), np.uint8)).astype(bool)
+sand_plain = np.median(field2[sand_ok & edge], axis=0)
+pave_plain = np.median(field2[pave_ok & edge], axis=0)
+sf = sf * (1 - t) + sand_plain * t
+pf = pf * (1 - t) + pave_plain * t
+pf = cv2.bilateralFilter(cv2.pyrMeanShiftFiltering(np.clip(pf, 0, 255).astype(np.uint8), 8, 10), 9, 16, 6)
+sf = cv2.bilateralFilter(cv2.pyrMeanShiftFiltering(np.clip(sf, 0, 255).astype(np.uint8), 8, 10), 9, 16, 6)
+pf = cv2.resize(pf, (W, H), interpolation=cv2.INTER_CUBIC).astype(np.float32)
+sf = cv2.resize(sf, (W, H), interpolation=cv2.INTER_CUBIC).astype(np.float32)
 pm = np.zeros((H, W), np.uint8)
 cv2.fillPoly(pm, [np.round(np.array([to_px(X, Y) for X, Y in pave]) * S).astype(np.int32)], 255, lineType=cv2.LINE_AA, shift=4)
-shade = img.copy()
-for k in order:
-    if k not in pavement_family or tuple(pal[k]) == tuple(pal[order[0]]):
-        continue
-    m = (L == k).astype(np.uint8)
-    cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-    for c, h in zip(cs, hier[0]):
-        if cv2.contourArea(c) < 40 or h[3] != -1:
-            continue
-        c = cv2.approxPolyDP(c, 0.8, True)[:, 0].astype(float) + 0.5
-        fill([tuple(fs.unproj(x, y, 0)[:2]) for x, y in c], pal[k], target=shade)
 a = (pm.astype(np.float32) / 255)[..., None]
-inside = cv2.erode(pm, np.ones((9, 9), np.uint8)).astype(np.float32)[..., None] / 255
-img = (img * (1 - inside) + shade * inside).astype(np.uint8)
+img = np.clip(pf * a + sf * (1 - a), 0, 255).astype(np.uint8)
+inner = cv2.erode((pm > 128).astype(np.uint8), np.ones((15, 15), np.uint8))
+
+
+# the pavement's slabs: faint grout lines on a 5.5 BU grid centred on the plaza's axis (environ2's slabs are barely visible)
+SLAB = 5.5
+ax0 = FP['axis_x']
+grout = np.zeros((H, W), np.float32)
+for k in range(-12, 13):
+    gx = int(round((ax0 + (k + 0.5) * SLAB - X0) * K))
+    if 0 <= gx < W:
+        cv2.line(grout, (gx, 0), (gx, H - 1), 1.0, 3, cv2.LINE_AA)
+for k in range(0, 12):
+    gy = int(round((Y1 - (53.0 + k * SLAB)) * K))
+    if 0 <= gy < H:
+        cv2.line(grout, (0, gy), (W - 1, gy), 1.0, 3, cv2.LINE_AA)
+g = (grout * (inner > 0) * 0.07)[..., None]
+img = np.clip(img * (1 - g), 0, 255).astype(np.uint8)
 
 
 def offset(poly, d):
