@@ -140,14 +140,14 @@
     },
     {
       "key": "02_banner_l",
-      "file": "occ_02_banner_l.webp",
-      "x": 502,
+      "file": "anim_02_banner_l.webp",
+      "x": 500,
       "y": 0,
       "depth": 109.5,
       "fade": true,
       "slices": [
         {
-          "x0": 502,
+          "x0": 500,
           "x1": 550,
           "depth": 109.5
         },
@@ -156,11 +156,17 @@
           "x1": 580,
           "depth": 109.5
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 80,
+        "height": 112
+      }
     },
     {
       "key": "03_banner_r",
-      "file": "occ_03_banner_r.webp",
+      "file": "anim_03_banner_r.webp",
       "x": 1327,
       "y": 0,
       "depth": 121.5,
@@ -176,7 +182,13 @@
           "x1": 1400,
           "depth": 121.5
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 73,
+        "height": 124
+      }
     },
     {
       "key": "15_crate",
@@ -730,14 +742,14 @@
     },
     {
       "key": "28_tree",
-      "file": "occ_28_tree.webp",
-      "x": 1127,
-      "y": 133,
+      "file": "anim_28_tree.webp",
+      "x": 1126,
+      "y": 132,
       "depth": 315.0,
       "fade": true,
       "slices": [
         {
-          "x0": 1127,
+          "x0": 1126,
           "x1": 1156,
           "depth": 295.2
         },
@@ -803,10 +815,16 @@
         },
         {
           "x0": 1288,
-          "x1": 1331,
+          "x1": 1333,
           "depth": 244.4
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 207,
+        "height": 185
+      }
     },
     {
       "key": "19_pot",
@@ -1465,11 +1483,11 @@
     },
     {
       "key": "23_fountain",
-      "file": "occ_23_fountain.webp",
+      "file": "anim_23_fountain.webp",
       "x": 800,
       "y": 473,
       "depth": 795.0,
-      "fade": true,
+      "fade": false,
       "slices": [
         {
           "x0": 800,
@@ -1651,7 +1669,13 @@
           "x1": 1154,
           "depth": 646.5
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 354,
+        "height": 324
+      }
     },
     {
       "key": "31_fence_sw",
@@ -1720,14 +1744,14 @@
     },
     {
       "key": "27_tree",
-      "file": "occ_27_tree.webp",
-      "x": 1670,
+      "file": "anim_27_tree.webp",
+      "x": 1666,
       "y": 731,
       "depth": 918.0,
       "fade": true,
       "slices": [
         {
-          "x0": 1670,
+          "x0": 1666,
           "x1": 1686,
           "depth": 851.2
         },
@@ -1811,18 +1835,24 @@
           "x1": 1816,
           "depth": 873.2
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 150,
+        "height": 189
+      }
     },
     {
       "key": "25_tree",
-      "file": "occ_25_tree.webp",
-      "x": 503,
-      "y": 740,
+      "file": "anim_25_tree.webp",
+      "x": 500,
+      "y": 739,
       "depth": 919.5,
       "fade": true,
       "slices": [
         {
-          "x0": 503,
+          "x0": 500,
           "x1": 549,
           "depth": 889.1
         },
@@ -1858,10 +1888,16 @@
         },
         {
           "x0": 644,
-          "x1": 670,
+          "x1": 671,
           "depth": 905.8
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 171,
+        "height": 183
+      }
     },
     {
       "key": "16_crates",
@@ -2065,14 +2101,14 @@
     },
     {
       "key": "26_tree",
-      "file": "occ_26_tree.webp",
-      "x": 1214,
-      "y": 806,
+      "file": "anim_26_tree.webp",
+      "x": 1210,
+      "y": 805,
       "depth": 1030.5,
       "fade": true,
       "slices": [
         {
-          "x0": 1214,
+          "x0": 1210,
           "x1": 1248,
           "depth": 1012.5
         },
@@ -2131,11 +2167,17 @@
           "x1": 1442,
           "depth": 997.5
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 232,
+        "height": 228
+      }
     },
     {
       "key": "24_bunting",
-      "file": "occ_24_bunting.webp",
+      "file": "anim_24_bunting.webp",
       "x": 761,
       "y": 878,
       "depth": 1039.5,
@@ -2191,7 +2233,13 @@
           "x1": 1202,
           "depth": 1033.5
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 441,
+        "height": 164
+      }
     },
     {
       "key": "17_crate",
@@ -2240,14 +2288,14 @@
     },
     {
       "key": "29_tree",
-      "file": "occ_29_tree.webp",
-      "x": 1766,
-      "y": 892,
+      "file": "anim_29_tree.webp",
+      "x": 1761,
+      "y": 882,
       "depth": 1080.0,
       "fade": true,
       "slices": [
         {
-          "x0": 1766,
+          "x0": 1761,
           "x1": 1815,
           "depth": 1080.0
         },
@@ -2266,7 +2314,13 @@
           "x1": 1920,
           "depth": 1080.0
         }
-      ]
+      ],
+      "animation": {
+        "frames": 60,
+        "periodS": 4.0,
+        "width": 159,
+        "height": 198
+      }
     }
   ],
   "characterScale": 1.1441,
@@ -2332,5 +2386,5 @@
       "frames": 32
     }
   },
-  "provenance": "art/reconstruction/environ2 (clean_environ2.py, layers_environ2.py, arena_environ2.py, package_environ2.py) from environ2.avif; character atlases: the previous plaza bake (bake_chars.py)"
+  "provenance": "art/reconstruction/environ2 (clean_environ2.py, layers_environ2.py, arena_environ2.py, package_environ2.py) from environ2.avif; character atlases: the previous plaza bake (bake_chars.py); moving objects: the 3D plaza (art/reconstruction/environ2/blender: animate.py, render_moving.py, package_moving.py)"
 }

@@ -12,7 +12,12 @@ import type {
 import { animationFrame, type AnimatedProp } from '../../reconstructed/animatedProp';
 import { followView } from '../../reconstructed/followView';
 import { createMapCamera, parseMapCamera, type MapCamera } from '../../reconstructed/mapCamera';
-import { layerParts, parseMapLayers } from '../../reconstructed/mapLayers';
+import {
+  layerFrame,
+  layerParts,
+  parseMapLayers,
+  type MapLayer,
+} from '../../reconstructed/mapLayers';
 import {
   characterFor,
   headingFrame,
@@ -40,7 +45,11 @@ interface Manifest {
   readonly map: string;
   readonly camera: unknown;
   readonly ground: string;
-  readonly occluders: readonly { key: string; file: string }[];
+  readonly occluders: readonly {
+    key: string;
+    file: string;
+    animation?: { width: number; height: number };
+  }[];
   readonly animated?: readonly AnimatedProp[];
   readonly characters: Readonly<
     Record<string, { file: string; cell: number; anchor: [number, number]; frames: number }>
@@ -199,9 +208,16 @@ class ReconstructedScene extends Phaser.Scene {
   readonly #books = new Map<number, BookArt>();
   /** Each object layer: its drawn parts (one per depth slice), faded together while any part hides a living player. */
   readonly #occluders: {
-    parts: { image: Phaser.GameObjects.Image; depth: number; bounds: Phaser.Geom.Rectangle }[];
+    layer: MapLayer;
+    parts: {
+      image: Phaser.GameObjects.Image;
+      depth: number;
+      bounds: Phaser.Geom.Rectangle;
+      crop: { x: number; width: number; height: number };
+    }[];
     alpha: number;
     fade: boolean;
+    frame: number;
   }[] = [];
   #characterScale = 1;
   #manifest: Manifest | undefined;
@@ -230,7 +246,13 @@ class ReconstructedScene extends Phaser.Scene {
       `filecomplete-json-map-manifest`,
       (_key: string, _type: string, data: Manifest) => {
         this.load.image('map-ground', `${at}${data.ground}`);
-        for (const o of data.occluders) this.load.image(`map-occ-${o.key}`, `${at}${o.file}`);
+        for (const o of data.occluders)
+          if (o.animation === undefined) this.load.image(`map-occ-${o.key}`, `${at}${o.file}`);
+          else
+            this.load.spritesheet(`map-occ-${o.key}`, `${at}${o.file}`, {
+              frameWidth: o.animation.width,
+              frameHeight: o.animation.height,
+            });
         for (const a of data.animated ?? [])
           this.load.spritesheet(`map-anim-${a.key}`, `${at}${a.file}`, {
             frameWidth: a.width,
@@ -256,17 +278,21 @@ class ReconstructedScene extends Phaser.Scene {
     this.add.image(0, 0, 'map-ground').setOrigin(0, 0).setDepth(-1e6);
     for (const o of layers.occluders) {
       const key = `map-occ-${o.key}`;
+      // a still layer is one image; a moving one is a sheet of frames of the animation's size
       const source = this.textures.get(key).getSourceImage();
-      const parts = layerParts(o, source.width).map((part) => ({
+      const w = o.animation?.width ?? source.width;
+      const h = o.animation?.height ?? source.height;
+      const parts = layerParts(o, w).map((part) => ({
         image: this.add
-          .image(o.x, o.y, key)
+          .image(o.x, o.y, key, 0)
           .setOrigin(0, 0)
-          .setCrop(part.cropX, 0, part.width, source.height)
+          .setCrop(part.cropX, 0, part.width, h)
           .setDepth(part.depth),
         depth: part.depth,
-        bounds: new Phaser.Geom.Rectangle(o.x + part.cropX, o.y, part.width, source.height),
+        bounds: new Phaser.Geom.Rectangle(o.x + part.cropX, o.y, part.width, h),
+        crop: { x: part.cropX, width: part.width, height: h },
       }));
-      this.#occluders.push({ parts, alpha: 1, fade: o.fade });
+      this.#occluders.push({ layer: o, parts, alpha: 1, fade: o.fade, frame: 0 });
     }
     for (const prop of m.animated ?? [])
       this.#animated.push({
@@ -411,6 +437,15 @@ class ReconstructedScene extends Phaser.Scene {
 
   override update(time: number): void {
     this.#frame(false);
+    // the plaza's moving objects play their loop: every slice of a layer shows the same frame
+    for (const o of this.#occluders) {
+      if (o.layer.animation === undefined) continue;
+      const f = layerFrame(o.layer, time);
+      if (f === o.frame) continue;
+      o.frame = f;
+      for (const p of o.parts)
+        p.image.setFrame(f).setCrop(p.crop.x, 0, p.crop.width, p.crop.height);
+    }
     for (const { image, prop } of this.#animated) {
       const f = animationFrame(time, prop.periodS, prop.frames);
       image.setFrame(f).setDepth(prop.depths[f] ?? 0);

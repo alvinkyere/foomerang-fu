@@ -205,7 +205,7 @@ CONTACTS = {
     '28_tree': [(761, 193), (780, 201), (798, 210), (817, 200), (836, 181), (852, 165), (869, 160)],
     '29_tree': [(1228, 720)],                    # its trunk is below the frame: nothing on screen stands in front of it
 }
-FADE = ('01_', '02_', '03_', '05_', '06_', '07_', '08_', '09_', '10_', '23_', '24_', '25_', '26_', '27_', '28_', '29_')  # tall
+FADE = ('01_', '02_', '03_', '05_', '06_', '07_', '08_', '09_', '10_', '24_', '25_', '26_', '27_', '28_', '29_')  # tall (the fountain is low: it never hides a player, and fading it would show the floor beneath)
 
 
 def profile(name, m):

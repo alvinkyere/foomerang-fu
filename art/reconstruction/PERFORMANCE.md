@@ -23,6 +23,11 @@ Conditions common to every row (2026-10-08): iMac21,2 (Apple M1, 8 CPU cores, 7-
 > At 1× it holds 60 like the previous plaza (worst frame better: 28.3 vs 36.1 ms). Under a 6× CPU throttle it is worse (1% low
 > 20.4 vs 28.4 FPS, worst 88.8 vs 80.1 ms), plausibly the 386 slice images against the previous 23 layers; one run each, so
 > not yet separated from run-to-run variance.
+>
+> With the 3D plaza's animation (nine moving layers, 60-frame sheets; 2026-10-17, same test, one run each): 1× still holds 60.00
+> FPS (1% low 59.52, worst 36.0 ms, 250 ms simulation discarded); 6× throttle: 57.80 FPS, 1% low 22.96, worst frame 262.5 ms,
+> 3.4 s simulation discarded (vs 1.5 s before). The single worst frame is plausibly the first upload of a frame sheet to the GPU;
+> not yet investigated.
 
 | Map          | Viewport  | Canvas backing | CPU throttle | Avg FPS | 1% low FPS | p50 / p95 / p99 ms | Worst frame (2 s windows) |
 | ------------ | --------- | -------------- | ------------ | ------- | ---------- | ------------------ | ------------------------- |
