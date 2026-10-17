@@ -18,8 +18,6 @@ import { characterHeight, sceneSpace } from './plazaSpace';
 const CANVAS = { width: 1920, height: 1080 } as const;
 const BOOMERANG_HEIGHT = 24;
 const FADE_OPACITY = 0.35;
-/** Top-level objects that may turn see-through when they hide a player. */
-const FADEABLE = /^(stall_|TREE|BUNTING|BANNER|SIGN)/;
 
 interface Manifest {
   readonly map: string;
@@ -32,17 +30,47 @@ interface Manifest {
 
 const color = (css: string) => new THREE.Color(css);
 
-/** What a surface keeps of its colour in shadow (linear RGB): environ2's shadows are violet-tinted, never grey. */
-const SHADOW_TINT: readonly [number, number, number] = [0.72, 0.66, 0.86];
+/** environ2's design projected onto a surface's RESTING position through the fixed camera (exact for every pixel the camera sees). */
+function replicaMaterial(plate: THREE.Texture, restViewProj: THREE.Matrix4): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      plate: { value: plate },
+      restViewProj: { value: restViewProj },
+      opacity: { value: 1 },
+    },
+    vertexShader: `
+      uniform mat4 restViewProj;
+      attribute vec3 restPosition;
+      varying vec4 vClip;
+      void main() {
+        vClip = restViewProj * vec4(restPosition, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform sampler2D plate;
+      uniform float opacity;
+      varying vec4 vClip;
+      void main() {
+        vec2 uv = vClip.xy / vClip.w * 0.5 + 0.5;
+        gl_FragColor = vec4(texture2D(plate, uv).rgb, opacity);
+      }`,
+    side: THREE.DoubleSide,
+  });
+}
 
-/** The toon bands, by how squarely a surface faces the sun: away -> none, glancing -> half, facing -> full. */
-function toonGradient(): THREE.DataTexture {
-  const levels = [0, 0, 150, 255];
-  const data = new Uint8Array(levels.flatMap((v) => [v, v, v, 255]));
-  const t = new THREE.DataTexture(data, levels.length, 1, THREE.RGBAFormat);
-  t.minFilter = t.magFilter = THREE.NearestFilter;
-  t.needsUpdate = true;
-  return t;
+/** Which object a mesh belongs to, for fading as one piece: a stall, a tree, the bunting, a banner, the sign. */
+function groupOf(o: THREE.Object3D): string | undefined {
+  let top: THREE.Object3D = o;
+  while (top.parent && top.parent.type !== 'Group' && top.parent.parent) top = top.parent;
+  const m = /^(stall_(?:far_[we]|[ns][ew])|TREE_\d+|TREE29|BUNTING|BANNER_\d+|SIGN)/.exec(top.name);
+  return m?.[1];
+}
+
+/** An object that turns see-through as one piece while it hides a living player. */
+interface Fadeable {
+  readonly roots: THREE.Object3D[];
+  readonly materials: THREE.ShaderMaterial[];
+  opacity: number;
 }
 
 class Character {
@@ -218,7 +246,7 @@ class Plaza {
   readonly #boomerangs = new Map<string, Boomerang>();
   readonly #books = new Map<number, THREE.Group>();
   readonly #bursts: Burst[] = [];
-  readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
+  readonly #fadeable: Fadeable[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
   readonly #banner: HTMLDivElement;
   readonly #atlases = new Map<string, THREE.Texture>();
@@ -235,13 +263,13 @@ class Plaza {
     readonly characterScale: number,
     gltf: THREE.Group,
     atlases: Map<string, THREE.Texture>,
+    plate: THREE.Texture,
+    floorPlate: THREE.Texture,
   ) {
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setClearColor(color(map.background));
     container.appendChild(this.renderer.domElement);
@@ -255,66 +283,41 @@ class Plaza {
     const th = (config.pitchDeg * Math.PI) / 180;
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
-    // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
-    // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
-    // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
-    const sun = new THREE.DirectionalLight(
-      new THREE.Color(1 - SHADOW_TINT[0], 1 - SHADOW_TINT[1], 1 - SHADOW_TINT[2]),
-      Math.PI,
-    );
-    const travel = new THREE.Vector3(-1, -1.1, -0.25).normalize();
-    sun.position.set(0, 0, -72).addScaledVector(travel, -150);
-    sun.target.position.set(0, 0, -72);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(4096, 4096);
-    Object.assign(sun.shadow.camera, {
-      left: -60,
-      right: 60,
-      top: 60,
-      bottom: -60,
-      near: 1,
-      far: 400,
-    });
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.02;
-    this.scene.add(
-      sun,
-      sun.target,
-      new THREE.AmbientLight(new THREE.Color(...SHADOW_TINT), Math.PI),
-    );
+    // only the game's own pieces (boomerangs, Books) are lit; the plaza carries environ2's light in its design
+    const key = new THREE.DirectionalLight(0xfff4e0, 2.2);
+    key.position.set(-60, 120, -20);
+    this.scene.add(key, new THREE.AmbientLight(0xffffff, 1.2));
     this.scene.add(gltf);
-    const gradient = toonGradient();
-    gltf.traverse((o) => {
-      if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;
-      const m = o.material as THREE.MeshStandardMaterial;
-      o.material = new THREE.MeshToonMaterial({
-        color: m.color,
-        map: m.map ?? null,
-        gradientMap: gradient,
-        side: m.side,
-      });
-    });
-    gltf.traverse((o) => {
-      if (o instanceof THREE.Mesh) {
-        const floor = o.name.startsWith('FLOOR') || o.name.startsWith('RUG');
-        o.castShadow = !floor;
-        o.receiveShadow = true;
-      }
-    });
-    for (const root of gltf.children) {
-      if (FADEABLE.test(root.name)) {
-        const materials: THREE.Material[] = [];
-        root.traverse((o) => {
-          if (o instanceof THREE.Mesh) {
-            o.material = (o.material as THREE.Material).clone();
-            (o.material as THREE.Material).transparent = true;
-            materials.push(o.material as THREE.Material);
-          }
-        });
-        this.#fadeable.push({ root, materials, opacity: 1 });
-      }
-    }
     this.#animate(gltf);
+    // every surface shows environ2 exactly where the camera sees it at rest: the design is projected onto the RESTING surface
+    // (restPosition), so it stays on the object when the object moves; the floor shows environ2's floor (filled under objects)
+    gltf.updateMatrixWorld(true);
+    this.camera.updateMatrixWorld(true);
+    const restViewProj = this.camera.projectionMatrix
+      .clone()
+      .multiply(this.camera.matrixWorldInverse);
+    const groups = new Map<string, THREE.ShaderMaterial[]>();
+    gltf.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const g = o.geometry as THREE.BufferGeometry;
+      const pos = g.getAttribute('position');
+      const rest = new Float32Array(pos.count * 3);
+      const v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i += 1) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        rest.set([v.x, v.y, v.z], i * 3);
+      }
+      g.setAttribute('restPosition', new THREE.BufferAttribute(rest, 3));
+      const material = replicaMaterial(o.name === 'GROUND' ? floorPlate : plate, restViewProj);
+      o.material = material;
+      const group = groupOf(o);
+      if (group !== undefined) groups.set(group, [...(groups.get(group) ?? []), material]);
+    });
+    for (const [name, materials] of groups) {
+      const roots = gltf.children.filter((c) => groupOf(c) === name);
+      for (const m of materials) m.transparent = true;
+      this.#fadeable.push({ roots, materials, opacity: 1 });
+    }
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
       position: 'absolute',
@@ -369,7 +372,7 @@ class Plaza {
             root.rotation.z = wave(0.09, -0.7 * i + 1.3, t);
           },
         });
-      } else if (/^TREE_\d+_tree$/.test(root.name) || root.name === 'TREE29_trunk') {
+      } else if (/^TREE_\d+_tree_canopy\d+$/.test(root.name)) {
         box.setFromObject(root);
         const centre = box.getCenter(new THREE.Vector3());
         centre.y = box.min.y;
@@ -395,16 +398,6 @@ class Plaza {
     // water: drifting rings and glints painted on a transparent disc just above the water
     const water = gltf.getObjectByName('FOUNTAIN_water');
     if (water instanceof THREE.Mesh) {
-      // the water's own material (Blender's gradient does not survive the export): clear turquoise, glossy
-      water.material = new THREE.MeshStandardMaterial({
-        color: 0x3fb7d6,
-        roughness: 0.12,
-        metalness: 0,
-        emissive: 0x0b4f63,
-        emissiveIntensity: 0.35,
-      });
-      water.receiveShadow = true;
-      water.castShadow = false;
       box.setFromObject(water);
       const c = box.getCenter(new THREE.Vector3());
       const radius = (box.max.x - box.min.x) / 2;
@@ -583,8 +576,7 @@ class Plaza {
   /** A tall object between the camera and a living player turns see-through, so nobody is ever hidden. */
   #fadeWhatHidesSomeone(): void {
     const ray = new THREE.Raycaster();
-    const hiding = new Set<THREE.Object3D>();
-    const roots = this.#fadeable.map((f) => f.root);
+    const hiding = new Set<Fadeable>();
     for (const [id, ch] of this.#characters) {
       const c = this.#view?.circles.find((q) => q.id === id);
       if (c === undefined || c.dead) continue;
@@ -593,16 +585,14 @@ class Plaza {
       const far = dir.length();
       ray.set(this.camera.position, dir.normalize());
       ray.far = far - 0.5;
-      for (const hit of ray.intersectObjects(roots, true)) {
-        let o: THREE.Object3D | null = hit.object;
-        while (o && !roots.includes(o)) o = o.parent;
-        if (o) hiding.add(o);
-      }
+      for (const f of this.#fadeable)
+        if (!hiding.has(f) && ray.intersectObjects(f.roots, true).length > 0) hiding.add(f);
     }
     for (const f of this.#fadeable) {
-      const target = hiding.has(f.root) ? FADE_OPACITY : 1;
+      const target = hiding.has(f) ? FADE_OPACITY : 1;
       f.opacity += (target - f.opacity) * 0.25;
-      for (const m of f.materials) m.opacity = f.opacity;
+      for (const m of f.materials)
+        (m.uniforms['opacity'] as THREE.IUniform<number>).value = f.opacity;
     }
   }
 
@@ -678,7 +668,7 @@ export async function createThreePlaza(
     occluders: [],
     characterScale: manifest.characterScale,
   });
-  const gltf = await new GLTFLoader().loadAsync(`${at}plaza.glb`);
+  const gltf = await new GLTFLoader().loadAsync(`${at}plaza_replica.glb`);
   const loader = new THREE.TextureLoader();
   const atlases = new Map<string, THREE.Texture>();
   await Promise.all(
@@ -691,7 +681,24 @@ export async function createThreePlaza(
       atlases.set(kind, t);
     }),
   );
-  const plaza = new Plaza(container, map, config, manifest, characterScale, gltf.scene, atlases);
+  const plate = await loader.loadAsync(`${at}replica_plate.webp`);
+  const floorPlate = await loader.loadAsync(`${at}replica_floor.webp`);
+  for (const t of [plate, floorPlate]) {
+    t.colorSpace = THREE.NoColorSpace; // passed through untouched: the screen shows environ2's own values
+    t.generateMipmaps = false;
+    t.minFilter = THREE.LinearFilter;
+  }
+  const plaza = new Plaza(
+    container,
+    map,
+    config,
+    manifest,
+    characterScale,
+    gltf.scene,
+    atlases,
+    plate,
+    floorPlate,
+  );
   return {
     render: (view) => plaza.show(view),
     drawn: () => plaza.drawn(),
