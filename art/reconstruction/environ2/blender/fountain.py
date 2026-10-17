@@ -28,15 +28,7 @@ sc.render.film_transparent = False
 
 
 def mat(name, rgb, rough=0.8, emit=0.0):
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    p = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-    p.inputs['Base Color'].default_value = (*rgb, 1)
-    p.inputs['Roughness'].default_value = rough
-    if emit:
-        p.inputs['Emission Color'].default_value = (*rgb, 1)
-        p.inputs['Emission Strength'].default_value = emit
-    return m
+    return stage.material(name, rgb, rough)
 
 
 def ring_solid(name, r_out_bot, r_out_top, r_in, z0, z1, segs=96, outline=lambda a: 1.0):
@@ -99,7 +91,9 @@ water = bpy.context.object
 water.name = 'FOUNTAIN_water'
 assign(water, m_water)
 nt = m_water.node_tree
-p_ = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+p_ = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+# the toon material's base colour input (the multiply whose A is the flat colour)
+toon_base = next((n for n in nt.nodes if n.type == 'MIX' and n.inputs['A'].links and n.inputs['A'].links[0].from_node.type == 'RGB'), None)
 tc, mp, gr, ramp = nt.nodes.new('ShaderNodeTexCoord'), nt.nodes.new('ShaderNodeMapping'), nt.nodes.new('ShaderNodeTexGradient'), \
     nt.nodes.new('ShaderNodeValToRGB')
 gr.gradient_type = 'SPHERICAL'
@@ -112,7 +106,7 @@ base = COL['water']
 ramp.color_ramp.elements[0].color = (*base, 1)
 ramp.color_ramp.elements[1].color = tuple(min(1.0, c * float(os.environ.get('FOO_WATER_GLOW', '1.45'))) for c in base) + (1,)
 ramp.color_ramp.elements[1].position = 0.55
-nt.links.new(ramp.outputs['Color'], p_.inputs['Base Color'])
+nt.links.new(ramp.outputs['Color'], p_.inputs['Base Color'] if p_ is not None else toon_base.inputs['A'])
 water.scale = (RI + 0.01, RI + 0.01, 1)       # the mesh is a unit disc, so the mapping above is in basin radii
 
 # the juicer dish: a thin-lipped round dish standing in the water; its outline runs out into a pointed spout (west, tip at image
@@ -186,20 +180,7 @@ for r in range(RIBS):
     sc.collection.objects.link(o)
     o.data.materials.append(m_cone)
 
-# light: warm sun from the east and a little behind (environ2's shadows fall west and toward the viewer), sky fill
-sun = bpy.data.lights.new('SUN', 'SUN')
-sun.energy = float(os.environ.get('FOO_SUN', '3.2'))
-sun.color = (1.0, 0.95, 0.85)
-sun.angle = math.radians(8)
-so = bpy.data.objects.new('SUN', sun)
-sc.collection.objects.link(so)
-so.rotation_euler = Vector((-1.0, 0.25, -float(os.environ.get('FOO_SUN_DOWN', '1.1')))).to_track_quat('-Z', 'Y').to_euler()
-wd = bpy.data.worlds.new('W')
-wd.use_nodes = True
-bg = wd.node_tree.nodes['Background']
-bg.inputs['Color'].default_value = (0.75, 0.80, 0.90, 1)
-bg.inputs['Strength'].default_value = float(os.environ.get('FOO_SKY', '0.9'))
-sc.world = wd
+stage.light()
 
 # render the fountain's region (border) and the whole frame's id masks for the comparison
 x0, y0, x1, y1 = 520, 300, 790, 545

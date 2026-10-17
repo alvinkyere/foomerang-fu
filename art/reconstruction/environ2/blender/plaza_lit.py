@@ -59,8 +59,9 @@ def offset(poly, d):
 
 
 FP = json.load(open(os.path.join(stage.HERE, 'floor_plan.json')))
-SAND, SAND_LIGHT = (0.70, 0.45, 0.16), (0.86, 0.66, 0.26)
-PAVE, STRIPE, TILE = (0.80, 0.77, 0.62), (0.58, 0.58, 0.56), (0.80, 0.78, 0.64)
+# environ2's floor tones (its dominant colours, sRGB -> linear): deep sand (0.6038, 0.4179, 0.1529), light sand, cream pavement, grey stripes
+SAND, SAND_LIGHT = (0.6724, 0.402, 0.117), (0.8388, 0.6172, 0.2016)
+PAVE, STRIPE, TILE = (0.9216, 0.9047, 0.6584), (0.6724, 0.6584, 0.552), (0.8388, 0.8148, 0.5776)
 G = json.load(open(os.path.join(stage.HERE, '..', 'step4_arena.json')))
 flat('FLOOR_sand', [(-70, 30), (72, 30), (72, 140), (-70, 140)], -0.01, mat('sand', SAND, 0.95))
 pave = FP['pavement']
@@ -72,14 +73,14 @@ for k, d in enumerate((0.9, 0.55, 0.2)):                               # three p
 F = json.load(open(os.path.join(stage.HERE, 'fountain_meas.json')))
 fc, fr = Vector((F['cx'] * 100, F['cy'] * 100)), F['R0'] * 100
 ring = [(fc.x + (fr + 0.9) * math.cos(a), fc.y + (fr + 1.6) * math.sin(a)) for a in [2 * math.pi * i / 96 for i in range(96)]]
-flat('FLOOR_ring', ring, 0.013, mat('sand_ring', (0.90, 0.72, 0.28), 0.9))
+flat('FLOOR_ring', ring, 0.013, mat('sand_ring', (0.9216, 0.7605, 0.2623), 0.9))
 # the pavement's tiles: a repeating tile texture (one 5 BU tile, its grout at the edges), mapped by plan position
 tile = bpy.data.images.new('pave_tile', 128, 128)
 px = []
 for yy in range(128):
     for xx in range(128):
         grout = xx < 3 or yy < 3
-        c = (0.70, 0.67, 0.53) if grout else PAVE
+        c = TILE if grout else PAVE
         px += [c[0], c[1], c[2], 1.0]
 tile.pixels = px
 tile.filepath_raw = os.path.join(OUT, 'pave_tile.png')
@@ -92,7 +93,7 @@ pn.inputs['Roughness'].default_value = 0.9
 tx = pm.node_tree.nodes.new('ShaderNodeTexImage')
 tx.image = tile
 pm.node_tree.links.new(tx.outputs['Color'], pn.inputs['Base Color'])
-inner = flat('FLOOR_pavement', offset(pave, -0.1), 0.011, pm)
+inner = flat('FLOOR_pavement', offset(pave, -0.1), 0.011, mat('pave_cream', PAVE, 0.9))   # environ2's tiles are barely visible
 uvl = inner.data.uv_layers.new(name='uv')
 for loop in inner.data.loops:
     v = inner.data.vertices[loop.vertex_index].co
@@ -133,7 +134,7 @@ rug('RUG_ne', (2 * ax - cx_, cy_), 5.2, 1.6, math.radians(-45))
 
 # light: environ2's warm sun with real shadows, and a cool sky
 sun = bpy.data.lights.new('SUN', 'SUN')
-sun.energy = 2.5
+sun.energy = 1.6
 sun.color = (1.0, 0.95, 0.85)
 sun.angle = math.radians(3)
 so = bpy.data.objects.new('SUN', sun)
@@ -142,12 +143,61 @@ so.rotation_euler = Vector((-1.0, 0.25, -1.1)).to_track_quat('-Z', 'Y').to_euler
 wd = bpy.data.worlds.new('W')
 wd.use_nodes = True
 wd.node_tree.nodes['Background'].inputs['Color'].default_value = (0.75, 0.80, 0.90, 1)
-wd.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.9
+wd.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.22
 sc.world = wd
+# environ2's cartoon look on everything: every material becomes the toon shading of its own base colour (TOON=0 keeps PBR)
+if os.environ.get('TOON', '1') == '1':
+    swap = {}
+    for m in list(bpy.data.materials):
+        if not m.use_nodes or m.name.startswith('toon_'):
+            continue
+        p = next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if p is None:
+            continue
+        rgb = tuple(p.inputs['Base Color'].default_value)[:3]
+        img = next((n.image for n in m.node_tree.nodes if n.type == 'TEX_IMAGE'), None)
+        t = stage.toon_material('toon_' + m.name, rgb)
+        if img is not None:                          # textured (the pavement tiles): the texture is the base colour
+            nt = t.node_tree
+            tx = nt.nodes.new('ShaderNodeTexImage')
+            tx.image = img
+            uvn = nt.nodes.new('ShaderNodeUVMap')
+            nt.links.new(uvn.outputs['UV'], tx.inputs['Vector'])
+            mix = next(n for n in nt.nodes if n.type == 'MIX' and n.inputs['A'].links and n.inputs['A'].links[0].from_node.type == 'RGB')
+            nt.links.new(tx.outputs['Color'], mix.inputs['A'])
+        swap[m.name] = t
+    for o in sc.objects:
+        if o.type in ('MESH', 'CURVE'):
+            for slot in o.material_slots:
+                if slot.material and slot.material.name in swap:
+                    slot.material = swap[slot.material.name]
+    sc.render.engine = 'BLENDER_EEVEE'
+    sc.eevee.taa_render_samples = 32
+    sun.angle = math.radians(14)
 sc.render.filepath = os.path.join(OUT, 'preview.png')
 sc.render.film_transparent = False
 bpy.ops.render.render(write_still=True)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'plaza_lit.blend'))
+# for the game: every toon material exported as a plain base colour (the game's renderer draws the toon look itself)
+for o in sc.objects:
+    if o.type not in ('MESH', 'CURVE'):
+        continue
+    for slot in o.material_slots:
+        m = slot.material
+        if m is None or not m.use_nodes or any(n.type == 'BSDF_PRINCIPLED' for n in m.node_tree.nodes):
+            continue
+        rgbn = next((n for n in m.node_tree.nodes if n.type == 'RGB'), None)      # the toon material's own colour
+        if rgbn is None:
+            continue
+        rgb = tuple(rgbn.outputs[0].default_value)[:3]
+        flat_m = bpy.data.materials.get('base_' + m.name)
+        if flat_m is None:
+            flat_m = bpy.data.materials.new('base_' + m.name)
+            flat_m.use_nodes = True
+            pb = next(n for n in flat_m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+            pb.inputs['Base Color'].default_value = (*rgb, 1)
+            pb.inputs['Roughness'].default_value = 0.9
+        slot.material = flat_m
 bpy.ops.object.select_all(action='SELECT')
 so.select_set(False)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'plaza.glb'), export_format='GLB', use_selection=True, export_cameras=True,

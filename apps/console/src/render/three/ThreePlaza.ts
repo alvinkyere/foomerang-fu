@@ -32,6 +32,19 @@ interface Manifest {
 
 const color = (css: string) => new THREE.Color(css);
 
+/** What a surface keeps of its colour in shadow (linear RGB): environ2's shadows are violet-tinted, never grey. */
+const SHADOW_TINT: readonly [number, number, number] = [0.72, 0.66, 0.86];
+
+/** The toon bands, by how squarely a surface faces the sun: away -> none, glancing -> half, facing -> full. */
+function toonGradient(): THREE.DataTexture {
+  const levels = [0, 0, 150, 255];
+  const data = new Uint8Array(levels.flatMap((v) => [v, v, v, 255]));
+  const t = new THREE.DataTexture(data, levels.length, 1, THREE.RGBAFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
 class Character {
   readonly sprite: THREE.Sprite;
   readonly #ring: THREE.Mesh;
@@ -242,8 +255,13 @@ class Plaza {
     const th = (config.pitchDeg * Math.PI) / 180;
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
-    // the sun (warm, travelling west, a little away from the viewer, down) with soft shadows, and a cool sky
-    const sun = new THREE.DirectionalLight(0xfff2d9, 2.6);
+    // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
+    // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
+    // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
+    const sun = new THREE.DirectionalLight(
+      new THREE.Color(1 - SHADOW_TINT[0], 1 - SHADOW_TINT[1], 1 - SHADOW_TINT[2]),
+      Math.PI,
+    );
     const travel = new THREE.Vector3(-1, -1.1, -0.25).normalize();
     sun.position.set(0, 0, -72).addScaledVector(travel, -150);
     sun.target.position.set(0, 0, -72);
@@ -259,8 +277,23 @@ class Plaza {
     });
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.02;
-    this.scene.add(sun, sun.target, new THREE.HemisphereLight(0xdfe8ff, 0xc9a35a, 1.1));
+    this.scene.add(
+      sun,
+      sun.target,
+      new THREE.AmbientLight(new THREE.Color(...SHADOW_TINT), Math.PI),
+    );
     this.scene.add(gltf);
+    const gradient = toonGradient();
+    gltf.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;
+      const m = o.material as THREE.MeshStandardMaterial;
+      o.material = new THREE.MeshToonMaterial({
+        color: m.color,
+        map: m.map ?? null,
+        gradientMap: gradient,
+        side: m.side,
+      });
+    });
     gltf.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         const floor = o.name.startsWith('FLOOR') || o.name.startsWith('RUG');
