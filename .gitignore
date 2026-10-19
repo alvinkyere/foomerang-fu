@@ -29,3 +29,4 @@ docs/review/visual-owner-review/
 # Vercel CLI link and local environment files
 .vercel
 .env*
+art/physics_reference/output/
