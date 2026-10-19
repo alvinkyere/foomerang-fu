@@ -47,11 +47,41 @@ function toonGradient(): THREE.DataTexture {
   return t;
 }
 
+let ARROW: THREE.Texture | undefined;
+/** The way-back arrow: a chunky red arrow with a white outline, pointing right (rotated per player). */
+function arrowTexture(): THREE.Texture {
+  if (ARROW) return ARROW;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d');
+  if (g) {
+    g.beginPath();
+    g.moveTo(14, 48);
+    g.lineTo(70, 48);
+    g.lineTo(70, 22);
+    g.lineTo(118, 64);
+    g.lineTo(70, 106);
+    g.lineTo(70, 80);
+    g.lineTo(14, 80);
+    g.closePath();
+    g.lineJoin = 'round';
+    g.lineWidth = 12;
+    g.strokeStyle = '#ffffff';
+    g.stroke();
+    g.fillStyle = '#e8302c';
+    g.fill();
+  }
+  ARROW = new THREE.CanvasTexture(canvas);
+  ARROW.colorSpace = THREE.SRGBColorSpace;
+  return ARROW;
+}
+
 class Character {
   readonly sprite: THREE.Sprite;
   readonly #ring: THREE.Mesh;
   readonly #shadow: THREE.Mesh;
   readonly #texture: THREE.Texture;
+  readonly #arrow: THREE.Sprite;
   #heading = 0;
   #deadAt: number | undefined;
   #last: { x: number; y: number; t: number } | undefined;
@@ -84,7 +114,13 @@ class Character {
         depthWrite: false,
       }),
     );
-    scene.add(this.sprite, this.#ring, this.#shadow);
+    this.#arrow = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: arrowTexture(), transparent: true, depthTest: false }),
+    );
+    this.#arrow.center.set(0.5, 0.5);
+    this.#arrow.renderOrder = 10;
+    this.#arrow.visible = false;
+    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow);
   }
 
   update(
@@ -127,12 +163,54 @@ class Character {
     const fade = this.#deadAt === undefined ? 1 : Math.max(0, 1 - (now - this.#deadAt) / 450);
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
+    this.#warn(c, cam, space, h, now);
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
   }
 
+  /**
+   * Outside the border: the character pulses light red, faster as the limit nears (from 2 to 8 pulses a second), and an
+   * arrow above its head points the way back in (the rules' direction, turned into the screen's), bobbing towards it.
+   */
+  #warn(
+    c: CircleView,
+    cam: THREE.PerspectiveCamera,
+    space: ReturnType<typeof sceneSpace>,
+    h: number,
+    now: number,
+  ): void {
+    const material = this.sprite.material as THREE.SpriteMaterial;
+    const out = c.outside;
+    if (out === undefined || c.dead) {
+      material.color.setRGB(1, 1, 1);
+      this.#arrow.visible = false;
+      return;
+    }
+    const k = Math.min(1, out.seconds / out.limit);
+    const rate = 2 + 6 * k;
+    const pulse = 0.5 + 0.5 * Math.sin((now / 1000) * rate * Math.PI * 2);
+    const red = 0.25 + 0.55 * pulse;
+    material.color.setRGB(1, 1 - red * 0.75, 1 - red * 0.7);
+    // the arrow: above the head, rotated to the screen direction of `toward`, nudged along it
+    // (h is the atlas CELL's height; the character itself is about a third of it, standing on the anchor)
+    const head = this.sprite.position.clone().add(new THREE.Vector3(0, h * 0.5, 0));
+    const from = head.clone().project(cam);
+    const to = space.toScene(
+      this.logical.x + out.toward.x * 100,
+      this.logical.y + out.toward.y * 100,
+    );
+    const toS = new THREE.Vector3(to.x, head.y, to.z).project(cam);
+    const angle = Math.atan2((toS.y - from.y) / cam.aspect, toS.x - from.x);
+    const bob = (0.5 + 0.5 * Math.sin((now / 1000) * Math.PI * 4)) * h * 0.08;
+    const dir = new THREE.Vector3(to.x, head.y, to.z).sub(head).setY(0).normalize();
+    this.#arrow.position.copy(head).addScaledVector(dir, bob);
+    this.#arrow.scale.set(h * 0.3, h * 0.3, 1);
+    (this.#arrow.material as THREE.SpriteMaterial).rotation = angle;
+    this.#arrow.visible = true;
+  }
+
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.sprite, this.#ring, this.#shadow);
+    scene.remove(this.sprite, this.#ring, this.#shadow, this.#arrow);
     this.#texture.dispose();
   }
 }

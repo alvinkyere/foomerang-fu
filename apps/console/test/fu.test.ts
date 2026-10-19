@@ -712,6 +712,44 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     };
   }
 
+  it('a player outside the border carries the warning: seconds outside, the limit, and the way back in', () => {
+    const arena = {
+      width: 1600,
+      height: 900,
+      safeZone: { x: 200, y: 0, width: 1200, height: 900 },
+      spawns: [
+        { x: 800, y: 450 },
+        { x: 1000, y: 450 },
+        { x: 600, y: 300 },
+        { x: 600, y: 600 },
+        { x: 1000, y: 300 },
+        { x: 1000, y: 600 },
+      ],
+    };
+    const entries = roster();
+    const base = createFuMatch(
+      [
+        { id: 'a', slot: 0 },
+        { id: 'b', slot: 3 },
+      ],
+      { arena },
+    );
+    const state: FuState = {
+      ...base,
+      world: {
+        ...base.world,
+        bodies: base.world.bodies.map((b) =>
+          b.id === 'a' ? { ...b, position: { x: 100, y: 450 } } : b,
+        ),
+      },
+      players: base.players.map((p) => (p.id === 'a' ? { ...p, outsideFor: 2.5 } : p)),
+    };
+    const view = buildFuView(state, [], entries, slotsFor(entries));
+    const a = view.circles.find((c) => c.id === 'a');
+    expect(a?.outside).toEqual({ seconds: 2.5, limit: 5, toward: { x: 1, y: 0 } });
+    expect(view.circles.find((c) => c.id === 'b')?.outside).toBeUndefined();
+  });
+
   it('draws each player with name, number, shape, colour, facing and whether their boomerang is in hand', () => {
     const { state, entries, slots } = playing();
     const view = buildFuView(state, [], entries, slots);

@@ -32,6 +32,11 @@ export interface CircleView {
   readonly powers: readonly PowerKind[];
   /** Present only during a Phase Dash: they may cross walls right now. */
   readonly phasing?: { readonly inWall: boolean };
+  /**
+   * Present only while a living player is outside the arena's border (a rules fact): how long they have been out, the limit
+   * at which they explode, and the unit direction straight back inside. The warning (blink, arrow, rumble) is presentation.
+   */
+  readonly outside?: { readonly seconds: number; readonly limit: number; readonly toward: Vec2 };
 }
 
 /** A powerup lying in the arena. */

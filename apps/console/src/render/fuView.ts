@@ -28,6 +28,18 @@ import {
  * and the boomerangs are FACTS taken from the rules; every flash, trail and fade is the renderer's
  * own presentation, built from this and never fed back.
  */
+/** The unit direction from `p` straight back into the safe zone (towards its nearest point). */
+function wayIn(
+  p: { x: number; y: number },
+  zone: { x: number; y: number; width: number; height: number } | undefined,
+) {
+  if (zone === undefined) return { x: 0, y: 0 };
+  const tx = Math.min(Math.max(p.x, zone.x), zone.x + zone.width) - p.x;
+  const ty = Math.min(Math.max(p.y, zone.y), zone.y + zone.height) - p.y;
+  const d = Math.hypot(tx, ty);
+  return d < 1e-9 ? { x: 0, y: 0 } : { x: tx / d, y: ty / d };
+}
+
 export function buildFuView(
   state: FuState,
   events: readonly FuEvent[],
@@ -61,6 +73,15 @@ export function buildFuView(
         : {}),
       ...(!dead && player !== undefined && isFatigued(player.fatigue, state.config)
         ? { fatigued: true as const }
+        : {}),
+      ...(!dead && player !== undefined && player.outsideFor > 0
+        ? {
+            outside: {
+              seconds: player.outsideFor,
+              limit: state.config.outsideLimitSeconds,
+              toward: wayIn(body.position, state.config.arena.safeZone),
+            },
+          }
         : {}),
     };
   });
