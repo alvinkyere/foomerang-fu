@@ -230,7 +230,7 @@ describe.skipIf(!ON)('CPU evaluation (diagnostic only)', () => {
       lines.push(
         `${x} vs ${y}: rounds=${rounds} ${x}=${pct(xWins, rounds)} ${y}=${pct(yWins, rounds)} noWinner=${pct(none, rounds)} ` +
           `round(s) mean=${(sum(ticks) / Math.max(ticks.length, 1) / 60).toFixed(1)} median=${(median(ticks) / 60).toFixed(1)} max=${(Math.max(0, ...ticks) / 60).toFixed(1)} ` +
-          `per round: throws=${per('THROWN')} slashes=${per('SLASHED')} dashes=${per('DASHED')} deflects=${per('DEFLECTED')} catches=${per('CAUGHT')} hits=${per('HIT')} fatigued=${per('FATIGUED')} books=${per('PICKED_UP')} guardBlocks=${per('GUARD_BLOCKED')}`,
+          `per round: throws=${per('THROWN')} slashes=${per('SLASHED')} dashes=${per('DASHED')} deflects=${per('DEFLECTED')} catches=${per('CAUGHT')} hits=${per('HIT')} fatigued=${per('FATIGUED')} books=${per('PICKED_UP')} guardBlocks=${per('SHIELD_BLOCKED')}`,
       );
     }
     console.warn(lines.join('\n'));

@@ -5,7 +5,6 @@ import {
   OUTLINE,
   POWER_NAME,
   POWER_STYLE,
-  PHASE_COLOR,
   drawGlyph,
   spawnEffect,
   toNumber,
@@ -92,10 +91,9 @@ class PlayerSprite {
   /** A pulsing amber ring while the rules say the player is FATIGUED. A look, not a rule. */
   readonly #tired: Phaser.GameObjects.Graphics;
   #isTired = false;
-  /** Small glyphs of every power held, under the name; a ring round the body for GUARD; a dashed one while phasing. */
+  /** Small glyphs of every power held, under the name; a ring round the body for SHIELD. */
   readonly #badges: Phaser.GameObjects.Graphics;
   readonly #guard: Phaser.GameObjects.Graphics;
-  readonly #phase: Phaser.GameObjects.Graphics;
   #powersKey = '';
   readonly #streakPoints: { x: number; y: number }[] = [];
   #styleKey = '';
@@ -107,7 +105,6 @@ class PlayerSprite {
     this.#tired = scene.add.graphics().setVisible(false);
     this.#badges = scene.add.graphics();
     this.#guard = scene.add.graphics().setVisible(false);
-    this.#phase = scene.add.graphics().setVisible(false);
     this.#aim = scene.add.graphics();
     this.#mark = scene.add.graphics();
     this.#number = scene.add
@@ -129,7 +126,6 @@ class PlayerSprite {
       .setOrigin(0.5, 0);
     this.container = scene.add.container(0, 0, [
       this.#guard,
-      this.#phase,
       this.#badges,
       this.#tired,
       this.#shape,
@@ -142,16 +138,7 @@ class PlayerSprite {
 
   apply(circle: CircleView): void {
     this.container.setPosition(circle.x, circle.y);
-    // a player part-way through a Phase Dash is drawn see-through, so it is plain they are passing a wall
-    this.container.setAlpha(
-      circle.dimmed
-        ? DIMMED_ALPHA
-        : circle.phasing === undefined
-          ? 1
-          : circle.phasing.inWall
-            ? 0.4
-            : 0.65,
-    );
+    this.container.setAlpha(circle.dimmed ? DIMMED_ALPHA : 1);
     this.#drawPowers(circle);
     this.#drawStreak(circle);
     const tired = circle.fatigued === true;
@@ -190,7 +177,7 @@ class PlayerSprite {
 
   /** While the rules say the player is dashing: ghosts of where they just were, and a bright streak joining them. */
   #drawPowers(circle: CircleView): void {
-    const key = `${circle.powers.join(',')}|${circle.phasing === undefined ? '' : 'p'}|${circle.radius}`;
+    const key = `${circle.powers.join(',')}|${circle.radius}`;
     if (key === this.#powersKey) return;
     this.#powersKey = key;
     const g = this.#badges;
@@ -217,22 +204,12 @@ class PlayerSprite {
       }
     }
     this.#guard.clear();
-    const guarded = row.includes('GUARD');
+    const guarded = row.includes('SHIELD');
     if (guarded) {
-      this.#guard.lineStyle(7, POWER_STYLE.GUARD.color, 0.95);
+      this.#guard.lineStyle(7, POWER_STYLE.SHIELD.color, 0.95);
       this.#guard.strokeCircle(0, 0, circle.radius + 9);
     }
     this.#guard.setVisible(guarded);
-    this.#phase.clear();
-    if (circle.phasing !== undefined) {
-      this.#phase.lineStyle(6, PHASE_COLOR, 1);
-      for (let i = 0; i < 12; i += 2) {
-        this.#phase.beginPath();
-        this.#phase.arc(0, 0, circle.radius + 8, (Math.PI / 6) * i, (Math.PI / 6) * (i + 1), false);
-        this.#phase.strokePath();
-      }
-    }
-    this.#phase.setVisible(circle.phasing !== undefined);
   }
 
   /** Called every frame: the tired ring breathes, so it cannot be mistaken for a static outline. */
@@ -377,7 +354,7 @@ class BoomerangSprite {
   #pendingSpent = false;
   /** A deflected boomerang trails white, so it is plain whose weapon is flying wrong. */
   #deflected = false;
-  /** Armed with BLAST_BOOMERANG: a red-orange ring round it, so it is plain which one will explode. */
+  /** Armed with EXPLOSIVE_BOOMERANG: a red-orange ring round it, so it is plain which one will explode. */
   #blast = false;
 
   constructor(scene: Phaser.Scene) {
@@ -435,7 +412,7 @@ class BoomerangSprite {
     const r = this.#radius * 1.7;
     g.clear();
     if (this.#blast) {
-      g.lineStyle(7, POWER_STYLE.BLAST_BOOMERANG.color, 1);
+      g.lineStyle(7, POWER_STYLE.EXPLOSIVE_BOOMERANG.color, 1);
       g.strokeCircle(0, 0, this.#radius * 2.3);
     }
     g.lineStyle(this.#radius * 0.95 + 6, OUTLINE, 1);

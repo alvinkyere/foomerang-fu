@@ -37,8 +37,6 @@ export interface Profile {
   /** Whether it presses an opponent whose boomerangs are away, and retreats to cover when its own are. */
   readonly pressure: boolean;
   readonly cover: boolean;
-  /** Whether it plans routes through walls with PHASE_DASH, and uses platforms. */
-  readonly phaseRoutes: boolean;
   /** Throw only when the target is this much of the throw range away at most. */
   readonly throwReach: number;
   /** Chance per decision it does something silly with DASH (Easy only). */
@@ -94,7 +92,6 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     retarget: 120,
     pressure: false,
     cover: false,
-    phaseRoutes: false,
     throwReach: 0.6,
     throwHold: 0.35,
     throwGap: 60,
@@ -127,7 +124,6 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     retarget: 90,
     pressure: false,
     cover: true,
-    phaseRoutes: true,
     throwReach: 0.75,
     throwHold: 0.2,
     throwGap: 36,
@@ -160,7 +156,6 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     retarget: 45,
     pressure: true,
     cover: true,
-    phaseRoutes: true,
     throwReach: 0.9,
     throwHold: 0.08,
     throwGap: 20,

@@ -78,9 +78,9 @@ export interface Boomerang {
   readonly deflections: number;
   /** DEFLECTED only: who knocked it away. They cannot be killed by it, nor deflect it again, on this leg. */
   readonly deflectedBy: string | undefined;
-  /** Slice 5: armed with BLAST_BOOMERANG — the first contact or wall impact detonates it (once). */
+  /** Slice 5: armed with EXPLOSIVE_BOOMERANG — the first contact or wall impact detonates it (once). */
   readonly blast: boolean;
-  /** Slice 5: players whose GUARD this boomerang already met on its current leg; it cannot hit them again on it. */
+  /** Slice 5: players whose SHIELD this boomerang already met on its current leg; it cannot hit them again on it. */
   readonly absorbed: readonly string[];
   /** How charged this throw was, 0 (a tap) to 1 (a full charge): its outbound speed and range. 0 while HELD and once deflected. */
   readonly power: number;

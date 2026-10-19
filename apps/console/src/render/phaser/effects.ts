@@ -22,22 +22,18 @@ export const toNumber = (hex: string): number => Number.parseInt(hex.replace('#'
 export const POWER_STYLE: Readonly<
   Record<PowerKind, { readonly color: number; readonly label: string }>
 > = {
-  OVERDRIVE: { color: 0xffd23f, label: 'OVERDRIVE' },
-  BLAST_BOOMERANG: { color: 0xff5a36, label: 'BLAST' },
-  GUARD: { color: 0x4fd8ff, label: 'GUARD' },
+  CAFFEINATED: { color: 0xffd23f, label: 'CAFFEINATED' },
+  EXPLOSIVE_BOOMERANG: { color: 0xff5a36, label: 'EXPLOSIVE' },
+  SHIELD: { color: 0x4fd8ff, label: 'SHIELD' },
   TWIN_THROW: { color: 0x8be45b, label: 'TWIN' },
-  PHASE_DASH: { color: 0xb36bff, label: 'PHASE' },
 };
-/** What each power is called on screen. (GUARD is shown as SHIELD: it is a one-hit shield.) */
+/** What each power is called on screen. (SHIELD is shown as SHIELD: it is a one-hit shield.) */
 export const POWER_NAME: Readonly<Record<PowerKind, string>> = {
-  OVERDRIVE: 'OVERDRIVE',
-  BLAST_BOOMERANG: 'BLAST BOOMERANG',
-  GUARD: 'SHIELD',
+  CAFFEINATED: 'CAFFEINATED',
+  EXPLOSIVE_BOOMERANG: 'EXPLOSIVE BOOMERANG',
+  SHIELD: 'SHIELD',
   TWIN_THROW: 'TWIN THROW',
-  PHASE_DASH: 'PHASE DASH',
 };
-/** The violet used for everything about walking through walls. */
-export const PHASE_COLOR = POWER_STYLE.PHASE_DASH.color;
 
 /** A powerup's glyph, centred on (0, 0), about `r` across. */
 export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: number): void {
@@ -46,13 +42,13 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
   g.fillStyle(color, 1);
   g.lineStyle(Math.max(2, r * 0.22), color, 1);
   switch (kind) {
-    case 'OVERDRIVE': // a lightning bolt
+    case 'CAFFEINATED': // a lightning bolt
       g.fillPoints(
         [V(0.2, -1), V(-0.6, 0.1), V(-0.05, 0.1), V(-0.3, 1), V(0.6, -0.15), V(0.05, -0.15)],
         true,
       );
       break;
-    case 'BLAST_BOOMERANG': {
+    case 'EXPLOSIVE_BOOMERANG': {
       // a spiky burst
       const pts: Phaser.Math.Vector2[] = [];
       for (let i = 0; i < 16; i += 1) {
@@ -62,7 +58,7 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
       g.fillPoints(pts, true);
       break;
     }
-    case 'GUARD': // a ring round a core
+    case 'SHIELD': // a ring round a core
       g.strokeCircle(0, 0, r * 0.85);
       g.fillCircle(0, 0, r * 0.4);
       break;
@@ -71,10 +67,6 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
       g.lineBetween(-0.2 * r, 0, -0.9 * r, 0.7 * r);
       g.lineBetween(0.1 * r, -0.7 * r, 0.8 * r, 0);
       g.lineBetween(0.8 * r, 0, 0.1 * r, 0.7 * r);
-      break;
-    case 'PHASE_DASH': // a dashed diamond
-      g.strokePoints([V(0, -1), V(1, 0), V(0, 1), V(-1, 0)], true);
-      g.lineBetween(-0.45 * r, 0, 0.45 * r, 0);
       break;
   }
 }
@@ -199,9 +191,8 @@ export function spawnEffect(
     }
     case 'DASHED': {
       // A burst where it began: a ring and a few speed lines trailing back, away from the way it went.
-      // A Phase Dash's burst is violet, the colour of everything that goes through walls.
       const way = event.direction ?? { x: 1, y: 0 };
-      const burst = event.phasing === true ? PHASE_COLOR : color;
+      const burst = color;
       effects.push({
         graphics,
         born,
@@ -230,8 +221,8 @@ export function spawnEffect(
       break;
     case 'PICKUP': {
       // taken: a ring in the power's own colour (and the player's) closing on the player
-      const power = POWER_STYLE[event.kind ?? 'GUARD'].color;
-      const named = POWER_NAME[event.kind ?? 'GUARD'];
+      const power = POWER_STYLE[event.kind ?? 'SHIELD'].color;
+      const named = POWER_NAME[event.kind ?? 'SHIELD'];
       const reveal = scene.add
         .text(at.x, at.y - 110, `${event.who ?? 'PLAYER'} GOT ${named}!`, {
           fontFamily: 'system-ui, sans-serif',
@@ -268,7 +259,7 @@ export function spawnEffect(
           at.y - 80,
           broke
             ? `${event.who ?? ''} SHIELD BROKE`
-            : `${POWER_NAME[event.kind ?? 'GUARD']} REPLACED`,
+            : `${POWER_NAME[event.kind ?? 'SHIELD']} REPLACED`,
           {
             fontFamily: 'system-ui, sans-serif',
             fontSize: '30px',
@@ -289,7 +280,7 @@ export function spawnEffect(
           g.clear();
           g.lineStyle(
             8 * (1 - progress) + 1,
-            broke ? POWER_STYLE.GUARD.color : 0xff5a5a,
+            broke ? POWER_STYLE.SHIELD.color : 0xff5a5a,
             1 - progress,
           );
           g.strokeCircle(event.x, event.y, 40 + progress * 70);
@@ -300,7 +291,7 @@ export function spawnEffect(
     case 'BLASTED': {
       // the explosion, to exactly the radius the rules resolved: a flash, then the edge of the blast
       const radius = event.radius ?? 170;
-      const fire = POWER_STYLE.BLAST_BOOMERANG.color;
+      const fire = POWER_STYLE.EXPLOSIVE_BOOMERANG.color;
       effects.push({
         graphics,
         born,
@@ -321,9 +312,9 @@ export function spawnEffect(
       });
       break;
     }
-    case 'GUARD_BLOCKED': {
+    case 'SHIELD_BLOCKED': {
       // the guard shatters: spokes flying outward in its own cyan
-      const guard = POWER_STYLE.GUARD.color;
+      const guard = POWER_STYLE.SHIELD.color;
       effects.push({
         graphics,
         born,
@@ -343,25 +334,6 @@ export function spawnEffect(
               event.y + Math.sin(a) * (80 + progress * 90),
             );
           }
-        },
-      });
-      break;
-    }
-    case 'PHASE_ENTERED':
-    case 'PHASE_EXITED': {
-      // a violet portal ring at the wall: closing where the player goes in, opening where they come out
-      const entering = event.type === 'PHASE_ENTERED';
-      effects.push({
-        graphics,
-        born,
-        duration: 420,
-        update: (g, progress) => {
-          g.clear();
-          const fade = 1 - progress;
-          g.lineStyle(12 * fade + 2, PHASE_COLOR, fade);
-          g.strokeCircle(event.x, event.y, entering ? 90 - progress * 60 : 30 + progress * 70);
-          g.fillStyle(PHASE_COLOR, 0.35 * fade);
-          g.fillCircle(event.x, event.y, entering ? 50 - progress * 30 : 20 + progress * 40);
         },
       });
       break;

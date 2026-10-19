@@ -69,9 +69,6 @@ export function buildFuView(
       ...(player === undefined ? {} : { facing: player.facing }),
       armed: !dead && boomerang?.state === 'HELD',
       powers: player === undefined ? [] : player.inventory, // what they own, oldest first (the dead keep theirs)
-      ...(!dead && player?.dash.phase === 'DASHING' && player.dash.phasing !== undefined
-        ? { phasing: { inWall: player.dash.phasing.inside } }
-        : {}),
       ...(!dead && player?.dash.phase === 'DASHING'
         ? { dashing: { direction: player.dash.direction } }
         : {}),
@@ -158,7 +155,6 @@ export function buildFuView(
             color: styleOf(event.playerId, slots).color,
             actor: event.playerId,
             direction: event.direction,
-            ...(event.phasing === true ? { phasing: true as const } : {}),
           },
         ];
       case 'POWERUP_SPAWNED':
@@ -216,14 +212,13 @@ export function buildFuView(
             from: positionOf(event.byId),
           },
         ];
-      case 'GUARD_BLOCKED':
+      case 'SHIELD_BLOCKED':
         return [
-          { type: 'GUARD_BLOCKED', ...event.position, color: styleOf(event.playerId, slots).color },
-        ];
-      case 'PHASE_ENTERED':
-      case 'PHASE_EXITED':
-        return [
-          { type: event.type, ...event.position, color: styleOf(event.playerId, slots).color },
+          {
+            type: 'SHIELD_BLOCKED',
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+          },
         ];
       case 'FATIGUED':
       case 'RECOVERED': // where the player is now: the tired ring starts / the full-mobility flash

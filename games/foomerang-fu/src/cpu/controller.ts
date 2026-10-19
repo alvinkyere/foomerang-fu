@@ -9,7 +9,6 @@ import {
   type Rect,
   type Solid,
 } from '../rules/arena';
-import { planPhaseDash } from '../rules/phase';
 import type { FuPlayerInput } from '../rules/step';
 import type { FuState } from '../rules/state';
 import { gatesOf, inRect, systemsView, type SystemsView } from '../rules/systems';
@@ -362,7 +361,7 @@ export class CpuController {
 
     // 3. who to fight
     const foe = this.#chooseTarget(state, view, here, heldCount === 0);
-    const bold = me.inventory.includes('GUARD'); // a shield makes it press a little harder
+    const bold = me.inventory.includes('SHIELD'); // a shield makes it press a little harder
     // 4. what to fetch (a Book is a mystery: it never knows what it will get)
     const book = this.#chooseBook(view, here, foe);
 
@@ -698,9 +697,9 @@ export class CpuController {
     );
     const reachesTarget = !swept.blocked || swept.flown >= arc - 20;
     if (reachesTarget) return dir;
-    // blocked by cover: with BLAST_BOOMERANG, a wall impact beside the target still counts
+    // blocked by cover: with EXPLOSIVE_BOOMERANG, a wall impact beside the target still counts
     const me = state.players.find((q) => q.id === this.#id);
-    if (p.cover && me?.inventory.includes('BLAST_BOOMERANG') === true) {
+    if (p.cover && me?.inventory.includes('EXPLOSIVE_BOOMERANG') === true) {
       const impact = swept.position;
       if (
         dist(impact, foe.position) < config.blastRadius * 0.85 &&
@@ -797,7 +796,6 @@ export class CpuController {
     fatigued: boolean,
   ): void {
     const p = this.#profile;
-    const { config } = state;
     if (this.#tick - this.#lastDash < p.dashGap) return;
     if (this.#rng.chance(p.dashMisuse)) {
       // Easy: now and then it dashes for no good reason, tired or not, in a random direction
@@ -808,36 +806,8 @@ export class CpuController {
     }
     if (!dashAllowed || fatigued) return;
     if (!this.#rng.chance(p.dashUse * 0.4)) return;
-    const radius = config.playerRadius;
     const toGoal = dist(here, goal);
     if (toGoal < 300) return;
-    // through-the-wall shortcut: look in 16 directions for a dash that ends up meaningfully closer, by walking distance
-    if (p.phaseRoutes && me.inventory.includes('PHASE_DASH')) {
-      const grid = navGridFor(config.arena, radius);
-      const field = grid.field(goal, () => false);
-      const here0 = grid.distanceAt(field, here);
-      const base =
-        config.dashSpeed *
-        config.dashSeconds *
-        (me.inventory.includes('OVERDRIVE') ? config.overdriveDashFactor : 1);
-      const others = state.world.bodies.filter((b) => b.id !== this.#id);
-      let best: { dir: Vec2; gain: number } | undefined;
-      for (let i = 0; i < 16; i += 1) {
-        const dir = { x: Math.cos((Math.PI * 2 * i) / 16), y: Math.sin((Math.PI * 2 * i) / 16) };
-        const len = planPhaseDash(here, dir, base, radius, view.solids, config.arena, others);
-        const end = { x: here.x + dir.x * len, y: here.y + dir.y * len };
-        const there = grid.distanceAt(field, end);
-        if (there < 0 || here0 < 0) continue;
-        const gain = here0 - there;
-        if (gain > 8 && (best === undefined || gain > best.gain)) best = { dir, gain };
-      }
-      if (best !== undefined) {
-        out.dash = true;
-        this.#move = best.dir;
-        this.stats.dashes += 1;
-        return;
-      }
-    }
     // an ordinary dash along the way when the way is long and clear
     if (toGoal > 420 && lineIsClear(here, goal, view.solids)) {
       out.dash = true;

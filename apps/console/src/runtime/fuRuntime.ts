@@ -339,8 +339,6 @@ export class FuRuntime implements MatchRuntime {
         facing: { ...p.facing },
         slash: p.slash.phase,
         dash: p.dash.phase,
-        phasing: p.dash.phase === 'DASHING' && p.dash.phasing !== undefined,
-        inWall: p.dash.phase === 'DASHING' && p.dash.phasing?.inside === true,
         inventory: [...p.inventory],
         charge: p.charge.phase,
         fatigue: {

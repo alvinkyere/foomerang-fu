@@ -398,7 +398,7 @@ class ReconstructedScene extends Phaser.Scene {
   }
 
   #event(event: ViewEvent): void {
-    this.#vfx?.event(event, POWER_STYLE.BLAST_BOOMERANG.color);
+    this.#vfx?.event(event, POWER_STYLE.EXPLOSIVE_BOOMERANG.color);
   }
 
   /** A tall object in front of a living player that overlaps their silhouette fades, so nobody is hidden. */

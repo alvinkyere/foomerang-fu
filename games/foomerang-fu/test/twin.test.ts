@@ -282,8 +282,8 @@ describe('twin boomerangs in combat', () => {
 
   it('losing TWIN_THROW (FIFO eviction) takes the second boomerang away', () => {
     let s = twinned();
-    s = give(give(give(s, 'a', 'GUARD'), 'a', 'PHASE_DASH'), 'a', 'OVERDRIVE'); // the 4th power pushes TWIN_THROW out
-    expect(player(s, 'a').inventory).toEqual(['GUARD', 'PHASE_DASH', 'OVERDRIVE']);
+    s = give(give(give(s, 'a', 'SHIELD'), 'a', 'EXPLOSIVE_BOOMERANG'), 'a', 'CAFFEINATED'); // the 4th power pushes TWIN_THROW out
+    expect(player(s, 'a').inventory).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'CAFFEINATED']);
     expect(s.extraBoomerangs.filter((b) => b.ownerId === 'a')).toHaveLength(0);
   });
 
@@ -308,13 +308,13 @@ describe('twin boomerangs in combat', () => {
   });
 });
 
-describe('TWIN_THROW and BLAST_BOOMERANG', () => {
+describe('TWIN_THROW and EXPLOSIVE_BOOMERANG', () => {
   it('owning both: both boomerangs of the one throw are armed', () => {
-    let s = give(twinned(), 'a', 'BLAST_BOOMERANG');
+    let s = give(twinned(), 'a', 'EXPLOSIVE_BOOMERANG');
     s = stepFu(s, THROW, DT).state;
     const [own, twin] = weaponsOf(s, 'a');
     expect(own?.blast).toBe(true);
     expect(twin?.blast).toBe(true);
-    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW', 'BLAST_BOOMERANG']);
+    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW', 'EXPLOSIVE_BOOMERANG']);
   });
 });

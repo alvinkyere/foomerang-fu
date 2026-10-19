@@ -55,9 +55,6 @@ export interface Snapshot {
           facing: { x: number; y: number };
           slash: 'READY' | 'ACTIVE' | 'RECOVERING';
           dash: 'READY' | 'DASHING';
-          /** Slice 5: mid Phase Dash, and whether the body is in a wall right now. */
-          phasing: boolean;
-          inWall: boolean;
           /** What they own, oldest first. */
           inventory: string[];
           /** THROW held: NONE, CHARGING or CANCELLED (by a dash). */
@@ -510,7 +507,7 @@ interface Fixtures {
   fuHost: Host;
   /**
    * The Foomerang Fu console with a Book every second (`?powerups=fast`, developer only) so every power
-   * can be tried in seconds; `enable` narrows which powers a Book may award (`?enable=GUARD`).
+   * can be tried in seconds; `enable` narrows which powers a Book may award (`?enable=SHIELD`).
    */
   powerHost: (enable?: string) => Promise<Host>;
   /** The Foomerang Fu console opened at any address query (e.g. `?kills=3&powerups=off`); closed (and checked for errors) afterwards. */

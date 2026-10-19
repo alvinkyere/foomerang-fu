@@ -6,13 +6,7 @@ import type { FuConfig } from './config';
  * them, what they do, when they end — is plain deterministic state owned by the rules; the
  * renderer only draws it.
  */
-export const POWER_KINDS = [
-  'OVERDRIVE',
-  'BLAST_BOOMERANG',
-  'GUARD',
-  'TWIN_THROW',
-  'PHASE_DASH',
-] as const;
+export const POWER_KINDS = ['CAFFEINATED', 'EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW'] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
 export const isPowerKind = (value: unknown): value is PowerKind =>
@@ -24,9 +18,9 @@ export const MAX_POWERS = 3;
 /**
  * OWNERSHIP vs CHARGE STATE. A player's `inventory` is the list of powers they OWN, in the order they
  * got them (at most MAX_POWERS). Ownership persists across rounds for the whole match; it ends only
- * by FIFO eviction (a 4th power pushes out the oldest), by a power consuming itself (GUARD, when it
- * blocks a hit), or when the match ends. Nothing else is stored for a power: while owned, OVERDRIVE,
- * PHASE_DASH, TWIN_THROW and BLAST_BOOMERANG simply work (no charges, no timers); any per-round or
+ * by FIFO eviction (a 4th power pushes out the oldest), by a power consuming itself (SHIELD, when it
+ * blocks a hit), or when the match ends. Nothing else is stored for a power: while owned, CAFFEINATED,
+ * TWIN_THROW and EXPLOSIVE_BOOMERANG simply work (no charges, no timers); any per-round or
  * per-flight state lives on the thing it belongs to (a boomerang's `blast` flag, a swing's `spared`).
  */
 export type Inventory = readonly PowerKind[];
@@ -46,7 +40,7 @@ export function awardPower(
   };
 }
 
-/** Removing a power (a broken GUARD) frees its slot at once and keeps the order of the rest. */
+/** Removing a power (a broken SHIELD) frees its slot at once and keeps the order of the rest. */
 export const removePower = (inventory: Inventory, kind: PowerKind): Inventory =>
   Object.freeze(inventory.filter((k) => k !== kind));
 
@@ -97,32 +91,20 @@ export interface Combination {
 const pair = (a: PowerKind, b: PowerKind): string => (a < b ? `${a}+${b}` : `${b}+${a}`);
 
 const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> = [
-  ['OVERDRIVE', 'BLAST_BOOMERANG', 'independent: speed has no effect on the blast.'],
-  ['OVERDRIVE', 'GUARD', 'independent.'],
-  ['OVERDRIVE', 'TWIN_THROW', 'independent: both boomerangs fly at normal speed.'],
+  ['CAFFEINATED', 'EXPLOSIVE_BOOMERANG', 'independent: speed has no effect on the blast.'],
+  ['CAFFEINATED', 'SHIELD', 'independent.'],
+  ['CAFFEINATED', 'TWIN_THROW', 'independent: both boomerangs fly at normal speed.'],
   [
-    'OVERDRIVE',
-    'PHASE_DASH',
-    'the overdrive dash is longer, so a phase dash can cross a thicker wall; fatigue still counts and still slows it.',
-  ],
-  [
-    'BLAST_BOOMERANG',
-    'GUARD',
+    'EXPLOSIVE_BOOMERANG',
+    'SHIELD',
     'independent: a shield absorbs one blast like any other lethal contact (and breaks); the owner is immune to their own blast.',
   ],
   [
-    'BLAST_BOOMERANG',
+    'EXPLOSIVE_BOOMERANG',
     'TWIN_THROW',
     'every boomerang thrown, of either of the pair, is armed (each can detonate once per throw).',
   ],
-  ['BLAST_BOOMERANG', 'PHASE_DASH', 'independent.'],
-  ['GUARD', 'TWIN_THROW', 'independent.'],
-  [
-    'GUARD',
-    'PHASE_DASH',
-    'independent: phasing grants no invulnerability, and a shield breaks on a hit while phasing like anywhere else.',
-  ],
-  ['TWIN_THROW', 'PHASE_DASH', 'independent.'],
+  ['SHIELD', 'TWIN_THROW', 'independent.'],
 ];
 
 /**

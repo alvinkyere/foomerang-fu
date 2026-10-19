@@ -101,18 +101,14 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     expect(Object.keys(debug.pickups[0] ?? {})).not.toContain('kind'); // a Book says nothing about what it awards
   });
 
-  it('reports powers and phase state in the read-only debug snapshot', () => {
+  it('reports powers in the read-only debug snapshot', () => {
     const runtime = new FuRuntime(PRIMITIVE_ARENA, 'off');
     runtime.start(players, 0);
     const debug = runtime.debugState() as {
-      players: { inventory: string[]; phasing: boolean; inWall: boolean }[];
+      players: { inventory: string[] }[];
       boomerangs: { blast: boolean }[];
     };
-    expect(debug.players[0]).toMatchObject({
-      inventory: [],
-      phasing: false,
-      inWall: false,
-    });
+    expect(debug.players[0]).toMatchObject({ inventory: [] });
     expect(debug.boomerangs[0]?.blast).toBe(false);
     expect(() => JSON.stringify(debug)).not.toThrow();
   });
@@ -127,18 +123,18 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
   });
 
   it('lists what a player OWNS in the order they got it (at most three); the dead keep theirs', () => {
-    const owned = withInventory(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
+    const owned = withInventory(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
     const view = buildFuView(owned, [], entries, slots());
-    expect(view.circles[0]?.powers).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
+    expect(view.circles[0]?.powers).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
     expect(view.circles[1]?.powers).toEqual([]);
     const dead: FuState = {
       ...owned,
       players: owned.players.map((p, i) => (i === 0 ? { ...p, alive: false } : p)),
     };
     expect(buildFuView(dead, [], entries, slots()).circles[0]?.powers).toEqual([
-      'PHASE_DASH',
+      'EXPLOSIVE_BOOMERANG',
       'TWIN_THROW',
-      'GUARD',
+      'SHIELD',
     ]);
   });
 
@@ -171,33 +167,6 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     expect(view.boomerangs[1]).toMatchObject({ x: 400, y: 300 });
   });
 
-  it('marks a player mid Phase Dash as phasing, and whether they are in a wall right now', () => {
-    const dashing = (inside: boolean): FuState => ({
-      ...base,
-      players: base.players.map((p, i) =>
-        i === 0
-          ? {
-              ...p,
-              dash: {
-                phase: 'DASHING',
-                direction: { x: 1, y: 0 },
-                remaining: 0.1,
-                speed: 1100,
-                phasing: { origin: { x: 0, y: 0 }, limit: 100, travelled: 40, inside },
-              },
-            }
-          : p,
-      ),
-    });
-    expect(buildFuView(dashing(true), [], entries, slots()).circles[0]?.phasing).toEqual({
-      inWall: true,
-    });
-    expect(buildFuView(dashing(false), [], entries, slots()).circles[0]?.phasing).toEqual({
-      inWall: false,
-    });
-    expect(buildFuView(base, [], entries, slots()).circles[0]?.phasing).toBeUndefined();
-  });
-
   it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,
@@ -221,22 +190,19 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         {
           type: 'PICKED_UP',
           playerId: 'b',
-          kind: 'PHASE_DASH',
+          kind: 'EXPLOSIVE_BOOMERANG',
           pickupId: 1,
           position: { x: 7, y: 8 },
         },
-        { type: 'POWER_LOST', playerId: 'a', kind: 'OVERDRIVE', reason: 'EVICTED' },
-        { type: 'POWER_LOST', playerId: 'b', kind: 'GUARD', reason: 'SHIELD_BROKEN' },
+        { type: 'POWER_LOST', playerId: 'a', kind: 'CAFFEINATED', reason: 'EVICTED' },
+        { type: 'POWER_LOST', playerId: 'b', kind: 'SHIELD', reason: 'SHIELD_BROKEN' },
         { type: 'BLASTED', ownerId: 'a', position: { x: 9, y: 10 }, radius: 170, victims: ['b'] },
-        { type: 'GUARD_BLOCKED', playerId: 'b', byId: 'a', position: { x: 11, y: 12 } },
-        { type: 'PHASE_ENTERED', playerId: 'a', position: { x: 13, y: 14 } },
-        { type: 'PHASE_EXITED', playerId: 'a', position: { x: 15, y: 16 } },
+        { type: 'SHIELD_BLOCKED', playerId: 'b', byId: 'a', position: { x: 11, y: 12 } },
         {
           type: 'DASHED',
           playerId: 'a',
           position: { x: 1, y: 2 },
           direction: { x: 1, y: 0 },
-          phasing: true,
         },
       ],
       entries,
@@ -251,14 +217,14 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         x: 7,
         y: 8,
         color: SLOT_STYLES[1]?.color,
-        kind: 'PHASE_DASH',
+        kind: 'EXPLOSIVE_BOOMERANG',
         who: 'David',
       },
       {
         type: 'POWER_LOST',
         ...here,
         color: SLOT_STYLES[0]?.color,
-        kind: 'OVERDRIVE',
+        kind: 'CAFFEINATED',
         reason: 'EVICTED',
         who: 'Alvin',
       },
@@ -266,14 +232,12 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         type: 'POWER_LOST',
         ...there,
         color: SLOT_STYLES[1]?.color,
-        kind: 'GUARD',
+        kind: 'SHIELD',
         reason: 'SHIELD_BROKEN',
         who: 'David',
       },
       { type: 'BLASTED', x: 9, y: 10, color: SLOT_STYLES[0]?.color, radius: 170 },
-      { type: 'GUARD_BLOCKED', x: 11, y: 12, color: SLOT_STYLES[1]?.color },
-      { type: 'PHASE_ENTERED', x: 13, y: 14, color: SLOT_STYLES[0]?.color },
-      { type: 'PHASE_EXITED', x: 15, y: 16, color: SLOT_STYLES[0]?.color },
+      { type: 'SHIELD_BLOCKED', x: 11, y: 12, color: SLOT_STYLES[1]?.color },
       {
         type: 'DASHED',
         x: 1,
@@ -281,15 +245,14 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         color: SLOT_STYLES[0]?.color,
         actor: 'a',
         direction: { x: 1, y: 0 },
-        phasing: true,
       },
     ]);
     // before collection nothing names a power
-    expect(JSON.stringify(view.events[0])).not.toMatch(/OVERDRIVE|GUARD|PHASE|TWIN|BLAST/);
+    expect(JSON.stringify(view.events[0])).not.toMatch(/CAFFEINATED|SHIELD|TWIN|EXPLOSIVE/);
   });
 
   it('is pure: the same state gives the same view', () => {
-    const s = withInventory(['GUARD', 'PHASE_DASH']);
+    const s = withInventory(['SHIELD', 'EXPLOSIVE_BOOMERANG']);
     expect(buildFuView(s, [], entries, slots())).toEqual(buildFuView(s, [], entries, slots()));
   });
 });
@@ -337,10 +300,13 @@ describe('buildFuView: breakable props → what the renderer draws', () => {
 describe('?enable= (the enabled power pool, for playtesting one power at a time)', () => {
   it("keeps only known names, in the rules' order; nothing valid means the default pool", async () => {
     const { parseEnabledParam } = await import('../src/runtime/powerupMode');
-    expect(parseEnabledParam('?enable=GUARD')).toEqual(['GUARD']);
-    expect(parseEnabledParam('?enable=PHASE_DASH,GUARD')).toEqual(['GUARD', 'PHASE_DASH']);
-    expect(parseEnabledParam('?enable=GUARD,NOPE')).toEqual(['GUARD']);
-    for (const junk of ['', '?enable=', '?enable=NOPE', '?enabled=GUARD']) {
+    expect(parseEnabledParam('?enable=SHIELD')).toEqual(['SHIELD']);
+    // the rules' order, whatever order they were written in
+    expect(parseEnabledParam('?enable=TWIN_THROW,SHIELD')).toEqual(['SHIELD', 'TWIN_THROW']);
+    // a retired power (Phase Dash, 2026-10-19) is simply unknown now
+    expect(parseEnabledParam('?enable=PHASE_DASH,SHIELD')).toEqual(['SHIELD']);
+    expect(parseEnabledParam('?enable=SHIELD,NOPE')).toEqual(['SHIELD']);
+    for (const junk of ['', '?enable=', '?enable=NOPE', '?enabled=SHIELD']) {
       expect(parseEnabledParam(junk), junk).toBeUndefined();
     }
   });

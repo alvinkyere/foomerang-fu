@@ -19,21 +19,7 @@ export type DashState =
       readonly direction: Vec2;
       readonly remaining: number;
       readonly speed: number;
-      /** Slice 5: present only for a dash by a player holding PHASE_DASH (see phase.ts). */
-      readonly phasing?: PhaseRun;
     };
-
-/**
- * A Phase Dash in progress: the straight line it follows (`origin`, the dash's direction), how far
- * it may go (`limit`, planned when it started), how far it has gone, and whether the body is
- * currently overlapping a wall (`inside`, for the entry/exit feedback and the one-charge-per-crossing rule).
- */
-export interface PhaseRun {
-  readonly origin: Vec2;
-  readonly limit: number;
-  readonly travelled: number;
-  readonly inside: boolean;
-}
 
 export const DASH_READY: DashState = Object.freeze({ phase: 'READY' });
 
@@ -79,15 +65,13 @@ export const countDash = (fatigue: Fatigue, config: FuConfig, dt: number): Fatig
 
 /**
  * The state at the moment a dash starts. A fatigued dash has `fatiguedDashFactor` of the speed and
- * one started under OVERDRIVE `overdriveDashFactor` times it (they multiply). `plan`, for a holder of
- * PHASE_DASH starting from valid space, turns it into a Phase Dash along the planned line.
+ * one started under CAFFEINATED `caffeinatedDashFactor` times it (they multiply).
  */
 export const startDash = (
   direction: Vec2,
   config: FuConfig,
   fatigued: boolean,
   overdriven = false,
-  plan?: { readonly origin: Vec2; readonly limit: number },
 ): DashState =>
   Object.freeze({
     phase: 'DASHING',
@@ -96,17 +80,7 @@ export const startDash = (
     speed:
       config.dashSpeed *
       (fatigued ? config.fatiguedDashFactor : 1) *
-      (overdriven ? config.overdriveDashFactor : 1),
-    ...(plan === undefined
-      ? {}
-      : {
-          phasing: Object.freeze({
-            origin: plan.origin,
-            limit: plan.limit,
-            travelled: 0,
-            inside: false,
-          }),
-        }),
+      (overdriven ? config.caffeinatedDashFactor : 1),
   });
 
 /**

@@ -50,7 +50,6 @@ import {
   type PowerKind,
   type Inventory,
 } from './powerups';
-import { lastValidAlong, planPhaseDash } from './phase';
 import {
   gatePhaseAt,
   gatesOf,
@@ -102,8 +101,6 @@ export type FuEvent =
       readonly playerId: string;
       readonly position: Vec2;
       readonly direction: Vec2;
-      /** Slice 5: present (true) for a dash by a holder of PHASE_DASH that may cross walls. */
-      readonly phasing?: true;
     }
   /** Slice 5: a Powerup Book appeared (it says nothing about what it will award). */
   | { readonly type: 'POWERUP_SPAWNED'; readonly pickupId: number; readonly position: Vec2 }
@@ -145,16 +142,14 @@ export type FuEvent =
       readonly radius: number;
       readonly victims: readonly string[];
     }
-  /** Slice 5: a GUARD absorbed `byId`'s lethal contact and is spent. */
+  /** Slice 5: a SHIELD absorbed `byId`'s lethal contact and is spent. */
   | {
-      readonly type: 'GUARD_BLOCKED';
+      readonly type: 'SHIELD_BLOCKED';
       readonly playerId: string;
       readonly byId: string;
       readonly position: Vec2;
     }
   /** Slice 5: a Phase Dash body started / stopped overlapping a wall. */
-  | { readonly type: 'PHASE_ENTERED'; readonly playerId: string; readonly position: Vec2 }
-  | { readonly type: 'PHASE_EXITED'; readonly playerId: string; readonly position: Vec2 }
   /** Slice 4: this player's dash count passed `dashFreeCount`; they are FATIGUED until they recover. */
   | { readonly type: 'FATIGUED'; readonly playerId: string }
   /** Slice 4: a FATIGUED player's recovery completed; full mobility is back and the dash count is reset. */
@@ -230,10 +225,8 @@ function clampToArena(at: Vec2, config: FuConfig): Vec2 {
 /** What carrying the dashers (and the overdriven walkers) one sub-step produced. */
 interface Carried {
   readonly world: FuState['world'];
-  /** Dashers whose burst ends now: a living player stopped them, or a Phase Dash reached its planned end. */
+  /** Dashers whose burst ends now: a living player stopped them. */
   readonly ends: ReadonlySet<string>;
-  /** Phase dashers: how far they have now gone, and whether they now overlap a wall. */
-  readonly progress: ReadonlyMap<string, { readonly travelled: number; readonly inside: boolean }>;
 }
 
 const moveBodies = (world: FuState['world'], to: ReadonlyMap<string, Vec2>): FuState['world'] =>
@@ -268,11 +261,8 @@ function carryBodies(
   boosted: ReadonlyMap<string, Vec2>,
   solid: ReadonlySet<string>,
   h: number,
-  config: FuConfig,
-  walls: readonly Solid[],
 ): Carried {
   const ends = new Set<string>();
-  const progress = new Map<string, { travelled: number; inside: boolean }>();
   const arrivals = new Map<string, Vec2>();
   const others = (id: string) => world.bodies.filter((b) => b.id !== id && solid.has(b.id));
   players.forEach((player, index) => {
@@ -289,8 +279,7 @@ function carryBodies(
     }
     if (dash.phase !== 'DASHING') return;
     const intended = dash.speed * Math.min(h, dash.remaining);
-    const run = dash.phasing;
-    let travel = run === undefined ? intended : Math.min(intended, run.limit - run.travelled);
+    let travel = intended;
     for (const other of others(player.id)) {
       travel = Math.min(
         travel,
@@ -318,15 +307,9 @@ function carryBodies(
       ),
     };
     arrivals.set(player.id, at);
-    if (run === undefined) {
-      if (blocked) ends.add(player.id);
-      return;
-    }
-    const travelled = run.travelled + travel;
-    progress.set(player.id, { travelled, inside: circleHitsWalls(at, body.radius, walls) });
-    if (blocked || travelled >= run.limit - 1e-9) ends.add(player.id);
+    if (blocked) ends.add(player.id);
   });
-  return { world: moveBodies(world, arrivals), ends, progress };
+  return { world: moveBodies(world, arrivals), ends };
 }
 
 /**
@@ -617,7 +600,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const standing = breakables.filter((b) => !state.broken.includes(b.id));
   const forBodies = (w: readonly Solid[]): readonly Solid[] =>
     standing.length === 0 ? w : [...w, ...standing];
-  let bodyWalls = forBodies(walls);
+  let bodyWalls: readonly Solid[];
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
   const R = config.playerRadius;
@@ -634,7 +617,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const inventory: Inventory[] = state.players.map((p) => p.inventory);
   const has = (index: number, kind: PowerKind): boolean =>
     (inventory[index] as Inventory).includes(kind);
-  const overdriven = state.players.map((p, index) => p.alive && has(index, 'OVERDRIVE'));
+  const overdriven = state.players.map((p, index) => p.alive && has(index, 'CAFFEINATED'));
   // Every boomerang in one list: each player's own (same order as the players), then the twins. A twin
   // whose owner is not in the match is an impossible state and is dropped, never obeyed.
   const startExtras = state.extraBoomerangs.filter((b) => ownerOf.has(b.ownerId));
@@ -744,34 +727,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       }
       const origin = state.world.bodies.find((b) => b.id === player.id)?.position ?? ZERO;
       const boostedDash = overdriven[index] === true;
-      // A holder of PHASE_DASH, starting from valid (non-wall) space, dashes along a planned straight line.
-      let plan: { origin: Vec2; limit: number } | undefined;
-      if (has(index, 'PHASE_DASH') && !circleHitsWalls(origin, R, bodyWalls)) {
-        const speed =
-          config.dashSpeed *
-          (tired ? config.fatiguedDashFactor : 1) *
-          (boostedDash ? config.overdriveDashFactor : 1);
-        const limit = planPhaseDash(
-          origin,
-          direction,
-          speed * config.dashSeconds,
-          R,
-          bodyWalls,
-          config.arena,
-          state.world.bodies.filter(
-            (b) => b.id !== player.id && state.players.some((p) => p.id === b.id && p.alive),
-          ),
-        );
-        plan = { origin, limit };
-      }
-      events.push({
-        type: 'DASHED',
-        playerId: player.id,
-        position: origin,
-        direction,
-        ...(plan === undefined ? {} : { phasing: true }),
-      });
-      return startDash(direction, config, tired, boostedDash, plan);
+      events.push({ type: 'DASHED', playerId: player.id, position: origin, direction });
+      return startDash(direction, config, tired, boostedDash);
     }
     return state.players[index]?.alive ? (player.dash as DashState) : DASH_READY;
   });
@@ -779,11 +736,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const move = entries[index]?.move;
     if (!player.alive || (dashes[index] as DashState).phase === 'DASHING' || !isObject(move))
       return;
-    // Slowed while committed to a swing and while fatigued, sped up under OVERDRIVE (they multiply).
+    // Slowed while committed to a swing and while fatigued, sped up under CAFFEINATED (they multiply).
     const factor =
       (player.slash.phase === 'READY' ? 1 : config.slashMoveFactor) *
       (isFatigued(fatigue[index] as Fatigue, config) ? config.fatiguedMoveFactor : 1) *
-      (overdriven[index] === true ? config.overdriveMoveFactor : 1);
+      (overdriven[index] === true ? config.caffeinatedMoveFactor : 1);
     if (factor > 1) {
       // faster than game-core's top speed: carried here (same arithmetic: direction × speed × time)
       const v = normalizeMovementInput(move, deadZone);
@@ -800,23 +757,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
   const h = dt / subSteps;
   let world = state.world;
-  const settle = (index: number, ended: DashState): void => {
-    // A Phase Dash that ends must end in valid space: back to the last valid place on its line if need be.
-    if (ended.phase !== 'DASHING' || ended.phasing === undefined) return;
-    const player = state.players[index] as FuPlayer;
-    const body = world.bodies.find((b) => b.id === player.id);
-    if (body === undefined) return;
-    const run = ended.phasing;
-    const t = lastValidAlong(run.origin, ended.direction, run.travelled, R, bodyWalls);
-    const to = {
-      x: run.origin.x + ended.direction.x * t,
-      y: run.origin.y + ended.direction.y * t,
-    };
-    if (to.x !== body.position.x || to.y !== body.position.y) {
-      world = moveBodies(world, new Map([[player.id, to]]));
-    }
-    if (run.inside) events.push({ type: 'PHASE_EXITED', playerId: player.id, position: to });
-  };
   // Hazard contacts seen over the sub-steps (judged at each sub-step's end, so a large dt cannot skip a strip).
   const hazardHits: Set<number>[] = state.players.map(() => new Set<number>());
   const onPlatformAt = (at: Vec2, t: number): boolean =>
@@ -878,40 +818,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         ),
       );
     }
-    const carried = carryBodies(world, state.players, dashes, boosted, solid, h, config, bodyWalls);
+    const carried = carryBodies(world, state.players, dashes, boosted, solid, h);
     world = carried.world;
     for (let j = 0; j < dashes.length; j += 1) {
-      let dash = dashes[j] as DashState;
+      const dash = dashes[j] as DashState;
       if (dash.phase !== 'DASHING') continue;
       const id = (state.players[j] as FuPlayer).id;
-      const seen = carried.progress.get(id);
-      if (seen !== undefined && dash.phasing !== undefined) {
-        const position = world.bodies.find((b) => b.id === id)?.position ?? ZERO;
-        if (seen.inside && !dash.phasing.inside) {
-          // entering a wall is announced (owning PHASE_DASH costs nothing: no charges)
-          events.push({ type: 'PHASE_ENTERED', playerId: id, position });
-        } else if (!seen.inside && dash.phasing.inside) {
-          events.push({ type: 'PHASE_EXITED', playerId: id, position });
-        }
-        dash = Object.freeze({
-          ...dash,
-          phasing: Object.freeze({
-            ...dash.phasing,
-            travelled: seen.travelled,
-            inside: seen.inside,
-          }),
-        });
-      }
-      const next = advanceDashing(dash, h, carried.ends.has(id));
-      if (next.phase === 'READY') settle(j, dash);
-      dashes[j] = next;
+      dashes[j] = advanceDashing(dash, h, carried.ends.has(id));
     }
-    const phasingNow = new Set(
-      dashes.flatMap((d, j) =>
-        d.phase === 'DASHING' && d.phasing !== undefined ? [(state.players[j] as FuPlayer).id] : [],
-      ),
-    );
-    world = separateBodies(world, (id) => solid.has(id), bodyWalls, phasingNow);
+    world = separateBodies(world, (id) => solid.has(id), bodyWalls);
     // Hazards: an ACTIVE strip is lethal to a living body whose centre is on it — unless it is riding a
     // platform over it, or an earlier shield already met this window.
     hazards.forEach((hazard, hi) => {
@@ -1064,8 +979,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         walls,
       ).position;
       thrownNow.add(k);
-      // An owner of BLAST_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
-      const arm = has(index, 'BLAST_BOOMERANG');
+      // An owner of EXPLOSIVE_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
+      const arm = has(index, 'EXPLOSIVE_BOOMERANG');
       const power = (plans[index] as { power: number }).power;
       events.push({ type: 'THROWN', playerId: player.id, position, direction, power });
       weapons[k] = transition(weapons[k] as Boomerang, 'THROWN', {
@@ -1492,7 +1407,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
 
   // 5. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------
   // Every lethal contact is collected first, per victim, in a fixed order (attacker's place in the match,
-  // then boomerangs/blasts before the slash, then the weapon); then a GUARD takes the FIRST one and the
+  // then boomerangs/blasts before the slash, then the weapon); then a SHIELD takes the FIRST one and the
   // rest kill. An armed boomerang's first contact (or wall impact) is an explosion instead: everyone
   // (not its owner, not whoever just deflected it) within `blastRadius` with a clear line is a victim.
   const contacts: Contact[][] = players.map(() => []);
@@ -1620,18 +1535,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       (x, y) => x.attacker - y.attacker || x.rank - y.rank || x.weapon - y.weapon,
     );
     if (list.length === 0) return;
-    if (has(v, 'GUARD') && !exploding.has(v)) {
+    if (has(v, 'SHIELD') && !exploding.has(v)) {
       // A guard absorbs exactly ONE lethal contact and is spent; the weapon cannot hit them again this leg/swing.
       const first = list.shift() as Contact;
-      inventory[v] = removePower(inventory[v] as Inventory, 'GUARD'); // the shield breaks: its slot is free
+      inventory[v] = removePower(inventory[v] as Inventory, 'SHIELD'); // the shield breaks: its slot is free
       events.push({
         type: 'POWER_LOST',
         playerId: victim.id,
-        kind: 'GUARD',
+        kind: 'SHIELD',
         reason: 'SHIELD_BROKEN',
       });
       events.push({
-        type: 'GUARD_BLOCKED',
+        type: 'SHIELD_BLOCKED',
         playerId: victim.id,
         byId: first.source === 'HAZARD' ? ARENA_ID : (players[first.attacker] as FuPlayer).id,
         position: positionOf(victim.id),

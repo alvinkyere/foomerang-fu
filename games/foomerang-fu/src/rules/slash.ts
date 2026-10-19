@@ -17,7 +17,7 @@ export type SlashState =
       readonly phase: 'ACTIVE' | 'RECOVERING';
       readonly direction: Vec2;
       readonly remaining: number;
-      /** Slice 5: players whose GUARD this swing already met; it cannot hurt them again (one guard = one hit). */
+      /** Slice 5: players whose SHIELD this swing already met; it cannot hurt them again (one guard = one hit). */
       readonly spared?: readonly string[];
     };
 

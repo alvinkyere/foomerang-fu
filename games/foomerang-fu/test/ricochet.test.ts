@@ -143,7 +143,7 @@ describe('ricochets', () => {
   });
 
   it('an armed BLAST boomerang explodes at its first wall impact, then bounces on unarmed', () => {
-    let s = own(match(), 'a', 'BLAST_BOOMERANG');
+    let s = own(match(), 'a', 'EXPLOSIVE_BOOMERANG');
     s = flying(s, 'a', { x: 700, y: 450 }, { x: 1, y: 0 }, { blast: true });
     const r = fly(s, 12);
     expect(r.events.filter((e) => e.type === 'BLASTED')).toHaveLength(1);

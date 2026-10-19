@@ -86,11 +86,11 @@ export interface FuConfig {
   readonly fatiguedMoveFactor: number;
   /** Slice 4: dash speed (so distance) while FATIGUED, as a fraction of normal (1 = no penalty). */
   readonly fatiguedDashFactor: number;
-  /** Slice 5: walking speed multiplier while OVERDRIVE is on (it multiplies with fatigue and the slash slowdown). */
-  readonly overdriveMoveFactor: number;
-  /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under OVERDRIVE (multiplies with fatigue). */
-  readonly overdriveDashFactor: number;
-  /** Slice 5: BLAST_BOOMERANG's blast radius, centre to body centre, world units. */
+  /** Slice 5: walking speed multiplier while CAFFEINATED is on (it multiplies with fatigue and the slash slowdown). */
+  readonly caffeinatedMoveFactor: number;
+  /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under CAFFEINATED (multiplies with fatigue). */
+  readonly caffeinatedDashFactor: number;
+  /** Slice 5: EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units. */
   readonly blastRadius: number;
   /** Slice 5: TWIN_THROW's spread: one THROW launches two boomerangs at ±this angle (radians) from the facing. */
   readonly twinSpreadRadians: number;
@@ -148,8 +148,8 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fatigueRecoverySeconds: 5,
   fatiguedMoveFactor: 0.7,
   fatiguedDashFactor: 0.7,
-  overdriveMoveFactor: 1.4,
-  overdriveDashFactor: 1.3,
+  caffeinatedMoveFactor: 1.4,
+  caffeinatedDashFactor: 1.3,
   blastRadius: 170,
   seed: 1,
   twinSpreadRadians: (13 * Math.PI) / 180,
@@ -223,8 +223,8 @@ export function assertValidConfig(config: FuConfig): void {
     ['fatigueRecoverySeconds', config.fatigueRecoverySeconds],
     ['fatiguedMoveFactor', config.fatiguedMoveFactor],
     ['fatiguedDashFactor', config.fatiguedDashFactor],
-    ['overdriveMoveFactor', config.overdriveMoveFactor],
-    ['overdriveDashFactor', config.overdriveDashFactor],
+    ['caffeinatedMoveFactor', config.caffeinatedMoveFactor],
+    ['caffeinatedDashFactor', config.caffeinatedDashFactor],
     ['blastRadius', config.blastRadius],
     ['roundEndSeconds', config.roundEndSeconds],
     ['outsideLimitSeconds', config.outsideLimitSeconds],
@@ -239,7 +239,7 @@ export function assertValidConfig(config: FuConfig): void {
   if (!Number.isInteger(config.dashFreeCount) || config.dashFreeCount < 1) {
     throw new RangeError('dashFreeCount must be a positive integer');
   }
-  if (config.overdriveMoveFactor < 1 || config.overdriveDashFactor < 1) {
+  if (config.caffeinatedMoveFactor < 1 || config.caffeinatedDashFactor < 1) {
     throw new RangeError('overdrive cannot make a player slower');
   }
   if (!(config.twinSpreadRadians > 0 && config.twinSpreadRadians < Math.PI / 4)) {
@@ -298,7 +298,7 @@ export function assertValidConfig(config: FuConfig): void {
       throw new RangeError('every spawn must be inside the safe zone');
   }
   if (
-    config.playerSpeed * config.overdriveMoveFactor * FIXED_TIMESTEP_SECONDS >=
+    config.playerSpeed * config.caffeinatedMoveFactor * FIXED_TIMESTEP_SECONDS >=
     config.playerRadius
   ) {
     throw new RangeError('an overdriven player moves farther than their radius in one step');
@@ -308,7 +308,7 @@ export function assertValidConfig(config: FuConfig): void {
   }
   // A dash is swept in steps no longer than the fixed step, so it must not move a player farther than
   // their radius in one of them (it could not otherwise be stopped by a wall or a body).
-  const fastestDash = config.dashSpeed * config.overdriveDashFactor;
+  const fastestDash = config.dashSpeed * config.caffeinatedDashFactor;
   if (fastestDash * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a dash moves farther than a radius in one step');
   }

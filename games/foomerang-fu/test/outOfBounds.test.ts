@@ -97,12 +97,12 @@ describe('outside the dashed lines', () => {
     s = {
       ...s,
       players: s.players.map((p) =>
-        p.id === 'a' ? { ...p, inventory: Object.freeze(['GUARD']) } : p,
+        p.id === 'a' ? { ...p, inventory: Object.freeze(['SHIELD']) } : p,
       ),
     } as FuState;
     const r = run(s, 5.01);
     expect(player(r.s, 'a').alive).toBe(false);
-    expect(r.events.some((e) => e.type === 'GUARD_BLOCKED')).toBe(false);
+    expect(r.events.some((e) => e.type === 'SHIELD_BLOCKED')).toBe(false);
   });
 
   it('players may walk out: the safe zone is not a wall', () => {

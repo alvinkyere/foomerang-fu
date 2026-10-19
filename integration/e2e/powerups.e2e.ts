@@ -108,10 +108,10 @@ test('Powerups: a SHIELD absorbs a real SLASH, breaks and leaves the inventory; 
   powerHost,
   newPhone,
 }) => {
-  const host = await powerHost('GUARD');
+  const host = await powerHost('SHIELD');
   const { alice, bob, aliceId, bobId } = await setUp(host, newPhone);
   await takeABook(host, alice, aliceId);
-  expect(await owned(host, aliceId)).toEqual(['GUARD']);
+  expect(await owned(host, aliceId)).toEqual(['SHIELD']);
 
   // Alice steps off the spot, then Bob comes up through the bottom gate and closes to within a swing of her
   await alice.thumbDown();
@@ -143,77 +143,11 @@ test('Powerups: a SHIELD absorbs a real SLASH, breaks and leaves the inventory; 
   await expect.poll(async () => (await me(host, aliceId))?.alive, { timeout: 3_000 }).toBe(false);
 });
 
-test('Powerups: PHASE_DASH goes through walls again and again — entry → inside → exit — with nothing used up', async ({
+test('Powerups: TWIN_THROW + EXPLOSIVE_BOOMERANG together — ONE throw press launches TWO armed boomerangs in a symmetric angled spread, drawn separately; the power survives the throw', async ({
   powerHost,
   newPhone,
 }) => {
-  const host = await powerHost('PHASE_DASH');
-  const { alice, aliceId } = await setUp(host, newPhone);
-  await expect
-    .poll(async () => (await host.fu()).pickups.some((p) => p.x === 460 && p.y === 450), {
-      timeout: 10_000,
-    })
-    .toBe(true);
-  await goTo(host, alice, aliceId, 'spotWest', 10);
-  await expect.poll(async () => owned(host, aliceId), { timeout: 5_000 }).toEqual(['PHASE_DASH']);
-
-  await face(alice, -1, 0);
-  const start = await host.settled(aliceId);
-  expect(start.x).toBeGreaterThanOrEqual(436 - 1); // flush against the corridor's wall
-  let sawPhasing = false;
-  let sawInside = false;
-  let drawnInsideWall = false;
-  const watcher = (async () => {
-    const until = Date.now() + 900;
-    while (Date.now() < until) {
-      const snap = await host.snapshot();
-      const self = snap.game?.players.find((p) => p.id === aliceId);
-      if (self?.phasing === true) sawPhasing = true;
-      if (self?.inWall === true) {
-        sawInside = true;
-        const body = snap.bodies.find((b) => b.id === aliceId);
-        const drawn = snap.drawn?.find((d) => d.id === aliceId);
-        if (
-          body !== undefined &&
-          drawn !== undefined &&
-          body.x < 436 &&
-          Math.abs(drawn.x - body.x) < 40
-        ) {
-          drawnInsideWall = true; // Phaser drew her in the wall, where the rules put her
-        }
-      }
-      await sleep(3);
-    }
-  })();
-  await alice.tapDash();
-  await watcher;
-  expect(sawPhasing && sawInside && drawnInsideWall).toBe(true);
-  const end = await host.settled(aliceId);
-  expect(end.x).toBeCloseTo(286, 0); // through the inner wall, flush before the outer one
-  expect(end.y).toBeCloseTo(start.y, 0);
-  expect(await owned(host, aliceId)).toEqual(['PHASE_DASH']); // not used up
-
-  // …and the very next dash goes through the OUTER wall too (no charges: owning it is the whole rule)
-  await expect.poll(async () => (await me(host, aliceId))?.dash, { timeout: 2_000 }).toBe('READY');
-  await alice.tapDash();
-  await expect.poll(async () => (await host.body(aliceId)).x, { timeout: 3_000 }).toBeLessThan(150);
-  await host.settled(aliceId);
-  expect((await host.body(aliceId)).x).toBeCloseTo(110, 0);
-  expect(await owned(host, aliceId)).toEqual(['PHASE_DASH']);
-
-  // walls are solid again: walking right stops flush against the wall she just crossed
-  await alice.thumbDown();
-  await alice.thumbMove(FAR, 0);
-  await sleep(700);
-  await alice.thumbUp();
-  expect((await host.body(aliceId)).x).toBeLessThanOrEqual(200 - 36 + 0.5);
-});
-
-test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launches TWO armed boomerangs in a symmetric angled spread, drawn separately; the power survives the throw', async ({
-  powerHost,
-  newPhone,
-}) => {
-  const host = await powerHost('TWIN_THROW,BLAST_BOOMERANG');
+  const host = await powerHost('TWIN_THROW,EXPLOSIVE_BOOMERANG');
   const { alice, aliceId } = await setUp(host, newPhone);
   await takeABook(host, alice, aliceId);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 3_000 }).toBe(1);
@@ -223,7 +157,7 @@ test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launch
   const book = (await host.fu()).pickups[0] as { x: number; y: number };
   await goTo(host, alice, aliceId, spotName(book), 10);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 5_000 }).toBe(2);
-  expect([...(await owned(host, aliceId))].sort()).toEqual(['BLAST_BOOMERANG', 'TWIN_THROW']);
+  expect([...(await owned(host, aliceId))].sort()).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
 
   const mine = async () => (await host.fu()).boomerangs.filter((b) => b.ownerId === aliceId);
   expect(await mine()).toHaveLength(2);
@@ -257,5 +191,5 @@ test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launch
     .poll(async () => (await mine()).every((b) => b.state === 'HELD'), { timeout: 12_000 })
     .toBe(true);
   expect((await me(host, aliceId))?.alive).toBe(true); // her own blasts never hurt her
-  expect([...(await owned(host, aliceId))].sort()).toEqual(['BLAST_BOOMERANG', 'TWIN_THROW']); // still owned
+  expect([...(await owned(host, aliceId))].sort()).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']); // still owned
 });

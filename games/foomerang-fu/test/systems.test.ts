@@ -32,7 +32,6 @@ import {
   place,
   player,
   run,
-  types,
   weaponsOf,
   type FuEvent,
 } from './support/fixtures';
@@ -334,38 +333,6 @@ describe('timed gates', () => {
     expect(player(s, 'a').alive).toBe(true);
   });
 
-  it('PHASE_DASH treats a CLOSED gate as internal solid wall: it phases through it, and nothing else', () => {
-    let s = own(place(duel(arena), 'a', 700 - R, 450), 'a', 'PHASE_DASH');
-    s = stepFu(withTime(s, 7), NONE, DT).state; // shut
-    expect(s.gatesShut).toEqual([true]);
-    const start = at(s, 'a').x;
-    let r = stepFu(face(s, 'a', 1, 0), input({ a: { dash: true } }), DT);
-    const events = [...r.events];
-    for (let i = 0; i < 20 && player(r.state, 'a').dash.phase === 'DASHING'; i += 1) {
-      r = stepFu(r.state, NONE, DT);
-      events.push(...r.events);
-    }
-    expect(types(events)).toContain('PHASE_ENTERED');
-    expect(at(r.state, 'a').x).toBeCloseTo(start + C.dashSpeed * C.dashSeconds, 5);
-    expect(circleHitsWalls(at(r.state, 'a'), R, [GATE.rect])).toBe(false);
-    // walking into it is still blocked, from either side
-    const back = run(place(r.state, 'a', 800, 450), 200, input({ a: { move: { x: -1, y: 0 } } }), {
-      repeat: true,
-    }).state;
-    expect(at(back, 'a').x).toBeGreaterThanOrEqual(750 + R - 1e-6);
-  });
-
-  it('a gate scheduled to close on a PHASING player crossing it waits like any other, and they emerge unharmed', () => {
-    let s = own(place(duel(arena), 'a', 640, 450), 'a', 'PHASE_DASH');
-    s = withTime(face(s, 'a', 1, 0), 5.9);
-    s = run(s, 1, input({ a: { dash: true } })).state;
-    for (let i = 0; i < 30; i += 1) {
-      s = stepFu(s, NONE, DT).state;
-      if (s.gatesShut[0] === true) expect(circleHitsWalls(at(s, 'a'), R, [GATE.rect])).toBe(false);
-    }
-    expect(player(s, 'a').alive).toBe(true);
-  });
-
   it('a thrown boomerang cannot pass a CLOSED gate (it turns back); an open gate lets it through', () => {
     let s = place(duel(arena), 'a', 560, 450);
     s = face(s, 'a', 1, 0);
@@ -406,7 +373,7 @@ describe('timed gates', () => {
     const setup = (t: number) => {
       let s = make(['a', 'b', 'c'], { arena: arenaB });
       s = place(place(place(s, 'a', 100, 850), 'b', 660, 400), 'c', 786, 400); // c is ~140 from the blast, behind the gate
-      s = own(s, 'a', 'BLAST_BOOMERANG');
+      s = own(s, 'a', 'EXPLOSIVE_BOOMERANG');
       s = flying(s, 'a', { x: 630, y: 400 }, { x: 1, y: 0 }, { blast: true });
       return stepFu(withTime(s, t), NONE, DT).state;
     };
@@ -417,8 +384,8 @@ describe('timed gates', () => {
     expect(player(open.state, 'c').alive).toBe(false);
   });
 
-  it('OVERDRIVE: an overdriven walker is stopped by a closed gate exactly like anyone', () => {
-    let s = own(place(duel(arena), 'a', 600, 450), 'a', 'OVERDRIVE');
+  it('CAFFEINATED: an overdriven walker is stopped by a closed gate exactly like anyone', () => {
+    let s = own(place(duel(arena), 'a', 600, 450), 'a', 'CAFFEINATED');
     s = stepFu(withTime(s, 7), NONE, DT).state;
     const r = run(s, 120, input({ a: { move: { x: 1, y: 0 } } }), { repeat: true }).state;
     expect(at(r, 'a').x).toBeCloseTo(700 - R, 6);
@@ -588,7 +555,7 @@ describe('the lethal floor (hazard)', () => {
 
   it('a shield absorbs the contact ONCE and breaks; the player is then spared for the rest of that ACTIVE window, not the next', () => {
     let s = withTime(
-      stood((x) => give(x, 'a', 'GUARD')),
+      stood((x) => give(x, 'a', 'SHIELD')),
       3.2,
     );
     s = place(s, 'a', 800, 450);
@@ -596,7 +563,7 @@ describe('the lethal floor (hazard)', () => {
     expect(player(first.state, 'a').alive).toBe(true);
     expect(player(first.state, 'a').inventory).toEqual([]);
     expect(first.events).toContainEqual(
-      expect.objectContaining({ type: 'GUARD_BLOCKED', playerId: 'a', byId: 'HAZARD' }),
+      expect.objectContaining({ type: 'SHIELD_BLOCKED', playerId: 'a', byId: 'HAZARD' }),
     );
     const rest = run(first.state, 30).state; // still standing in it, still ACTIVE, still alive
     expect(player(rest, 'a').alive).toBe(true);
@@ -626,19 +593,8 @@ describe('the lethal floor (hazard)', () => {
     expect(player(run(s, 3, NONE, { dt: 0.1 }).state, 'a').alive).toBe(false);
   });
 
-  it('PHASE_DASH grants no immunity: phasing across an ACTIVE strip is lethal', () => {
-    let s = own(
-      withTime(face(place(duel(arena), 'a', 660, 450), 'a', 1, 0), 3.1),
-      'a',
-      'PHASE_DASH',
-    );
-    s = stepFu(s, input({ a: { dash: true } }), DT).state;
-    for (let i = 0; i < 12; i += 1) s = stepFu(s, NONE, DT).state;
-    expect(player(s, 'a').alive).toBe(false);
-  });
-
-  it('OVERDRIVE grants none either: an overdriven body on an ACTIVE strip dies', () => {
-    const s = own(withTime(stood(), 3.1), 'a', 'OVERDRIVE');
+  it('CAFFEINATED grants none either: an overdriven body on an ACTIVE strip dies', () => {
+    const s = own(withTime(stood(), 3.1), 'a', 'CAFFEINATED');
     expect(
       player(run(s, 3, input({ a: { move: { x: 1, y: 0 } } }), { repeat: true }).state, 'a').alive,
     ).toBe(false);
@@ -674,13 +630,13 @@ describe('the lethal floor (hazard)', () => {
   });
 
   it('death by the floor leaves what the player owns, and a round reset puts the floor back to SAFE', () => {
-    let s = own(withTime(stood(), 3.2), 'a', 'PHASE_DASH', 'TWIN_THROW');
+    let s = own(withTime(stood(), 3.2), 'a', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW');
     s = run(s, 3).state;
     expect(player(s, 'a').alive).toBe(false);
-    expect(player(s, 'a').inventory).toEqual(['PHASE_DASH', 'TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
-    expect(player(s, 'a').inventory).toEqual(['PHASE_DASH', 'TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
     expect(systemsView(arena, s.roundTime, s.gatesShut).hazards[0]?.phase).toBe('SAFE');
     expect(player(s, 'a').hazardSpared).toEqual([]);
   });
@@ -718,9 +674,9 @@ describe('determinism, high dt and six-player fuzz in the real experimental aren
     expect(play()).toBe(play());
   });
 
-  it('INVARIANTS under a six-player fuzz: nobody ends a step inside solid geometry (walls or shut gates) unless mid phase-dash; nobody leaves the arena; platforms stay on their paths; only ACTIVE floor kills', () => {
+  it('INVARIANTS under a six-player fuzz: nobody ends a step inside solid geometry (walls or shut gates); nobody leaves the arena; platforms stay on their paths; only ACTIVE floor kills', () => {
     let s = six();
-    for (const id of ['a', 'c', 'e']) s = own(s, id, 'PHASE_DASH', 'OVERDRIVE');
+    for (const id of ['a', 'c', 'e']) s = own(s, id, 'EXPLOSIVE_BOOMERANG', 'CAFFEINATED');
     let hazardKills = 0;
     for (let i = 0; i < 8000; i += 1) {
       const r = stepFu(s, script(i), DT);
@@ -733,20 +689,17 @@ describe('determinism, high dt and six-player fuzz in the real experimental aren
       for (const p of s.players) {
         if (!p.alive) continue;
         const where = at(s, p.id);
-        const phasing = p.dash.phase === 'DASHING' && 'phasing' in p.dash;
-        if (!phasing) {
-          expect(
-            solid.every(
-              (w) =>
-                Math.hypot(
-                  Math.max(w.x - where.x, 0, where.x - w.x - w.width),
-                  Math.max(w.y - where.y, 0, where.y - w.y - w.height),
-                ) >=
-                R - 1e-6,
-            ),
-            `step ${i} ${p.id} ${JSON.stringify(where)}`,
-          ).toBe(true);
-        }
+        expect(
+          solid.every(
+            (w) =>
+              Math.hypot(
+                Math.max(w.x - where.x, 0, where.x - w.x - w.width),
+                Math.max(w.y - where.y, 0, where.y - w.y - w.height),
+              ) >=
+              R - 1e-6,
+          ),
+          `step ${i} ${p.id} ${JSON.stringify(where)}`,
+        ).toBe(true);
         expect(where.x).toBeGreaterThanOrEqual(R - 1e-6);
         expect(where.x).toBeLessThanOrEqual(1600 - R + 1e-6);
         expect(where.y).toBeGreaterThanOrEqual(R - 1e-6);
@@ -872,12 +825,12 @@ describe('more of the combat sandbox against the arena systems', () => {
     expect(boom(run1(0), 'a').position.x).toBeGreaterThan(700);
   });
 
-  it('OVERDRIVE on a platform: an overdriven rider walks 1.4× on top of the ride', () => {
+  it('CAFFEINATED on a platform: an overdriven rider walks 1.4× on top of the ride', () => {
     const arena = arenaOf({ platforms: [PLATFORM] });
-    const s = own(place(duel(arena), 'a', 330, 350), 'a', 'OVERDRIVE');
+    const s = own(place(duel(arena), 'a', 330, 350), 'a', 'CAFFEINATED');
     const r = run(s, 8, input({ a: { move: { x: 1, y: 0 } } }), { repeat: true }).state;
     expect(at(r, 'a').x).toBeCloseTo(
-      330 + 8 * C.playerSpeed * C.overdriveMoveFactor * DT + 8 * DT * 50,
+      330 + 8 * C.playerSpeed * C.caffeinatedMoveFactor * DT + 8 * DT * 50,
       3,
     );
   });

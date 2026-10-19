@@ -73,18 +73,18 @@ function nextRound(start: FuState): FuState {
 const inv = (s: FuState, id = 'a') => player(s, id).inventory;
 const lone = () => place(place(make(), 'a', 600, 450), 'b', 1500, 800);
 
-describe('the five powers and their compatibility table', () => {
-  it('exactly five, in a fixed order, and every unordered pair is spelled out', () => {
+describe('the powers and their compatibility table', () => {
+  it('in a fixed order, and every unordered pair is spelled out', () => {
     expect([...POWER_KINDS]).toEqual([
-      'OVERDRIVE',
-      'BLAST_BOOMERANG',
-      'GUARD',
+      'CAFFEINATED',
+      'EXPLOSIVE_BOOMERANG',
+      'SHIELD',
       'TWIN_THROW',
-      'PHASE_DASH',
     ]);
-    for (const junk of ['', 'overdrive', 'SHIELD', 7, null, undefined, {}])
+    for (const junk of ['', 'overdrive', 'GUARD', 'OVERDRIVE', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);
-    expect(Object.keys(POWER_COMBINATIONS)).toHaveLength(10);
+    const n = POWER_KINDS.length;
+    expect(Object.keys(POWER_COMBINATIONS)).toHaveLength((n * (n - 1)) / 2);
     for (const entry of Object.values(POWER_COMBINATIONS)) expect(entry.allowed).toBe(true);
   });
 });
@@ -92,27 +92,28 @@ describe('the five powers and their compatibility table', () => {
 describe('the inventory: at most three, oldest out first (FIFO)', () => {
   it('the pure operations: append, evict the oldest when full, remove keeps the order of the rest', () => {
     expect(MAX_POWERS).toBe(3);
-    let i = awardPower([], 'OVERDRIVE').inventory;
-    i = awardPower(i, 'GUARD').inventory;
-    i = awardPower(i, 'PHASE_DASH').inventory;
-    expect(i).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    let i = awardPower([], 'CAFFEINATED').inventory;
+    i = awardPower(i, 'SHIELD').inventory;
+    i = awardPower(i, 'EXPLOSIVE_BOOMERANG').inventory;
+    expect(i).toEqual(['CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG']);
     const fourth = awardPower(i, 'TWIN_THROW');
-    expect(fourth.inventory).toEqual(['GUARD', 'PHASE_DASH', 'TWIN_THROW']);
-    expect(fourth.evicted).toBe('OVERDRIVE');
-    const fifth = awardPower(fourth.inventory, 'BLAST_BOOMERANG');
-    expect(fifth.inventory).toEqual(['PHASE_DASH', 'TWIN_THROW', 'BLAST_BOOMERANG']);
-    expect(fifth.evicted).toBe('GUARD');
-    expect(awardPower(['GUARD'], 'PHASE_DASH').evicted).toBeUndefined();
-    expect(removePower(['PHASE_DASH', 'GUARD', 'TWIN_THROW'], 'GUARD')).toEqual([
-      'PHASE_DASH',
+    expect(fourth.inventory).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    expect(fourth.evicted).toBe('CAFFEINATED');
+    const fifth = awardPower(fourth.inventory, 'CAFFEINATED');
+    expect(fifth.inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'CAFFEINATED']);
+    expect(fifth.evicted).toBe('SHIELD');
+    expect(awardPower(['SHIELD'], 'EXPLOSIVE_BOOMERANG').evicted).toBeUndefined();
+    expect(removePower(['EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW'], 'SHIELD')).toEqual([
+      'EXPLOSIVE_BOOMERANG',
       'TWIN_THROW',
     ]);
   });
 
-  it('through the real rules: the 4th acquisition evicts the oldest, the 5th the next-oldest, and says so', () => {
+  it('through the real rules: the 4th acquisition evicts the oldest, the 5th (the evicted one, taken again) the next-oldest, and says so', () => {
     let s = lone();
-    for (const kind of ['OVERDRIVE', 'GUARD', 'PHASE_DASH'] as const) s = give(s, 'a', kind);
-    expect(inv(s)).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    for (const kind of ['CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG'] as const)
+      s = give(s, 'a', kind);
+    expect(inv(s)).toEqual(['CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG']);
     // the 4th: Book laid, the real step, and read the events
     const take = (state: FuState, kind: PowerKind) =>
       stepFu(
@@ -125,25 +126,25 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
         DT,
       );
     const fourth = take(s, 'TWIN_THROW');
-    expect(inv(fourth.state)).toEqual(['GUARD', 'PHASE_DASH', 'TWIN_THROW']);
+    expect(inv(fourth.state)).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
     expect(fourth.events).toContainEqual({
       type: 'POWER_LOST',
       playerId: 'a',
-      kind: 'OVERDRIVE',
+      kind: 'CAFFEINATED',
       reason: 'EVICTED',
     });
-    const fifth = take(fourth.state, 'BLAST_BOOMERANG');
-    expect(inv(fifth.state)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'BLAST_BOOMERANG']);
+    const fifth = take(fourth.state, 'CAFFEINATED');
+    expect(inv(fifth.state)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'CAFFEINATED']);
     expect(fifth.events).toContainEqual({
       type: 'POWER_LOST',
       playerId: 'a',
-      kind: 'GUARD',
+      kind: 'SHIELD',
       reason: 'EVICTED',
     });
   });
 
   it('a player already holding three can always take another (it never refuses a full inventory)', () => {
-    let s = own(lone(), 'a', 'OVERDRIVE', 'GUARD', 'PHASE_DASH');
+    let s = own(lone(), 'a', 'CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG');
     s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
     const r = stepFu(s, NONE, DT);
     expect(r.state.pickups).toEqual([]);
@@ -151,24 +152,24 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
   });
 
   it('no duplicates: a power you already own is never awarded again (a Book with nothing left stays for others)', () => {
-    let s = own(lone(), 'a', 'GUARD');
+    let s = own(lone(), 'a', 'SHIELD');
     s = {
       ...s,
-      config: { ...s.config, enabledPowers: ['GUARD'] },
+      config: { ...s.config, enabledPowers: ['SHIELD'] },
       pickups: [{ id: 1, position: at(s, 'a') }],
     };
     const r = stepFu(s, NONE, DT);
     expect(r.state.pickups).toHaveLength(1); // nothing to award a: it stays
-    expect(inv(r.state)).toEqual(['GUARD']);
+    expect(inv(r.state)).toEqual(['SHIELD']);
     const b = stepFu(place(r.state, 'b', at(s, 'a').x + 40, at(s, 'a').y), NONE, DT).state;
-    expect(inv(b, 'b')).toEqual(['GUARD']); // another player can have it
+    expect(inv(b, 'b')).toEqual(['SHIELD']); // another player can have it
   });
 
   it('a player owning four of five can only be awarded the one they lack; owning all enabled means no award', () => {
-    let s = own(lone(), 'a', 'OVERDRIVE', 'GUARD', 'PHASE_DASH');
+    let s = own(lone(), 'a', 'CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG');
     s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
     const r = stepFu(s, NONE, DT);
-    expect(['BLAST_BOOMERANG', 'TWIN_THROW']).toContain(inv(r.state).at(-1));
+    expect(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']).toContain(inv(r.state).at(-1));
   });
 
   it('is deterministic: the same acquisitions give the same inventory', () => {
@@ -183,45 +184,45 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
 
 describe('persistence: ownership is a match upgrade, not a round state', () => {
   it('survives a round reset, and several', () => {
-    let s = give(lone(), 'a', 'OVERDRIVE');
+    let s = give(lone(), 'a', 'CAFFEINATED');
     for (const round of [2, 3, 4]) {
       s = nextRound(s);
       expect(s.round).toBe(round);
-      expect(inv(s)).toEqual(['OVERDRIVE']);
+      expect(inv(s)).toEqual(['CAFFEINATED']);
     }
   });
 
-  it('a nine-round match: OVERDRIVE (r1), PHASE_DASH (r4), TWIN_THROW (r6), GUARD (r8) → round 9 holds [PHASE_DASH, TWIN_THROW, GUARD]', () => {
+  it('a nine-round match: CAFFEINATED (r1), EXPLOSIVE_BOOMERANG (r4), TWIN_THROW (r6), SHIELD (r8) → round 9 holds [EXPLOSIVE_BOOMERANG, TWIN_THROW, SHIELD]', () => {
     let s = lone();
     const gains: Record<number, PowerKind> = {
-      1: 'OVERDRIVE',
-      4: 'PHASE_DASH',
+      1: 'CAFFEINATED',
+      4: 'EXPLOSIVE_BOOMERANG',
       6: 'TWIN_THROW',
-      8: 'GUARD',
+      8: 'SHIELD',
     };
     for (let round = 1; round <= 9; round += 1) {
       expect(s.round).toBe(round);
-      if (round === 2) expect(inv(s)).toEqual(['OVERDRIVE']);
+      if (round === 2) expect(inv(s)).toEqual(['CAFFEINATED']);
       const gained = gains[round];
       if (gained !== undefined) s = give(place(s, 'a', 600, 450), 'a', gained);
-      if (round === 8) expect(inv(s)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']); // the 4th evicted OVERDRIVE
+      if (round === 8) expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']); // the 4th evicted CAFFEINATED
       if (round < 9) s = nextRound(s);
     }
-    expect(inv(s)).toEqual(['PHASE_DASH', 'TWIN_THROW', 'GUARD']);
+    expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
   });
 
   it('death does not clear what a player owns', () => {
     let s = place(place(make(['a', 'b', 'c']), 'a', 600, 450), 'b', 700, 450);
     s = place(s, 'c', 1500, 100);
-    s = face(own(s, 'a', 'OVERDRIVE', 'PHASE_DASH'), 'b', -1, 0);
+    s = face(own(s, 'a', 'CAFFEINATED', 'EXPLOSIVE_BOOMERANG'), 'b', -1, 0);
     const r = stepFu(s, input({ b: { slash: true } }), DT);
     expect(player(r.state, 'a').alive).toBe(false);
-    expect(inv(r.state)).toEqual(['OVERDRIVE', 'PHASE_DASH']);
+    expect(inv(r.state)).toEqual(['CAFFEINATED', 'EXPLOSIVE_BOOMERANG']);
   });
 
   it('a kill by a killed player and a round end do not clear it either (a dead player keeps ownership)', () => {
-    const s = nextRound(own(kill(lone(), 'a'), 'a', 'GUARD', 'TWIN_THROW'));
-    expect(inv(s)).toEqual(['GUARD', 'TWIN_THROW']);
+    const s = nextRound(own(kill(lone(), 'a'), 'a', 'SHIELD', 'TWIN_THROW'));
+    expect(inv(s)).toEqual(['SHIELD', 'TWIN_THROW']);
   });
 
   it('inventories survive any number of round resets (nothing about "round 9" clears them); only a REMATCH clears every inventory and starts at round 1', () => {
@@ -229,14 +230,14 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
     s = own(
       place(place(s, 'a', 600, 450), 'b', 1500, 800),
       'a',
-      'OVERDRIVE',
-      'GUARD',
-      'PHASE_DASH',
+      'CAFFEINATED',
+      'SHIELD',
+      'EXPLOSIVE_BOOMERANG',
     );
     s = { ...s, awards: 4 };
     for (let i = 0; i < 5; i += 1) s = nextRound(s); // well past the regulation rounds
     expect(s.round).toBe(6);
-    expect(inv(s)).toEqual(['OVERDRIVE', 'GUARD', 'PHASE_DASH']);
+    expect(inv(s)).toEqual(['CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG']);
     expect(s.awards).toBe(4);
     const fresh = rematchOf(s);
     expect(fresh.round).toBe(1);
@@ -300,11 +301,11 @@ describe('the mystery Book', () => {
 
   it('a disabled power is never awarded (try many Books)', () => {
     let s = lone();
-    s = { ...s, config: { ...s.config, enabledPowers: ['OVERDRIVE', 'GUARD'] } };
+    s = { ...s, config: { ...s.config, enabledPowers: ['CAFFEINATED', 'SHIELD'] } };
     for (let n = 0; n < 12; n += 1) {
       s = patchPlayer(s, 'a', { inventory: [] });
       s = stepFu(book(place(s, 'a', 600, 450), 600, 450, 200 + n), NONE, DT).state;
-      expect(['OVERDRIVE', 'GUARD']).toContain(inv(s)[0]);
+      expect(['CAFFEINATED', 'SHIELD']).toContain(inv(s)[0]);
     }
     // nothing enabled: nothing is ever awarded and the Book just lies there
     const none = stepFu(
@@ -489,21 +490,21 @@ describe('powerup configuration is checked (a bad schedule is a RangeError, neve
 
   it('rejects nonsense power settings', () => {
     const mk = (o: object) => () => createFuMatch([{ id: 'a', slot: 0 }], o);
-    expect(mk({ overdriveMoveFactor: 0.9 })).toThrow(RangeError);
+    expect(mk({ caffeinatedMoveFactor: 0.9 })).toThrow(RangeError);
     expect(mk({ blastRadius: -1 })).toThrow(RangeError);
     expect(mk({ seed: 1.5 })).toThrow(RangeError);
     expect(mk({ targetKills: 0 })).toThrow(RangeError);
     expect(mk({ regulationRounds: 1.5 })).toThrow(RangeError);
     expect(mk({ enabledPowers: ['NOPE'] })).toThrow(RangeError);
-    expect(mk({ exclusivePairs: [['GUARD', 'NOPE']] })).toThrow(RangeError);
-    expect(mk({ overdriveMoveFactor: 6 })).toThrow(RangeError);
+    expect(mk({ exclusivePairs: [['SHIELD', 'NOPE']] })).toThrow(RangeError);
+    expect(mk({ caffeinatedMoveFactor: 6 })).toThrow(RangeError);
   });
 });
 
 describe('holds() and the fixtures agree with the rules', () => {
   it('give() really goes through a Book', () => {
-    const s = give(lone(), 'a', 'PHASE_DASH');
-    expect(holds(s, 'a', 'PHASE_DASH')).toBe(true);
+    const s = give(lone(), 'a', 'EXPLOSIVE_BOOMERANG');
+    expect(holds(s, 'a', 'EXPLOSIVE_BOOMERANG')).toBe(true);
     expect(s.awards).toBe(1);
   });
 });

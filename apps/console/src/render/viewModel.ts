@@ -35,8 +35,6 @@ export interface CircleView {
   readonly fatigued?: true;
   /** The powerups they hold now (a rules fact), in a fixed order; empty for games without them. */
   readonly powers: readonly PowerKind[];
-  /** Present only during a Phase Dash: they may cross walls right now. */
-  readonly phasing?: { readonly inWall: boolean };
   /**
    * Present only while a living player is outside the arena's border (a rules fact): how long they have been out, the limit
    * at which they explode, and the unit direction straight back inside. The warning (blink, arrow, rumble) is presentation.
@@ -54,7 +52,7 @@ export interface PickupView {
 export interface BoomerangView {
   /** Unique among the boomerangs on screen: the owner's id, or `<owner>#2` for their twin. */
   readonly id: string;
-  /** Armed with BLAST_BOOMERANG (a rules fact). */
+  /** Armed with EXPLOSIVE_BOOMERANG (a rules fact). */
   readonly blast: boolean;
   readonly ownerId: string;
   readonly x: number;
@@ -84,9 +82,7 @@ export interface ViewEvent {
     | 'PICKUP'
     | 'POWER_LOST'
     | 'BLASTED'
-    | 'GUARD_BLOCKED'
-    | 'PHASE_ENTERED'
-    | 'PHASE_EXITED'
+    | 'SHIELD_BLOCKED'
     | 'PROP_BROKEN'
     | 'RICOCHET'
     | 'DROPPED'
@@ -100,8 +96,6 @@ export interface ViewEvent {
   readonly knock?: Vec2;
   /** For DASHED: the way the dash goes (unit vector), so the burst can be drawn pointing along it. */
   readonly direction?: Vec2;
-  /** For DASHED: a Phase Dash (may cross walls). */
-  readonly phasing?: true;
   /** For PICKUP / POWER_LOST: which power (revealed only when the Book is taken). */
   readonly kind?: PowerKind;
   /** For PICKUP / POWER_LOST: who (their display name), for the on-screen announcement. */

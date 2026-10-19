@@ -118,20 +118,20 @@ describe('scoring: holes', () => {
   });
 
   it('powerups persist across the round reset exactly as in Slice 5 (and kills with them)', () => {
-    let s = own(slashKills(four(), 'a', 'b').state, 'a', 'GUARD', 'OVERDRIVE');
+    let s = own(slashKills(four(), 'a', 'b').state, 'a', 'SHIELD', 'CAFFEINATED');
     s = patchPlayer(patchPlayer(s, 'c', { alive: false }), 'd', { alive: false });
     for (let i = 0; i < 600 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
-    expect([...player(s, 'a').inventory]).toEqual(['GUARD', 'OVERDRIVE']);
+    expect([...player(s, 'a').inventory]).toEqual(['SHIELD', 'CAFFEINATED']);
     expect(s.scores['a']).toBe(1);
   });
 
   it('a shield that absorbs the blow means no death and no score', () => {
-    const s = own(nextTo(four(), 'a', 'b'), 'b', 'GUARD');
+    const s = own(nextTo(four(), 'a', 'b'), 'b', 'SHIELD');
     const r = stepFu(s, SLASH_A, DT);
     expect(player(r.state, 'b').alive).toBe(true);
     expect(r.state.scores).toEqual({ a: 0, b: 0, c: 0, d: 0 });
     expect(scoreEvents(r.events)).toEqual([]);
-    expect(types(r.events)).toContain('GUARD_BLOCKED');
+    expect(types(r.events)).toContain('SHIELD_BLOCKED');
   });
 
   it('simultaneous kills: two players slashing each other on the same step both score', () => {
@@ -228,7 +228,7 @@ describe('attribution: who is credited (the complete table is in docs/FOOMERANG_
   });
 
   it('BLAST: the blast’s owner is credited for everyone it kills', () => {
-    let s = own(four(), 'a', 'BLAST_BOOMERANG');
+    let s = own(four(), 'a', 'EXPLOSIVE_BOOMERANG');
     s = patchBoomerang(s, 'a', { blast: true });
     s = place(place(s, 'c', 1400 + R * 2, 200), 'b', 1400, 200); // b and c close together
     s = aimedAt(s, 'a', 'b', { blast: true });
@@ -387,7 +387,7 @@ describe('same-step victory: a tie is a tiebreak, never array order', () => {
   });
 
   it('the tiebreak round involves only the tied players; everyone else sits it out; kills and inventories carry over', () => {
-    let s = own(tie().state, 'c', 'GUARD');
+    let s = own(tie().state, 'c', 'SHIELD');
     const events: FuEvent[] = [];
     for (let i = 0; i < 600 && s.round === 1; i += 1) {
       const r = stepFu(s, NONE, DT);
@@ -399,7 +399,7 @@ describe('same-step victory: a tie is a tiebreak, never array order', () => {
     expect(roundLabel(s)).toEqual({ kind: 'TIEBREAK', round: 2 });
     expect(s.players.filter((p) => p.alive).map((p) => p.id)).toEqual(['a', 'b']);
     expect(s.scores).toMatchObject({ a: 14, b: 14 });
-    expect([...player(s, 'c').inventory]).toEqual(['GUARD']);
+    expect([...player(s, 'c').inventory]).toEqual(['SHIELD']);
   });
 
   it('in the tiebreak the first credited kill wins at once; if both land on the same step it is a tiebreak again', () => {
@@ -499,7 +499,7 @@ describe('regulation, overtime and the match lifecycle', () => {
 
   it('a rematch is a brand new match: round 1, empty meters, empty inventories, everything reset, same participants and settings', () => {
     let s = slashKills(withScores(four(), { a: 13 }), 'a', 'b').state;
-    s = own(s, 'c', 'GUARD', 'TWIN_THROW');
+    s = own(s, 'c', 'SHIELD', 'TWIN_THROW');
     const m = rematchOf(s);
     expect(m.phase).toBe('PLAYING');
     expect(m.matchOver).toBeUndefined();

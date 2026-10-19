@@ -119,7 +119,7 @@ describe('breakable props', () => {
 
   it('a blast breaks every prop in its radius', () => {
     let s = place(match(), 'a', 650, 580);
-    s = own(face(s, 'a', 1, 0), 'a', 'BLAST_BOOMERANG');
+    s = own(face(s, 'a', 1, 0), 'a', 'EXPLOSIVE_BOOMERANG');
     s = place(s, 'b', 830, 575); // the armed boomerang meets b between the crate and the pot, and explodes
     const r = run(s, 30, input({ a: { throw: true } }));
     expect(new Set(broken(r.events).map((e) => e.id))).toEqual(new Set(['crate', 'pot']));

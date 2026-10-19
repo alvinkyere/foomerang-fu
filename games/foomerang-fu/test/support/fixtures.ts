@@ -119,11 +119,10 @@ export function patchPowers(state: FuState, id: string, patch: Record<string, un
   const add = (cond: unknown, kind: PowerKind) => {
     if (cond && !kinds.includes(kind)) kinds.push(kind);
   };
-  add(patch['overdrive'], 'OVERDRIVE');
-  add(patch['blast'], 'BLAST_BOOMERANG');
-  add(patch['guard'], 'GUARD');
+  add(patch['overdrive'], 'CAFFEINATED');
+  add(patch['blast'], 'EXPLOSIVE_BOOMERANG');
+  add(patch['guard'], 'SHIELD');
   add(patch['twin'], 'TWIN_THROW');
-  add(patch['phase'], 'PHASE_DASH');
   return own(state, id, ...kinds);
 }
 export const patchBoomerang = (

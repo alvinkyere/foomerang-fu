@@ -94,7 +94,7 @@ describe('a CPU is a player: the architecture', () => {
   });
 
   it("a CPU gets no better physics: speed, dash length, dash allowance and recovery are the rules' own, for every difficulty", () => {
-    const maxStep = C.dashSpeed * C.overdriveDashFactor * DT + 1e-6; // the fastest legal movement in one step
+    const maxStep = C.dashSpeed * C.caffeinatedDashFactor * DT + 1e-6; // the fastest legal movement in one step
     for (const d of DIFFICULTIES) {
       let previous = new Map<string, { x: number; y: number }>();
       let fastest = 0;
@@ -127,7 +127,7 @@ describe('a CPU is a player: the architecture', () => {
     }
   });
 
-  it('a CPU is stopped by the same walls and gates: in a long six-CPU match in the experimental arena nobody is ever inside solid geometry (unless mid phase-dash) or outside the arena', () => {
+  it('a CPU is stopped by the same walls and gates: in a long six-CPU match in the experimental arena nobody is ever inside solid geometry or outside the arena', () => {
     const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'HARD', 'MEDIUM', 'EASY'];
     const people: Participant[] = diffs.map((cpu, i) => ({ id: `p${i}`, cpu }));
     const walls = [...wallsOf(SYSTEMS_ARENA)];
@@ -148,15 +148,12 @@ describe('a CPU is a player: the architecture', () => {
         for (const p of state.players) {
           if (!p.alive) continue;
           const where = at(state, p.id);
-          const phasing = p.dash.phase === 'DASHING' && 'phasing' in p.dash;
-          if (!phasing) {
-            for (const w of solid) {
-              const d = Math.hypot(
-                Math.max(w.x - where.x, 0, where.x - w.x - w.width),
-                Math.max(w.y - where.y, 0, where.y - w.y - w.height),
-              );
-              expect(d).toBeGreaterThanOrEqual(C.playerRadius - 1e-6);
-            }
+          for (const w of solid) {
+            const d = Math.hypot(
+              Math.max(w.x - where.x, 0, where.x - w.x - w.width),
+              Math.max(w.y - where.y, 0, where.y - w.y - w.height),
+            );
+            expect(d).toBeGreaterThanOrEqual(C.playerRadius - 1e-6);
           }
           expect(where.x).toBeGreaterThanOrEqual(C.playerRadius - 1e-6);
           expect(where.x).toBeLessThanOrEqual(1600 - C.playerRadius + 1e-6);
@@ -184,7 +181,6 @@ describe('a CPU is a player: the architecture', () => {
       'retarget',
       'pressure',
       'cover',
-      'phaseRoutes',
       'throwReach',
       'dashMisuse',
       'slashEager',
@@ -687,7 +683,7 @@ describe('powerups: the same Books, the same builds', () => {
       steps: 60 * 400,
       config: { targetKills: 40, regulationRounds: 9 }, // far from over: only round resets are under test
       powerups: true,
-      start: (s) => own(own(s, 'a', 'OVERDRIVE', 'PHASE_DASH'), 'b', 'GUARD'),
+      start: (s) => own(own(s, 'a', 'CAFFEINATED', 'EXPLOSIVE_BOOMERANG'), 'b', 'SHIELD'),
       onStep: (state, events) => {
         if (events.some((e) => e.type === 'ROUND_START') && previous !== undefined) {
           resets += 1;
@@ -698,36 +694,6 @@ describe('powerups: the same Books, the same builds', () => {
     });
     expect(resets).toBeGreaterThanOrEqual(8);
     expect(rematchOf(r.state).players.every((p) => p.inventory.length === 0)).toBe(true);
-  });
-
-  it('PHASE_DASH only when owned: a CPU without it never phases; an owner who needs to cross a wall does', () => {
-    let withoutPhase = 0;
-    let withPhase = 0;
-    for (let seed = 1; seed <= 8; seed += 1) {
-      for (const owns of [false, true]) {
-        playMatch({
-          participants: [
-            { id: 'a', cpu: 'HARD' },
-            { id: 'b', human: still },
-          ],
-          arena: SYSTEMS_ARENA,
-          seed,
-          steps: 60 * 5,
-          // the gates are shut (6 s on), a stands at the left gate, b waits on the far side of the middle
-          start: (s) => {
-            const t = { ...place(place(s, 'a', 430, 450), 'b', 1000, 300), roundTime: 6.5 };
-            return owns ? own(t, 'a', 'PHASE_DASH') : t;
-          },
-          onStep: (_s, events) => {
-            const n = events.filter((e) => e.type === 'PHASE_ENTERED' && e.playerId === 'a').length;
-            if (owns) withPhase += n;
-            else withoutPhase += n;
-          },
-        });
-      }
-    }
-    expect(withoutPhase).toBe(0);
-    expect(withPhase).toBeGreaterThan(0);
   });
 
   it('TWIN_THROW: the CPU throws the pair on one press (two THROWN events at once) and aims so one of them is on target', () => {
@@ -767,7 +733,7 @@ describe('powerups: the same Books, the same builds', () => {
     void killedPlain;
   });
 
-  it('BLAST_BOOMERANG: an owner uses cover-shots — a wall impact beside a hidden target kills it with the blast', () => {
+  it('EXPLOSIVE_BOOMERANG: an owner uses cover-shots — a wall impact beside a hidden target kills it with the blast', () => {
     // (a plain quick throw can curve round cover too since 2026-10-19; what only a Blast owner has is the blast at the wall)
     let blastKills = 0;
     let wallBlasts = 0;
@@ -779,7 +745,8 @@ describe('powerups: the same Books, the same builds', () => {
         ],
         seed,
         steps: 60 * 5,
-        start: (s) => own(place(place(s, 'a', 330, 450), 'b', 680, 330), 'a', 'BLAST_BOOMERANG'),
+        start: (s) =>
+          own(place(place(s, 'a', 330, 450), 'b', 680, 330), 'a', 'EXPLOSIVE_BOOMERANG'),
         onStep: (st, events) => {
           for (const e of events) {
             if (e.type === 'BLASTED' && e.ownerId === 'a') {
@@ -806,11 +773,11 @@ describe('powerups: the same Books, the same builds', () => {
         arena: OPEN,
         seed,
         steps: 60 * 20,
-        start: (s) => own(s, 'a', 'GUARD'),
+        start: (s) => own(s, 'a', 'SHIELD'),
         onStep: (state, events) => {
-          blocked += events.filter((e) => e.type === 'GUARD_BLOCKED' && e.playerId === 'a').length;
-          if (events.some((e) => e.type === 'GUARD_BLOCKED' && e.playerId === 'a'))
-            expect(player(state, 'a').inventory).not.toContain('GUARD');
+          blocked += events.filter((e) => e.type === 'SHIELD_BLOCKED' && e.playerId === 'a').length;
+          if (events.some((e) => e.type === 'SHIELD_BLOCKED' && e.playerId === 'a'))
+            expect(player(state, 'a').inventory).not.toContain('SHIELD');
         },
       });
     }

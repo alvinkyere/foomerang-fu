@@ -371,8 +371,8 @@ export class Vfx {
         break;
       case 'DASHED': {
         const d = event.direction ?? { x: 1, y: 0 };
-        const tint = event.phasing === true ? POWER_STYLE.PHASE_DASH.color : color;
-        this.#dust(x, y, 4, 70, event.phasing === true ? 0xd8c8ff : 0xf6f0d6);
+        const tint = color;
+        this.#dust(x, y, 4, 70, 0xf6f0d6);
         for (let i = 0; i < 7; i += 1) {
           const o = (this.#rand() - 0.5) * 50;
           this.#particle('fx-spark', x - d.x * 10 - d.y * o, y - d.y * 10 + d.x * o, 22, {
@@ -395,8 +395,8 @@ export class Vfx {
       case 'BLASTED':
         this.#blast(x, y, event.radius ?? 170, blastColor);
         break;
-      case 'GUARD_BLOCKED': {
-        const c = POWER_STYLE.GUARD.color;
+      case 'SHIELD_BLOCKED': {
+        const c = POWER_STYLE.SHIELD.color;
         this.#ring(x, y, 40, 140, 380, c, 0.9);
         for (let i = 0; i < 9; i += 1) {
           const a = (i / 9) * Math.PI * 2 + 0.3;
@@ -415,19 +415,6 @@ export class Vfx {
         }
         break;
       }
-      case 'PHASE_ENTERED':
-      case 'PHASE_EXITED':
-        this.#ring(
-          x,
-          y,
-          event.type === 'PHASE_ENTERED' ? 90 : 30,
-          event.type === 'PHASE_ENTERED' ? 30 : 100,
-          420,
-          POWER_STYLE.PHASE_DASH.color,
-          0.9,
-        );
-        this.#sparks(x, y, 8, 160, POWER_STYLE.PHASE_DASH.color);
-        break;
       case 'FATIGUED':
         this.#ring(x, y, 110, 40, 480, 0xffb020, 0.8);
         break;
@@ -440,7 +427,7 @@ export class Vfx {
         this.#sparks(x, y, 8, 120, 0xfff2a8);
         break;
       case 'PICKUP': {
-        const power = POWER_STYLE[event.kind ?? 'GUARD'].color;
+        const power = POWER_STYLE[event.kind ?? 'SHIELD'].color;
         this.#burst(x, y, power, 14);
         this.#ring(x, y, 40, 130, 480, power, 0.9);
         break;
@@ -451,7 +438,7 @@ export class Vfx {
           y,
           8,
           170,
-          event.reason === 'SHIELD_BROKEN' ? POWER_STYLE.GUARD.color : 0xff6a5a,
+          event.reason === 'SHIELD_BROKEN' ? POWER_STYLE.SHIELD.color : 0xff6a5a,
         );
         break;
       case 'ROUND_START':

@@ -16,7 +16,7 @@ import {
   type FuState,
 } from './support/fixtures';
 
-// OVERDRIVE: TIMED (8 s). Walking ×1.4 and a dash that STARTS under it ×1.3. It multiplies with the
+// CAFFEINATED: TIMED (8 s). Walking ×1.4 and a dash that STARTS under it ×1.3. It multiplies with the
 // fatigue and slash slowdowns and does nothing else: the 8-dash allowance, the 9th-dash fatigue
 // and the 5 s recovery are exactly as without it.
 
@@ -35,33 +35,33 @@ function dashOnce(s: FuState): { state: FuState; moved: number } {
   return { state, moved: at(state, 'a').x - before };
 }
 
-describe('OVERDRIVE: walking', () => {
+describe('CAFFEINATED: walking', () => {
   it('walks 1.4× as fast while it lasts, and at normal speed without it', () => {
     const plain = run(lane(), 10, WALK, { repeat: true }).state;
     expect(at(plain, 'a').x - 100).toBeCloseTo(10 * C.playerSpeed * DT, 6);
-    const fast = give(lane(), 'a', 'OVERDRIVE');
+    const fast = give(lane(), 'a', 'CAFFEINATED');
     const before = at(fast, 'a').x;
     const after = run(fast, 10, WALK, { repeat: true }).state;
     expect(at(after, 'a').x - before).toBeCloseTo(
-      10 * C.playerSpeed * C.overdriveMoveFactor * DT,
+      10 * C.playerSpeed * C.caffeinatedMoveFactor * DT,
       6,
     );
   });
 
   it('never expires with time: still 1.4× after a minute of play, and still owned', () => {
-    let s = give(lane(), 'a', 'OVERDRIVE');
+    let s = give(lane(), 'a', 'CAFFEINATED');
     s = run(s, 60 * 60).state; // a whole minute standing still
-    expect(player(s, 'a').inventory).toEqual(['OVERDRIVE']);
+    expect(player(s, 'a').inventory).toEqual(['CAFFEINATED']);
     const before = at(s, 'a').x;
     const after = run(s, 10, WALK, { repeat: true }).state;
     expect(at(after, 'a').x - before).toBeCloseTo(
-      10 * C.playerSpeed * C.overdriveMoveFactor * DT,
+      10 * C.playerSpeed * C.caffeinatedMoveFactor * DT,
       6,
     );
   });
 
   it('persists across a round reset (it is part of the build, not the round)', () => {
-    let s = give(lane(), 'a', 'OVERDRIVE');
+    let s = give(lane(), 'a', 'CAFFEINATED');
     s = stepFu(
       { ...s, players: s.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)) },
       NONE,
@@ -69,32 +69,32 @@ describe('OVERDRIVE: walking', () => {
     ).state;
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
-    expect(player(s, 'a').inventory).toEqual(['OVERDRIVE']);
+    expect(player(s, 'a').inventory).toEqual(['CAFFEINATED']);
     const before = at(s, 'a').x;
     const after = run(s, 10, WALK, { repeat: true }).state;
     expect(at(after, 'a').x - before).toBeCloseTo(
-      10 * C.playerSpeed * C.overdriveMoveFactor * DT,
+      10 * C.playerSpeed * C.caffeinatedMoveFactor * DT,
       6,
     );
   });
 
   it('multiplies with the slash slowdown while swinging', () => {
-    let s = give(lane(), 'a', 'OVERDRIVE');
+    let s = give(lane(), 'a', 'CAFFEINATED');
     s = run(s, 1, input({ a: { slash: true } })).state;
     const before = at(s, 'a').x;
     const after = run(s, 3, WALK, { repeat: true }).state;
     expect(at(after, 'a').x - before).toBeCloseTo(
-      3 * C.playerSpeed * C.slashMoveFactor * C.overdriveMoveFactor * DT,
+      3 * C.playerSpeed * C.slashMoveFactor * C.caffeinatedMoveFactor * DT,
       6,
     );
   });
 });
 
-describe('OVERDRIVE: DASH', () => {
+describe('CAFFEINATED: DASH', () => {
   it('a dash that starts under it goes 1.3× as far, and records that speed', () => {
-    const s = give(lane(), 'a', 'OVERDRIVE');
+    const s = give(lane(), 'a', 'CAFFEINATED');
     const { state, moved } = dashOnce(s);
-    expect(moved).toBeCloseTo(FULL * C.overdriveDashFactor, 6);
+    expect(moved).toBeCloseTo(FULL * C.caffeinatedDashFactor, 6);
     expect(player(state, 'a').fatigue.dashes).toBe(1);
   });
 
@@ -102,18 +102,18 @@ describe('OVERDRIVE: DASH', () => {
     // started plain, overdrive picked up mid-dash
     let s = stepFu(lane(), RIGHT, DT).state;
     const start = 100;
-    s = give(s, 'a', 'OVERDRIVE');
+    s = give(s, 'a', 'CAFFEINATED');
     for (let i = 0; i < 40 && player(s, 'a').dash.phase === 'DASHING'; i += 1)
       s = stepFu(s, NONE, DT).state;
     expect(at(s, 'a').x - start).toBeCloseTo(FULL, 6);
     // started under overdrive: it keeps that speed for the whole dash
-    const t = give(lane(), 'a', 'OVERDRIVE');
+    const t = give(lane(), 'a', 'CAFFEINATED');
     const { moved } = dashOnce(t);
-    expect(moved).toBeCloseTo(FULL * C.overdriveDashFactor, 6);
+    expect(moved).toBeCloseTo(FULL * C.caffeinatedDashFactor, 6);
   });
 
   it('multiplies with fatigue: a fatigued dash under overdrive is 0.7 × 1.3', () => {
-    let s = give(lane(), 'a', 'OVERDRIVE');
+    let s = give(lane(), 'a', 'CAFFEINATED');
     s = {
       ...s,
       players: s.players.map((p) =>
@@ -121,11 +121,11 @@ describe('OVERDRIVE: DASH', () => {
       ),
     };
     const { moved } = dashOnce(s);
-    expect(moved).toBeCloseTo(FULL * C.fatiguedDashFactor * C.overdriveDashFactor, 6);
+    expect(moved).toBeCloseTo(FULL * C.fatiguedDashFactor * C.caffeinatedDashFactor, 6);
   });
 });
 
-describe('OVERDRIVE does not touch the fatigue system', () => {
+describe('CAFFEINATED does not touch the fatigue system', () => {
   const dashN = (start: FuState, n: number) => {
     let s = start;
     const moved: number[] = [];
@@ -146,12 +146,12 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
   };
 
   it('the allowance is still 8 free dashes and the 9th still triggers FATIGUED', () => {
-    const over = give(lane(), 'a', 'OVERDRIVE');
+    const over = give(lane(), 'a', 'CAFFEINATED');
     const withIt = dashN(over, 10);
     const without = dashN(lane(), 10);
     expect(withIt.events.filter((e) => e === 'FATIGUED')).toHaveLength(1);
     // the same dash numbers go fatigued with and without it
-    expect(withIt.moved.map((m) => m > FULL * C.overdriveDashFactor * 0.9)).toEqual([
+    expect(withIt.moved.map((m) => m > FULL * C.caffeinatedDashFactor * 0.9)).toEqual([
       true,
       true,
       true,
@@ -181,7 +181,7 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
 
   it('the 5 s recovery clock is unchanged: the same count and the same time left, with or without it', () => {
     let a = lane();
-    let b = give(lane(), 'a', 'OVERDRIVE');
+    let b = give(lane(), 'a', 'CAFFEINATED');
     for (let i = 0; i < 9; i += 1) {
       a = dashN(a, 1).s;
       b = dashN(b, 1).s;
@@ -197,7 +197,7 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
   });
 
   it('fatigued walking under overdrive is 0.7 × 1.4 (it offsets the fatigue, it does not remove it)', () => {
-    let s = give(lane(), 'a', 'OVERDRIVE');
+    let s = give(lane(), 'a', 'CAFFEINATED');
     s = {
       ...s,
       players: s.players.map((p) =>
@@ -207,7 +207,7 @@ describe('OVERDRIVE does not touch the fatigue system', () => {
     const before = at(s, 'a').x;
     const after = run(s, 10, WALK, { repeat: true }).state;
     expect(at(after, 'a').x - before).toBeCloseTo(
-      10 * C.playerSpeed * C.fatiguedMoveFactor * C.overdriveMoveFactor * DT,
+      10 * C.playerSpeed * C.fatiguedMoveFactor * C.caffeinatedMoveFactor * DT,
       6,
     );
   });
