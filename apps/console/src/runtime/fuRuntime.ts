@@ -49,8 +49,9 @@ const MAX_PENDING_EVENTS = 256;
  *
  * It owns what the RULES must not know about — wall-clock frames, the latest-thumb buffer and its
  * 500 ms freshness, who is currently connected, and button event ids. Per rendered frame it runs
- * 0..5 fixed 1/60 s steps of `stepFu`. A THROW or SLASH press becomes a one-step `throw: true` /
- * `slash: true` / `dash: true` request on the next step that runs; the same event id can never act
+ * 0..5 fixed 1/60 s steps of `stepFu`. THROW is held: every step while it is down says `throwHeld` (the rules charge it, and
+ * letting go throws); a press and release before a step runs is a tap, a one-step `throw: true`. A SLASH or DASH press becomes a
+ * one-step `slash: true` / `dash: true` request on the next step that runs; the same event id can never act
  * twice (the server already deduplicates, this is the second line of defence), and a press that
  * cannot be applied now (the player is reconnecting) is dropped, never remembered to fire later.
  * When several arrive before one step the RULES decide (SLASH, then THROW, then DASH), never the
@@ -118,6 +119,10 @@ export class FuRuntime implements MatchRuntime {
   #isActive: (playerId: string) => boolean = () => true;
   #playerIds = new Set<string>();
   #pendingThrows = new Set<string>();
+  /** Players holding THROW down now (the rules charge the throw; letting go throws it). */
+  #holdingThrow = new Set<string>();
+  /** Players who pressed THROW since the last step: a release before that step is a tap, a plain throw. */
+  #throwPressedSinceStep = new Set<string>();
   #pendingSlashes = new Set<string>();
   #pendingDashes = new Set<string>();
   #seenEvents = new Map<string, { order: string[]; set: Set<string> }>();
@@ -147,6 +152,8 @@ export class FuRuntime implements MatchRuntime {
     this.#inputs = new InputBuffer();
     this.#playerIds = new Set(players.map((p) => p.playerId));
     this.#pendingThrows = new Set();
+    this.#holdingThrow = new Set();
+    this.#throwPressedSinceStep = new Set();
     this.#pendingSlashes = new Set();
     this.#pendingDashes = new Set();
     this.#seenEvents = new Map();
@@ -173,6 +180,8 @@ export class FuRuntime implements MatchRuntime {
   neutralizeInput(): void {
     this.#inputs.clear();
     this.#pendingThrows.clear();
+    this.#holdingThrow.clear(); // a charge does not survive a pause
+    this.#throwPressedSinceStep.clear();
     this.#pendingSlashes.clear();
     this.#pendingDashes.clear();
   }
@@ -196,15 +205,26 @@ export class FuRuntime implements MatchRuntime {
       this.duplicatesIgnored += 1;
       return;
     }
+    if (action.action === THROW_ACTION) {
+      // THROW is held to charge and let go to throw (owner, 2026-10-19): the rules see it held, step by step
+      if (!this.#isActive(action.playerId)) return;
+      if (action.phase === 'pressed') {
+        this.#holdingThrow.add(action.playerId);
+        this.#throwPressedSinceStep.add(action.playerId);
+      } else if (this.#holdingThrow.delete(action.playerId)) {
+        // pressed and let go before a step ran: a tap
+        if (this.#throwPressedSinceStep.has(action.playerId))
+          this.#pendingThrows.add(action.playerId);
+      }
+      return;
+    }
     if (action.phase !== 'pressed') return; // a release does nothing
     const pending =
       action.action === SLASH_ACTION
         ? this.#pendingSlashes
-        : action.action === THROW_ACTION
-          ? this.#pendingThrows
-          : action.action === DASH_ACTION
-            ? this.#pendingDashes
-            : undefined;
+        : action.action === DASH_ACTION
+          ? this.#pendingDashes
+          : undefined;
     if (pending === undefined) return; // an action Fu does not use
     if (!this.#isActive(action.playerId)) return; // dropped, not remembered
     pending.add(action.playerId);
@@ -232,10 +252,13 @@ export class FuRuntime implements MatchRuntime {
         const wantsThrow = active && this.#pendingThrows.has(player.id);
         const wantsSlash = active && this.#pendingSlashes.has(player.id);
         const wantsDash = active && this.#pendingDashes.has(player.id);
-        if (move !== undefined || wantsThrow || wantsSlash || wantsDash) {
+        if (!this.#isActive(player.id)) this.#holdingThrow.delete(player.id); // gone: the charge is dropped
+        const holding = this.#holdingThrow.has(player.id);
+        if (move !== undefined || wantsThrow || wantsSlash || wantsDash || holding) {
           inputs.set(player.id, {
             ...(move === undefined ? {} : { move }),
             ...(wantsThrow ? { throw: true } : {}),
+            ...(holding ? { throwHeld: true } : {}),
             ...(wantsSlash ? { slash: true } : {}),
             ...(wantsDash ? { dash: true } : {}),
           });
@@ -244,6 +267,7 @@ export class FuRuntime implements MatchRuntime {
       if (i === 0) {
         // a press waits for a step that actually runs
         this.#pendingThrows.clear();
+        this.#throwPressedSinceStep.clear();
         this.#pendingSlashes.clear();
         this.#pendingDashes.clear();
       }
@@ -295,6 +319,7 @@ export class FuRuntime implements MatchRuntime {
         phasing: p.dash.phase === 'DASHING' && p.dash.phasing !== undefined,
         inWall: p.dash.phase === 'DASHING' && p.dash.phasing?.inside === true,
         inventory: [...p.inventory],
+        charge: p.charge.phase,
         fatigue: {
           dashes: p.fatigue.dashes,
           recoverIn: p.fatigue.recoverIn,
@@ -321,6 +346,7 @@ export class FuRuntime implements MatchRuntime {
         wallSeconds: b.wallSeconds,
         deflections: b.deflections,
         deflectedBy: b.deflectedBy,
+        power: b.power,
       })),
       duplicatesIgnored: this.duplicatesIgnored,
       cpus: [...this.#cpus].map(([id, c]) => ({ id, difficulty: c.difficulty, ...c.stats })),

@@ -189,27 +189,45 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
     .not.toBe('HELD');
 });
 
-test('Foomerang Fu: holding THROW throws once, and sends exactly one press and one release', async ({
+test('Foomerang Fu: holding THROW charges (nothing flies), letting go throws once at full power; one press, one release', async ({
   fuHost: host,
   newPhone,
 }) => {
+  // owner, 2026-10-19 (the reference video): hold to charge, let go to throw; a tap is a plain throw
   const { bob, bobId } = await setUp(host, newPhone);
   const before = (await host.snapshot()).diagnostics.actionsReceived;
+  const mine = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === bobId);
   let throws = 0;
   let last = 'HELD';
+  let thrownWhileHeld = false;
+  let fingerDown = true;
+  let power: number | undefined;
   const watcher = (async () => {
-    const until = Date.now() + 2_600;
+    const until = Date.now() + 2_400;
     while (Date.now() < until) {
-      const state = (await host.fu()).boomerangs.find((b) => b.ownerId === bobId)?.state ?? 'HELD';
-      if (last === 'HELD' && state === 'THROWN') throws += 1;
+      const b = await mine();
+      const state = b?.state ?? 'HELD';
+      if (last === 'HELD' && state === 'THROWN') {
+        throws += 1;
+        power = b?.power;
+        if (fingerDown) thrownWhileHeld = true;
+      }
       last = state;
-      await sleep(20);
+      await sleep(15);
     }
   })();
-  await bob.holdThrow(2_400); // a very long hold: the boomerang goes out and comes back while the finger stays down
+  await bob.holdThrow(1_200); // longer than a full charge
+  fingerDown = false;
   await watcher;
+  expect(thrownWhileHeld, 'nothing flies while the finger is down').toBe(false);
   expect(throws).toBe(1);
+  expect(power).toBe(1);
   expect((await host.snapshot()).diagnostics.actionsReceived - before).toBe(2); // pressed + released, nothing else
+  // a tap: a plain (barely charged) throw once it is home again
+  await expect.poll(async () => (await mine())?.state ?? 'HELD', { timeout: 4_000 }).toBe('HELD');
+  await bob.tapThrow();
+  await expect.poll(async () => (await mine())?.state, { timeout: 2_000 }).not.toBe('HELD');
+  expect((await mine())?.power ?? 1).toBeLessThan(0.3);
 });
 
 const dashOf = async (host: Host, id: string) =>

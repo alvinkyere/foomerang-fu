@@ -6,6 +6,16 @@ const players = [
   { playerId: 'a', slot: 0 },
   { playerId: 'b', slot: 3 },
 ];
+/** A tap on THROW: pressed and let go (THROW acts on the release; holding it charges). */
+const throwTap = (eventId: string) => [
+  { playerId: 'a', eventId, action: 'SECONDARY' as const, phase: 'pressed' as const },
+  {
+    playerId: 'a',
+    eventId: `${eventId}-up`,
+    action: 'SECONDARY' as const,
+    phase: 'released' as const,
+  },
+];
 const throwPress = (eventId: string) => ({
   playerId: 'a',
   eventId,
@@ -31,8 +41,8 @@ describe('LazyFuRuntime: the game rules are a chunk the lobby never downloads', 
     lazy.start(players, 0);
     lazy.receiveInput('a', 0, 1, 5); // the latest thumb wins
     lazy.receiveInput('a', 1, 0, 10);
-    lazy.receiveAction(throwPress('event-0001'));
-    lazy.receiveAction(throwPress('event-0001')); // a duplicate: the real runtime still ignores it
+    for (const a of throwTap('event-0001')) lazy.receiveAction(a);
+    for (const a of throwTap('event-0001')) lazy.receiveAction(a); // a duplicate: the real runtime still ignores it
     await loadFuRuntime();
     expect(lazy.state?.round).toBe(1);
     lazy.frame(20);
@@ -49,11 +59,11 @@ describe('LazyFuRuntime: the game rules are a chunk the lobby never downloads', 
     lazy.setActivity(() => active);
     lazy.start(players, 0);
     await loadFuRuntime();
-    lazy.receiveAction(throwPress('event-0001'));
+    for (const a of throwTap('event-0001')) lazy.receiveAction(a);
     lazy.frame(20);
     expect(lazy.state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe('HELD');
     active = true;
-    lazy.receiveAction(throwPress('event-0002'));
+    for (const a of throwTap('event-0002')) lazy.receiveAction(a);
     lazy.frame(40);
     expect(lazy.state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe('THROWN');
   });

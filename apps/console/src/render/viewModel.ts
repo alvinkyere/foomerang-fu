@@ -8,6 +8,8 @@ export type CircleStatus = RosterEntry['connection'] | 'RELEASED';
 
 export interface CircleView {
   readonly id: string;
+  /** Charging a throw: how charged (0..1) and how far it would fly if let go now (world units, along `facing`). */
+  readonly aim?: { readonly power: number; readonly reach: number };
   readonly x: number;
   readonly y: number;
   readonly radius: number;
@@ -57,6 +59,8 @@ export interface BoomerangView {
   readonly radius: number;
   readonly color: string;
   readonly state: 'THROWN' | 'RETURNING' | 'DEFLECTED';
+  /** How charged its throw was, 0 (a tap) to 1 (a full charge: the pink trail). */
+  readonly power: number;
   /** The round is over: this projectile is no longer live and should not be drawn as if it were. */
   readonly spent: boolean;
 }

@@ -232,7 +232,7 @@ describe('throwing: HELD → THROWN', () => {
     expect(b.travelled).toBe(0);
     expect(b.position).toEqual({ x: 200 + C.playerRadius + C.boomerangRadius + 1, y: 450 });
     expect(events).toEqual([
-      { type: 'THROWN', playerId: 'a', position: b.position, direction: { x: 1, y: 0 } },
+      { type: 'THROWN', playerId: 'a', position: b.position, direction: { x: 1, y: 0 }, power: 0 },
     ]);
   });
 

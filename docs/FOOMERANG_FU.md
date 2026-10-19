@@ -585,6 +585,25 @@ No randomness is used yet, so there is no seed; when randomness arrives it must 
 - A press becomes `slash: true` or `throw: true` for exactly one step. If both are pending before one step, both are passed in and the rules resolve it (SLASH wins).
 - A controller reload or reconnect starts with nothing held and sends nothing until a finger presses: a test proves no action is manufactured.
 
+## Charging a throw (owner, 2026-10-19; the reference video)
+
+Hold THROW to charge, let go to throw (`art/physics_reference/README.md`). A boomerang carries the `power` it was thrown with, 0
+to 1 = `min(1, seconds held / fullChargeSeconds)`; its outbound speed and range are interpolated between the plain throw
+(`throwSpeed` 900, `throwRange` 520) and the full charge (`chargedThrowSpeed` 2,450, measured; `chargedThrowRange` 1,000, a
+proposal). `fullChargeSeconds` is 0.6 s, a proposal: the video does not show it. A tap (press and release before a step runs:
+`throw: true`) is a plain throw, power 0. The charge builds only while every boomerang the throw needs is in hand (held while
+it is away, it starts when it is caught); a throw spends it; a **dash cancels it**: letting go then throws nothing, and holding
+on does not charge again until THROW is pressed afresh. The dead do not charge. The rules see THROW held step by step
+(`throwHeld`); the console turns a phone's press and release into that.
+
+Hits are **swept**: a boomerang hits a player if the two came within reach at any moment of the step, both moving in straight
+lines (a charged throw moves 41 u a step, and judged only where it ends it could pass someone by). A shield the boomerang met on
+its leg still covers the step it is caught in. A charged throw must not cross a whole slash reach in one step (validated), so a
+deflecting swing still sees it.
+
+On the TV a charging player shows an aim line as long as the throw would fly, turning pink as it fills; a fully charged throw
+leaves the pink trail (`render/three/chargeVisuals.ts`).
+
 ## The plaza's physics (market plaza; owner, 2026-10-19)
 
 **Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`

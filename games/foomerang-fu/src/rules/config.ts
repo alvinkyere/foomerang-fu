@@ -29,6 +29,12 @@ export interface FuConfig {
   readonly throwRange: number;
   /** Homing speed on the way back, world units per second. */
   readonly returnSpeed: number;
+  /** Seconds THROW must be held for a full charge (owner, 2026-10-19). The reference video does not show it: a proposal. */
+  readonly fullChargeSeconds: number;
+  /** Outbound speed of a fully charged throw (the reference video's pink-trail throw, measured: about 2,450 u/s). */
+  readonly chargedThrowSpeed: number;
+  /** Range of a fully charged throw (the video shows it straight 500+ u out; how far exactly it does not show: a proposal). */
+  readonly chargedThrowRange: number;
   /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
   readonly slashReach: number;
   /** Slash arc: the full angle of the swing, radians, centred on the facing direction. */
@@ -98,6 +104,9 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   throwSpeed: 900,
   throwRange: 520,
   returnSpeed: 1000,
+  fullChargeSeconds: 0.6,
+  chargedThrowSpeed: 2450,
+  chargedThrowRange: 1000,
   slashReach: 130,
   slashArc: (Math.PI * 2) / 3,
   slashActiveSeconds: 0.12,
@@ -168,6 +177,9 @@ export function assertValidConfig(config: FuConfig): void {
     ['throwSpeed', config.throwSpeed],
     ['throwRange', config.throwRange],
     ['returnSpeed', config.returnSpeed],
+    ['fullChargeSeconds', config.fullChargeSeconds],
+    ['chargedThrowSpeed', config.chargedThrowSpeed],
+    ['chargedThrowRange', config.chargedThrowRange],
     ['slashReach', config.slashReach],
     ['slashArc', config.slashArc],
     ['slashActiveSeconds', config.slashActiveSeconds],
@@ -268,6 +280,11 @@ export function assertValidConfig(config: FuConfig): void {
   const fastestDash = config.dashSpeed * config.overdriveDashFactor;
   if (fastestDash * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a dash moves farther than a radius in one step');
+  }
+  // Hits are swept (the closest approach during a step), but a deflecting swing is judged where the boomerang ends a step:
+  // even a fully charged throw must not cross a whole slash reach in one step.
+  if (config.chargedThrowSpeed * FIXED_TIMESTEP_SECONDS >= config.slashReach) {
+    throw new RangeError('a charged throw moves farther than a slash reaches in one step');
   }
   // A boomerang must not be able to jump over a player between two steps.
   const reach = config.playerRadius + config.boomerangRadius;

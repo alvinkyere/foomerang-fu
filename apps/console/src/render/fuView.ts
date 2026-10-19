@@ -83,8 +83,18 @@ export function buildFuView(
             },
           }
         : {}),
+      ...(!dead && player?.charge.phase === 'CHARGING'
+        ? { aim: aimOf(player.charge.seconds) }
+        : {}),
     };
   });
+
+  // a charging throw: how charged so far, and how far it would fly if let go now (the rules' own interpolation)
+  function aimOf(seconds: number): { power: number; reach: number } {
+    const c = state.config;
+    const power = Math.min(1, seconds / c.fullChargeSeconds);
+    return { power, reach: c.throwRange + (c.chargedThrowRange - c.throwRange) * power };
+  }
 
   const seenOwner = new Map<string, number>();
   const boomerangs = [...state.boomerangs, ...state.extraBoomerangs].flatMap(
@@ -102,6 +112,7 @@ export function buildFuView(
               y: b.position.y,
               radius: state.config.boomerangRadius,
               color: styleOf(b.ownerId, slots).color,
+              power: b.power,
               state: b.state,
               spent: state.phase !== 'PLAYING',
             },

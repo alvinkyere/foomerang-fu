@@ -9,6 +9,16 @@ import { normalized } from './vec';
 
 export { spawnPosition };
 
+/**
+ * Holding THROW (owner, 2026-10-19): CHARGING for `seconds` with a boomerang in hand; CANCELLED by a dash until the button is let
+ * go (holding on does not charge again); NONE otherwise.
+ */
+export type ThrowCharge =
+  | { readonly phase: 'NONE' }
+  | { readonly phase: 'CHARGING'; readonly seconds: number }
+  | { readonly phase: 'CANCELLED' };
+export const NO_CHARGE: ThrowCharge = Object.freeze({ phase: 'NONE' });
+
 export interface FuPlayer {
   readonly id: string;
   /** Which of the six places (spawn point, and the platform's colour/number/shape) they hold. */
@@ -29,6 +39,8 @@ export interface FuPlayer {
   readonly hazardSpared: readonly number[];
   /** Seconds this player has been outside the arena's safe zone without a break (0 inside it, and for the dead). */
   readonly outsideFor: number;
+  /** How far THROW has been charged (see `ThrowCharge`). */
+  readonly charge: ThrowCharge;
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
@@ -154,6 +166,7 @@ export function startRound(
       inventory: carried.get(spec.id) ?? NO_POWERS,
       hazardSpared: Object.freeze([]),
       outsideFor: 0,
+      charge: NO_CHARGE,
     });
   });
 
@@ -170,6 +183,7 @@ export function startRound(
       deflectedBy: undefined,
       blast: false,
       absorbed: Object.freeze([]),
+      power: 0,
     }),
   );
 

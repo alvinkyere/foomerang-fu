@@ -62,6 +62,7 @@ export type {
   FuRoundOver,
   FuState,
   RoundLabel,
+  ThrowCharge,
 } from './state';
 export { applyDeaths, fullMeters } from './scoring';
 export type { Death, DeathCause, ScoreChange, ScoreReason, ScoreResult } from './scoring';

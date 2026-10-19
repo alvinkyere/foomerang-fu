@@ -30,6 +30,15 @@ const press = (
   action,
   phase,
 });
+/** THROW pressed and let go before a step runs: a tap, a plain throw (holding it down charges; owner, 2026-10-19). */
+const tapThrow = (
+  runtime: { receiveAction(a: ReturnType<typeof press>): void },
+  playerId: string,
+  eventId: string,
+) => {
+  runtime.receiveAction(press(playerId, eventId));
+  runtime.receiveAction(press(playerId, `${eventId}-up`, 'released'));
+};
 const roster = (overrides: Partial<RosterEntry>[] = []): RosterEntry[] => [
   { playerId: 'a', displayName: 'Alvin', connection: 'CONNECTED', seat: 'HELD', ...overrides[0] },
   { playerId: 'b', displayName: 'David', connection: 'CONNECTED', seat: 'HELD', ...overrides[1] },
@@ -66,7 +75,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
   it('does nothing, and claims nothing, before a match starts', () => {
     const runtime = new FuRuntime(OPEN);
     runtime.frame(100);
-    runtime.receiveAction(press('a', 'event-0001'));
+    tapThrow(runtime, 'a', 'event-0001');
     expect(runtime.state).toBeUndefined();
     expect(runtime.world).toBeUndefined();
     expect(runtime.view(roster(), slotsFor(roster()))).toBeUndefined();
@@ -116,8 +125,10 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     const startX = runtime.world?.bodies[0]?.position.x ?? 0;
     run(runtime, 0, 120);
     const moved = (runtime.world?.bodies[0]?.position.x ?? 0) - startX;
-    expect(moved).toBeGreaterThan(190);
-    expect(moved).toBeLessThan(230);
+    // 500 ms of walking at the player speed, then nothing (give or take the step it notices)
+    const halfSecond = DEFAULT_FU_CONFIG.playerSpeed * 0.5;
+    expect(moved).toBeGreaterThan(halfSecond - 20);
+    expect(moved).toBeLessThan(halfSecond + 20);
     expect(runtime.metrics().staleNeutralizations).toBe(1);
   });
 
@@ -128,7 +139,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     runtime.setActivity(() => active);
     const before = runtime.world?.bodies[0]?.position;
     run(runtime, 0, 30, { a: [1, 0] });
-    runtime.receiveAction(press('a', 'event-0001'));
+    tapThrow(runtime, 'a', 'event-0001');
     run(runtime, 500, 5);
     expect(runtime.world?.bodies[0]?.position).toEqual(before);
     expect(boom(runtime, 'a')?.state).toBe('HELD');
@@ -144,7 +155,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       runtime.receiveAction(press('a', 'event-0001', 'released'));
       run(runtime, 0, 2);
       expect(boom(runtime, 'a')?.state).toBe('HELD');
-      runtime.receiveAction(press('a', 'event-0002'));
+      tapThrow(runtime, 'a', 'event-0002');
       run(runtime, 100, 1);
       expect(boom(runtime, 'a')?.state).toBe('THROWN');
     });
@@ -155,8 +166,8 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       runtime.receiveAction(
         press('a', 'event-0001', 'pressed', 'QUATERNARY' as unknown as 'PRIMARY'), // an action nobody uses
       );
-      runtime.receiveAction(press('ghost', 'event-0002'));
-      runtime.receiveAction(press('ghost', 'event-0002')); // not a player: not even worth remembering
+      tapThrow(runtime, 'ghost', 'event-0002');
+      tapThrow(runtime, 'ghost', 'event-0002'); // not a player: not even worth remembering
       run(runtime, 0, 3);
       expect(runtime.duplicatesIgnored).toBe(0);
       expect(s(runtime).boomerangs.every((b) => b.state === 'HELD')).toBe(true);
@@ -166,15 +177,15 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
       let now = run(runtime, 0, 3, { a: [-1, 0] }); // turn to face left, away from Bob
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       now = run(runtime, now, 150); // out, and back in hand (about 1.2 s)
       expect(boom(runtime, 'a')?.state).toBe('HELD');
       expect(alive(runtime, 'b')).toBe(true);
-      runtime.receiveAction(press('a', 'event-0001')); // the very same event again
+      tapThrow(runtime, 'a', 'event-0001'); // the very same events again (its press and its release)
       now = run(runtime, now, 3);
       expect(boom(runtime, 'a')?.state).toBe('HELD');
-      expect(runtime.duplicatesIgnored).toBe(1);
-      runtime.receiveAction(press('a', 'event-0003')); // a NEW press does throw
+      expect(runtime.duplicatesIgnored).toBe(2);
+      tapThrow(runtime, 'a', 'event-0003'); // a NEW press does throw
       run(runtime, now, 2);
       expect(boom(runtime, 'a')?.state).toBe('THROWN');
     });
@@ -184,7 +195,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       runtime.start(players, 0);
       let active = true;
       runtime.setActivity(() => active);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       active = false; // the connection dropped between the press and the next step
       run(runtime, 0, 3);
       expect(boom(runtime, 'a')?.state).toBe('HELD');
@@ -193,8 +204,8 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('two players pressing before the same step both throw', () => {
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001'));
-      runtime.receiveAction(press('b', 'event-0002'));
+      tapThrow(runtime, 'a', 'event-0001');
+      tapThrow(runtime, 'b', 'event-0002');
       run(runtime, 0, 1);
       expect(s(runtime).boomerangs.map((b) => b.state)).toEqual(['THROWN', 'THROWN']);
     });
@@ -202,17 +213,17 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('a new match forgets the old match’s event ids', () => {
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       runtime.start(players, 1000);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       expect(runtime.duplicatesIgnored).toBe(0);
     });
 
     it('two presses before a step still make one throw', () => {
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001'));
-      runtime.receiveAction(press('a', 'event-0002'));
+      tapThrow(runtime, 'a', 'event-0001');
+      tapThrow(runtime, 'a', 'event-0002');
       const before = runtime.metrics().simulationSteps;
       run(runtime, 0, 1);
       expect(runtime.metrics().simulationSteps).toBeGreaterThan(before);
@@ -222,7 +233,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('a throw requested during a stalled frame is applied exactly once, on the first step', () => {
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       runtime.frame(2000); // a 2-second stall: 5 steps run, the rest discarded
       const b = boom(runtime, 'a');
       expect(b?.state).toBe('THROWN');
@@ -233,7 +244,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('a press while no step runs (time did not move) waits for the next step instead of vanishing', () => {
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       runtime.frame(0); // no time passed: no step
       expect(boom(runtime, 'a')?.state).toBe('HELD');
       run(runtime, 0, 1);
@@ -262,7 +273,9 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       expect(control, `${label} is advertised`).toBeDefined();
       const runtime = new FuRuntime(OPEN);
       runtime.start(players, 0);
+      // a phone sends a press and a release (THROW acts on the release: holding it charges)
       runtime.receiveAction(press('a', 'event-0001', 'pressed', control?.action ?? 'PRIMARY'));
+      runtime.receiveAction(press('a', 'event-0001-up', 'released', control?.action ?? 'PRIMARY'));
       run(runtime, 0, 2);
       expect(effect(runtime, 'a')).toEqual(expected);
       expect(effect(runtime, 'b')).toEqual({ swung: false, thrown: false, dashed: false }); // nobody else did anything
@@ -274,6 +287,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
         const runtime = new FuRuntime(OPEN);
         runtime.start(players, 0);
         runtime.receiveAction(press('a', 'event-0001', 'pressed', control.action));
+        runtime.receiveAction(press('a', 'event-0001-up', 'released', control.action));
         run(runtime, 0, 2);
         const e = effect(runtime, 'a');
         expect(e.swung || e.thrown || e.dashed, control.id).toBe(true);
@@ -372,7 +386,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('a slash and a throw from different players before one step both happen', () => {
       const { runtime } = closeUp();
       runtime.receiveAction(slash('a', 'event-0001'));
-      runtime.receiveAction(press('b', 'event-0002'));
+      tapThrow(runtime, 'b', 'event-0002');
       run(runtime, 0, 1);
       expect(slashState(runtime, 'a')?.phase).toBe('ACTIVE');
       expect(boom(runtime, 'b')?.state).toBe('THROWN');
@@ -560,9 +574,9 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('THROW and DASH together: the throw wins, whichever arrived first', () => {
       for (const order of ['throw-first', 'dash-first'] as const) {
         const runtime = started();
-        const th = press('a', 'event-0001');
+        const th = [press('a', 'event-0001'), press('a', 'event-0001-up', 'released')]; // a tap
         const da = dash('a', 'event-0002');
-        for (const action of order === 'throw-first' ? [th, da] : [da, th])
+        for (const action of order === 'throw-first' ? [...th, da] : [da, ...th])
           runtime.receiveAction(action);
         run(runtime, 0, 1);
         expect(boom(runtime, 'a')?.state, order).toBe('THROWN');
@@ -623,7 +637,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
     it('a thrown boomerang kills, the round ends, and a new round starts after the interval', () => {
       const { runtime } = fight();
       // slot 0 is at the top centre, slot 3 at the bottom centre; a throws straight down the middle.
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       let now = run(runtime, 0, 60);
       expect(alive(runtime, 'b')).toBe(false);
       expect(s(runtime).phase).toBe('ROUND_OVER');
@@ -639,7 +653,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       const { runtime } = fight();
       const entries = roster();
       const slots = slotsFor(entries);
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       run(runtime, 0, 1);
       const first = runtime.view(entries, slots);
       expect(first?.events.map((e) => e.type)).toEqual(['THROWN']);
@@ -648,7 +662,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
 
     it('a new match starts clean: round 1, nothing in flight, counters at zero', () => {
       const { runtime } = fight();
-      runtime.receiveAction(press('a', 'event-0001'));
+      tapThrow(runtime, 'a', 'event-0001');
       run(runtime, 0, 60);
       runtime.start(players, 5000);
       expect(s(runtime).round).toBe(1);
@@ -838,7 +852,13 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     const view = buildFuView(
       state,
       [
-        { type: 'THROWN', playerId: 'a', position: { x: 10, y: 20 }, direction: { x: 1, y: 0 } },
+        {
+          type: 'THROWN',
+          playerId: 'a',
+          position: { x: 10, y: 20 },
+          direction: { x: 1, y: 0 },
+          power: 0,
+        },
         {
           type: 'HIT',
           byId: 'a',

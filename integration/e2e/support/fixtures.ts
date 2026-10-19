@@ -58,6 +58,8 @@ export interface Snapshot {
           inWall: boolean;
           /** What they own, oldest first. */
           inventory: string[];
+          /** THROW held: NONE, CHARGING or CANCELLED (by a dash). */
+          charge: 'NONE' | 'CHARGING' | 'CANCELLED';
           fatigue: { dashes: number; recoverIn: number; fatigued: boolean };
         }[];
         /** Books lying in the arena: a Book carries no kind. */
@@ -96,6 +98,8 @@ export interface Snapshot {
           wallSeconds: number;
           deflections: number;
           deflectedBy: string | undefined;
+          /** How charged its throw was: 0 (a tap) to 1 (a full charge). */
+          power: number;
         }[];
         duplicatesIgnored: number;
         /** Slice 7: the CPU participants (software controllers) and what deciding for them costs the host. */

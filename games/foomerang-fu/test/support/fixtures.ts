@@ -20,6 +20,7 @@ export const NONE: FuInputs = new Map();
 export type Press = {
   move?: { x: number; y: number };
   throw?: boolean;
+  throwHeld?: boolean;
   slash?: boolean;
   dash?: boolean;
 };

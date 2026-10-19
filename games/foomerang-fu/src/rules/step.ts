@@ -61,15 +61,17 @@ import {
   type GateSpec,
   type HazardSpec,
 } from './systems';
-import { startRound, type FuPlayer, type FuState } from './state';
+import { NO_CHARGE, startRound, type FuPlayer, type FuState, type ThrowCharge } from './state';
 import { distanceSquared, normalized, ZERO } from './vec';
 
 /** One player's input for one step. Everything is optional and everything is untrusted. */
 export interface FuPlayerInput {
   /** Latest thumb position, as the platform delivers it. */
   readonly move?: MovementInput;
-  /** A throw was requested since the last step. Only the boolean `true` counts. */
+  /** A throw was requested since the last step (a tap: a plain throw). Only the boolean `true` counts. */
   readonly throw?: boolean;
+  /** THROW is held down right now (it charges; letting go throws). Only the boolean `true` counts. */
+  readonly throwHeld?: boolean;
   /** A slash was requested since the last step. Only the boolean `true` counts. */
   readonly slash?: boolean;
   /** A dash was requested since the last step. Only the boolean `true` counts. */
@@ -84,6 +86,8 @@ export type FuEvent =
       readonly playerId: string;
       readonly position: Vec2;
       readonly direction: Vec2;
+      /** 0 for a tap, up to 1 for a full charge. */
+      readonly power: number;
     }
   | {
       readonly type: 'SLASHED';
@@ -450,6 +454,19 @@ interface Contact {
   readonly credit: number;
 }
 
+const CANCELLED: ThrowCharge = Object.freeze({ phase: 'CANCELLED' });
+
+/** The closest two points come while each moves in a straight line from its first position to its second. */
+function closestApproach(a0: Vec2, a1: Vec2, b0: Vec2, b1: Vec2): number {
+  const rx = a0.x - b0.x;
+  const ry = a0.y - b0.y;
+  const dx = a1.x - b1.x - rx;
+  const dy = a1.y - b1.y - ry;
+  const d2 = dx * dx + dy * dy;
+  const t = d2 === 0 ? 0 : Math.min(1, Math.max(0, -(rx * dx + ry * dy) / d2));
+  return Math.hypot(rx + dx * t, ry + dy * t);
+}
+
 /** Who a kill by the arena is credited to. */
 const ARENA_ID = 'HAZARD';
 
@@ -549,10 +566,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       (slashAfter[index] as SlashState).phase === 'READY' &&
       held &&
       hasFacing;
+    // a tap throws; so does letting go of a charge (the release is the first step THROW is no longer held)
+    const charge = state.players[index]?.charge ?? NO_CHARGE;
+    const released = charge.phase === 'CHARGING' && entry?.throwHeld !== true;
     const throws =
       player.alive &&
       !committed &&
-      entry?.throw === true &&
+      (entry?.throw === true || released) &&
       !slashes && // a same-step SLASH always wins
       (slashAfter[index] as SlashState).phase !== 'ACTIVE' && // the weapon is mid-swing
       throwReady &&
@@ -564,7 +584,28 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       !slashes &&
       !throws &&
       (slashAfter[index] as SlashState).phase === 'READY'; // not while swinging or recovering
-    return { slashes, throws, dashes };
+    const power =
+      charge.phase === 'CHARGING' ? Math.min(1, charge.seconds / config.fullChargeSeconds) : 0;
+    // what the charge is after this step: a throw spends it, a dash cancels it until THROW is let go; it builds while THROW
+    // is held with every boomerang the throw needs in hand
+    const holding = player.alive && entry?.throwHeld === true;
+    const nextCharge: ThrowCharge = throws
+      ? NO_CHARGE
+      : dashes
+        ? holding
+          ? CANCELLED
+          : NO_CHARGE
+        : !holding
+          ? NO_CHARGE
+          : charge.phase === 'CANCELLED'
+            ? CANCELLED
+            : throwReady && !committed
+              ? Object.freeze({
+                  phase: 'CHARGING',
+                  seconds: (charge.phase === 'CHARGING' ? charge.seconds : 0) + dt,
+                })
+              : NO_CHARGE;
+    return { slashes, throws, dashes, power, nextCharge };
   });
 
   // 1c. Movement. Walkers go through game-core; dashers (and overdriven walkers) are carried.
@@ -769,6 +810,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const body = world.bodies.find((b) => b.id === id);
     return body === undefined ? ZERO : body.position;
   };
+  const startPosition = new Map(state.world.bodies.map((b) => [b.id, b.position]));
 
   // 2. Pickups are collected on the end-of-movement positions, before anything is thrown or hit ---
   // Pickups are visited in id order; each goes to the NEAREST eligible player (a tie goes to the earlier
@@ -836,6 +878,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           deflectedBy: undefined,
           blast: false,
           absorbed: EMPTY,
+          power: 0,
         } satisfies Boomerang),
       );
     }
@@ -900,12 +943,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       thrownNow.add(k);
       // An owner of BLAST_BOOMERANG arms every boomerang they throw (each can detonate once per throw).
       const arm = has(index, 'BLAST_BOOMERANG');
-      events.push({ type: 'THROWN', playerId: player.id, position, direction });
+      const power = (plans[index] as { power: number }).power;
+      events.push({ type: 'THROWN', playerId: player.id, position, direction, power });
       weapons[k] = transition(weapons[k] as Boomerang, 'THROWN', {
         position,
         direction,
         travelled: 0,
         blast: arm,
+        power,
       });
     });
   });
@@ -919,8 +964,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (b.state === 'THROWN' || b.state === 'DEFLECTED') {
       // A deflected boomerang flies just like a thrown one — straight, at throw speed, stopped by walls —
       // but only for `deflectRange`, after which it turns RETURNING and goes home the usual way.
-      const range = b.state === 'DEFLECTED' ? config.deflectRange : config.throwRange;
-      const length = Math.min(config.throwSpeed * dt, range - b.travelled);
+      // a charged throw flies faster and further (`power` 0..1 between the plain and the fully charged throw)
+      const range =
+        b.state === 'DEFLECTED'
+          ? config.deflectRange
+          : config.throwRange + (config.chargedThrowRange - config.throwRange) * b.power;
+      const speed = config.throwSpeed + (config.chargedThrowSpeed - config.throwSpeed) * b.power;
+      const length = Math.min(speed * dt, range - b.travelled);
       const free = {
         x: b.position.x + b.direction.x * length,
         y: b.position.y + b.direction.y * length,
@@ -970,6 +1020,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
               deflections: 0,
               deflectedBy: undefined,
               absorbed: EMPTY,
+              power: 0,
             })
           : Object.freeze({ ...b, position, ...extra }),
         lethalAt: position,
@@ -1109,6 +1160,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       deflections: b.deflections + 1,
       deflectedBy: defender.id,
       absorbed: EMPTY,
+      power: 0,
     });
     lethalAt[k] = undefined; // the clank absorbs it: it kills nobody on the step it is deflected
     events.push({
@@ -1137,12 +1189,21 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       w.state === 'DEFLECTED' && w.deflectedBy !== undefined
         ? (ownerOf.get(w.deflectedBy) ?? a)
         : a;
+    // (a shield it met on this leg still covers the step it is caught in: its list is cleared by the catch, but the path
+    // judged this step began on that leg)
     const immuneTo = (victim: FuPlayer): boolean =>
-      (w.state === 'DEFLECTED' && w.deflectedBy === victim.id) || w.absorbed.includes(victim.id);
+      (w.state === 'DEFLECTED' && w.deflectedBy === victim.id) ||
+      w.absorbed.includes(victim.id) ||
+      (flownFrom[k] as Boomerang).absorbed.includes(victim.id);
     const touched: number[] = [];
+    // swept: the closest the boomerang and the victim came during the step, both moving in straight lines (a charged throw
+    // moves 40 u a step; judged only where it ends, it could pass a player by)
+    const from =
+      (flownFrom[k] as Boomerang).state === 'HELD' ? at : (flownFrom[k] as Boomerang).position;
     players.forEach((victim, v) => {
       if (v === a || !victim.alive || immuneTo(victim)) return;
-      if (distanceSquared(at, positionOf(victim.id)) < reach * reach) touched.push(v);
+      const start = startPosition.get(victim.id) ?? positionOf(victim.id);
+      if (closestApproach(from, at, start, positionOf(victim.id)) < reach) touched.push(v);
     });
     if (w.blast && (touched.length > 0 || flights[k]?.wallImpact === true)) {
       const hit = new Set(touched);
@@ -1384,13 +1445,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       spared.length === base.hazardSpared.length &&
       spared.every((v, k) => v === base.hazardSpared[k]);
     const outside = p.alive ? (outsideFor[index] ?? 0) : 0;
-    return base.inventory === owned && sparedSame && base.outsideFor === outside
+    const planned = (plans[index] as { nextCharge: ThrowCharge }).nextCharge;
+    const charge = p.alive && !concluded ? planned : NO_CHARGE;
+    return base.inventory === owned &&
+      sparedSame &&
+      base.outsideFor === outside &&
+      base.charge === charge
       ? base
       : Object.freeze({
           ...base,
           inventory: owned,
           hazardSpared: sparedSame ? base.hazardSpared : Object.freeze(spared),
           outsideFor: outside,
+          charge,
         });
   });
 

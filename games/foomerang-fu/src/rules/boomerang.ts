@@ -62,6 +62,8 @@ export interface Boomerang {
   readonly blast: boolean;
   /** Slice 5: players whose GUARD this boomerang already met on its current leg; it cannot hit them again on it. */
   readonly absorbed: readonly string[];
+  /** How charged this throw was, 0 (a tap) to 1 (a full charge): its outbound speed and range. 0 while HELD and once deflected. */
+  readonly power: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

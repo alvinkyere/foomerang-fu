@@ -5,6 +5,7 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
 import { parseMapLayers } from '../reconstructed/mapLayers';
 import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
+import { AimLine, Trail } from './chargeVisuals';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
@@ -84,6 +85,7 @@ class Character {
   readonly #shadow: THREE.Mesh;
   readonly #texture: THREE.Texture;
   readonly #arrow: THREE.Sprite;
+  readonly #aim: AimLine;
   #heading = 0;
   #deadAt: number | undefined;
   #last: { x: number; y: number; t: number } | undefined;
@@ -123,6 +125,7 @@ class Character {
     this.#arrow.renderOrder = 10;
     this.#arrow.visible = false;
     scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow);
+    this.#aim = new AimLine(scene);
   }
 
   update(
@@ -166,6 +169,17 @@ class Character {
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
     this.#warn(c, cam, space, h, now);
+    // charging a throw: the aim line, as long as the throw would fly
+    if (c.aim !== undefined && c.facing !== undefined && !c.dead)
+      this.#aim.show(
+        { x: g.x, z: g.z },
+        c.facing,
+        space.length(c.aim.reach),
+        r * 0.35,
+        c.aim.power,
+        color(c.color),
+      );
+    else this.#aim.hide();
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
   }
@@ -213,6 +227,7 @@ class Character {
 
   destroy(scene: THREE.Scene): void {
     scene.remove(this.sprite, this.#ring, this.#shadow, this.#arrow);
+    this.#aim.destroy(scene);
     this.#texture.dispose();
   }
 }
@@ -224,6 +239,8 @@ class Boomerang {
   logical = { x: 0, y: 0 };
   #spentAt: number | undefined;
   #spent = false;
+  #charged = false;
+  readonly #trail: Trail;
 
   constructor(scene: THREE.Scene, rim: string, size: number) {
     const arc = Math.PI * 0.76;
@@ -250,6 +267,7 @@ class Boomerang {
       }),
     );
     scene.add(this.group, this.#shadow);
+    this.#trail = new Trail(scene, size * 1.6);
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
@@ -258,9 +276,15 @@ class Boomerang {
     this.group.position.set(p.x, p.y, p.z);
     this.#shadow.position.set(p.x + 0.2, 0.05, p.z + 0.1);
     this.#spent = view.spent;
+    // a fully charged throw leaves the pink trail (until it is caught or deflected: its power drops)
+    const charged = view.power >= 1 && !view.spent;
+    if (!charged && this.#charged) this.#trail.clear();
+    this.#charged = charged;
   }
 
   spin(time: number): void {
+    if (this.#charged) this.#trail.add(this.group.position, time);
+    this.#trail.update(time);
     if (!this.#spent) {
       this.group.rotation.y = -time / 40;
       return;
@@ -272,6 +296,7 @@ class Boomerang {
 
   destroy(scene: THREE.Scene): void {
     scene.remove(this.group, this.#shadow);
+    this.#trail.destroy(scene);
   }
 }
 

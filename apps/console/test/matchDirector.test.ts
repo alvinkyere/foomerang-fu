@@ -141,6 +141,7 @@ describe('MatchDirector: which game runs', () => {
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
     await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction(press);
+    d.onAction({ ...press, eventId: 'event-0001-up', phase: 'released' }); // a tap: THROW acts on the release
     d.frame(17);
     const state = (d.runtime as LazyFuRuntime).state;
     expect(state?.boomerangs.find((b) => b.ownerId === 'a')?.state).toBe('THROWN');
@@ -169,6 +170,7 @@ describe('MatchDirector: which game runs', () => {
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
     await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001-up', action: 'SECONDARY', phase: 'released' }); // a tap: THROW acts on the release
     d.frame(17);
     d.onRoom('PLAYING', r, 20, 'foomerang-fu');
     expect(
@@ -181,6 +183,7 @@ describe('MatchDirector: which game runs', () => {
     d.onRoom('PLAYING', r, 0, 'foomerang-fu');
     await loadFuRuntime(); // the rules are a lazily loaded chunk
     d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001-up', action: 'SECONDARY', phase: 'released' }); // a tap: THROW acts on the release
     d.frame(17);
     const view = d.arenaView();
     expect(view?.boomerangs.map((b) => b.ownerId)).toEqual(['a']);
