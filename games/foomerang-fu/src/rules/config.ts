@@ -50,9 +50,9 @@ export interface FuConfig {
   readonly groundFriction: number;
   /** How long THROW must be held before a dropped boomerang starts its pull home (a tap does not pull), seconds. A proposal. */
   readonly recallDelaySeconds: number;
-  /** A pulled boomerang accelerates towards its thrower at this, u/s². A proposal. */
+  /** A pulled boomerang accelerates towards its thrower at this, u/s² (measured: the video's tutorial pull-back at 0:18.7, ±30%). */
   readonly recallAcceleration: number;
-  /** ...up to this speed, u/s. A proposal. */
+  /** ...up to this speed, u/s (the fastest the video shows; it was still speeding up when caught). */
   readonly recallSpeed: number;
   /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
   readonly slashReach: number;
@@ -132,8 +132,8 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   maxRicochets: 3,
   groundFriction: 2500,
   recallDelaySeconds: 0.25,
-  recallAcceleration: 2000,
-  recallSpeed: 1000,
+  recallAcceleration: 4500,
+  recallSpeed: 1800,
   slashReach: 130,
   slashArc: (Math.PI * 2) / 3,
   slashActiveSeconds: 0.12,

@@ -12,6 +12,7 @@ import {
   type ReconstructedMap,
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
+import { deathOf } from '../deathMotion';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { PlazaProps } from './plazaProps';
@@ -101,7 +102,7 @@ class Character {
   logical = { x: 0, y: 0 };
 
   /** What its remains are made from, as it is now (its feet, its sprite and the frame it shows). */
-  victim(id: string, brittle: boolean): Victim {
+  victim(id: string, death: ReturnType<typeof deathOf>): Victim {
     const h = this.sprite.scale.y;
     return {
       id,
@@ -113,7 +114,7 @@ class Character {
       spriteHeight: h,
       bodyHeight: h * BODY_OF_CELL,
       colour: this.colour,
-      brittle,
+      ...death,
     };
   }
 
@@ -492,7 +493,7 @@ class Plaza {
       }
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
-    this.#remains = new DeathRemains(this.scene);
+    this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -725,12 +726,12 @@ class Plaza {
       this.#bursts.push({ object, born: now, life, grow });
     };
     if (e.type === 'HIT' && e.actor !== undefined) {
-      // the victim comes apart across the line of the hit: halves (or, the mug, shards and a puddle)
+      // the victim comes apart across the line of the hit: halves (or, the mug, shards); the mug and the milk spill
       const ch = this.#characters.get(e.actor);
       const circle = this.#view?.circles.find((c) => c.id === e.actor);
       if (ch !== undefined && circle !== undefined) {
         const kind = characterOf(this.map.roster, circle, this.#hasArt);
-        const victim = ch.victim(e.actor, kind === 'coffee');
+        const victim = ch.victim(e.actor, deathOf(kind));
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
           const f = this.#space.toScene(e.from.x, e.from.y);

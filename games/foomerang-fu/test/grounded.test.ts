@@ -71,9 +71,11 @@ function steps(s: FuState, n: number, inputs = input({})) {
 const speed = (s: FuState) => Math.hypot(boom(s, 'a').velocity.x, boom(s, 'a').velocity.y);
 
 describe('a dropped boomerang', () => {
-  it('the defaults (proposals): friction 2,500 u/s², recall after 0.25 s, 2,000 u/s² up to 1,000 u/s', () => {
+  it('the defaults: friction 2,500 u/s² and the 0.25 s delay (proposals); the pull as measured, 4,500 u/s² up to 1,800 u/s', () => {
+    // the video's tutorial at 0:18.7–0:19.2 (art/physics_reference/README.md): from rest, ~530 u home in ~0.45 s at a near
+    // constant ~4,500 u/s², still speeding up at ~1,800 u/s when caught (no cap seen; 1,800 is the fastest seen)
     expect([C.groundFriction, C.recallDelaySeconds, C.recallAcceleration, C.recallSpeed]).toEqual([
-      2500, 0.25, 2000, 1000,
+      2500, 0.25, 4500, 1800,
     ]);
   });
 
@@ -130,14 +132,19 @@ describe('a dropped boomerang', () => {
     s = place(s, 'a', 300, 750);
     s = steps(s, Math.round(C.recallDelaySeconds / DT), HOLD).s;
     expect(boom(s, 'a').state).toBe('RECALLING');
-    s = steps(s, 15, HOLD).s; // 0.25 s of pull: v = a·t = 500
+    s = steps(s, 15, HOLD).s; // 0.25 s of pull: v = a·t
     expect(speed(s)).toBeCloseTo(C.recallAcceleration * 15 * DT, 6);
     expect(boom(s, 'a').velocity.x).toBeLessThan(0); // towards her
-    s = steps(s, 30, HOLD).s; // capped
-    expect(speed(s)).toBeLessThanOrEqual(C.recallSpeed + 1e-9);
-    const r = steps(s, 120, HOLD);
-    expect(boom(r.s, 'a').state).toBe('HELD');
-    expect(r.events).toContainEqual({ type: 'CAUGHT', playerId: 'a' });
+    // on until it is home: never faster than the cap on the way
+    const events: FuEvent[] = [];
+    for (let i = 0; i < 120 && boom(s, 'a').state === 'RECALLING'; i += 1) {
+      const r = steps(s, 1, HOLD);
+      s = r.s;
+      events.push(...r.events);
+      expect(speed(s)).toBeLessThanOrEqual(C.recallSpeed + 1e-9);
+    }
+    expect(boom(s, 'a').state).toBe('HELD');
+    expect(events).toContainEqual({ type: 'CAUGHT', playerId: 'a' });
   });
 
   it('let go mid-pull, it drops again and slides to a stop from the speed it had', () => {

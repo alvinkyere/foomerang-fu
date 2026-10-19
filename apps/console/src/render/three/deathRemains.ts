@@ -1,6 +1,18 @@
 import * as THREE from 'three';
-import { dropletsFor, halfAt, halvesFor, puddleRadius, type Half } from '../deathMotion';
-import { debrisAt, debrisFor, type DebrisPiece } from '../propDebris';
+import {
+  PUDDLE,
+  bitAt,
+  bitsFor,
+  dropAt,
+  dropsFor,
+  halfAt,
+  halvesFor,
+  puddleRadius,
+  shardAt,
+  shardsFor,
+  type Half,
+  type Liquid,
+} from '../deathMotion';
 
 /** What a dying character looks like at the moment it dies (from its sprite). */
 export interface Victim {
@@ -17,8 +29,10 @@ export interface Victim {
   readonly bodyHeight: number;
   /** Its own colour (droplets, shards). */
   readonly colour: string;
-  /** The mug: it shatters and spills coffee; everyone else splits in two. */
-  readonly brittle: boolean;
+  /** The mug shatters; everyone else is cut in two (`deathOf`). */
+  readonly shatters: boolean;
+  /** What it spills, if it is liquid (the mug its coffee, the milk its milk). */
+  readonly spills: Liquid | undefined;
 }
 
 interface Part {
@@ -26,49 +40,39 @@ interface Part {
   readonly pose: (t: number) => void;
 }
 
-/** The coffee in the mug (its darkest large colour). */
-const COFFEE = 0x5b392a;
+/** The liquids: the coffee in the mug (its darkest large colour) and milk (white). */
+const LIQUID: Readonly<Record<Liquid, number>> = { coffee: 0x5b392a, milk: 0xf6f4ee };
 
 /**
- * A killed character's remains on the TV (owner's brief; the reference video at 0:07, 1:03, 2:21), moved by `render/deathMotion.ts`:
- * a soft character splits into its two halves (each half of its own sprite) that fly apart across the line of the hit, tumble,
- * land on their sides and slide to a stop, with a burst of droplets in its colour; the mug shatters into shards and leaves a
- * spreading puddle of coffee. They lie there until the character is back (a new round).
+ * A killed character's remains on the TV, as the reference video shows them (measured: `render/deathMotion.ts`): a soft
+ * character is cut in two, the far half sliding away along the ground and turning while the near half stays about where it
+ * died, with a burst of bits in its colour; a liquid one spills (the mug its coffee, the milk its milk: a splash, droplets drifting out, then the puddle spreading)
+ * and the mug leaves a few ceramic shards. They lie there until the character is back (a new round). A soft death's lengths are in the
+ * character's widths, taken as its body height (the video's characters are about as wide as tall); the mug's are world units.
  */
 export class DeathRemains {
   readonly #parts = new Map<string, { born: number; parts: Part[] }>();
 
-  constructor(readonly scene: THREE.Scene) {}
+  constructor(
+    readonly scene: THREE.Scene,
+    /** A length in world units -> scene units. */
+    readonly length: (worldUnits: number) => number,
+  ) {}
 
   burst(v: Victim, hit: { x: number; z: number } | undefined, now: number): void {
     this.clear(v.id);
-    const H = v.bodyHeight;
     const parts: Part[] = [];
-    if (v.brittle) {
-      for (const piece of debrisFor('POT', hit, v.id)) parts.push(this.#piece(v, piece, H * 0.8));
-      const puddle = new THREE.Mesh(
-        new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({
-          color: COFFEE,
-          transparent: true,
-          opacity: 0.9,
-          depthWrite: false,
-        }),
-      );
-      puddle.renderOrder = 0;
-      this.scene.add(puddle);
-      parts.push({
-        object: puddle,
-        pose: (t) => {
-          const r = Math.max(1e-3, puddleRadius(t) * H);
-          puddle.position.set(v.at.x, 0.07, v.at.z);
-          puddle.scale.set(r, 1, r * 0.8);
-        },
-      });
+    if (v.spills !== undefined) {
+      const colour = LIQUID[v.spills];
+      parts.push(this.#puddle(v, colour));
+      for (const d of dropsFor(v.id)) parts.push(this.#drop(v, d, colour));
+    }
+    if (v.shatters) {
+      for (const s of shardsFor(v.id)) parts.push(this.#shard(v, s));
     } else {
-      const [left, right] = halvesFor(hit, v.id);
-      parts.push(this.#half(v, left, -1), this.#half(v, right, 1));
-      for (const drop of dropletsFor(hit, v.id)) parts.push(this.#piece(v, drop, H));
+      const [far, near] = halvesFor(hit, v.id);
+      parts.push(this.#half(v, far, 1), this.#half(v, near, -1));
+      for (const b of bitsFor(v.id)) parts.push(this.#bit(v, b));
     }
     this.#parts.set(v.id, { born: now, parts });
     this.frame(now);
@@ -103,7 +107,7 @@ export class DeathRemains {
     return this.#parts.has(id);
   }
 
-  /** One half of the character's own sprite: its left (side −1) or right (+1) half of the frame it showed. */
+  /** One half of the character's own sprite: its left (side −1) or right (+1) half of the frame it showed, sliding on the ground. */
   #half(v: Victim, h: Half, side: -1 | 1): Part {
     const texture = v.atlas.clone();
     texture.repeat.set(1 / 32, 1 / 2);
@@ -117,41 +121,86 @@ export class DeathRemains {
     sprite.scale.set(v.spriteHeight / 2, v.spriteHeight, 1);
     sprite.renderOrder = 2;
     this.scene.add(sprite);
-    const H = v.bodyHeight;
+    const W = v.bodyHeight;
     return {
       object: sprite,
       pose: (t) => {
         const p = halfAt(h, t);
-        sprite.position.set(
-          v.at.x + p.position.x * H,
-          v.at.y + p.position.y * H,
-          v.at.z + p.position.z * H,
-        );
+        sprite.position.set(v.at.x + p.position.x * W, v.at.y, v.at.z + p.position.z * W);
         (sprite.material as THREE.SpriteMaterial).rotation = p.tilt;
       },
     };
   }
 
-  /** A shard or a droplet (prop-debris motion), in the character's colour. */
-  #piece(v: Victim, piece: DebrisPiece, scale: number): Part {
+  /** The coffee on the ground: the splash, then the puddle (wider than deep). */
+  #puddle(v: Victim, colour: number): Part {
+    const mesh = this.#flat(colour, 0.9, 40);
+    return {
+      object: mesh,
+      pose: (t) => {
+        const r = Math.max(1e-3, this.length(puddleRadius(t)));
+        mesh.position.set(v.at.x, 0.07, v.at.z);
+        mesh.scale.set(r * Math.sqrt(PUDDLE.aspect), 1, r / Math.sqrt(PUDDLE.aspect));
+      },
+    };
+  }
+
+  #drop(v: Victim, d: ReturnType<typeof dropsFor>[number], colour: number): Part {
+    const mesh = this.#flat(colour, 1, 12);
+    const r = this.length(d.size);
+    mesh.scale.set(r, 1, r);
+    return {
+      object: mesh,
+      pose: (t) => {
+        const p = dropAt(d, t);
+        mesh.visible = p.visible;
+        mesh.position.set(v.at.x + this.length(p.x), 0.08, v.at.z + this.length(p.z));
+      },
+    };
+  }
+
+  /** A ceramic shard: a small flat piece in the mug's colour, lying on the ground. */
+  #shard(v: Victim, s: ReturnType<typeof shardsFor>[number]): Part {
+    const a = this.length(s.size);
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(piece.size.x * scale, piece.size.y * scale, piece.size.z * scale),
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(v.colour).multiplyScalar(piece.shade),
-      }),
+      new THREE.BoxGeometry(a, a * 0.3, a * 0.6),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(v.colour) }),
     );
     this.scene.add(mesh);
     return {
       object: mesh,
       pose: (t) => {
-        const p = debrisAt(piece, t);
-        mesh.position.set(
-          v.at.x + p.position.x * scale,
-          p.position.y * scale,
-          v.at.z + p.position.z * scale,
-        );
-        mesh.rotation.set(p.rotation.x, p.rotation.y, p.rotation.z);
+        const p = shardAt(s, t);
+        mesh.position.set(v.at.x + this.length(p.x), a * 0.15, v.at.z + this.length(p.z));
+        mesh.rotation.set(0, p.turn, 0);
       },
     };
+  }
+
+  /** One of a soft character's bits, in its colour, fading out. */
+  #bit(v: Victim, b: ReturnType<typeof bitsFor>[number]): Part {
+    const W = v.bodyHeight;
+    const material = new THREE.MeshBasicMaterial({ color: v.colour, transparent: true });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(b.size * W, 8, 6), material);
+    this.scene.add(mesh);
+    return {
+      object: mesh,
+      pose: (t) => {
+        const p = bitAt(b, t);
+        mesh.visible = p.opacity > 0;
+        material.opacity = p.opacity;
+        mesh.position.set(v.at.x + p.x * W, b.size * W, v.at.z + p.z * W);
+      },
+    };
+  }
+
+  #flat(colour: number, opacity: number, segments: number): THREE.Mesh {
+    const mesh = new THREE.Mesh(
+      new THREE.CircleGeometry(1, segments).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false }),
+    );
+    mesh.renderOrder = 0;
+    this.scene.add(mesh);
+    return mesh;
   }
 }
