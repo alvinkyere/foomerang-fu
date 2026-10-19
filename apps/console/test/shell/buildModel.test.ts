@@ -194,7 +194,7 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
     expect(a?.character).toMatchObject({
       id: 'milk',
       name: 'Milk',
-      color: '#1085e0',
+      color: '#5597de',
       portrait: 'characters/milk.webp',
     });
     expect(b).toMatchObject({ kind: 'phone', number: 2, ready: false });
@@ -209,8 +209,8 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
       ['coffee', 'icecream', 'bread', 'bacon', 'carrot'],
     ]);
     expect(grid[0]?.[2]?.cursors).toEqual([
-      { number: 1, color: '#1085e0', ready: true },
-      { number: 2, color: '#1085e0', ready: false },
+      { number: 1, color: '#5597de', ready: true },
+      { number: 2, color: '#5597de', ready: false },
     ]);
   });
 
@@ -230,15 +230,39 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
     expect(ready?.seats[2]).toMatchObject({ kind: 'cpu', detail: 'Hard', ready: true });
   });
 
-  it('the mug’s and the ice cream’s badges are the video’s grey and teal: their own pale colours could not carry a white number', () => {
-    const select = lobby({
-      picks: new Map([
-        ['a', { character: 'coffee', ready: false }],
-        ['b', { character: 'icecream', ready: false }],
-      ]),
+  it('badges and READY fills are the video’s palette (owner, 2026-10-19), measured from game-setting.mp4', () => {
+    const all = [
+      'avocado',
+      'bacon',
+      'banana',
+      'bread',
+      'carrot',
+      'coffee',
+      'donut',
+      'icecream',
+      'milk',
+      'watermelon',
+    ] as const;
+    const select = (id: (typeof all)[number]) =>
+      lobby({ picks: new Map([['a', { character: id, ready: true }]]) })?.seats[0]?.character;
+    expect(Object.fromEntries(all.map((id) => [id, select(id)?.color]))).toEqual({
+      avocado: '#93d15a',
+      bacon: '#d18667',
+      banana: '#e1c83e',
+      bread: '#b08f4c',
+      carrot: '#de8b56',
+      coffee: '#aeb5b1',
+      donut: '#e8768f',
+      icecream: '#50c9ba',
+      milk: '#5597de',
+      watermelon: '#e74548',
     });
-    expect(select?.seats[0]?.character?.color).toBe('#aeb5b1');
-    expect(select?.seats[1]?.character?.color).toBe('#4dccbe');
+    // the READY fills the video shows, exactly; the others by the video's own rule (same hue, saturation 0.25, value 0.99)
+    expect(select('banana')?.tint).toBe('#fcf2b9');
+    expect(select('watermelon')?.tint).toBe('#ffc2c4');
+    expect(select('donut')?.tint).toBe('#ffc4d3');
+    expect(select('coffee')?.tint).toBe('#fbf9f3');
+    expect(select('milk')?.tint).toBe('#bddcfc');
   });
 
   it('other games have no character select', () => {

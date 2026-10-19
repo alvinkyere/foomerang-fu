@@ -1,4 +1,3 @@
-import { CHARACTER_COLOURS } from '../../render/reconstructed/characterColours';
 import type { PackCharacter } from '../../render/reconstructed/maps';
 import type { CharacterView } from '../model';
 
@@ -16,27 +15,60 @@ const NAMES: Readonly<Record<PackCharacter, string>> = {
 };
 
 /**
- * The colours character select draws with, measured from game-setting.mp4: a badge or cursor is the character's own
- * colour, except where that colour is too pale to carry a white "P1": the mug (the video's badge is grey, #aeb5b1) and the
- * ice cream (the video's is teal, #4dccbe, where our mint is #7af7b9); a READY
- * circle or tile is that colour 68% of the way to white (watermelon #ec4247 → #ffc2c4 in the video).
+ * Character select's palette is the reference video's (owner, 2026-10-19), measured from game-setting.mp4: each badge is
+ * the median of a ring round its "P1" text over 2–3 frames; a READY fill is the video's own where the video readies that
+ * character, else the video's rule for them (the badge's hue, saturation 0.25, value 0.99: within a few levels of every
+ * fill it shows). This is the menus' palette only: a boomerang and its trail stay the character's colour
+ * (render/reconstructed/characterColours.ts).
  */
-const BADGE: Partial<Record<PackCharacter, string>> = { coffee: '#aeb5b1', icecream: '#4dccbe' };
-const TINT_TO_WHITE = 0.68;
+const BADGE: Readonly<Record<PackCharacter, string>> = {
+  avocado: '#93d15a',
+  bacon: '#d18667',
+  banana: '#e1c83e',
+  bread: '#b08f4c',
+  carrot: '#de8b56',
+  coffee: '#aeb5b1',
+  donut: '#e8768f',
+  icecream: '#50c9ba',
+  milk: '#5597de',
+  watermelon: '#e74548',
+};
+const MEASURED_FILL: Partial<Record<PackCharacter, string>> = {
+  banana: '#fcf2b9',
+  coffee: '#fbf9f3',
+  donut: '#ffc4d3',
+  watermelon: '#ffc2c4',
+};
 
-const tint = (hex: string): string => {
+/** The video's READY-fill rule: the badge's hue, saturation at most 0.25 (a near-white keeps its own), value 0.99. */
+const fillOf = (hex: string): string => {
   const n = Number.parseInt(hex.slice(1), 16);
-  const mix = (c: number): string =>
-    Math.round(c + (255 - c) * TINT_TO_WHITE)
-      .toString(16)
-      .padStart(2, '0');
-  return `#${mix((n >> 16) & 255)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255) as [
+    number,
+    number,
+    number,
+  ];
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  const h =
+    d === 0 ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const s = Math.min(0.25, (max === 0 ? 0 : d / max) / 2);
+  const v = 0.99;
+  const k = (m: number): number => (m + h) % 6;
+  const ch = (m: number): number => v - v * s * Math.max(0, Math.min(k(m), 4 - k(m), 1));
+  return `#${[ch(5), ch(3), ch(1)]
+    .map((c) =>
+      Math.round(c * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 };
 
 export const characterView = (id: PackCharacter): CharacterView => ({
   id,
   name: NAMES[id],
-  color: BADGE[id] ?? CHARACTER_COLOURS[id],
-  tint: tint(CHARACTER_COLOURS[id]),
+  color: BADGE[id],
+  tint: MEASURED_FILL[id] ?? fillOf(BADGE[id]),
   portrait: `characters/${id}.webp`,
 });
