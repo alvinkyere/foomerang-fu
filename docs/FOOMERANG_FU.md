@@ -601,8 +601,11 @@ lines (a charged throw moves 41 u a step, and judged only where it ends it could
 its leg still covers the step it is caught in. A charged throw must not cross a whole slash reach in one step (validated), so a
 deflecting swing still sees it.
 
-On the TV a charging player shows an aim line as long as the throw would fly, turning pink as it fills; a fully charged throw
-leaves the pink trail (`render/three/chargeVisuals.ts`).
+On the TV a charging player shows an aim line as long as the throw would fly, stronger as it fills; a fully charged throw leaves a
+trail (`render/three/chargeVisuals.ts`). **Colour** (owner, 2026-10-19): a boomerang, its trail and its thrower's aim line are the
+thrower's character colour, never a fixed one — a mostly yellow banana throws a yellow boomerang with a yellow trail (the video's
+pink trail is the pink donut's). One colour per character, `CHARACTER_COLOURS` in `render/reconstructed/characterColours.ts`: the largest
+colour cluster of its atlas, except the donut (its pink icing).
 
 ## Curved flight (owner, 2026-10-19; the reference video)
 

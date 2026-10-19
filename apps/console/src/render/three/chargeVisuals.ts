@@ -1,11 +1,8 @@
 import * as THREE from 'three';
 
-/** The reference video's charged-throw pink. */
-export const CHARGED_PINK = 0xff7aa8;
-
 /**
  * A charging player's aim (owner, 2026-10-19): a flat strip on the ground from their feet along where the throw would go, as long
- * as it would fly; it turns from the player's colour to pink as the charge fills. Presentation of rules facts only.
+ * as it would fly, in their character's colour, growing stronger as the charge fills. Presentation of rules facts only.
  */
 export class AimLine {
   readonly mesh: THREE.Mesh;
@@ -41,7 +38,7 @@ export class AimLine {
     // world +y is scene +z
     this.mesh.rotation.set(0, -Math.atan2(facing.y, facing.x), 0);
     this.mesh.scale.set(length, 1, width);
-    this.#material.color.copy(colour).lerp(new THREE.Color(CHARGED_PINK), power);
+    this.#material.color.copy(colour);
     this.#material.opacity = 0.3 + 0.4 * power;
   }
 
@@ -60,8 +57,9 @@ const TRAIL_MS = 300;
 const TRAIL_POINTS = 40;
 
 /**
- * The pink trail behind a fully charged throw (the reference video, 2026-10-19): a flat ribbon through where the boomerang was
- * over the last third of a second, narrowing towards its tail.
+ * The trail behind a fully charged throw (the reference video, 2026-10-19), in the thrower's character colour (owner,
+ * 2026-10-19: a yellow banana's trail is yellow): a flat ribbon through where the boomerang was over the last third of a second,
+ * narrowing towards its tail.
  */
 export class Trail {
   readonly mesh: THREE.Mesh;
@@ -71,6 +69,7 @@ export class Trail {
   constructor(
     scene: THREE.Scene,
     readonly width: number,
+    colour: THREE.Color,
   ) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(this.#positions, 3));
@@ -83,7 +82,7 @@ export class Trail {
     this.mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshBasicMaterial({
-        color: CHARGED_PINK,
+        color: colour,
         transparent: true,
         opacity: 0.75,
         depthWrite: false,

@@ -4,6 +4,7 @@ import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
 import { parseMapLayers } from '../reconstructed/mapLayers';
+import { CHARACTER_COLOURS } from '../reconstructed/characterColours';
 import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
@@ -96,6 +97,8 @@ class Character {
     atlas: THREE.Texture,
     readonly cell: number,
     readonly anchor: readonly [number, number],
+    /** This character's own colour (its aim line; its boomerang and trail are drawn in it too). */
+    readonly colour: string,
   ) {
     this.#texture = atlas.clone();
     this.#texture.repeat.set(1 / 16, 1 / 2);
@@ -177,7 +180,7 @@ class Character {
         space.length(c.aim.reach),
         r * 0.35,
         c.aim.power,
-        color(c.color),
+        color(this.colour),
       );
     else this.#aim.hide();
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
@@ -242,15 +245,17 @@ class Boomerang {
   #charged = false;
   readonly #trail: Trail;
 
-  constructor(scene: THREE.Scene, rim: string, size: number) {
+  /** `colour`: the thrower's character colour (owner, 2026-10-19): the boomerang is it, its edge a darker shade of it. */
+  constructor(scene: THREE.Scene, colour: string, size: number) {
     const arc = Math.PI * 0.76;
+    const body = color(colour);
     const wood = new THREE.Mesh(
       new THREE.TorusGeometry(size, size * 0.32, 8, 24, arc),
-      new THREE.MeshStandardMaterial({ color: 0x5c3a24, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: body, roughness: 0.6 }),
     );
     const edge = new THREE.Mesh(
       new THREE.TorusGeometry(size * 1.12, size * 0.14, 6, 24, arc),
-      new THREE.MeshStandardMaterial({ color: color(rim), roughness: 0.5 }),
+      new THREE.MeshStandardMaterial({ color: body.clone().multiplyScalar(0.6), roughness: 0.5 }),
     );
     for (const m of [wood, edge]) {
       m.rotation.x = -Math.PI / 2;
@@ -267,7 +272,7 @@ class Boomerang {
       }),
     );
     scene.add(this.group, this.#shadow);
-    this.#trail = new Trail(scene, size * 1.6);
+    this.#trail = new Trail(scene, size * 1.6, body);
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
@@ -581,7 +586,7 @@ class Plaza {
         const meta = this.manifest.characters[kind];
         const atlas = this.#atlases.get(kind);
         if (meta === undefined || atlas === undefined) continue;
-        ch = new Character(this.scene, atlas, meta.cell, meta.anchor);
+        ch = new Character(this.scene, atlas, meta.cell, meta.anchor, CHARACTER_COLOURS[kind]);
         this.#characters.set(c.id, ch);
       }
       ch.update(this.#space, this.camera, this.config, scale, c, now);
@@ -597,7 +602,14 @@ class Plaza {
       flying.add(b.id);
       let art = this.#boomerangs.get(b.id);
       if (art === undefined) {
-        art = new Boomerang(this.scene, b.color, this.#space.length(b.radius) * 1.4);
+        // in its thrower's character colour (a yellow banana throws a yellow boomerang)
+        const owner = view.circles.find((c) => c.id === b.ownerId);
+        const kind = characterFor(this.map.roster, owner?.number ?? 1);
+        art = new Boomerang(
+          this.scene,
+          CHARACTER_COLOURS[kind],
+          this.#space.length(b.radius) * 1.4,
+        );
         this.#boomerangs.set(b.id, art);
       }
       art.apply(this.#space, b);
