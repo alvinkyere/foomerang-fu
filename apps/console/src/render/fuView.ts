@@ -248,8 +248,16 @@ export function buildFuView(
             actor: event.victimId,
           },
         ];
+      case 'DROPPED': // a boomerang that could not get home landed where it is
+        return [
+          {
+            type: 'DROPPED',
+            ...event.position,
+            color: styleOf(event.ownerId, slots).color,
+            ownerId: event.ownerId,
+          },
+        ];
       case 'CAUGHT':
-      case 'RECALLED': // the wall-following failsafe: shown like a catch, at the owner
         return [
           {
             type: 'CAUGHT',

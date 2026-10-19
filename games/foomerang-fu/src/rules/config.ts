@@ -46,6 +46,14 @@ export interface FuConfig {
   readonly returnTurnGrowth: number;
   /** How many times one throw may bounce off walls and the arena's edge on its way out (the reference video); 0 = none. A proposal. */
   readonly maxRicochets: number;
+  /** A dropped boomerang slides to a stop under this constant deceleration (kinetic friction), u/s². A proposal. */
+  readonly groundFriction: number;
+  /** How long THROW must be held before a dropped boomerang starts its pull home (a tap does not pull), seconds. A proposal. */
+  readonly recallDelaySeconds: number;
+  /** A pulled boomerang accelerates towards its thrower at this, u/s². A proposal. */
+  readonly recallAcceleration: number;
+  /** ...up to this speed, u/s. A proposal. */
+  readonly recallSpeed: number;
   /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
   readonly slashReach: number;
   /** Slash arc: the full angle of the swing, radians, centred on the facing direction. */
@@ -122,6 +130,10 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   returnTurnRadius: 150,
   returnTurnGrowth: 20,
   maxRicochets: 3,
+  groundFriction: 2500,
+  recallDelaySeconds: 0.25,
+  recallAcceleration: 2000,
+  recallSpeed: 1000,
   slashReach: 130,
   slashArc: (Math.PI * 2) / 3,
   slashActiveSeconds: 0.12,
@@ -195,6 +207,10 @@ export function assertValidConfig(config: FuConfig): void {
     ['fullChargeSeconds', config.fullChargeSeconds],
     ['chargedThrowSpeed', config.chargedThrowSpeed],
     ['chargedThrowRange', config.chargedThrowRange],
+    ['groundFriction', config.groundFriction],
+    ['recallDelaySeconds', config.recallDelaySeconds],
+    ['recallAcceleration', config.recallAcceleration],
+    ['recallSpeed', config.recallSpeed],
     ['slashReach', config.slashReach],
     ['slashArc', config.slashArc],
     ['slashActiveSeconds', config.slashActiveSeconds],

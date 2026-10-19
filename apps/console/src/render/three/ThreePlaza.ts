@@ -244,6 +244,11 @@ class Boomerang {
   #spent = false;
   #charged = false;
   readonly #trail: Trail;
+  #state: BoomerangView['state'] = 'THROWN';
+  #at = { x: 0, z: 0, flight: 0 };
+  #groundedAt: number | undefined;
+  /** How high its middle lies when it lies flat on the ground. */
+  readonly #rest: number;
 
   /** `colour`: the thrower's character colour (owner, 2026-10-19): the boomerang is it, its edge a darker shade of it. */
   constructor(scene: THREE.Scene, colour: string, size: number) {
@@ -273,11 +278,14 @@ class Boomerang {
     );
     scene.add(this.group, this.#shadow);
     this.#trail = new Trail(scene, size * 1.6, body);
+    this.#rest = size * 0.35;
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
     this.logical = { x: view.x, y: view.y };
     const p = space.toScene(view.x, view.y, BOOMERANG_HEIGHT);
+    this.#at = { x: p.x, z: p.z, flight: p.y };
+    this.#state = view.state;
     this.group.position.set(p.x, p.y, p.z);
     this.#shadow.position.set(p.x + 0.2, 0.05, p.z + 0.1);
     this.#spent = view.spent;
@@ -288,10 +296,29 @@ class Boomerang {
   }
 
   spin(time: number): void {
+    // dropped (owner, 2026-10-19): it falls from its flight height under gravity (about 0.3 s), lands flat and lies still;
+    // pulled home it flies at its height again, shaking until it arrives
+    const { x, z, flight } = this.#at;
+    if (this.#state === 'GROUNDED') {
+      this.#groundedAt ??= time;
+      const t = (time - this.#groundedAt) / 1000;
+      const g = (2 * flight) / (0.3 * 0.3);
+      const y = Math.max(this.#rest, flight - (g * t * t) / 2);
+      this.group.position.set(x, y, z);
+      if (y > this.#rest) this.group.rotation.y -= 0.05; // still turning as it falls; still once it lies there
+    } else {
+      this.#groundedAt = undefined;
+      const shake = this.#state === 'RECALLING' ? this.#rest * 0.6 : 0;
+      this.group.position.set(
+        x + shake * Math.sin(time / 17),
+        flight,
+        z + shake * Math.cos(time / 23),
+      );
+    }
     if (this.#charged) this.#trail.add(this.group.position, time);
     this.#trail.update(time);
     if (!this.#spent) {
-      this.group.rotation.y = -time / 40;
+      if (this.#state !== 'GROUNDED') this.group.rotation.y = -time / 40;
       return;
     }
     this.#spentAt ??= time;

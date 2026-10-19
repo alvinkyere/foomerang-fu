@@ -872,7 +872,7 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
         },
         { type: 'CAUGHT', playerId: 'a' },
         { type: 'ROUND_START', round: 2 },
-        { type: 'RECALLED', playerId: 'b' },
+        { type: 'DROPPED', ownerId: 'b', position: { x: 50, y: 60 } },
         {
           type: 'DEFLECTED',
           byId: 'b',
@@ -890,9 +890,15 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
       'HIT',
       'CAUGHT',
       'ROUND_START',
-      'CAUGHT', // the recall failsafe is drawn like a catch
+      'DROPPED', // a boomerang that could not get home landed (owner, 2026-10-19)
       'DEFLECTED',
     ]);
+    expect(view.events[4]).toMatchObject({
+      x: 50,
+      y: 60,
+      ownerId: 'b',
+      color: SLOT_STYLES[1]?.color,
+    });
     const clank = view.events.at(-1);
     expect(clank).toMatchObject({
       x: 70,
@@ -1076,5 +1082,44 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));
+  });
+});
+
+describe('a dropped boomerang, through the runtime (owner, 2026-10-19)', () => {
+  it('holding THROW pulls it home, the phone buzzing all the way, and the buzz stops when it is caught', () => {
+    const runtime = new FuRuntime(OPEN);
+    runtime.start(players, 0);
+    const st = s(runtime);
+    runtime.state = {
+      ...st,
+      boomerangs: st.boomerangs.map((b) =>
+        b.ownerId === 'a'
+          ? {
+              ...b,
+              state: 'GROUNDED' as const,
+              position: { x: 1300, y: 450 },
+              direction: { x: 0, y: 0 },
+              velocity: { x: 0, y: 0 },
+              recall: 0,
+            }
+          : b,
+      ),
+    };
+    runtime.receiveAction(press('a', 'event-0001')); // held down…
+    let now = 0;
+    const buzzes: number[] = [];
+    let pulled = false;
+    for (let i = 0; i < 180 && boom(runtime, 'a')?.state !== 'HELD'; i += 1) {
+      now = run(runtime, now, 1);
+      if (boom(runtime, 'a')?.state === 'RECALLING') pulled = true;
+      for (const r of runtime.rumbles(now)) if (r.playerId === 'a') buzzes.push(r.intensity);
+    }
+    expect(pulled, 'it lifted and was pulled').toBe(true);
+    expect(boom(runtime, 'a')?.state).toBe('HELD');
+    expect(buzzes.length).toBeGreaterThanOrEqual(2);
+    // home: no more buzzing (the finger may still be down: it is charging the next throw now)
+    now = run(runtime, now, 30);
+    expect(runtime.rumbles(now).filter((r) => r.playerId === 'a')).toEqual([]);
+    runtime.receiveAction(press('a', 'event-0002', 'released'));
   });
 });

@@ -68,8 +68,23 @@ export class FuRuntime implements MatchRuntime {
   /** The phones' rumble: planned from each player's time outside the arena's border (none on an arena without one). */
   rumbles(nowMs: number): PlannedRumble[] {
     const state = this.state;
-    if (state === undefined || state.config.arena.safeZone === undefined) return [];
-    return this.#rumbles.plan(state.players, state.config.outsideLimitSeconds, nowMs);
+    if (state === undefined) return [];
+    // the phones' buzz: time outside the border (where there is one), and pulling a dropped boomerang home
+    const pulling = new Set(
+      [...state.boomerangs, ...state.extraBoomerangs]
+        .filter((b) => b.state === 'RECALLING')
+        .map((b) => b.ownerId),
+    );
+    return this.#rumbles.plan(
+      state.players.map((p) => ({
+        id: p.id,
+        alive: p.alive,
+        outsideFor: state.config.arena.safeZone === undefined ? 0 : p.outsideFor,
+        recalling: pulling.has(p.id),
+      })),
+      state.config.outsideLimitSeconds,
+      nowMs,
+    );
   }
 
   /** Repeated event ids the console itself discarded (the server normally catches them first). */

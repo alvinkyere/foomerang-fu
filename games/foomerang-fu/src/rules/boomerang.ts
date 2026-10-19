@@ -8,7 +8,8 @@ import type { Vec2 } from '@foomerang/game-core';
  * Nothing else is allowed. There is deliberately no "caught" or "dead" state: catching is simply
  * the RETURNING → HELD transition, and a dead owner's boomerang keeps its state.
  */
-export type BoomerangState = 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED';
+export type BoomerangState =
+  'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING';
 
 /** The Slice 1 cycle, unchanged. */
 export const BOOMERANG_TRANSITIONS: Readonly<
@@ -26,16 +27,35 @@ export const BOOMERANG_TRANSITIONS: Readonly<
  * can never go straight from DEFLECTED to HELD: it always comes home the way every boomerang does.
  */
 export const DEFLECTION_TRANSITIONS: Readonly<
-  Record<'THROWN' | 'RETURNING' | 'DEFLECTED', readonly BoomerangState[]>
+  Record<'THROWN' | 'RETURNING' | 'DEFLECTED' | 'RECALLING', readonly BoomerangState[]>
 > = Object.freeze({
   THROWN: Object.freeze(['DEFLECTED'] as const),
   RETURNING: Object.freeze(['DEFLECTED'] as const),
   DEFLECTED: Object.freeze(['RETURNING', 'DEFLECTED'] as const),
+  // (one being pulled home is flying: a slash can knock it away too)
+  RECALLING: Object.freeze(['DEFLECTED'] as const),
+});
+
+/**
+ * A dropped boomerang (owner, 2026-10-19). One that cannot get home — its trip round the walls failed, or its thrower died —
+ * becomes GROUNDED: it slides to a stop under friction and lies there, harmless. Its thrower picks it up by walking over it
+ * (GROUNDED → HELD) or holds THROW to pull it home: it lifts (RECALLING) and is caught when it arrives (RECALLING → HELD); let
+ * go, it drops again (RECALLING → GROUNDED).
+ */
+export const GROUND_TRANSITIONS: Readonly<
+  Record<'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING', readonly BoomerangState[]>
+> = Object.freeze({
+  THROWN: Object.freeze(['GROUNDED'] as const),
+  RETURNING: Object.freeze(['GROUNDED'] as const),
+  DEFLECTED: Object.freeze(['GROUNDED'] as const),
+  GROUNDED: Object.freeze(['HELD', 'RECALLING'] as const),
+  RECALLING: Object.freeze(['HELD', 'GROUNDED'] as const),
 });
 
 const TABLES: Readonly<Record<string, readonly BoomerangState[] | undefined>>[] = [
   BOOMERANG_TRANSITIONS,
   DEFLECTION_TRANSITIONS,
+  GROUND_TRANSITIONS,
 ];
 
 export const canTransition = (from: BoomerangState, to: BoomerangState): boolean =>
@@ -68,6 +88,10 @@ export interface Boomerang {
   readonly homing: number;
   /** How many times this throw has bounced off walls on its way out (0 again once it is home, and for a new deflected leg). */
   readonly ricochets: number;
+  /** GROUNDED (sliding) and RECALLING: its velocity, units per second. ZERO otherwise (and once a GROUNDED one has stopped). */
+  readonly velocity: Vec2;
+  /** GROUNDED: seconds its thrower has been holding THROW (the pull starts at recallDelaySeconds). 0 otherwise. */
+  readonly recall: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

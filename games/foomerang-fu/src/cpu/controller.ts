@@ -134,12 +134,13 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
     (b): ShotView[] => {
       const n = count.get(b.ownerId) ?? 0;
       count.set(b.ownerId, n + 1);
-      if (b.state === 'HELD' || b.ownerId === selfId) return [];
+      // a boomerang lying on the ground is no threat (one pulled home is, and flies like any other)
+      if (b.state === 'HELD' || b.state === 'GROUNDED' || b.ownerId === selfId) return [];
       return [
         {
           key: `${b.ownerId}:${n}`,
           ownerId: b.ownerId,
-          state: b.state,
+          state: b.state === 'RECALLING' ? 'RETURNING' : b.state,
           position: b.position,
           direction: b.direction,
           deflectedBy: b.deflectedBy,
@@ -253,7 +254,15 @@ export class CpuController {
       if (out.dash === true) this.#lastDash = this.#tick;
     }
     const dir = aimOverride ?? this.#move;
-    const input: { move: Vec2; throw?: true; slash?: true; dash?: true } = { move: dir, ...out };
+    // its boomerang dropped (it lies on the ground, or is being pulled home): hold THROW and pull it home, as a player can
+    const away = [...state.boomerangs, ...state.extraBoomerangs].some(
+      (b) => b.ownerId === this.#id && (b.state === 'GROUNDED' || b.state === 'RECALLING'),
+    );
+    const input: { move: Vec2; throw?: true; throwHeld?: true; slash?: true; dash?: true } = {
+      move: dir,
+      ...out,
+      ...(away ? { throwHeld: true as const } : {}),
+    };
     return input;
   }
 

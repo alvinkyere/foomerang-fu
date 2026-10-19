@@ -43,4 +43,28 @@ describe('RumblePlanner', () => {
     expect(p.plan([out('a', 1)], 5, 0)).toHaveLength(1);
     expect(p.plan([out('a', 0)], 5, 400)).toEqual([]);
   });
+
+  it('pulling a dropped boomerang home: steady pulses about four times a second while it comes, then nothing', () => {
+    const p = new RumblePlanner();
+    const pulling = (id: string, recalling: boolean) => ({
+      id,
+      alive: true,
+      outsideFor: 0,
+      recalling,
+    });
+    const sent: { at: number; intensity: number }[] = [];
+    for (let t = 0; t <= 1000; t += 16)
+      for (const r of p.plan([pulling('a', true), pulling('cpu:1', true)], 5, t))
+        sent.push({ at: t, intensity: r.intensity });
+    expect(sent.length).toBeGreaterThanOrEqual(4);
+    expect(sent.length).toBeLessThanOrEqual(5);
+    expect(new Set(sent.map((r) => r.intensity))).toEqual(new Set([0.45])); // steady, not rising
+    expect(p.plan([pulling('a', false)], 5, 1300)).toEqual([]);
+  });
+
+  it('outside the border while pulling: the border’s warning wins', () => {
+    const p = new RumblePlanner();
+    const [r] = p.plan([{ id: 'a', alive: true, outsideFor: 4, recalling: true }], 5, 0);
+    expect(r?.intensity).toBeGreaterThan(0.7);
+  });
 });

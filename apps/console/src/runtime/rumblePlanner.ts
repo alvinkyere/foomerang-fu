@@ -13,16 +13,21 @@ export interface RumbleSubject {
   readonly alive: boolean;
   /** Seconds outside the arena's border (0 inside). */
   readonly outsideFor: number;
+  /** Pulling a dropped boomerang home (holding THROW while it comes; owner, 2026-10-19). */
+  readonly recalling?: boolean;
 }
 
 const EVERY_MS = 250;
 const PULSE_MS = 220;
 const BURST = { intensity: 1, durationMs: 600 } as const;
+/** The steady buzz while a dropped boomerang is pulled home. */
+const PULL = 0.45;
 
 /**
  * When each phone vibrates (the plaza's border): while a player is outside, a pulse every quarter second whose strength
  * rises with the time out there (from 0.2 at once to 1 at the limit); when they explode, the strongest, longest one, once.
- * Stepping back in stops it at once. CPUs have no phone. Pure apart from its own memory; time is injected.
+ * Stepping back in stops it at once. While a player pulls a dropped boomerang home it buzzes steadily, a pulse every quarter
+ * second (the border's warning wins if both). CPUs have no phone. Pure apart from its own memory; time is injected.
  */
 export class RumblePlanner {
   readonly #lastSent = new Map<string, number>();
@@ -41,7 +46,14 @@ export class RumblePlanner {
       }
       if (p.outsideFor <= 0) {
         this.#wasOutside.set(p.id, false);
-        this.#lastSent.delete(p.id);
+        if (p.recalling !== true) {
+          this.#lastSent.delete(p.id);
+          continue;
+        }
+        const last = this.#lastSent.get(p.id);
+        if (last !== undefined && nowMs - last < EVERY_MS) continue;
+        this.#lastSent.set(p.id, nowMs);
+        out.push({ playerId: p.id, intensity: PULL, durationMs: PULSE_MS });
         continue;
       }
       this.#wasOutside.set(p.id, true);

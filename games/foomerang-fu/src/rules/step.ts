@@ -169,7 +169,8 @@ export type FuEvent =
       readonly direction: Vec2;
     }
   /** The failsafe: a boomerang that could not get home round the walls in time ended up back in its owner's hand. */
-  | { readonly type: 'RECALLED'; readonly playerId: string }
+  /** A boomerang that could not get home dropped to the ground at `position` (its thrower picks it up or pulls it home). */
+  | { readonly type: 'DROPPED'; readonly ownerId: string; readonly position: Vec2 }
   | {
       readonly type: 'HIT';
       /** The attacker whose weapon it was ('HAZARD' for the floor). Not necessarily who is CREDITED: see `creditedTo`. */
@@ -446,8 +447,8 @@ interface Flight {
   /** Where it can hit someone this step, or undefined if it is not lethal this step. */
   readonly lethalAt: Vec2 | undefined;
   readonly caught: boolean;
-  /** Returned to the owner's hand by the wall-following failsafe rather than caught. */
-  readonly recalled?: boolean;
+  /** It could not get home (its trip round the walls failed, or its thrower died): it dropped to the ground this step. */
+  readonly dropped?: boolean;
   /** THROWN/DEFLECTED and it met a wall or the arena edge this step (bounced off it, or stopped by it). */
   readonly wallImpact?: boolean;
   /** Where it first met a wall this step (a blast goes off there). */
@@ -467,6 +468,66 @@ interface Contact {
 }
 
 const CANCELLED: ThrowCharge = Object.freeze({ phase: 'CANCELLED' });
+
+/** What a boomerang becomes in its thrower's hand: everything about the trip cleared. */
+const IN_HAND = Object.freeze({
+  direction: ZERO,
+  travelled: 0,
+  follow: 0 as const,
+  wallSeconds: 0,
+  deflections: 0,
+  deflectedBy: undefined,
+  absorbed: Object.freeze([]) as readonly string[],
+  power: 0,
+  homing: 0,
+  ricochets: 0,
+  velocity: ZERO,
+  recall: 0,
+});
+
+/**
+ * A dropped boomerang sliding over `dt` under kinetic friction (constant deceleration `mu`), integrated exactly: it moves
+ * v·dt − μ·dt²/2 and slows to v − μ·dt, or, if it stops within the step, moves v²/2μ and stops. Walls and the arena's edge stop
+ * the part of its velocity going into them; it slides on along them.
+ */
+function slide(
+  from: Vec2,
+  velocity: Vec2,
+  mu: number,
+  dt: number,
+  config: FuConfig,
+  walls: readonly Solid[],
+): { readonly position: Vec2; readonly velocity: Vec2 } {
+  const v = Math.hypot(velocity.x, velocity.y);
+  if (v === 0) return { position: from, velocity: ZERO };
+  const dir = { x: velocity.x / v, y: velocity.y / v };
+  const stops = v <= mu * dt;
+  const distance = stops ? (v * v) / (2 * mu) : v * dt - (mu * dt * dt) / 2;
+  const after = stops ? 0 : v - mu * dt;
+  const free = { x: from.x + dir.x * distance, y: from.y + dir.y * distance };
+  const swept = sweepCircle(from, free, config.boomerangRadius, walls);
+  const edge = edgeCrossing(from, dir, distance, config);
+  const wallAt = swept.blocked
+    ? Math.hypot(swept.position.x - from.x, swept.position.y - from.y) / distance
+    : Number.POSITIVE_INFINITY;
+  if (wallAt === Number.POSITIVE_INFINITY && edge === undefined)
+    return { position: free, velocity: stops ? ZERO : { x: dir.x * after, y: dir.y * after } };
+  // it meets something: it stops there, keeping only the velocity along the surface
+  const f = edge !== undefined && edge.at < wallAt ? edge.at : wallAt;
+  const at =
+    f === wallAt
+      ? swept.position
+      : { x: from.x + dir.x * distance * f, y: from.y + dir.y * distance * f };
+  const n =
+    f === wallAt
+      ? (nearestWallNormal(at, walls) ?? { x: -dir.x, y: -dir.y })
+      : (edge as { normal: Vec2 }).normal;
+  const vx = dir.x * after;
+  const vy = dir.y * after;
+  const into = vx * n.x + vy * n.y;
+  const kept = into < 0 ? { x: vx - into * n.x, y: vy - into * n.y } : { x: vx, y: vy };
+  return { position: at, velocity: Math.hypot(kept.x, kept.y) < 1e-9 ? ZERO : kept };
+}
 
 /** Where a boomerang moving from `from` along `dir` for `length` first leaves the arena's inner box (its centre's bounds), as a
  * fraction of `length`, with that edge's inward normal; undefined if it stays inside. */
@@ -939,6 +1000,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           power: 0,
           homing: 0,
           ricochets: 0,
+          velocity: ZERO,
+          recall: 0,
         } satisfies Boomerang),
       );
     }
@@ -1122,30 +1185,110 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       };
     }
 
-    // RETURNING: home in on the owner's CURRENT position.
     const owner = positionOf(b.ownerId);
+    const ownerIndex = ownerIdx[k] as number;
+    const ownerAlive = (state.players[ownerIndex] as FuPlayer).alive;
+    // holding THROW now: what pulls a dropped boomerang home
+    const pulling = ownerAlive && entries[ownerIndex]?.throwHeld === true;
+    const caughtNow = (position: Vec2): Flight => ({
+      boomerang: transition(b, 'HELD', { ...IN_HAND, position: owner }),
+      lethalAt: b.state === 'RECALLING' ? position : undefined,
+      caught: true,
+    });
+
+    if (b.state === 'GROUNDED') {
+      // its thrower walks over it: picked up
+      if (ownerAlive && Math.hypot(owner.x - b.position.x, owner.y - b.position.y) <= reach)
+        return caughtNow(b.position);
+      const recall = pulling ? b.recall + dt : 0;
+      if (recall >= config.recallDelaySeconds - EPSILON)
+        // held long enough: it lifts, and is pulled from the next step
+        return {
+          boomerang: transition(b, 'RECALLING', { recall: 0, follow: 0 }),
+          lethalAt: undefined,
+          caught: false,
+        };
+      const slid = slide(b.position, b.velocity, config.groundFriction, dt, config, walls);
+      const moved = Object.freeze({
+        ...b,
+        position: slid.position,
+        velocity: slid.velocity,
+        recall,
+      });
+      // (picked up as it slides into her)
+      if (ownerAlive && Math.hypot(owner.x - slid.position.x, owner.y - slid.position.y) <= reach)
+        return caughtNow(slid.position);
+      return { boomerang: moved, lethalAt: undefined, caught: false };
+    }
+
+    if (b.state === 'RECALLING') {
+      if (!pulling)
+        // let go: it drops, keeping the velocity it had, and slides to a stop from the next step
+        return {
+          boomerang: transition(b, 'GROUNDED', { recall: 0, follow: 0 }),
+          lethalAt: undefined,
+          caught: false,
+        };
+      // constant acceleration up to the cap; the distance this step is exact (the mean of the two speeds × dt)
+      const v0 = Math.hypot(b.velocity.x, b.velocity.y);
+      const v1 = Math.min(config.recallSpeed, v0 + config.recallAcceleration * dt);
+      const along = ((v0 + v1) / 2) * dt;
+      const pulled = homeStep(
+        b.position,
+        owner,
+        along,
+        config.boomerangRadius,
+        walls,
+        config.arena,
+        b.follow,
+      );
+      const d = { x: pulled.position.x - b.position.x, y: pulled.position.y - b.position.y };
+      const len = Math.hypot(d.x, d.y);
+      const toOwner = normalized({ x: owner.x - b.position.x, y: owner.y - b.position.y });
+      const heading = len > 1e-9 ? { x: d.x / len, y: d.y / len } : toOwner;
+      if (Math.hypot(owner.x - pulled.position.x, owner.y - pulled.position.y) <= reach)
+        return caughtNow(pulled.position);
+      return {
+        boomerang: Object.freeze({
+          ...b,
+          position: pulled.position,
+          velocity: { x: heading.x * v1, y: heading.y * v1 },
+          direction: heading,
+          follow: pulled.follow,
+        }),
+        lethalAt: pulled.position, // airborne and moving: as lethal as any flying boomerang
+        caught: false,
+      };
+    }
+
+    // a boomerang whose thrower is dead has no hand to return to: it drops, keeping its flight speed, and slides to a stop
+    if (!ownerAlive)
+      return {
+        boomerang: transition(b, 'GROUNDED', {
+          velocity: {
+            x: b.direction.x * config.returnSpeed,
+            y: b.direction.y * config.returnSpeed,
+          },
+          recall: 0,
+          follow: 0,
+          wallSeconds: 0,
+          deflectedBy: undefined,
+        }),
+        lethalAt: undefined,
+        caught: false,
+        dropped: true,
+      };
+
+    // RETURNING: home in on the owner's CURRENT position.
     const travel = config.returnSpeed * dt;
-    const home = (position: Vec2, arrived: boolean, extra: Partial<typeof b>, recalled = false) =>
+    const home = (position: Vec2, arrived: boolean, extra: Partial<typeof b>) =>
       ({
         // It can still hurt on the step it arrives, so lethality is judged at `position` before it is caught.
         boomerang: arrived
-          ? transition(b, 'HELD', {
-              position: owner,
-              direction: ZERO,
-              travelled: 0,
-              follow: 0,
-              wallSeconds: 0,
-              deflections: 0,
-              deflectedBy: undefined,
-              absorbed: EMPTY,
-              power: 0,
-              homing: 0,
-              ricochets: 0,
-            })
+          ? transition(b, 'HELD', { ...IN_HAND, position: owner })
           : Object.freeze({ ...b, position, homing: b.homing + dt, ...extra }),
         lethalAt: position,
         caught: arrived,
-        recalled,
       }) satisfies Flight;
 
     // The swing (owner, 2026-10-19; the reference video): it keeps its heading and turns towards its thrower no faster than
@@ -1209,29 +1352,42 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     );
     const wallSeconds = b.wallSeconds + (homed.followed ? dt : 0);
     const arrived = Math.hypot(owner.x - homed.position.x, owner.y - homed.position.y) <= reach;
-    // The failsafe: sliding along walls for too long without getting home ends the trip, deterministically.
-    const recalled = !arrived && wallSeconds >= config.returnWallSeconds - EPSILON;
     const moved = { x: homed.position.x - b.position.x, y: homed.position.y - b.position.y };
-    return home(
-      homed.position,
-      arrived || recalled,
-      {
-        follow: homed.follow,
-        wallSeconds,
-        direction: Math.hypot(moved.x, moved.y) > 1e-9 ? normalized(moved) : b.direction,
-      },
-      recalled,
-    );
+    const heading = Math.hypot(moved.x, moved.y) > 1e-9 ? normalized(moved) : b.direction;
+    // Sliding along walls too long without getting home: the trip has failed and it drops where it is, keeping its speed (its
+    // thrower walks to it or pulls it home), deterministically.
+    if (!arrived && wallSeconds >= config.returnWallSeconds - EPSILON)
+      return {
+        boomerang: transition(b, 'GROUNDED', {
+          position: homed.position,
+          direction: heading,
+          velocity: { x: heading.x * config.returnSpeed, y: heading.y * config.returnSpeed },
+          recall: 0,
+          follow: 0,
+          wallSeconds: 0,
+        }),
+        lethalAt: homed.position,
+        caught: false,
+        dropped: true,
+      };
+    return home(homed.position, arrived, {
+      follow: homed.follow,
+      wallSeconds,
+      direction: heading,
+    });
   });
   const flownFrom = weapons; // where each boomerang was before it flew this step
   weapons = flights.map((f) => f.boomerang);
   flights.forEach((f, k) => {
+    if (f.dropped === true)
+      events.push({
+        type: 'DROPPED',
+        ownerId: f.boomerang.ownerId,
+        position: f.boomerang.position,
+      });
     if (!f.caught) return;
     const owner = ownerIdx[k] as number;
-    events.push({
-      type: f.recalled === true ? 'RECALLED' : 'CAUGHT',
-      playerId: (players[owner] as FuPlayer).id,
-    });
+    events.push({ type: 'CAUGHT', playerId: (players[owner] as FuPlayer).id });
     // home again: whatever armed this throw is spent; the NEXT throw is armed afresh while BLAST is owned
     weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
   });
@@ -1254,7 +1410,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   if (breakables.length > 0)
     flights.forEach((f, k) => {
       const before = flownFrom[k] as Boomerang;
-      if (before.state === 'HELD') return;
+      if (before.state === 'HELD' || before.state === 'GROUNDED') return; // (sliding on the ground breaks nothing)
       const to = f.lethalAt ?? f.boomerang.position;
       const byId =
         before.state === 'DEFLECTED' && before.deflectedBy !== undefined
@@ -1278,7 +1434,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // detonate that step, and each boomerang of a pair is judged on its own.)
   const lethalAt: (Vec2 | undefined)[] = flights.map((f) => f.lethalAt);
   weapons.forEach((b, k) => {
-    if (b.state === 'HELD' || b.deflections >= config.maxDeflections) return;
+    // (a boomerang lying on the ground cannot be knocked away; one being pulled home is flying, and can)
+    if (b.state === 'HELD' || b.state === 'GROUNDED' || b.deflections >= config.maxDeflections)
+      return;
     let best: number | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
     players.forEach((defender, j) => {

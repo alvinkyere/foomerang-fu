@@ -852,7 +852,8 @@ describe('determinism and hostile input', () => {
       s = stepFu(s, frame, DT).state;
       expect(s.boomerangs).toHaveLength(4);
       for (const m of s.boomerangs) {
-        expect(['HELD', 'THROWN', 'RETURNING']).toContain(m.state);
+        // (a boomerang whose thrower dies drops: GROUNDED; pulled home it is RECALLING)
+        expect(['HELD', 'THROWN', 'RETURNING', 'GROUNDED', 'RECALLING']).toContain(m.state);
         expect(m.position.x).toBeGreaterThanOrEqual(0);
         expect(m.position.x).toBeLessThanOrEqual(C.arena.width);
         expect(Number.isFinite(m.position.y)).toBe(true);

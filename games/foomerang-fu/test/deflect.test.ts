@@ -893,11 +893,12 @@ describe('determinism and long-run invariants', () => {
             );
             expect(g, `step ${i}`).toBeGreaterThanOrEqual(RB - EPS);
           }
-          away.set(b.ownerId, (away.get(b.ownerId) ?? 0) + 1);
+          // (lying on the ground it may wait as long as it likes for its thrower: only a FLYING boomerang's time is bounded)
+          away.set(b.ownerId, b.state === 'GROUNDED' ? 0 : (away.get(b.ownerId) ?? 0) + 1);
         } else {
           away.set(b.ownerId, 0);
         }
-        // bounded lifetime: up to 4 legs of 0.4–0.6 s plus a return (3 s of wall-following at worst)
+        // bounded flight: up to 4 legs of 0.4–0.6 s plus a return (3 s of wall-following at worst, then it drops)
         expect(away.get(b.ownerId) ?? 0).toBeLessThan(20 / DT);
       }
       if (s.phase === 'ROUND_OVER')

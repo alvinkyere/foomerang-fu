@@ -388,26 +388,38 @@ describe('when local steering cannot make progress', () => {
     { x: 860, y: 340, width: 40, height: 120 },
   ]);
 
-  it('it wall-follows for the configured time, never entering any wall, and is then recalled — a stated failsafe, not a teleport through geometry', () => {
-    const f = fly(returning(sealed, [800, 400], [400, 400]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    const types = f.events.map((e) => e.type);
-    expect(types).toContain('RECALLED');
+  it('it wall-follows for the configured time, never entering any wall, and then drops — its trip has failed (owner, 2026-10-19)', () => {
+    // (it used to be put back in the owner's hand; now it lands, and its thrower walks to it or holds THROW to pull it home)
+    let s = returning(sealed, [800, 400], [400, 400]);
+    let droppedAt: number | undefined;
+    const events: FuEvent[] = [];
+    for (let i = 1; i <= 400 && droppedAt === undefined; i += 1) {
+      const r = stepFu(s, NONE, DT);
+      s = r.state;
+      events.push(...r.events);
+      expect(inWall(boom(s).position, sealed.walls ?? []), `step ${i}`).toBe(false);
+      if (boom(s).state === 'GROUNDED') droppedAt = i;
+    }
+    expect(droppedAt).toBeDefined();
+    const types = events.map((e) => e.type);
+    expect(types).toContain('DROPPED');
     expect(types).not.toContain('CAUGHT');
     // it took (about) the configured time of wall-following, no sooner
-    expect((f.caughtAfter ?? 0) * DT).toBeGreaterThanOrEqual(C.returnWallSeconds - DT);
-    expect((f.caughtAfter ?? 0) * DT).toBeLessThanOrEqual(C.returnWallSeconds + 2 * DT + 0.5);
-    // and nothing in its path ever went through the box
-    expect(f.path.every((p) => !inWall(p, sealed.walls ?? []))).toBe(true);
-    expect(boom(f.state).state).toBe('HELD'); // the owner has their weapon back
+    expect((droppedAt ?? 0) * DT).toBeGreaterThanOrEqual(C.returnWallSeconds - DT);
+    expect((droppedAt ?? 0) * DT).toBeLessThanOrEqual(C.returnWallSeconds + 2 * DT + 0.5);
   });
 
-  it('the failsafe is deterministic: the same situation gives the same recall on the same step', () => {
-    const one = fly(returning(sealed, [800, 400], [400, 400]), 400);
-    const two = fly(returning(sealed, [800, 400], [400, 400]), 400);
-    expect(two.caughtAfter).toBe(one.caughtAfter);
-    expect(two.path).toEqual(one.path);
+  it('the failsafe is deterministic: the same situation drops it on the same step, in the same place', () => {
+    const run = () => {
+      let s = returning(sealed, [800, 400], [400, 400]);
+      for (let i = 1; i <= 400; i += 1) {
+        s = stepFu(s, NONE, DT).state;
+        if (boom(s).state === 'GROUNDED') return { i, at: boom(s).position };
+      }
+      return undefined;
+    };
+    expect(run()).toEqual(run());
+    expect(run()).toBeDefined();
   });
 
   it('the failsafe clock only runs while the boomerang is actually wall-following', () => {

@@ -58,7 +58,8 @@ export interface BoomerangView {
   readonly y: number;
   readonly radius: number;
   readonly color: string;
-  readonly state: 'THROWN' | 'RETURNING' | 'DEFLECTED';
+  /** GROUNDED: lying (or sliding) on the ground; RECALLING: being pulled home by its thrower holding THROW. */
+  readonly state: 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING';
   /** How charged its throw was, 0 (a tap) to 1 (a full charge: the pink trail). */
   readonly power: number;
   /** The round is over: this projectile is no longer live and should not be drawn as if it were. */
@@ -85,6 +86,7 @@ export interface ViewEvent {
     | 'PHASE_EXITED'
     | 'PROP_BROKEN'
     | 'RICOCHET'
+    | 'DROPPED'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;
@@ -103,7 +105,7 @@ export interface ViewEvent {
   readonly who?: string;
   /** For POWER_LOST: why. */
   readonly reason?: 'EVICTED' | 'SHIELD_BROKEN';
-  /** For RICOCHET: whose boomerang bounced (its spark is their character's colour). */
+  /** For RICOCHET and DROPPED: whose boomerang it is (drawn in their character's colour). */
   readonly ownerId?: string;
   /** For PROP_BROKEN: which prop (its id in the arena data, which is its model's name). */
   readonly propId?: string;

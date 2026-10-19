@@ -635,6 +635,24 @@ Found on the way: a body pushed out of a wall corner that stands closer to the a
 just past the edge (pushing out and clamping by turns ping-ponged, and the last push won). Separation now keeps it on the edge
 and slides it along the edge until clear of the wall (`collision.ts`, `onTheEdge`).
 
+## A dropped boomerang: walk to it, or hold THROW to pull it home (owner, 2026-10-19)
+
+A boomerang that cannot get home **drops**: when its trip round the walls fails (it has wall-followed for `returnWallSeconds`;
+it used to be put back in its owner's hand, a teleport) and when its thrower dies on its way home. It becomes GROUNDED, keeping
+the velocity it had, and **slides under kinetic friction**: constant deceleration μ = `groundFriction` (2,500 u/s², a proposal),
+integrated exactly — over a step it moves v·dt − μ·dt²/2 and slows to v − μ·dt, or, if it stops within the step, moves v²/2μ —
+so it stops after v₀/μ seconds having slid v₀²/2μ. A wall or the arena's edge stops the part of its velocity going into it; it
+slides on along it. Lying (or sliding) on the ground it is harmless, cannot be deflected and breaks nothing. Its **thrower picks
+it up** by touching it (nobody else can). Holding **THROW** while it lies there counts up; after `recallDelaySeconds` (0.25 s, a
+proposal — a tap never pulls) it lifts (RECALLING) and is **pulled home**: it accelerates towards its thrower at
+`recallAcceleration` (2,000 u/s²) up to `recallSpeed` (1,000 u/s), the distance each step exact (the mean of the two speeds × dt),
+steered round walls by the wall-following homing; it is caught when it reaches them. Pulled, it is airborne: as lethal as any
+flying boomerang, and a slash can deflect it. **Let go** mid-pull and it drops again, keeping its speed, and slides to a stop. With
+a boomerang away, holding THROW pulls it rather than charging; caught while THROW is still held, the same press goes on to charge
+the next throw. Each drop is a `DROPPED` event. While it is pulled the TV shakes it and the thrower's phone buzzes steadily (a
+pulse every quarter second; the border's warning wins if both). On the TV a dropped boomerang falls from its flight height under
+gravity (about 0.3 s), lands flat and lies still. CPUs hold THROW to pull theirs home.
+
 ## The plaza's physics (market plaza; owner, 2026-10-19)
 
 **Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`
