@@ -93,7 +93,7 @@ export interface FuConfig {
 export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   arena: Object.freeze({ width: 1600, height: 900 }),
   playerRadius: 36,
-  playerSpeed: 420,
+  playerSpeed: 360, // the reference video, measured (art/physics_reference); was 420 (Slice 1 baseline)
   boomerangRadius: 14,
   throwSpeed: 900,
   throwRange: 520,
