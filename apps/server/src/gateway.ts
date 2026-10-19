@@ -221,6 +221,16 @@ export class Gateway {
         consoles.exit(session, message.payload.gameSessionId);
         return;
 
+      case 'PLAYER_RUMBLE':
+        if (session.identity?.kind !== 'HOST') return this.#unauthorized(session);
+        application.rumble(session, message.payload);
+        return;
+
+      case 'CONTROLLER_RUMBLE':
+        if (session.identity?.kind !== 'CONSOLE_HOST') return this.#unauthorized(session);
+        consoles.rumble(session, message.payload);
+        return;
+
       case 'MATCH_START':
         if (session.identity?.kind === 'HOST') return application.startMatch(session);
         if (session.identity?.kind === 'CONSOLE_HOST') {

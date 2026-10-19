@@ -266,6 +266,12 @@ export class HostSession {
     });
   }
 
+  /** Make ONE player's phone vibrate (the game's feedback). Sent only while the room is active; dropped otherwise. */
+  rumble(playerId: string, intensity: number, durationMs: number): void {
+    if (this.#disposed || this.#state.phase !== 'ACTIVE') return;
+    this.#send({ type: 'PLAYER_RUMBLE', payload: { playerId, intensity, durationMs } });
+  }
+
   startMatch(): void {
     if (this.#disposed || this.#state.phase !== 'ACTIVE') return;
     this.#set({ ...this.#state, notice: undefined });

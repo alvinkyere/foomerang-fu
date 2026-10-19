@@ -66,5 +66,13 @@ test('the plaza border: a player walks out past the dashed line, stays, and expl
   const lived = (Date.now() - out) / 1000;
   expect(lived).toBeGreaterThan(4.3);
   expect(lived).toBeLessThan(6.5);
+  // her phone felt it: pulses that grew stronger while she was out there, then the explosion's strongest one
+  const felt = alice.rumbles();
+  expect(felt.length, 'rumbles received').toBeGreaterThanOrEqual(8);
+  const pulses = felt.slice(0, -1);
+  expect(pulses[0]?.intensity ?? 1).toBeLessThan(0.4);
+  expect(pulses.at(-1)?.intensity ?? 0).toBeGreaterThan(0.7);
+  expect(felt.at(-1)).toEqual({ intensity: 1, durationMs: 600 });
+  expect(bob.rumbles(), 'Bob stayed inside: his phone felt nothing').toEqual([]);
   expect(host.errors).toEqual([]);
 });

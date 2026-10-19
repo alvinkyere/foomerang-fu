@@ -9,6 +9,7 @@ import {
   controllerReconnectMessageSchema,
   controllerRemoveMessageSchema,
   gameExitMessageSchema,
+  controllerRumbleMessageSchema,
   gameLaunchMessageSchema,
   gameParticipantsMessageSchema,
   type ConsoleClientMessage,
@@ -29,6 +30,8 @@ import {
   roomCreateMessageSchema,
   roomCreatedMessageSchema,
   roomUpdatedMessageSchema,
+  playerRumbleMessageSchema,
+  roomRumbleMessageSchema,
 } from './host';
 import {
   playerReconnectMessageSchema,
@@ -56,6 +59,7 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   hostReconnectMessageSchema,
   matchStartMessageSchema,
   matchEndMessageSchema,
+  playerRumbleMessageSchema,
   controllerContextSetMessageSchema,
   roomJoinMessageSchema,
   playerReconnectMessageSchema,
@@ -64,6 +68,7 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   gameLaunchMessageSchema,
   gameParticipantsMessageSchema,
   gameExitMessageSchema,
+  controllerRumbleMessageSchema,
   consoleOpenMessageSchema,
   consoleCloseMessageSchema,
   controllerRemoveMessageSchema,
@@ -86,6 +91,7 @@ const serverMessageSchema = z.discriminatedUnion('type', [
   playerInputMessageSchema,
   controllerManifestMessageSchema,
   controllerContextMessageSchema,
+  roomRumbleMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 

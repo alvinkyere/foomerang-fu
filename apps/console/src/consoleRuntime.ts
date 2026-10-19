@@ -213,6 +213,10 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     },
     frame: (nowMs) => {
       director.frame(nowMs);
+      // the phones feel the border (time outside it): the game runtime plans each rumble
+      if (!director.paused)
+        for (const r of director.runtime.rumbles?.(nowMs) ?? [])
+          session.rumble(r.playerId, r.intensity, r.durationMs);
       syncContext(); // the match may have just ended: RESULTS
     },
     startMatch: () => {

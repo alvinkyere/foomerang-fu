@@ -541,3 +541,29 @@ describe('robustness', () => {
     expect(calls).toBe(0);
   });
 });
+
+describe('rumble: the TV makes this phone vibrate', () => {
+  it('a RUMBLE reaches every rumble listener with its strength and duration; nothing else does', async () => {
+    const r = await ready();
+    const felt: { intensity: number; durationMs: number }[] = [];
+    const stop = r.session.onRumble((rumble) => felt.push(rumble));
+    r.net.last.deliver({ type: 'RUMBLE', payload: { intensity: 0.75, durationMs: 300 } });
+    r.net.last.deliver({ type: 'RUMBLE', payload: { intensity: 7, durationMs: 300 } }); // hostile: refused at the boundary
+    await settle();
+    expect(felt).toEqual([{ intensity: 0.75, durationMs: 300 }]);
+    stop();
+    r.net.last.deliver({ type: 'RUMBLE', payload: { intensity: 0.5, durationMs: 100 } });
+    await settle();
+    expect(felt).toHaveLength(1);
+  });
+
+  it('a listener that throws never breaks the session', async () => {
+    const r = await ready();
+    r.session.onRumble(() => {
+      throw new Error('no vibration here');
+    });
+    r.net.last.deliver({ type: 'RUMBLE', payload: { intensity: 0.5, durationMs: 100 } });
+    await settle();
+    expect(r.session.getState().phase).toBe('READY');
+  });
+});

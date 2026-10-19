@@ -111,3 +111,23 @@ export const playerInputMessageSchema = plainEnvelope(
   }),
 );
 export type PlayerInputMessage = z.infer<typeof playerInputMessageSchema>;
+
+/** How strongly and for how long a phone should vibrate (a fraction, and a short whole number of milliseconds). */
+const rumble = {
+  intensity: z.number().finite().min(0).max(1),
+  durationMs: z.number().int().min(20).max(1000),
+};
+
+/**
+ * Host → server: make ONE player's phone vibrate (the game's feedback, e.g. a player outside the plaza's border feels it
+ * rise). Only the room's host may send it; the server passes it on only to that player of THIS room, during a match.
+ */
+export const playerRumbleMessageSchema = plainEnvelope(
+  'PLAYER_RUMBLE',
+  z.strictObject({ playerId: wireIdSchema, ...rumble }),
+);
+export type PlayerRumbleMessage = z.infer<typeof playerRumbleMessageSchema>;
+
+/** Server → phone: vibrate now (it names nobody: a phone is told only its own rumble). */
+export const roomRumbleMessageSchema = plainEnvelope('RUMBLE', z.strictObject(rumble));
+export type RoomRumbleMessage = z.infer<typeof roomRumbleMessageSchema>;

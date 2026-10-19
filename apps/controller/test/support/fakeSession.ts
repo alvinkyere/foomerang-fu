@@ -55,6 +55,20 @@ export class FakeSession implements SessionPort {
     return () => void this.#listeners.delete(listener);
   };
 
+  readonly #rumbleListeners = new Set<
+    (rumble: { intensity: number; durationMs: number }) => void
+  >();
+  onRumble = (
+    listener: (rumble: { intensity: number; durationMs: number }) => void,
+  ): (() => void) => {
+    this.#rumbleListeners.add(listener);
+    return () => void this.#rumbleListeners.delete(listener);
+  };
+  /** The TV asks this phone to vibrate. */
+  rumble(intensity: number, durationMs: number): void {
+    for (const listener of [...this.#rumbleListeners]) listener({ intensity, durationMs });
+  }
+
   set(next: Partial<ControllerState>): void {
     this.state = { ...this.state, ...next };
     for (const listener of [...this.#listeners]) listener();

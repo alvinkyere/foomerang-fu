@@ -97,6 +97,9 @@ const CLASS_BY_TYPE: Readonly<Record<string, MessageClass>> = Object.freeze({
   // context: the action budget, not the human-request one.
   GAME_PARTICIPANTS: 'action',
   CONTROLLER_CONTEXT: 'action',
+  // the TV's feedback to a controller (a few a second while a player is outside the plaza's border)
+  CONTROLLER_RUMBLE: 'action',
+  PLAYER_RUMBLE: 'action',
   INPUT_MOVE: 'movement',
   INPUT_EVENT: 'action',
   HEARTBEAT: 'heartbeat',

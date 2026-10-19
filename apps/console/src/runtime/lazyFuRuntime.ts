@@ -4,6 +4,7 @@ import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
 import type { FuRuntime } from './fuRuntime';
 import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
+import type { PlannedRumble } from './rumblePlanner';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
@@ -134,6 +135,10 @@ export class LazyFuRuntime implements MatchRuntime {
     this.#thumbs.clear();
     this.#presses = [];
     this.#real?.neutralizeInput();
+  }
+
+  rumbles(nowMs: number): PlannedRumble[] {
+    return this.#real?.rumbles(nowMs) ?? [];
   }
 
   matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {

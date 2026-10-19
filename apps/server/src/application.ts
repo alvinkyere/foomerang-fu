@@ -229,6 +229,26 @@ export class Application {
     this.#applyContext(identity.roomId, context, secondaryAction);
   }
 
+  /**
+   * The host asks for ONE player's phone to vibrate. Passed on only during a match, and only to a player of the host's own
+   * room (anything else is dropped silently: it is feedback, not a command). The phone is told only its own rumble.
+   */
+  rumble(
+    session: Session,
+    payload: { playerId: string; intensity: number; durationMs: number },
+  ): void {
+    const identity = session.identity;
+    if (identity?.kind !== 'HOST') return;
+    if (this.#deps.registry.getRoom(identity.roomId)?.state !== 'PLAYING') return;
+    const phone = this.#deps.bindings
+      .playerSessions(identity.roomId)
+      .find((s) => s.identity?.kind === 'PLAYER' && s.identity.playerId === payload.playerId);
+    phone?.send({
+      type: 'RUMBLE',
+      payload: { intensity: payload.intensity, durationMs: payload.durationMs },
+    });
+  }
+
   routeMove(session: Session, message: InputMoveMessage): void {
     const identity = session.identity;
     if (identity?.kind !== 'PLAYER') return;

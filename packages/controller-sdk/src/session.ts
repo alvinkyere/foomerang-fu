@@ -48,6 +48,12 @@ export interface ControllerState {
   readonly failure: SessionFailure | undefined;
 }
 
+/** A vibration the TV asks of this phone: how strong (0..1) and for how long. */
+export interface Rumble {
+  readonly intensity: number;
+  readonly durationMs: number;
+}
+
 /** Engineering numbers, kept apart from the consumer state. */
 export interface ControllerDiagnostics {
   readonly rttMs: number | undefined;
@@ -128,6 +134,7 @@ export class ControllerSession {
   readonly #backoffMs: readonly number[];
   readonly #sampler: MovementSampler;
   readonly #listeners = new Set<() => void>();
+  readonly #rumbleListeners = new Set<(rumble: Rumble) => void>();
 
   #state: ControllerState = IDLE_STATE;
   #credentials: Credentials | undefined;
@@ -189,6 +196,15 @@ export class ControllerSession {
     this.#listeners.add(listener);
     return () => {
       this.#listeners.delete(listener);
+    };
+  }
+
+  /** Called on every vibration the TV asks of this phone. Returns an unsubscribe function. */
+  onRumble(listener: (rumble: Rumble) => void): () => void {
+    if (this.#disposed) return () => undefined;
+    this.#rumbleListeners.add(listener);
+    return () => {
+      this.#rumbleListeners.delete(listener);
     };
   }
 
@@ -544,6 +560,19 @@ export class ControllerSession {
 
       case 'ERROR':
         this.#serverError(message.payload.code);
+        return;
+
+      case 'RUMBLE':
+        for (const listener of this.#rumbleListeners) {
+          try {
+            listener({
+              intensity: message.payload.intensity,
+              durationMs: message.payload.durationMs,
+            });
+          } catch {
+            // vibration is an enhancement: a failing listener never breaks the session
+          }
+        }
         return;
 
       default:

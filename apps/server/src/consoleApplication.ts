@@ -249,6 +249,46 @@ export class ConsoleApplication {
     this.#changed(result.value);
   }
 
+  /**
+   * The TV asks for ONE controller to vibrate. Passed on only to a participant of THIS console's running match (a request
+   * for an ended launch, the lobby, a waiting controller or another console's phone is dropped silently: it is feedback, not
+   * a command). The phone is told only its own rumble.
+   */
+  rumble(
+    session: Session,
+    payload: {
+      gameSessionId: WireGameSessionId;
+      controllerId: string;
+      intensity: number;
+      durationMs: number;
+    },
+  ): void {
+    const consoleId = this.#hostConsole(session);
+    if (consoleId === undefined) return;
+    const console = this.#deps.registry.get(consoleId);
+    const game = console?.activeGame;
+    if (
+      console === undefined ||
+      game === undefined ||
+      game === null ||
+      game.gameSessionId !== toGameSessionId(payload.gameSessionId)
+    ) {
+      this.#deps.diagnostics.increment('staleGameDiscarded');
+      return;
+    }
+    if (game.state !== 'PLAYING') return;
+    const id = toControllerId(payload.controllerId);
+    if (participationOf(console, id) !== 'PARTICIPANT') return;
+    this.#deps.bindings.controllerSession(consoleId, id)?.send({
+      type: 'RUMBLE',
+      payload: {
+        gameSessionId: payload.gameSessionId,
+        intensity: payload.intensity,
+        durationMs: payload.durationMs,
+      },
+    });
+  }
+
   // --- phones -------------------------------------------------------------------------------
 
   join(session: Session, joinCode: string, displayName: string): void {

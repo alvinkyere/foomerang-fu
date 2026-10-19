@@ -2,6 +2,7 @@ import type { ControllerState } from '@foomerang/controller-sdk';
 import { ActionButton } from '../components/ActionButton';
 import { ConnectionBadge } from '../components/ConnectionBadge';
 import { ControlRenderer } from '../components/ControlRenderer';
+import { RumblePulse } from '../components/RumblePulse';
 import { useInterruptionGuard } from '../hooks/useInterruptionGuard';
 import { CONTEXT_BADGE, PAUSE_LABEL } from '../labels';
 import { orientationHint, useViewportOrientation } from '../orientation';
@@ -31,6 +32,7 @@ export function PlayScreen({
       data-reconnecting={state.phase === 'RECONNECTING'}
       data-context={context}
     >
+      <RumblePulse session={session} />
       <header className="play-header">
         <span className="player-name">{state.displayName}</span>
         {badge !== undefined && <span className="context-badge">{badge}</span>}

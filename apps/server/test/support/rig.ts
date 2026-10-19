@@ -55,6 +55,14 @@ export const msg = {
   gameExit: (gameSessionId: string) => ({ type: 'GAME_EXIT', payload: { gameSessionId } }),
   gameMatchStart: (gameSessionId: string) => ({ type: 'MATCH_START', payload: { gameSessionId } }),
   gameMatchEnd: (gameSessionId: string) => ({ type: 'MATCH_END', payload: { gameSessionId } }),
+  playerRumble: (playerId: string, intensity = 0.5, durationMs = 120) => ({
+    type: 'PLAYER_RUMBLE',
+    payload: { playerId, intensity, durationMs },
+  }),
+  rumble: (gameSessionId: string, controllerId: string, intensity = 0.5, durationMs = 120) => ({
+    type: 'CONTROLLER_RUMBLE',
+    payload: { gameSessionId, controllerId, intensity, durationMs },
+  }),
   /** The TV's context in the console flow: names the launch it belongs to. */
   tvContext: (
     seq: number,

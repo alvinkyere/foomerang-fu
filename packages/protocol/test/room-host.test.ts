@@ -35,6 +35,10 @@ const clientMessages = {
     type: 'PLAYER_RECONNECT',
     payload: { joinCode: 'K7M4PX', reconnectToken: TOKEN },
   },
+  PLAYER_RUMBLE: {
+    type: 'PLAYER_RUMBLE',
+    payload: { playerId: 'p-1', intensity: 0.4, durationMs: 150 },
+  },
 } as const;
 
 const serverMessages = {
@@ -50,6 +54,7 @@ const serverMessages = {
     payload: { playerId: 'p-1', reconnectToken: TOKEN },
   },
   ROOM_UPDATED: { type: 'ROOM_UPDATED', payload: roster },
+  RUMBLE: { type: 'RUMBLE', payload: { intensity: 1, durationMs: 600 } },
   PLAYER_INPUT_MOVE: {
     type: 'PLAYER_INPUT',
     payload: { playerId: 'p-1', input: { kind: 'MOVE', seq: 3, x: 0.5, y: -0.5 } },
@@ -267,5 +272,38 @@ describe('direction is enforced both ways', () => {
 
   it.each(Object.entries(serverMessages))('a client cannot send %s', (_t, message) => {
     expect(parseClientMessage(message).ok).toBe(false);
+  });
+});
+
+describe('rumble in the room flow: the host names a player; that phone is told only its own rumble', () => {
+  it('both messages parse, each in its own direction', () => {
+    expect(parseClientMessage(clientMessages.PLAYER_RUMBLE)).toEqual({
+      ok: true,
+      message: clientMessages.PLAYER_RUMBLE,
+    });
+    expect(parseServerMessage(serverMessages.RUMBLE)).toEqual({
+      ok: true,
+      message: serverMessages.RUMBLE,
+    });
+  });
+
+  it('strength 0..1 and a short whole-millisecond duration; nothing else is accepted', () => {
+    const rumble = (payload: Record<string, unknown>) =>
+      parseClientMessage({
+        type: 'PLAYER_RUMBLE',
+        payload: { playerId: 'p-1', intensity: 0.5, durationMs: 100, ...payload },
+      }).ok;
+    expect(rumble({})).toBe(true);
+    for (const intensity of [-0.01, 1.5, Number.NaN, '0.5'])
+      expect(rumble({ intensity }), String(intensity)).toBe(false);
+    for (const durationMs of [10, 2000, 12.5])
+      expect(rumble({ durationMs }), String(durationMs)).toBe(false);
+    expect(rumble({ extra: true })).toBe(false);
+    expect(
+      parseServerMessage({
+        type: 'RUMBLE',
+        payload: { intensity: 1, durationMs: 600, playerId: 'p-2' },
+      }).ok,
+    ).toBe(false);
   });
 });

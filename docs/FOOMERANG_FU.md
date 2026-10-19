@@ -595,8 +595,11 @@ counts continuous time outside and resets the moment the player steps back in, o
 spots are always inside the safe zone. CPUs never walk out, and one that finds itself outside heads straight back in. The 3D
 plaza's camera slides sideways to keep a player who walks out in view.
 
-Still to come (approved): the controller vibrates harder the longer a player is outside (a red pulse on iPhone), and the
-character blinks light red with an arrow above its head pointing back inside.
+The warning: on the TV the character pulses light red, faster as the limit nears, and a red arrow above its head points the
+way back in. The phone feels it too: about four times a second the TV sends that player a rumble whose strength rises with the
+time outside (0.2 at once, 1 at the limit), then the strongest, longest one when they explode (`PLAYER_RUMBLE` → `RUMBLE`,
+docs/PROTOCOL.md). Android phones vibrate; an iPhone, which cannot vibrate from a web page, shows a red glow over the controls
+at the same strength instead. CPUs have no phone and get none.
 
 ## Presentation (all derived, none fed back)
 

@@ -270,6 +270,28 @@ export class Phone {
     });
   }
 
+  /** Every frame the server sent this phone (Socket.IO text frames), for tests that read what the phone was told. */
+  readonly inbound: string[] = [];
+
+  /** The RUMBLE messages this phone has received, in order. */
+  rumbles(): { intensity: number; durationMs: number }[] {
+    const out: { intensity: number; durationMs: number }[] = [];
+    for (const frame of this.inbound) {
+      if (!frame.includes('"RUMBLE"')) continue;
+      const json = frame.slice(frame.indexOf('['));
+      try {
+        const data = JSON.parse(json) as unknown[];
+        for (const item of data) {
+          const m = item as { type?: string; payload?: { intensity: number; durationMs: number } };
+          if (m?.type === 'RUMBLE' && m.payload) out.push(m.payload);
+        }
+      } catch {
+        // not a JSON event frame
+      }
+    }
+    return out;
+  }
+
   static async create(browser: Browser, stack: StackInfo): Promise<Phone> {
     const context = await browser.newContext({
       viewport: { width: 844, height: 390 },
@@ -292,7 +314,10 @@ export class Phone {
       ws.onMessage((message) => {
         if (!phone.uplinkDropped) server.send(message);
       });
-      server.onMessage((message) => ws.send(message));
+      server.onMessage((message) => {
+        if (typeof message === 'string') phone.inbound.push(message);
+        ws.send(message);
+      });
       ws.onClose(() => server.close());
       server.onClose(() => void ws.close());
     });

@@ -189,6 +189,27 @@ export const gameExitMessageSchema = plainEnvelope(
 );
 export type GameExitMessage = z.infer<typeof gameExitMessageSchema>;
 
+/** How strongly and for how long a controller should vibrate (a fraction, and a short whole number of milliseconds). */
+const rumbleSchema = {
+  intensity: z.number().finite().min(0).max(1),
+  durationMs: z.number().int().min(20).max(1000),
+};
+
+/**
+ * Ask ONE controller to vibrate (the game's feedback: e.g. a player outside the plaza's border feels it rise). Host only;
+ * game-scoped, so a request aimed at an ended launch is stale. The server passes it on only to a controller that is a
+ * participant of the running match; the phone vibrates where it can (or shows a red pulse where it cannot).
+ */
+export const controllerRumbleMessageSchema = plainEnvelope(
+  'CONTROLLER_RUMBLE',
+  z.strictObject({
+    gameSessionId: gameSessionIdSchema,
+    controllerId: controllerIdSchema,
+    ...rumbleSchema,
+  }),
+);
+export type ControllerRumbleMessage = z.infer<typeof controllerRumbleMessageSchema>;
+
 // --- phone → server --------------------------------------------------------------------------
 
 /** Join Foomerang (not a game): a controller connection with no identity only. */
@@ -296,6 +317,13 @@ export type ControllerInputMessage = z.infer<typeof controllerInputMessageSchema
 
 // --- server → phone --------------------------------------------------------------------------
 
+/** Vibrate now (passed on from the TV's CONTROLLER_RUMBLE for THIS phone; it names no other controller). */
+export const rumbleMessageSchema = plainEnvelope(
+  'RUMBLE',
+  z.strictObject({ gameSessionId: gameSessionIdSchema, ...rumbleSchema }),
+);
+export type RumbleMessage = z.infer<typeof rumbleMessageSchema>;
+
 /** Reply to CONTROLLER_JOIN. `reconnectToken` is the phone's secret, sent only to it. */
 export const controllerJoinedMessageSchema = plainEnvelope(
   'CONTROLLER_JOINED',
@@ -383,6 +411,7 @@ export const consoleClientMessageSchema = z.discriminatedUnion('type', [
   gameMatchEndMessageSchema,
   gameExitMessageSchema,
   controllerContextSetMessageSchema,
+  controllerRumbleMessageSchema,
   // phone
   controllerJoinMessageSchema,
   controllerReconnectMessageSchema,
@@ -407,5 +436,6 @@ export const consoleServerMessageSchema = z.discriminatedUnion('type', [
   controllerViewMessageSchema,
   consoleStatusMessageSchema,
   consoleEndedMessageSchema,
+  rumbleMessageSchema,
 ]);
 export type ConsoleServerMessage = z.infer<typeof consoleServerMessageSchema>;

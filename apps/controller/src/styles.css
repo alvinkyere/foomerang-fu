@@ -462,3 +462,21 @@ p {
   box-shadow: inset 0 0 0 2px currentColor;
   border-radius: 999px;
 }
+
+/* The TV's rumble where the phone cannot vibrate (iPhone): a red glow from the edges, pulsing once, never in the way. */
+.rumble-pulse {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: inset 0 0 18vmin 6vmin rgba(232, 48, 44, 0.9);
+  animation: rumble-pulse 420ms ease-out forwards;
+}
+@keyframes rumble-pulse {
+  from {
+    filter: brightness(1.3);
+  }
+  to {
+    filter: brightness(0.8);
+  }
+}

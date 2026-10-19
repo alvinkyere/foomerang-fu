@@ -64,6 +64,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `INPUT_MOVE`       | state     | `{ x, y }`, each finite in `[-1, 1]`                             | joined player |
 | `INPUT_EVENT`      | event     | `{ action: PRIMARY\|SECONDARY\|TERTIARY\|MENU, phase: pressed\|released }` (`MENU` is the phone's own pause button, a **system** action: a manifest can never name it and no game receives it; the host consumes it) (the sender's `eventId` makes it deduplicable; a manifest `button` sends exactly one pressed and one released per press) | joined player |
 | `CONTROLLER_CONTEXT` | state   | `{ context: GAMEPLAY\|CONSOLE\|PAUSED\|RESULTS, secondaryAction: null \| { label: OPTIONS\|DETAILS\|REMOVE } }` — what the phones' controls mean now (semantic, never a screen name). `seq` per host connection; a stale one is dropped. Outside `PLAYING` only `CONSOLE` is legal (`INVALID_STATE`) | the room's host |
+| `PLAYER_RUMBLE`    | plain     | `{ playerId, intensity: 0..1, durationMs: 20..1000 }` — make ONE player's phone vibrate. Dropped unless the room is `PLAYING` and the player is in it | the room's host |
 
 `clientType`: `console` \| `controller` \| `native-controller` (a native controller is authorized exactly like a controller). The "who may send it" column is enforced by the server's session layer (`UNAUTHORIZED` otherwise), not by the parser.
 
@@ -81,6 +82,7 @@ No timestamps yet: `t` fields for input-age measurement are added when the laten
 | `ROOM_UPDATED`       | plain     | `{ joinCode, state, hostConnection, players[{ playerId, displayName, connection, seat }] }` — a full roster snapshot (≤64 players) | the room's host |
 | `CONTROLLER_MANIFEST` | plain    | `{ gameId, orientation: landscape\|portrait\|any, controls[{ id, type: joystick }] }` (1–16 controls, unique `[A-Z][A-Z0-9_]*` ids) — what the controller should render, from the GAME's definition | the controller, after `ROOM_JOINED` / `PLAYER_RECONNECTED` |
 | `PLAYER_INPUT`       | plain     | `{ playerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` (`action` includes the system `MENU`) | the room's host |
+| `RUMBLE`             | plain     | `{ intensity, durationMs }` — names nobody: a phone is told only its own rumble. It vibrates, or shows a red pulse where it cannot (iPhone) | the player the host named |
 | `CONTROLLER_CONTEXT` | plain     | `{ context, secondaryAction, version }` — the room's authoritative context; `version` rises over the room's whole life, so a controller ignores anything older than what it has. The server also sets it itself: `GAMEPLAY` on match start, `CONSOLE` on return to the lobby | every controller, after its manifest (on join / reconnect) and on every change |
 
 Credentials (`hostToken`, `reconnectToken`) appear **only** in the reply to their owner. Rosters carry identities and statuses, never credentials (the schema is strict, so a smuggled field is invalid). `PLAYER_INPUT` is only sent after the server has authenticated the sender, discarded stale movement and deduplicated action events.
@@ -110,6 +112,7 @@ Defined in `src/console.ts` (ADR-004) and **additive under protocol version 1**.
 | `CONSOLE_STATUS` | srv→phone | `{ hostConnection }` | every controller |
 | `CONSOLE_ENDED` | srv→phone | `{ reason: CLOSED_BY_TV\|TV_GONE\|REMOVED }` | the controller concerned |
 | `CONTROLLER_INPUT` | srv→TV | `{ controllerId, input: MOVE{seq,x,y} \| ACTION{eventId,action,phase} }` | the console's TV |
+| `CONTROLLER_RUMBLE` / `RUMBLE` | TV→srv / srv→phone | `{ gameSessionId, controllerId, intensity: 0..1, durationMs: 20..1000 }` / `{ gameSessionId, intensity, durationMs }` — passed on only to a participant of the running match | the TV / that controller |
 
 Shared with the legacy flow, by reference: `HANDSHAKE`, `HEARTBEAT`, `HOST_RECONNECT` / `HOST_RECONNECTED`, `INPUT_MOVE`, `INPUT_EVENT`, the TV's `CONTROLLER_CONTEXT` (four contexts; the TV can never set WAITING), `CONTROLLER_MANIFEST`, `ERROR`. `ControllerId` and `GameSessionId` are distinct branded types. The base console controller (`CONSOLE_CONTROLLER`) is a constant, never sent.
 

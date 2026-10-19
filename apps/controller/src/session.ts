@@ -17,6 +17,8 @@ export interface SessionPort {
   /** The phone's own system button (MENU: pause / resume), outside the game's controls. */
   setSystemButton(action: SystemAction, pressed: boolean): void;
   neutralize(): void;
+  /** Vibrations the TV asks of this phone (the game's feedback). Returns an unsubscribe function. */
+  onRumble(listener: (rumble: { intensity: number; durationMs: number }) => void): () => void;
 }
 
 /** The session's consumer-facing state, as React state. */

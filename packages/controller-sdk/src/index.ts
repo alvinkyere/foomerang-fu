@@ -5,6 +5,7 @@ export { createControllerSession, ControllerSession } from './session';
 export type {
   ControllerContextState,
   ControllerDiagnostics,
+  Rumble,
   ControllerPhase,
   ControllerSessionOptions,
   ControllerState,

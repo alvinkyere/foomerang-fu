@@ -49,9 +49,11 @@ describe('public API surface', () => {
         'parseClientMessage',
         'parseServerMessage',
         'playerInputMessageSchema',
+        'playerRumbleMessageSchema',
         'playerReconnectMessageSchema',
         'playerReconnectedMessageSchema',
         'roomCreateMessageSchema',
+        'roomRumbleMessageSchema',
         'roomCreatedMessageSchema',
         'roomJoinMessageSchema',
         'roomJoinedMessageSchema',
@@ -81,6 +83,7 @@ describe('public API surface', () => {
         'controllerReconnectMessageSchema',
         'controllerReconnectedMessageSchema',
         'controllerRemoveMessageSchema',
+        'controllerRumbleMessageSchema',
         'controllerViewMessageSchema',
         'gameExitMessageSchema',
         'gameLaunchMessageSchema',
@@ -90,6 +93,7 @@ describe('public API surface', () => {
         'gameSessionIdSchema',
         'parseConsoleClientMessage',
         'parseConsoleServerMessage',
+        'rumbleMessageSchema',
       ].sort(),
     );
   });

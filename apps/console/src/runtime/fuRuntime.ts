@@ -1,4 +1,5 @@
 import { FIXED_TIMESTEP_SECONDS, type WorldState } from '@foomerang/game-core';
+import { RumblePlanner, type PlannedRumble } from './rumblePlanner';
 import {
   CpuController,
   FREE_FOR_ALL,
@@ -60,6 +61,16 @@ export { PLAYABLE_ARENAS } from './arenas';
 
 export class FuRuntime implements MatchRuntime {
   state: FuState | undefined;
+
+  readonly #rumbles = new RumblePlanner();
+
+  /** The phones' rumble: planned from each player's time outside the arena's border (none on an arena without one). */
+  rumbles(nowMs: number): PlannedRumble[] {
+    const state = this.state;
+    if (state === undefined || state.config.arena.safeZone === undefined) return [];
+    return this.#rumbles.plan(state.players, state.config.outsideLimitSeconds, nowMs);
+  }
+
   /** Repeated event ids the console itself discarded (the server normally catches them first). */
   duplicatesIgnored = 0;
 

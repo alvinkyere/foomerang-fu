@@ -45,6 +45,10 @@ const CLIENT = {
   MATCH_START: { type: 'MATCH_START', payload: { gameSessionId: GAME } },
   MATCH_END: { type: 'MATCH_END', payload: { gameSessionId: GAME } },
   GAME_EXIT: { type: 'GAME_EXIT', payload: { gameSessionId: GAME } },
+  CONTROLLER_RUMBLE: {
+    type: 'CONTROLLER_RUMBLE',
+    payload: { gameSessionId: GAME, controllerId: CTRL, intensity: 0.6, durationMs: 180 },
+  },
   CONTROLLER_JOIN: { type: 'CONTROLLER_JOIN', payload: { joinCode: CODE, displayName: 'Alice' } },
   CONTROLLER_RECONNECT: {
     type: 'CONTROLLER_RECONNECT',
@@ -104,6 +108,7 @@ const SERVER = {
     },
   },
   CONSOLE_STATUS: { type: 'CONSOLE_STATUS', payload: { hostConnection: 'RECONNECTING' } },
+  RUMBLE: { type: 'RUMBLE', payload: { gameSessionId: GAME, intensity: 1, durationMs: 600 } },
   CONSOLE_ENDED: { type: 'CONSOLE_ENDED', payload: { reason: 'REMOVED' } },
 } as const;
 
@@ -186,6 +191,28 @@ describe('malformed payloads, unknown keys and missing fields are INVALID_MESSAG
       expect(() => client(raw)).not.toThrow();
       expect(() => server(raw)).not.toThrow();
     }
+  });
+});
+
+describe('rumble: the TV asks for a controller to vibrate; the server passes it to that phone only', () => {
+  it('intensity is a fraction 0..1 and the duration a short whole number of milliseconds', () => {
+    for (const intensity of [0, 0.01, 0.5, 1])
+      expect(client(withPayload(CLIENT.CONTROLLER_RUMBLE, { intensity })).ok, `${intensity}`).toBe(
+        true,
+      );
+    for (const intensity of [-0.1, 1.01, Number.NaN, Number.POSITIVE_INFINITY, '1'])
+      expect(
+        client(withPayload(CLIENT.CONTROLLER_RUMBLE, { intensity })).ok,
+        `${String(intensity)}`,
+      ).toBe(false);
+    for (const durationMs of [20, 1000])
+      expect(server(withPayload(SERVER.RUMBLE, { durationMs })).ok, `${durationMs}`).toBe(true);
+    for (const durationMs of [0, 19, 1001, 50.5, -5])
+      expect(server(withPayload(SERVER.RUMBLE, { durationMs })).ok, `${durationMs}`).toBe(false);
+  });
+
+  it('the phone is never told who else rumbles: RUMBLE carries no controller id', () => {
+    expect(server(withPayload(SERVER.RUMBLE, { controllerId: CTRL })).ok).toBe(false);
   });
 });
 
@@ -555,6 +582,7 @@ describe('the unions are complete and directional', () => {
         'CONTROLLER_LEAVE',
         'CONTROLLER_RECONNECT',
         'CONTROLLER_REMOVE',
+        'CONTROLLER_RUMBLE',
         'GAME_EXIT',
         'GAME_LAUNCH',
         'GAME_PARTICIPANTS',
@@ -585,6 +613,7 @@ describe('the unions are complete and directional', () => {
         'HANDSHAKE_ACCEPTED',
         'HEARTBEAT_ACK',
         'HOST_RECONNECTED',
+        'RUMBLE',
       ].sort(),
     );
   });

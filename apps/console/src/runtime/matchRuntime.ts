@@ -1,3 +1,4 @@
+import type { PlannedRumble } from './rumblePlanner';
 import type { WorldState } from '@foomerang/game-core';
 import type { Difficulty } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
@@ -43,6 +44,8 @@ export interface MatchRuntime {
   neutralizeInput?(): void;
   /** Where the match is, for the games that have rounds and results (the host uses it to tell controllers what their buttons mean). */
   matchPhase?(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined;
+  /** The vibrations each phone should feel now (a game with a border: the time a player has spent outside it). */
+  rumbles?(nowMs: number): readonly PlannedRumble[];
   metrics(): RuntimeMetrics;
   /**
    * What to draw. One-shot presentation events (a throw, a hit) are delivered with the FIRST view
