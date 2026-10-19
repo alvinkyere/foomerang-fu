@@ -1,9 +1,10 @@
 import { FIXED_TIMESTEP_SECONDS as DT, MAX_STEP_SECONDS } from '@foomerang/game-core';
+import { STRAIGHT } from './support/fixtures';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
   PRIMITIVE_ARENA,
-  createFuMatch,
+  createFuMatch as createCurvedMatch,
   spawnPosition,
   stepFu,
   type FuArena,
@@ -15,6 +16,11 @@ import {
   type Solid,
 } from '../src/rules';
 import { distanceToSolid } from '../src/rules/arena';
+
+// These tests arrange their scenes with boomerangs flying straight (the owner's curved flight, 2026-10-19, is tested in
+// curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
+const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
+  createCurvedMatch(players, { ...STRAIGHT, ...overrides });
 
 // These files run thousands of simulation steps; on a cold, loaded checkout a few took longer than vitest's
 // 5 s default. This only gives them room; no assertion depends on it.
@@ -343,7 +349,9 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
       if (boom(s, 'a').state === 'RETURNING') hit = s;
     }
     const b = boom(must(hit, 'impact'), 'a');
-    expect(b.direction).toEqual({ x: 0, y: 0 });
+    // heading home it keeps a heading (the curve's return, 2026-10-19): off a wall, straight back towards its thrower
+    expect(b.direction.x).toBeCloseTo(-1, 9);
+    expect(b.direction.y).toBeCloseTo(0, 9);
     expect(b.travelled).toBe(0);
     expect(b.position.x).toBeGreaterThan(SLAB.x - RB - 1e-3); // as close as it can get…
     expect(b.position.x).toBeLessThanOrEqual(SLAB.x - RB + EPS); // …without touching
@@ -601,6 +609,7 @@ describe('arena data is validated', () => {
   it('rejects walls given as something other than a list', () => {
     expect(() =>
       createFuMatch([{ id: 'a', slot: 0 }], {
+        ...STRAIGHT,
         arena: { width: 1600, height: 900, walls: 'big' as unknown as Rect[] },
       }),
     ).toThrow(RangeError);
@@ -614,7 +623,7 @@ describe('the primitive arena', () => {
 
   it('is the same size as the Slice 1 arena, and a valid configuration', () => {
     expect([A.width, A.height]).toEqual([C.arena.width, C.arena.height]);
-    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { arena: A })).not.toThrow();
+    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, arena: A })).not.toThrow();
   });
 
   it('has six spawn points: inside, clear of every wall, and at least a body apart', () => {

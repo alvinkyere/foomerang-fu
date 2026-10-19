@@ -14,6 +14,11 @@ import {
 // Shared by the Slice 5 tests. States are plain data, so a test arranges a situation by copying one.
 
 export const DT = FIXED_TIMESTEP_SECONDS;
+/**
+ * Straight flight: no curve out, straight home (owner's curve, 2026-10-19, is tested in curve.test.ts). For tests whose subject
+ * is something else (deflection timing, blast cover, a hit down a lane...) and that arrange it with a boomerang flying straight.
+ */
+export const STRAIGHT = Object.freeze({ throwCurvature: 0, returnTurnRadius: 0 });
 export const C = DEFAULT_FU_CONFIG;
 export const R = C.playerRadius;
 export const NONE: FuInputs = new Map();

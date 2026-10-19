@@ -32,6 +32,11 @@ Run from the repo root with the OpenCV venv (`opencv-python-headless` 4.11); out
 | Charged throw           | **about 2,450 u/s**, dead straight (still straight 500+ u out, 0.17 s after release), pink trail, **ricochets** off obstacles (plaza frames 821–835) | no charge                                        | speed good (one clear throw); the ricochet is clear by eye                 |
 | Return                  | the quick throw comes home fast (about 1,300 u/s at the start of the return, easing to about 560 as it curls round the thrower)                      | 1,000, straight                                  | low: tutorial footage, character-size yardstick (±30%)                     |
 
+**The curve, re-measured (2026-10-19, for the curved-flight step).** Circle fits to the ten plaza boomerang tracks (`boom.py`'s
+tracks; 6–10 points each, so noisy) give radii from 140 to 460 u, centred around 270–390: **about 300 u (± 100)**. Seven of the
+ten turn clockwise on screen, as does the tutorial throw at 0:21 (out to the right, curving down and round); the anticlockwise ones
+are most likely boomerangs on their way home. Used: curvature 1/300, clockwise.
+
 Not measured (the footage does not show it clearly enough): how long a full charge takes, and the quick throw's exact range.
 
 ## What this suggests (not yet applied)

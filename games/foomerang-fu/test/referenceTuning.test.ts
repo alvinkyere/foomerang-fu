@@ -22,6 +22,10 @@ describe('tuned to the reference video', () => {
     expect(C.dashSpeed * C.dashSeconds).toBeLessThan(190);
   });
 
+  it('a quick throw curves clockwise on an arc of about 300 u (circle fits to 10 plaza tracks: 140-460, centre 270-390)', () => {
+    expect(C.throwCurvature).toBeCloseTo(1 / 300, 12);
+  });
+
   it('the plain throw’s speeds already matched (740-1,090 u/s out, fast home): unchanged', () => {
     expect([C.throwSpeed, C.returnSpeed]).toEqual([900, 1000]);
     expect(PRIMITIVE_ARENA.width).toBe(1600); // (the test arenas are untouched)

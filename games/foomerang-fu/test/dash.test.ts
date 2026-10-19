@@ -1,9 +1,10 @@
 import { FIXED_TIMESTEP_SECONDS as DT } from '@foomerang/game-core';
+import { STRAIGHT } from './support/fixtures';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
   PRIMITIVE_ARENA,
-  createFuMatch,
+  createFuMatch as createCurvedMatch,
   stepFu,
   type FuConfig,
   isFatigued,
@@ -12,6 +13,11 @@ import {
   type FuState,
 } from '../src/rules';
 import { distanceToRect } from '../src/rules/arena';
+
+// These tests arrange their scenes with boomerangs flying straight (the owner's curved flight, 2026-10-19, is tested in
+// curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
+const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
+  createCurvedMatch(players, { ...STRAIGHT, ...overrides });
 
 // ------------------------------------------------------------------------------------------
 // DASH (Slice 4, an experiment): a short, committed, directional burst of movement. It is movement
@@ -451,7 +457,7 @@ describe('DASH + players: bodies stay solid', () => {
               { id: 'b', slot: 3 },
               { id: 'a', slot: 0 },
             ];
-      let s = createFuMatch(specs, {});
+      let s = createFuMatch(specs, { ...STRAIGHT });
       s = place(place(s, 'a', 600, 450), 'b', 600 + 300, 450);
       return face(face(s, 'a', 1, 0), 'b', -1, 0);
     };

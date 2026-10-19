@@ -636,9 +636,12 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
 
     it('a thrown boomerang kills, the round ends, and a new round starts after the interval', () => {
       const { runtime } = fight();
-      // slot 0 is at the top centre, slot 3 at the bottom centre; a throws straight down the middle.
-      tapThrow(runtime, 'a', 'event-0001');
-      let now = run(runtime, 0, 60);
+      // slot 0 is at the top centre, slot 3 at the bottom centre; a throws straight down the middle: a full charge (a quick
+      // throw curves; owner, 2026-10-19), held for 0.7 s and let go
+      runtime.receiveAction(press('a', 'event-0001'));
+      let now = run(runtime, 0, 42);
+      runtime.receiveAction(press('a', 'event-0002', 'released'));
+      now = run(runtime, now, 60);
       expect(alive(runtime, 'b')).toBe(false);
       expect(s(runtime).phase).toBe('ROUND_OVER');
       expect(s(runtime).roundOver?.winnerId).toBe('a');

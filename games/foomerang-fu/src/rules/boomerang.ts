@@ -46,7 +46,7 @@ export interface Boomerang {
   readonly state: BoomerangState;
   /** The centre. While HELD it is the owner's position. */
   readonly position: Vec2;
-  /** Unit vector of the flight. Meaningful while THROWN or DEFLECTED; ZERO otherwise. */
+  /** Unit vector of the flight: its heading while THROWN, DEFLECTED or RETURNING (a curve turns it); ZERO in hand. */
   readonly direction: Vec2;
   /** Distance flown on the current straight leg. Zero unless THROWN or DEFLECTED. */
   readonly travelled: number;
@@ -64,6 +64,8 @@ export interface Boomerang {
   readonly absorbed: readonly string[];
   /** How charged this throw was, 0 (a tap) to 1 (a full charge): its outbound speed and range. 0 while HELD and once deflected. */
   readonly power: number;
+  /** RETURNING only: seconds of this trip home (its turn towards the thrower tightens with them). 0 otherwise. */
+  readonly homing: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

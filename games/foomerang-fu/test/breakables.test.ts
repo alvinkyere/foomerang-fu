@@ -23,6 +23,7 @@ import {
   own,
   place,
   run,
+  STRAIGHT,
 } from './support/fixtures';
 
 // Breakables (owner, 2026-10-17; the reference video at 02:21): crates and pots break when a boomerang or a slash hits
@@ -53,7 +54,7 @@ const ARENA: FuArena = {
     { x: 1400, y: 750 },
   ],
 };
-const match = (): FuState => make(['a', 'b'], { arena: ARENA, seed: 4 });
+const match = (): FuState => make(['a', 'b'], { ...STRAIGHT, arena: ARENA, seed: 4 });
 const broken = (events: readonly FuEvent[]) =>
   events.filter((e): e is Extract<FuEvent, { type: 'PROP_BROKEN' }> => e.type === 'PROP_BROKEN');
 
@@ -140,7 +141,7 @@ describe('breakable props', () => {
 
   it('a breakable must be a proper solid with its own id, clear of the spawns', () => {
     const bad = (breakables: NonNullable<FuArena['breakables']>) => () =>
-      createFuMatch([{ id: 'a', slot: 0 }], { arena: { ...ARENA, breakables } });
+      createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, arena: { ...ARENA, breakables } });
     expect(bad([CRATE, { ...POT, id: 'crate' }])).toThrow(/breakable/);
     expect(bad([{ ...POT, radius: 5 }])).toThrow(/thinner/);
     expect(bad([{ ...POT, x: 400, y: 450 }])).toThrow(/spawn/);

@@ -229,7 +229,6 @@ test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launch
   expect(await mine()).toHaveLength(2);
   expect((await mine()).every((b) => b.state === 'HELD')).toBe(true);
   await face(alice, 0, 1); // facing straight down the open lane
-  const facing = { x: 0, y: 1 };
   const actions = (await host.snapshot()).diagnostics.actionsReceived;
   await alice.tapThrow(); // ONE real THROW press…
   // …launches BOTH boomerangs, on the same simulation step: there is no snapshot with just one away
@@ -240,13 +239,15 @@ test('Powerups: TWIN_THROW + BLAST_BOOMERANG together — ONE throw press launch
   expect(pair.map((b) => b.state !== 'HELD')).toEqual([true, true]);
   expect((await host.snapshot()).diagnostics.actionsReceived - actions).toBe(2); // one press, one release
   expect(pair.map((b) => b.blast)).toEqual([true, true]); // both armed while Blast is owned
-  // symmetric ±13° about her facing (left = own boomerang, right = twin)
+  // a symmetric ±13° spread (left = own boomerang, right = twin): 26° apart. Both curve alike as they fly (owner, 2026-10-19),
+  // so the angle BETWEEN them is the spread whenever it is looked at; at the throw they straddle her facing
   const [left, right] = pair as [(typeof pair)[number], (typeof pair)[number]];
-  const angle = (v: { x: number; y: number }) =>
-    Math.atan2(v.x * facing.y - v.y * facing.x, v.x * facing.x + v.y * facing.y);
-  expect(Math.abs(angle(left.direction))).toBeCloseTo((13 * Math.PI) / 180, 2);
-  expect(Math.abs(angle(right.direction))).toBeCloseTo((13 * Math.PI) / 180, 2);
-  expect(Math.sign(angle(left.direction))).toBe(-Math.sign(angle(right.direction)));
+  const between = Math.atan2(
+    left.direction.x * right.direction.y - left.direction.y * right.direction.x,
+    left.direction.x * right.direction.x + left.direction.y * right.direction.y,
+  );
+  // the twin is 26° clockwise of her own boomerang (own: facing − 13°, twin: facing + 13°)
+  expect(between).toBeCloseTo((26 * Math.PI) / 180, 2);
   await expect
     .poll(async () => (await host.snapshot()).drawnBoomerangs?.map((b) => b.id).sort(), {
       timeout: 3_000,

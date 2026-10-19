@@ -3,16 +3,22 @@ import {
   MAX_STEP_SECONDS,
   type WorldState,
 } from '@foomerang/game-core';
+import { STRAIGHT } from './support/fixtures';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
-  createFuMatch,
+  createFuMatch as createCurvedMatch,
   spawnPosition,
   stepFu,
   type FuInputs,
   type FuPlayerSpec,
   type FuState,
 } from '../src/rules';
+
+// These tests arrange their scenes with boomerangs flying straight (the owner's curved flight, 2026-10-19, is tested in
+// curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
+const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
+  createCurvedMatch(players, { ...STRAIGHT, ...overrides });
 
 // ------------------------------------------------------------------------------------------
 // Living players are solid to each other. Resolved in the rules (circle vs circle), never by Phaser.
@@ -422,12 +428,14 @@ describe('spawning', () => {
   });
 
   it('a configuration whose spawn points would overlap is refused as a programming error', () => {
-    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { playerRadius: 140 })).toThrow(RangeError);
+    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, playerRadius: 140 })).toThrow(
+      RangeError,
+    );
   });
 
   it('a configuration where a player could cross another in one step is refused', () => {
-    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { playerSpeed: 100_000 })).toThrow(
-      RangeError,
-    );
+    expect(() =>
+      createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, playerSpeed: 100_000 }),
+    ).toThrow(RangeError);
   });
 });

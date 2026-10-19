@@ -15,7 +15,7 @@ import {
 } from '../src';
 import { circleHitsWalls, wallsOf } from '../src/rules/arena';
 import { playMatch, type Participant } from './support/cpuMatch';
-import { at, face, own, patchPlayer, place, player } from './support/fixtures';
+import { at, face, own, patchPlayer, place, player, STRAIGHT } from './support/fixtures';
 
 // CPU players are tested as BEHAVIOUR: deterministic scenarios and properties over many seeds, through
 // the real rules. A CPU is a player whose controller happens to be software, so everything here is also
@@ -426,6 +426,7 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
         arena: OPEN,
         seed,
         steps: 90,
+        config: STRAIGHT, // a boomerang flying straight at the defender (the curve is curve.test.ts's subject)
         start: (s) => {
           const t = patchPlayer(place(place(s, 'a', 600, 450), 'b', 1400, 450), 'a', {
             fatigue: { dashes: 99, recoverIn: 4.9 },
@@ -492,6 +493,7 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
         arena: OPEN,
         seed,
         steps: 90,
+        config: STRAIGHT, // a boomerang flying straight at the defender (the curve is curve.test.ts's subject)
         start: (s) => {
           const t = patchPlayer(place(place(s, 'a', 600, 450), 'b', 1400, 450), 'a', {
             fatigue: { dashes: 99, recoverIn: 4.9 },
@@ -536,6 +538,7 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
         arena: OPEN,
         seed,
         steps: 90,
+        config: STRAIGHT, // a boomerang flying straight at the defender (the curve is curve.test.ts's subject)
         start: (s) => {
           const t = patchPlayer(place(place(s, 'a', 600, 450), 'b', 1400, 450), 'a', {
             fatigue: { dashes: 99, recoverIn: 4.9 },

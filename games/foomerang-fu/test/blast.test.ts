@@ -21,6 +21,7 @@ import {
   weaponsOf,
   type FuEvent,
   type FuState,
+  STRAIGHT,
 } from './support/fixtures';
 
 // BLAST_BOOMERANG — CONSUMED ON USE (the first detonation).
@@ -39,7 +40,7 @@ const victims = (events: readonly FuEvent[]) =>
 
 /** Everyone parked far away along the bottom, in the open arena. */
 function field(ids: string[] = ['a', 'b', 'c', 'd']): FuState {
-  let s = make(ids);
+  let s = make(ids, STRAIGHT);
   ids.forEach((id, i) => {
     s = place(s, id, 100 + i * 150, 850);
   });
@@ -55,7 +56,7 @@ const armed = (
 
 describe('arming: the charge and the throw', () => {
   it('owning it arms EVERY throw; the power stays owned; an explosion spends only that projectile', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
+    let s = place(place(make(undefined, STRAIGHT), 'a', 600, 450), 'b', 1500, 800);
     s = face(give(s, 'a', 'BLAST_BOOMERANG'), 'a', 1, 0);
     expect(player(s, 'a').inventory).toEqual(['BLAST_BOOMERANG']);
     expect(boom(s, 'a').blast).toBe(false); // nothing is armed until it is thrown
@@ -65,7 +66,7 @@ describe('arming: the charge and the throw', () => {
   });
 
   it('while owned it cannot be awarded again (the Book stays for someone else)', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
+    let s = place(place(make(undefined, STRAIGHT), 'a', 600, 450), 'b', 1500, 800);
     s = give(s, 'a', 'BLAST_BOOMERANG');
     s = {
       ...s,
@@ -130,7 +131,7 @@ describe('detonation on contact', () => {
 
 describe('cover: a blast does not go through walls', () => {
   function gateScene(): FuState {
-    let s = make(['a', 'b', 'c', 'd'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c', 'd'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(s, 'a', 100, 850);
     s = place(s, 'b', 640, 100);
     s = place(s, 'c', 600, 260); // ~160 from the blast, but the gate wall is between
@@ -147,7 +148,7 @@ describe('cover: a blast does not go through walls', () => {
   });
 
   it('detonates on WALL IMPACT too: at the wall, killing what is in the open beside it, not what is behind it', () => {
-    let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(place(s, 'a', 100, 850), 'b', 140, 520), 'c', 300, 450); // c is inside the left corridor
     s = armed(s, 'a', { x: 100, y: 450 });
     const r = run(s, 12);

@@ -35,6 +35,15 @@ export interface FuConfig {
   readonly chargedThrowSpeed: number;
   /** Range of a fully charged throw (the video shows it straight 500+ u out; how far exactly it does not show: a proposal). */
   readonly chargedThrowRange: number;
+  /**
+   * How tightly a quick throw curves, radians per unit flown (clockwise on screen); 1/radius. The reference video: an arc of about
+   * 300 u (±100). A charge straightens it (× (1 − power)); 0 = straight.
+   */
+  readonly throwCurvature: number;
+  /** On the way home a boomerang turns towards its thrower no tighter than this radius at first (0 = straight home). A proposal. */
+  readonly returnTurnRadius: number;
+  /** ...and its turn rate grows by this much per second of the trip home (rad/s²), so it always gets there. A proposal. */
+  readonly returnTurnGrowth: number;
   /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
   readonly slashReach: number;
   /** Slash arc: the full angle of the swing, radians, centred on the facing direction. */
@@ -107,6 +116,9 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fullChargeSeconds: 0.6,
   chargedThrowSpeed: 2450,
   chargedThrowRange: 1000,
+  throwCurvature: 1 / 300,
+  returnTurnRadius: 150,
+  returnTurnGrowth: 20,
   slashReach: 130,
   slashArc: (Math.PI * 2) / 3,
   slashActiveSeconds: 0.12,
@@ -281,6 +293,14 @@ export function assertValidConfig(config: FuConfig): void {
   if (fastestDash * FIXED_TIMESTEP_SECONDS >= config.playerRadius) {
     throw new RangeError('a dash moves farther than a radius in one step');
   }
+  for (const [name, value] of [
+    ['throwCurvature', config.throwCurvature],
+    ['returnTurnRadius', config.returnTurnRadius],
+  ] as const) {
+    if (!(Number.isFinite(value) && value >= 0)) throw new RangeError(`${name} must be 0 or more`);
+  }
+  if (!(Number.isFinite(config.returnTurnGrowth) && config.returnTurnGrowth > 0))
+    throw new RangeError('returnTurnGrowth must be a positive, finite number');
   // Hits are swept (the closest approach during a step), but a deflecting swing is judged where the boomerang ends a step:
   // even a fully charged throw must not cross a whole slash reach in one step.
   if (config.chargedThrowSpeed * FIXED_TIMESTEP_SECONDS >= config.slashReach) {

@@ -1,10 +1,11 @@
 import { FIXED_TIMESTEP_SECONDS as DT, MAX_STEP_SECONDS } from '@foomerang/game-core';
+import { STRAIGHT } from './support/fixtures';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
   PRIMITIVE_ARENA,
   canTransition,
-  createFuMatch,
+  createFuMatch as createCurvedMatch,
   deflectionDirection,
   stepFu,
   type FuArena,
@@ -14,6 +15,11 @@ import {
   type FuState,
   type Rect,
 } from '../src/rules';
+
+// These tests arrange their scenes with boomerangs flying straight (the owner's curved flight, 2026-10-19, is tested in
+// curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
+const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
+  createCurvedMatch(players, { ...STRAIGHT, ...overrides });
 
 // These files run thousands of simulation steps; on a cold, loaded checkout a few took longer than vitest's
 // 5 s default. This only gives them room; no assertion depends on it.
@@ -780,7 +786,9 @@ describe('configuration', () => {
     ['maxDeflections', -1],
     ['maxDeflections', 1.5],
   ] as const)('rejects %s = %s', (key, value) => {
-    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { [key]: value })).toThrow(RangeError);
+    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, [key]: value })).toThrow(
+      RangeError,
+    );
   });
   it('the state machine: DEFLECTED is reachable from THROWN, RETURNING and itself, and leads only to RETURNING or another deflection', () => {
     expect(canTransition('THROWN', 'DEFLECTED')).toBe(true);

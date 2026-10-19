@@ -27,6 +27,7 @@ import {
   weaponsOf,
   type FuEvent,
   type FuState,
+  STRAIGHT,
 } from './support/fixtures';
 
 // Combinations are explicit: the matrix lists every pair, `exclusivePairs` can forbid one, and each
@@ -45,12 +46,12 @@ describe('every pair can be owned together, and an exclusive pair cannot', () =>
     '%s + %s: allowed by the table, owned together in play, forbiddable by config',
     (a, b) => {
       expect(POWER_COMBINATIONS[`${a}+${b}`]?.allowed).toBe(true);
-      let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
+      let s = place(place(make(undefined, STRAIGHT), 'a', 600, 450), 'b', 1500, 800);
       s = give(give(s, 'a', a), 'a', b);
       expect(holds(s, 'a', a) && holds(s, 'a', b)).toBe(true);
       // the same pair, forbidden: the Book stays on the ground (this player's pool is empty)
       let t = place(
-        place(make(['a', 'b'], { exclusivePairs: [[b, a]] }), 'a', 600, 450),
+        place(make(['a', 'b'], { ...STRAIGHT, exclusivePairs: [[b, a]] }), 'a', 600, 450),
         'b',
         1500,
         800,
@@ -68,7 +69,7 @@ describe('every pair can be owned together, and an exclusive pair cannot', () =>
   );
 
   it('five gifts leave the LAST three, in order (FIFO)', () => {
-    let s = place(place(make(), 'a', 600, 450), 'b', 1500, 800);
+    let s = place(place(make(undefined, STRAIGHT), 'a', 600, 450), 'b', 1500, 800);
     for (const kind of POWER_KINDS) s = give(s, 'a', kind);
     expect(player(s, 'a').inventory).toEqual(['GUARD', 'TWIN_THROW', 'PHASE_DASH']);
   });
@@ -77,7 +78,7 @@ describe('every pair can be owned together, and an exclusive pair cannot', () =>
 describe('PHASE_DASH + OVERDRIVE', () => {
   it('an overdriven dash is long enough to cross cover that a fatigued phase dash is not (and fatigue still counts)', () => {
     const fatigued = (kinds: PowerKind[]) => {
-      let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
+      let s = make(['a', 'b'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
       s = place(place(s, 'a', 520 - R, 350), 'b', 1500, 850); // flush against the 80-wide cover block
       s = own(s, 'a', ...kinds);
       return patchPlayer(s, 'a', { fatigue: { dashes: 9, recoverIn: 4 } });
@@ -102,7 +103,7 @@ describe('PHASE_DASH + OVERDRIVE', () => {
 
 describe('GUARD + PHASE_DASH', () => {
   it('the shield breaks on a hit taken mid-wall; phasing shelters nobody; the next hit kills', () => {
-    let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(s, 'a', 130, 450), 'b', 100, 850);
     s = own(s, 'a', 'PHASE_DASH', 'GUARD');
     s = flying(s, 'b', { x: 186, y: 380 }, { x: 0, y: 1 });
@@ -120,7 +121,7 @@ describe('GUARD + PHASE_DASH', () => {
 
 describe('TWIN_THROW + BLAST_BOOMERANG', () => {
   it('both boomerangs are armed; each detonates once on its own contact', () => {
-    let s = make(['a', 'b', 'c']);
+    let s = make(['a', 'b', 'c'], STRAIGHT);
     s = place(place(place(s, 'a', 100, 450), 'b', 550, 450), 'c', 550, 580);
     s = face(own(s, 'a', 'TWIN_THROW', 'BLAST_BOOMERANG'), 'a', 1, 0);
     const throws = input({ a: { throw: true } });
@@ -142,7 +143,7 @@ describe('TWIN_THROW + BLAST_BOOMERANG', () => {
 
 describe('three powers at once', () => {
   it('PHASE + OVERDRIVE + GUARD: crosses the thick central block, shield intact', () => {
-    let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = own(
       place(place(s, 'a', 800, 330), 'b', 1500, 850),
       'a',
@@ -162,7 +163,7 @@ describe('three powers at once', () => {
   });
 
   it('TWIN + BLAST + GUARD: two boomerangs, armed, with a shield against the retaliation', () => {
-    let s = make(['a', 'b'], { arena: { width: 1600, height: 900 } });
+    let s = make(['a', 'b'], { ...STRAIGHT, arena: { width: 1600, height: 900 } });
     s = own(
       place(place(s, 'a', 100, 450), 'b', 260, 450),
       'a',
@@ -180,7 +181,7 @@ describe('three powers at once', () => {
 
   it('a replay of a three-power scene is identical', () => {
     const play = () => {
-      let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+      let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
       s = own(s, 'a', 'PHASE_DASH', 'TWIN_THROW', 'BLAST_BOOMERANG');
       const log: unknown[] = [];
       for (let i = 0; i < 1500; i += 1) {

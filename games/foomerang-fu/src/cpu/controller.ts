@@ -69,6 +69,33 @@ const rotate = (v: Vec2, a: number): Vec2 => ({
   x: v.x * Math.cos(a) - v.y * Math.sin(a),
   y: v.x * Math.sin(a) + v.y * Math.cos(a),
 });
+/** A quick throw's path: an arc of curvature `kappa` from `from` along `dir`, swept in short chords against `solids`. */
+function sweepArc(
+  from: Vec2,
+  dir: Vec2,
+  length: number,
+  kappa: number,
+  config: FuState['config'],
+  solids: readonly Solid[],
+): { readonly position: Vec2; readonly blocked: boolean; readonly flown: number } {
+  const pieces = 12;
+  let at = from;
+  let heading = dir;
+  for (let i = 0; i < pieces; i += 1) {
+    const l = length / pieces;
+    const turn = kappa * l;
+    const chord = turn > 1e-12 ? (2 * Math.sin(turn / 2)) / kappa : l;
+    const along = rotate(heading, turn / 2);
+    const next = { x: at.x + along.x * chord, y: at.y + along.y * chord };
+    const swept = sweepCircle(at, next, config.boomerangRadius, solids);
+    if (swept.blocked)
+      return { position: swept.position, blocked: true, flown: (i * length) / pieces };
+    at = next;
+    heading = rotate(heading, turn);
+  }
+  return { position: at, blocked: false, flown: length };
+}
+
 const positionOf = (s: FuState, id: string): Vec2 =>
   s.world.bodies.find((b) => b.id === id)?.position ?? { x: 0, y: 0 };
 
@@ -511,7 +538,8 @@ export class CpuController {
       // where it is NOW, by advancing what it saw along the path it was on
       const speed = shot.state === 'RETURNING' ? config.returnSpeed : config.throwSpeed;
       let direction = shot.direction;
-      if (shot.state === 'RETURNING') {
+      // its heading (the rules track it home too); only a boomerang with none is assumed to head straight for its owner
+      if (shot.state === 'RETURNING' && direction.x === 0 && direction.y === 0) {
         const owner =
           view.foes.find((f) => f.id === shot.ownerId)?.position ?? positionOf(state, shot.ownerId);
         direction = norm(sub(owner, shot.position));
@@ -628,24 +656,38 @@ export class CpuController {
       x: foe.position.x + foe.velocity.x * stale,
       y: foe.position.y + foe.velocity.y * stale,
     };
+    // a quick throw curves (clockwise, curvature κ): to pass through a point at chord distance d it must start turned back by
+    // half the arc, φ/2 with φ = 2·asin(dκ/2), and it flies the arc's length φ/κ to get there
+    const kappa = config.throwCurvature;
+    const arcTo = (d: number): number | undefined => {
+      if (kappa <= 0) return d;
+      const half = (d * kappa) / 2;
+      return half >= 1 ? undefined : (2 * Math.asin(half)) / kappa;
+    };
     let target = seen;
     for (let i = 0; i < 2; i += 1) {
-      const t = dist(here, target) / config.throwSpeed;
+      const t = (arcTo(dist(here, target)) ?? config.throwRange) / config.throwSpeed;
       target = {
         x: seen.x + foe.velocity.x * t * p.lead,
         y: seen.y + foe.velocity.y * t * p.lead,
       };
     }
     // a boomerang only flies so far: do not throw at an intercept point it cannot reach
-    if (dist(here, target) > (config.throwRange + 30) * p.throwReach) return undefined;
-    let dir = norm(sub(target, here));
+    const arc = arcTo(dist(here, target));
+    if (arc === undefined || arc > (config.throwRange + 30) * p.throwReach) return undefined;
+    let dir = rotate(norm(sub(target, here)), -(arc * kappa) / 2);
     dir = rotate(dir, this.#rng.gauss() * p.aimError * (this.#rng.chance(p.aimLapse) ? 2.5 : 1));
     if (twin && p.lead > 0.5) dir = rotate(dir, config.twinSpreadRadians); // so one of the pair is on the target
-    const range = config.throwRange;
-    const end = { x: here.x + dir.x * range, y: here.y + dir.y * range };
-    const swept = sweepCircle(here, end, config.boomerangRadius, view.solids);
-    const reachesTarget =
-      !swept.blocked || dist(here, swept.position) >= dist(here, foe.position) - 20;
+    // follow the arc it will fly, in short chords, to the first thing it would meet
+    const swept = sweepArc(
+      here,
+      dir,
+      Math.min(config.throwRange, arc + 40),
+      kappa,
+      config,
+      view.solids,
+    );
+    const reachesTarget = !swept.blocked || swept.flown >= arc - 20;
     if (reachesTarget) return dir;
     // blocked by cover: with BLAST_BOOMERANG, a wall impact beside the target still counts
     const me = state.players.find((q) => q.id === this.#id);

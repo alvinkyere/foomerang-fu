@@ -879,6 +879,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           blast: false,
           absorbed: EMPTY,
           power: 0,
+          homing: 0,
         } satisfies Boomerang),
       );
     }
@@ -971,9 +972,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           : config.throwRange + (config.chargedThrowRange - config.throwRange) * b.power;
       const speed = config.throwSpeed + (config.chargedThrowSpeed - config.throwSpeed) * b.power;
       const length = Math.min(speed * dt, range - b.travelled);
+      // a thrown boomerang curves (clockwise on screen) along an arc, the less the more it was charged; a deflected one flies
+      // straight. Over the step it moves along the arc's chord and its heading turns by curvature × length.
+      const curvature = b.state === 'THROWN' ? config.throwCurvature * (1 - b.power) : 0;
+      const turn = curvature * length;
+      const chord = turn > 1e-12 ? (2 * Math.sin(turn / 2)) / curvature : length;
+      const along = rotate(b.direction, turn / 2);
+      const heading = turn > 0 ? normalized(rotate(b.direction, turn)) : b.direction;
       const free = {
-        x: b.position.x + b.direction.x * length,
-        y: b.position.y + b.direction.y * length,
+        x: b.position.x + along.x * chord,
+        y: b.position.y + along.y * chord,
       };
       const bounded = clampToArena(free, config);
       // Solid geometry stops it where it would touch: no penetration, no bounce, no tunnelling.
@@ -982,10 +990,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const hitWall = swept.blocked || bounded.x !== free.x || bounded.y !== free.y;
       const travelled = b.travelled + length;
       if (hitWall || travelled >= range - EPSILON) {
+        // home: it carries on round its curve (a wall turns it straight back towards its thrower)
+        const owner = positionOf(b.ownerId);
+        const back = normalized({ x: owner.x - position.x, y: owner.y - position.y });
         return {
           boomerang: transition(b, 'RETURNING', {
             position,
-            direction: ZERO,
+            direction: hitWall ? back : heading,
+            homing: 0,
             travelled: 0,
             follow: 0,
             wallSeconds: 0,
@@ -998,7 +1010,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         };
       }
       return {
-        boomerang: Object.freeze({ ...b, position, travelled }),
+        boomerang: Object.freeze({ ...b, position, travelled, direction: heading }),
         lethalAt: position,
         caught: false,
       };
@@ -1021,12 +1033,47 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
               deflectedBy: undefined,
               absorbed: EMPTY,
               power: 0,
+              homing: 0,
             })
-          : Object.freeze({ ...b, position, ...extra }),
+          : Object.freeze({ ...b, position, homing: b.homing + dt, ...extra }),
         lethalAt: position,
         caught: arrived,
         recalled,
       }) satisfies Flight;
+
+    // The swing (owner, 2026-10-19; the reference video): it keeps its heading and turns towards its thrower no faster than
+    // returnSpeed / returnTurnRadius, a rate that grows with the trip, so it comes round them on a curve and is caught.
+    if (config.returnTurnRadius > 0 && b.follow === 0) {
+      const dx = owner.x - b.position.x;
+      const dy = owner.y - b.position.y;
+      const want = Math.atan2(dy, dx);
+      const from =
+        b.direction.x === 0 && b.direction.y === 0
+          ? want
+          : Math.atan2(b.direction.y, b.direction.x);
+      let delta = want - from;
+      while (delta > Math.PI) delta -= 2 * Math.PI;
+      while (delta < -Math.PI) delta += 2 * Math.PI;
+      const most =
+        (config.returnSpeed / config.returnTurnRadius + config.returnTurnGrowth * b.homing) * dt;
+      const angle = from + Math.max(-most, Math.min(most, delta));
+      const heading = { x: Math.cos(angle), y: Math.sin(angle) };
+      const free = { x: b.position.x + heading.x * travel, y: b.position.y + heading.y * travel };
+      const bounded = clampToArena(free, config);
+      const blocked =
+        bounded.x !== free.x ||
+        bounded.y !== free.y ||
+        (walls.length > 0 && sweepCircle(b.position, free, config.boomerangRadius, walls).blocked);
+      if (!blocked) {
+        // caught if it passes within reach of the thrower during the step
+        const ex = free.x - b.position.x;
+        const ey = free.y - b.position.y;
+        const t = Math.max(0, Math.min(1, (dx * ex + dy * ey) / (ex * ex + ey * ey)));
+        const near = Math.hypot(b.position.x + ex * t - owner.x, b.position.y + ey * t - owner.y);
+        return home(free, near <= reach, { direction: heading });
+      }
+      // a wall in the way: the wall-following steering below takes over
+    }
 
     if (walls.length === 0) {
       // Open ground (Slice 1 exactly): a straight line home.
@@ -1057,10 +1104,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const arrived = Math.hypot(owner.x - homed.position.x, owner.y - homed.position.y) <= reach;
     // The failsafe: sliding along walls for too long without getting home ends the trip, deterministically.
     const recalled = !arrived && wallSeconds >= config.returnWallSeconds - EPSILON;
+    const moved = { x: homed.position.x - b.position.x, y: homed.position.y - b.position.y };
     return home(
       homed.position,
       arrived || recalled,
-      { follow: homed.follow, wallSeconds },
+      {
+        follow: homed.follow,
+        wallSeconds,
+        direction: Math.hypot(moved.x, moved.y) > 1e-9 ? normalized(moved) : b.direction,
+      },
       recalled,
     );
   });

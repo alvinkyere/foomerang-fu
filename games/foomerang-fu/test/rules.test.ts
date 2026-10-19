@@ -1,16 +1,22 @@
 import { FIXED_TIMESTEP_SECONDS as DT } from '@foomerang/game-core';
+import { STRAIGHT } from './support/fixtures';
 import { describe, expect, it } from 'vitest';
 import {
   BOOMERANG_TRANSITIONS,
   DEFAULT_FU_CONFIG,
   canTransition,
-  createFuMatch,
+  createFuMatch as createCurvedMatch,
   spawnPosition,
   stepFu,
   type FuEvent,
   type FuInputs,
   type FuState,
 } from '../src/rules';
+
+// These tests arrange their scenes with boomerangs flying straight (the owner's curved flight, 2026-10-19, is tested in
+// curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
+const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
+  createCurvedMatch(players, { ...STRAIGHT, ...overrides });
 
 // ------------------------------------------------------------------------------------------
 // Helpers. States are plain data, so tests may arrange a situation by copying and patching one.

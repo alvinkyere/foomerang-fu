@@ -163,7 +163,7 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   const bobPos = await host.body(bobId);
   expect(Math.abs(aliceNow.y - bobPos.y)).toBeLessThan(5); // the same lane
   expect(bobPos.x - aliceNow.x).toBeLessThan(560); // within throwing reach
-  await alice.tapThrow();
+  await alice.holdThrow(800); // a full charge flies straight down the lane (a quick throw curves; owner, 2026-10-19)
   await expect.poll(async () => (await host.fu()).phase, { timeout: 8_000 }).toBe('ROUND_OVER');
   fu = await host.fu();
   expect(fu.winnerId).toBe(aliceId);
@@ -480,7 +480,9 @@ test('Foomerang Fu: a real controller deflects an incoming boomerang with a time
   const boomerangOf = async (id: string) =>
     (await host.fu()).boomerangs.find((b) => b.ownerId === id);
 
-  // Bob turns to face down the open bottom lane (left); Alice walks the long way round to 450 short of him.
+  // Bob turns to face down the open bottom lane (left); Alice walks the long way round to 300 short of him. A quick throw curves
+  // clockwise (an arc of radius 1/throwCurvature = 300): to pass through Bob she faces up by half the arc, asin(d / 600).
+  // (300 short: the arc bulges only ~40 above the lane, clear of the bottom gates.)
   await bob.thumbDown();
   await bob.thumbMove(-FAR, 0);
   await sleep(90);
@@ -490,8 +492,17 @@ test('Foomerang Fu: a real controller deflects an incoming boomerang with a time
   expect(bobAt.y).toBeCloseTo(790, 3);
   await walk(host, alice, aliceId, [
     { to: { x: 110, y: 790 } },
-    { to: { x: bobAt.x - 450, y: 790 }, within: 25 },
+    { to: { x: bobAt.x - 300, y: 790 }, within: 25 },
   ]);
+  {
+    const a = await host.settled(aliceId);
+    const half = Math.asin(Math.min(1, (bobAt.x - a.x) / 600));
+    await alice.thumbDown();
+    await alice.thumbMove(Math.cos(half) * FAR, -Math.sin(half) * FAR);
+    await sleep(60);
+    await alice.thumbUp();
+    await host.settled(aliceId);
+  }
 
   // Bob's reflexes: slash once the boomerang is 200 away (one press, from a real touch, over the real network).
   let slashed = false;

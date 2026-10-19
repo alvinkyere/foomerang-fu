@@ -22,6 +22,7 @@ import {
   weaponsOf,
   type FuEvent,
   type FuState,
+  STRAIGHT,
 } from './support/fixtures';
 
 // TWIN_THROW — PERSISTENT (until death or round reset). The player owns two boomerangs, each with
@@ -35,7 +36,7 @@ const hits = (events: readonly FuEvent[]) => events.filter((e) => e.type === 'HI
 
 /** Alice at (600,450) facing right with TWIN_THROW; Bob far away. */
 function twinned(): FuState {
-  const s = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 1500, 850);
+  const s = place(place(make(['a', 'b'], STRAIGHT), 'a', 600, 450), 'b', 1500, 850);
   return face(give(s, 'a', 'TWIN_THROW'), 'a', 1, 0);
 }
 
@@ -140,7 +141,7 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
   });
 
   it('a normal (non-twin) THROW is unchanged: one boomerang straight ahead', () => {
-    const plain = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 1500, 850);
+    const plain = place(place(make(['a', 'b'], STRAIGHT), 'a', 600, 450), 'b', 1500, 850);
     const r = stepFu(face(plain, 'a', 1, 0), THROW, DT);
     expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
     expect(boom(r.state, 'a').direction).toEqual({ x: 1, y: 0 });
@@ -165,6 +166,7 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
 
   it('a Twin throw against a wall starts each boomerang as close as the wall allows and turns both back (each independent)', () => {
     let s = make(['a', 'b'], {
+      ...STRAIGHT,
       arena: { width: 1600, height: 900, walls: [{ x: 660, y: 0, width: 60, height: 900 }] },
     });
     s = own(place(place(s, 'a', 600, 450), 'b', 1500, 850), 'a', 'TWIN_THROW');
@@ -220,7 +222,7 @@ describe('twin boomerangs in combat', () => {
   });
 
   it('each is deflected on its own: one defender can knock BOTH away on the same step', () => {
-    let s = make(['a', 'b']);
+    let s = make(['a', 'b'], STRAIGHT);
     s = place(place(s, 'a', 100, 850), 'b', 600, 450);
     s = give(place(s, 'a', 100, 850), 'a', 'TWIN_THROW');
     s = patchPlayer(s, 'b', {
@@ -237,6 +239,7 @@ describe('twin boomerangs in combat', () => {
 
   it('each meets walls on its own', () => {
     let s = make(['a', 'b'], {
+      ...STRAIGHT,
       arena: { width: 1600, height: 900, walls: [{ x: 900, y: 0, width: 60, height: 900 }] },
     });
     s = place(place(s, 'a', 600, 450), 'b', 1500, 850);

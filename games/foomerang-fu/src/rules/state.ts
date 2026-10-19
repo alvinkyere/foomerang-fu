@@ -184,6 +184,7 @@ export function startRound(
       blast: false,
       absorbed: Object.freeze([]),
       power: 0,
+      homing: 0,
     }),
   );
 

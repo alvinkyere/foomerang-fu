@@ -20,9 +20,10 @@ describe('CPUs and the border', () => {
     (d) => {
       let back: number | undefined;
       playMatch({
+        // its opponent stands still: the subject is the walk back in, not whether it is shot on the way
         participants: [
           { id: 'a', cpu: d },
-          { id: 'b', cpu: d },
+          { id: 'b', human: () => ({}) },
         ],
         arena: MARKET_PLAZA_ARENA,
         steps: 60 * 4,

@@ -604,6 +604,19 @@ deflecting swing still sees it.
 On the TV a charging player shows an aim line as long as the throw would fly, turning pink as it fills; a fully charged throw
 leaves the pink trail (`render/three/chargeVisuals.ts`).
 
+## Curved flight (owner, 2026-10-19; the reference video)
+
+A thrown boomerang's heading turns clockwise on screen as it flies: curvature `throwCurvature` (1/300 per unit, measured: an arc
+of about 300 u, ± 100) × (1 − `power`), so over the plain 520 u it turns about 100° and a full charge flies straight. Each step it
+moves along the arc's chord and turns by curvature × distance; `travelled` is the arc length. A deflected boomerang flies straight.
+At the end of its range it turns home still carrying its heading (off a wall, its heading points straight back at its thrower).
+On the way home it turns towards its thrower no faster than `returnSpeed / returnTurnRadius` (150 u, a proposal), a rate that
+grows by `returnTurnGrowth` (20 rad/s², a proposal) per second of the trip, so it comes in on a curve, still turning the way it was
+thrown, and is always caught; it is caught when it passes within reach during a step. Where the way along that heading is blocked
+the wall-following homing takes over (`homing.ts`). `throwCurvature: 0` / `returnTurnRadius: 0` give straight flight and straight
+homing; tests about other mechanics that arrange a straight throw say so (`STRAIGHT` in the test fixtures). CPUs aim for the curve
+(the throw starts turned back by half the arc to the target; the arc must fit the range) and read a returning boomerang's heading.
+
 ## The plaza's physics (market plaza; owner, 2026-10-19)
 
 **Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`

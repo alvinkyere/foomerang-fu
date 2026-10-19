@@ -23,6 +23,7 @@ import {
   types,
   type FuEvent,
   type FuState,
+  STRAIGHT,
 } from './support/fixtures';
 
 // PHASE_DASH — CONSUMED ON USE. Walls stay solid. It changes ONE thing: while the owner is actively
@@ -107,7 +108,7 @@ function arenaWith(
   charges = 2,
   extra: (s: FuState) => FuState = (s) => s,
 ): FuState {
-  let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
+  let s = make(['a', 'b'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
   s = place(place(s, 'a', start.x, start.y), 'b', 1500, 850);
   if (charges) s = own(s, 'a', 'PHASE_DASH');
   return extra(s);
@@ -481,7 +482,7 @@ describe('no invulnerability: a phasing player is vulnerable to everything', () 
   });
 
   it('DEFLECTED boomerang', () => {
-    let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(place(s, 'a', 130, 450), 'b', 1500, 850), 'c', 1500, 100);
     s = patchPowers(s, 'a', { phase: 2 });
     s = patchBoomerang(s, 'b', {
@@ -515,7 +516,7 @@ describe('no invulnerability: a phasing player is vulnerable to everything', () 
   });
 
   it('…but a player standing normally behind the same wall is still sheltered from that swing', () => {
-    let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(place(s, 'a', 1500, 850), 'b', 164, 450), 'c', 290, 450); // c is 126 from b, wall between
     s = patchPlayer(s, 'b', { facing: RIGHT });
     const r = stepFu(s, input({ b: { slash: true } }), DT);
@@ -535,7 +536,7 @@ describe('no invulnerability: a phasing player is vulnerable to everything', () 
   });
 
   it('BLAST: a blast beside the wall kills her mid-wall (her overlap does not shelter her), but not a player in the corridor behind it', () => {
-    let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(place(s, 'a', 130, 450), 'b', 100, 850), 'c', 300, 450);
     s = patchPowers(s, 'a', { phase: 2 });
     s = patchBoomerang(s, 'b', {
@@ -551,7 +552,7 @@ describe('no invulnerability: a phasing player is vulnerable to everything', () 
   });
 
   it('two players phasing at each other through the same wall: each is stopped by the other; both end valid', () => {
-    let s = make(['a', 'b'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     s = place(place(s, 'a', 130, 450), 'b', 390, 450);
     s = patchPowers(patchPowers(s, 'a', { phase: 2 }), 'b', { phase: 2 });
     let state = stepFu(
@@ -608,7 +609,7 @@ describe('determinism, accepted dt and invariants', () => {
 
   it('replays to the identical state and events', () => {
     const play = () => {
-      let s = make(['a', 'b', 'c'], { arena: PRIMITIVE_ARENA });
+      let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
       const log: unknown[] = [];
       for (let i = 0; i < 2000; i += 1) {
         if (i % 150 === 0) s = patchPowers(patchPowers(s, 'a', { phase: 2 }), 'c', { phase: 2 });
@@ -634,7 +635,7 @@ describe('determinism, accepted dt and invariants', () => {
   });
 
   it('INVARIANT: nobody who is not mid-dash is ever inside a wall, however many phase dashes are thrown at the geometry', () => {
-    let s = make(['a', 'b', 'c', 'd'], { arena: PRIMITIVE_ARENA });
+    let s = make(['a', 'b', 'c', 'd'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
     let crossings = 0;
     for (let i = 0; i < 6000; i += 1) {
       if (i % 90 === 0) {

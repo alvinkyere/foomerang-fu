@@ -6,7 +6,19 @@ import {
   type FuEvent,
   type FuState,
 } from '../src/rules';
-import { DT, at, boom, face, flying, input, make, place, player, run } from './support/fixtures';
+import {
+  DT,
+  at,
+  boom,
+  face,
+  flying,
+  input,
+  make,
+  place,
+  player,
+  run,
+  STRAIGHT,
+} from './support/fixtures';
 
 // Charging a throw (owner, 2026-10-19; the reference video: art/physics_reference). Hold THROW with a boomerang in hand and the
 // throw charges; let go and it flies, faster and further the longer it was held: a quick throw at the plain throw speed, a full
@@ -19,7 +31,8 @@ const thrown = (events: readonly FuEvent[]) =>
   events.filter((e): e is Extract<FuEvent, { type: 'THROWN' }> => e.type === 'THROWN');
 
 /** `a` alone at (300, 450) facing right in the open arena, `b` far away. */
-const ready = (): FuState => face(place(place(make(), 'a', 300, 450), 'b', 1500, 120), 'a', 1, 0);
+const ready = (): FuState =>
+  face(place(place(make(undefined, STRAIGHT), 'a', 300, 450), 'b', 1500, 120), 'a', 1, 0);
 
 function hold(s: FuState, seconds: number): FuState {
   for (let t = 0; t < seconds - 1e-9; t += DT) s = stepFu(s, HOLD, DT).state;
@@ -129,6 +142,6 @@ describe('charging a throw', () => {
       { chargedThrowSpeed: -1 },
       { chargedThrowRange: Number.NaN },
     ])
-      expect(() => make(['a', 'b'], bad)).toThrow(RangeError);
+      expect(() => make(['a', 'b'], { ...STRAIGHT, ...bad })).toThrow(RangeError);
   });
 });
