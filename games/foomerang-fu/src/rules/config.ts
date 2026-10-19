@@ -90,8 +90,10 @@ export interface FuConfig {
   readonly caffeinatedMoveFactor: number;
   /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under CAFFEINATED (multiplies with fatigue). */
   readonly caffeinatedDashFactor: number;
-  /** Slice 5: EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units. */
+  /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video: 197 px against a 30 px character at 10:17.4, ≈ 470 u ±30%; the owner: what is drawn is what kills). */
   readonly blastRadius: number;
+  /** Seconds after an armed boomerang goes off (destroying itself) until a new one is in its thrower's hand (owner, 2026-10-19). */
+  readonly explosiveRespawnSeconds: number;
   /** Slice 5: TWIN_THROW's spread: one THROW launches two boomerangs at ±this angle (radians) from the facing. */
   readonly twinSpreadRadians: number;
   /** Slice 5: which powers a Book may award (default all five). A disabled power is never awarded. */
@@ -150,7 +152,8 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fatiguedDashFactor: 0.7,
   caffeinatedMoveFactor: 1.4,
   caffeinatedDashFactor: 1.3,
-  blastRadius: 170,
+  blastRadius: 470,
+  explosiveRespawnSeconds: 1.5,
   seed: 1,
   twinSpreadRadians: (13 * Math.PI) / 180,
   roundEndSeconds: 2.5,
@@ -226,6 +229,7 @@ export function assertValidConfig(config: FuConfig): void {
     ['caffeinatedMoveFactor', config.caffeinatedMoveFactor],
     ['caffeinatedDashFactor', config.caffeinatedDashFactor],
     ['blastRadius', config.blastRadius],
+    ['explosiveRespawnSeconds', config.explosiveRespawnSeconds],
     ['roundEndSeconds', config.roundEndSeconds],
     ['outsideLimitSeconds', config.outsideLimitSeconds],
   ];

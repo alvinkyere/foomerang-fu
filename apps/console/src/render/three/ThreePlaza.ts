@@ -13,6 +13,7 @@ import {
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
 import { deathOf } from '../deathMotion';
+import { Blasts } from './blasts';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { PlazaProps } from './plazaProps';
@@ -398,6 +399,7 @@ class Plaza {
   #restX = 0;
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
+  readonly #blasts: Blasts;
   readonly #resize: ResizeObserver;
 
   constructor(
@@ -494,6 +496,7 @@ class Plaza {
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
+    this.#blasts = new Blasts(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -754,12 +757,15 @@ class Plaza {
       );
       add(spark, 220, 1.6);
     } else if (e.type === 'BLASTED') {
-      const r = this.#space.length(e.radius ?? 170);
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(r * 0.9, r, 64).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: 0xffb02e, transparent: true, depthWrite: false }),
-      );
-      add(ring, 500, 0.4);
+      // the reference video's blast: puff, flash, the ring out to the radius that kills, smoke (render/blastMotion.ts)
+      if (e.radius !== undefined) {
+        const ground = this.#space.toScene(e.x, e.y, 2);
+        this.#blasts.burst(
+          new THREE.Vector3(ground.x, ground.y, ground.z),
+          this.#space.length(e.radius),
+          now,
+        );
+      }
     } else if (e.type === 'SLASHED' && e.swing) {
       const reach = this.#space.length(e.swing.reach);
       const angle = Math.atan2(e.swing.direction.y, e.swing.direction.x);
@@ -849,6 +855,7 @@ class Plaza {
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#props.frame(time);
     this.#remains.frame(time);
+    this.#blasts.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
       const k = (time - b.born) / b.life;

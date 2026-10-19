@@ -9,7 +9,7 @@ import type { Vec2 } from '@foomerang/game-core';
  * the RETURNING → HELD transition, and a dead owner's boomerang keeps its state.
  */
 export type BoomerangState =
-  'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING';
+  'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING' | 'SPENT';
 
 /** The Slice 1 cycle, unchanged. */
 export const BOOMERANG_TRANSITIONS: Readonly<
@@ -52,10 +52,26 @@ export const GROUND_TRANSITIONS: Readonly<
   RECALLING: Object.freeze(['HELD', 'GROUNDED'] as const),
 });
 
+/**
+ * EXPLOSIVE_BOOMERANG (the reference video; owner, 2026-10-19). An armed boomerang in flight that goes off is destroyed by its
+ * own blast (SPENT): it is nowhere, harmless and cannot be thrown; `explosiveRespawnSeconds` later a new one is in its
+ * thrower's hand (SPENT → HELD).
+ */
+export const EXPLOSIVE_TRANSITIONS: Readonly<
+  Record<'THROWN' | 'RETURNING' | 'DEFLECTED' | 'RECALLING' | 'SPENT', readonly BoomerangState[]>
+> = Object.freeze({
+  THROWN: Object.freeze(['SPENT'] as const),
+  RETURNING: Object.freeze(['SPENT'] as const),
+  DEFLECTED: Object.freeze(['SPENT'] as const),
+  RECALLING: Object.freeze(['SPENT'] as const),
+  SPENT: Object.freeze(['HELD'] as const),
+});
+
 const TABLES: Readonly<Record<string, readonly BoomerangState[] | undefined>>[] = [
   BOOMERANG_TRANSITIONS,
   DEFLECTION_TRANSITIONS,
   GROUND_TRANSITIONS,
+  EXPLOSIVE_TRANSITIONS,
 ];
 
 export const canTransition = (from: BoomerangState, to: BoomerangState): boolean =>
@@ -78,7 +94,7 @@ export interface Boomerang {
   readonly deflections: number;
   /** DEFLECTED only: who knocked it away. They cannot be killed by it, nor deflect it again, on this leg. */
   readonly deflectedBy: string | undefined;
-  /** Slice 5: armed with EXPLOSIVE_BOOMERANG — the first contact or wall impact detonates it (once). */
+  /** Armed with EXPLOSIVE_BOOMERANG: it goes off on the first enemy it touches, or where its flight out ends (once). */
   readonly blast: boolean;
   /** Slice 5: players whose SHIELD this boomerang already met on its current leg; it cannot hit them again on it. */
   readonly absorbed: readonly string[];
@@ -92,6 +108,8 @@ export interface Boomerang {
   readonly velocity: Vec2;
   /** GROUNDED: seconds its thrower has been holding THROW (the pull starts at recallDelaySeconds). 0 otherwise. */
   readonly recall: number;
+  /** SPENT: seconds until a new one is in its thrower's hand. 0 otherwise. */
+  readonly respawn: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

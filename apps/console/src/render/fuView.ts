@@ -102,7 +102,8 @@ export function buildFuView(
     (b): BoomerangView[] => {
       const n = (seenOwner.get(b.ownerId) ?? 0) + 1;
       seenOwner.set(b.ownerId, n);
-      return b.state === 'HELD'
+      // in hand, or destroyed by its own blast (SPENT): nothing in the arena to draw
+      return b.state === 'HELD' || b.state === 'SPENT'
         ? []
         : [
             {

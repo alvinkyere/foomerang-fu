@@ -250,6 +250,13 @@ Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to ba
 > the events GUARD_BLOCKED → SHIELD_BLOCKED. **PHASE_DASH is retired** — it is not in the video — with its planned through-wall
 > dash, the PHASE_ENTERED / PHASE_EXITED events, the CPUs' phase routes and the TV's phasing visuals. What this section says about
 > Phase Dash is the history of Slice 5. The video's other powers follow, one step each.
+>
+> **2026-10-19 — EXPLOSIVE_BOOMERANG as the video shows it** (art/physics_reference/README.md; the owner decided what it
+> does not show). An armed boomerang bounces off walls still armed. It goes off where its flight out ends (its range, or the
+> impact that would turn it home), or at once on the first enemy it touches. The blast radius is the full drawn ring,
+> `blastRadius` 470 (was 170). The blast destroys the boomerang: it is `SPENT` (nowhere, harmless, not throwable) and a new
+> one is in hand `explosiveRespawnSeconds` (1.5 s) later. The TV draws the video's puff, flash, ring and smoke
+> (`render/blastMotion.ts`). The Explosive row of the table below is Slice 5's history.
 
 **Slice 5 — Powerups: PASS** on a physical human playtest (the project owner, 2026-10-06), after the lifecycle revision: powerups are **persistent match upgrades**, not round pickups with timers and charges. Frozen as the approved baseline: the mystery blue-book/red-bookmark Powerup Book, scarce spawning, the persistent three-slot FIFO inventory across the nine-round match, persistent PHASE_DASH / CAFFEINATED / EXPLOSIVE_BOOMERANG / TWIN_THROW, a SHIELD that breaks on a lethal hit, and TWIN_THROW launching **two simultaneous angled boomerangs** from one press. The rules below are what is built and tested.
 

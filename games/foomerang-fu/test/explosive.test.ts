@@ -24,25 +24,26 @@ import {
   STRAIGHT,
 } from './support/fixtures';
 
-// EXPLOSIVE_BOOMERANG — CONSUMED ON USE (the first detonation).
-//   Arms the NEXT boomerang its owner throws. It detonates ONCE, on the first
-//     (1) contact with a living enemy, or (2) wall impact (the moment a THROWN/DEFLECTED one turns back).
-//   Range end and deflection do NOT detonate it. Afterwards it flies on as a plain boomerang.
-//   Blast = every living non-owner within `blastRadius` of the explosion, with a clear line (walls are
-//   cover). The owner is immune to their own blast. Deflection saves, and the deflector is immune to
-//   that boomerang's blast on that leg. A guard absorbs a blast like any other lethal contact.
-//   An armed boomerang that comes home unused gives the charge back.
+// EXPLOSIVE_BOOMERANG, as the reference video shows it (5:20 and 10:16; art/physics_reference/README.md) and as the owner
+// decided where it does not (2026-10-19). While owned, every boomerang its owner throws is armed. An armed boomerang
+//   - bounces off walls and the arena's edge like any other, still armed (it does not go off at a wall);
+//   - goes off where its flight out ENDS (its range, or the impact that would turn it home), instead of coming home;
+//   - goes off at once on the first living enemy it touches (owner).
+// The blast: every living non-owner within `blastRadius` (the full drawn ring: ~470 u in the video) with a clear line (walls are
+// cover). The owner is immune; deflection does not set it off, and the deflector is immune on that leg. A shield absorbs it.
+// The boomerang is destroyed by its own blast (SPENT) and a new one is in its thrower's hand `explosiveRespawnSeconds`
+// (1.5 s, owner) later.
 
 const hits = (events: readonly FuEvent[]) => events.filter((e) => e.type === 'HIT');
 const blasted = (events: readonly FuEvent[]) => events.filter((e) => e.type === 'BLASTED');
 const victims = (events: readonly FuEvent[]) =>
   hits(events).map((e) => (e.type === 'HIT' ? e.victimId : ''));
 
-/** Everyone parked far away along the bottom, in the open arena. */
+/** Everyone parked far away along the bottom right, in the open arena (beyond the blast's reach of the scenes below). */
 function field(ids: string[] = ['a', 'b', 'c', 'd']): FuState {
   let s = make(ids, STRAIGHT);
   ids.forEach((id, i) => {
-    s = place(s, id, 100 + i * 150, 850);
+    s = place(s, id, 1050 + i * 150, 850);
   });
   return s;
 }
@@ -53,6 +54,13 @@ const armed = (
   dir = { x: 1, y: 0 },
   which = 0,
 ) => flying(s, owner, from, dir, { blast: true }, which);
+
+describe('the numbers', () => {
+  it('the blast reaches the full drawn ring, ~470 u (the video); a new boomerang is in hand 1.5 s after the blast (owner)', () => {
+    expect(C.blastRadius).toBe(470);
+    expect(C.explosiveRespawnSeconds).toBe(1.5);
+  });
+});
 
 describe('arming: the charge and the throw', () => {
   it('owning it arms EVERY throw; the power stays owned; an explosion spends only that projectile', () => {
@@ -88,12 +96,12 @@ describe('arming: the charge and the throw', () => {
 });
 
 describe('detonation on contact', () => {
-  /** a's armed boomerang meets b; c is a bystander ~110 away; d is ~250 away. */
+  /** a's armed boomerang meets b; c is a bystander ~110 away; d is ~550 away, beyond the ring. */
   function boomScene(): FuState {
     let s = field();
     s = place(s, 'b', 520, 450);
     s = place(s, 'c', 475, 560);
-    s = place(s, 'd', 475, 700);
+    s = place(s, 'd', 950, 800);
     return armed(s, 'a');
   }
 
@@ -107,10 +115,10 @@ describe('detonation on contact', () => {
     for (const h of hits(r.events)) expect(h).toMatchObject({ byId: 'a' });
   });
 
-  it('detonates ONCE: it is a plain boomerang afterwards (and no longer armed)', () => {
+  it('detonates ONCE: its blast destroys it (SPENT, nowhere to be seen), and it does nothing more', () => {
     const r = run(boomScene(), 30);
     expect(blasted(r.events)).toHaveLength(1);
-    expect(boom(r.state, 'a').blast).toBe(false);
+    expect(boom(r.state, 'a')).toMatchObject({ state: 'SPENT', blast: false });
   });
 
   it('the owner is immune to their own blast, even standing in it', () => {
@@ -147,8 +155,36 @@ describe('cover: a blast does not go through walls', () => {
     if (boomEvent?.type === 'BLASTED') expect(boomEvent.victims).not.toContain('c');
   });
 
-  it('detonates on WALL IMPACT too: at the wall, killing what is in the open beside it, not what is behind it', () => {
+  it('a wall does NOT set it off: it bounces off still armed (the video: 3 bounces, then the blast)', () => {
     let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
+    s = place(place(place(s, 'a', 100, 850), 'b', 1500, 850), 'c', 1400, 100);
+    s = armed(s, 'a', { x: 100, y: 450 });
+    const r = run(s, 6);
+    expect(r.events.filter((e) => e.type === 'RICOCHET')).toHaveLength(1);
+    expect(blasted(r.events)).toEqual([]);
+    expect(boom(r.state, 'a')).toMatchObject({ state: 'THROWN', blast: true });
+  });
+});
+
+describe('where its flight ends, it goes off', () => {
+  it('at the end of its range it explodes there, instead of coming home', () => {
+    let s = field();
+    s = place(s, 'b', 700, 560); // ~110 from where it ends
+    s = armed(s, 'a', { x: 400, y: 450 });
+    s = patchBoomerang(s, 'a', { travelled: C.throwRange - 10 });
+    const r = run(s, 3);
+    const [boomEvent] = blasted(r.events);
+    expect(boomEvent).toMatchObject({ type: 'BLASTED', ownerId: 'a', victims: ['b'] });
+    if (boomEvent?.type === 'BLASTED') {
+      expect(boomEvent.position.x).toBeCloseTo(410, 6); // 10 further on: where its range ran out
+      expect(boomEvent.position.y).toBeCloseTo(450, 6);
+    }
+    expect(boom(r.state, 'a').state).toBe('SPENT');
+    expect(player(r.state, 'b').alive).toBe(false);
+  });
+
+  it('at the impact that would turn it home, once its bounces are used up', () => {
+    let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA, maxRicochets: 0 });
     s = place(place(place(s, 'a', 100, 850), 'b', 140, 520), 'c', 300, 450); // c is inside the left corridor
     s = armed(s, 'a', { x: 100, y: 450 });
     const r = run(s, 12);
@@ -158,26 +194,67 @@ describe('cover: a blast does not go through walls', () => {
       expect(boomEvent.position.x).toBeCloseTo(200 - C.boomerangRadius, 6);
       expect(boomEvent.position.y).toBeCloseTo(450, 6);
     }
-    expect(victims(r.events)).toEqual(['b']);
+    expect(victims(r.events)).toEqual(['b']); // in the open beside the wall; not c, behind it
     expect(player(r.state, 'c').alive).toBe(true);
-    // spent at the wall, it bounces off and flies on unarmed (ricochets, 2026-10-19)
-    expect(boom(r.state, 'a').state).toBe('THROWN');
-    expect(boom(r.state, 'a').blast).toBe(false);
+    expect(boom(r.state, 'a').state).toBe('SPENT');
+  });
+
+  it('a deflected armed boomerang goes off where its deflected flight ends', () => {
+    let s = field(['a', 'b', 'c']);
+    s = place(place(s, 'b', 600, 450), 'c', 1500, 850);
+    s = patchPlayer(s, 'b', {
+      facing: { x: -1, y: 0 },
+      slash: { phase: 'ACTIVE', direction: { x: -1, y: 0 }, remaining: 0.12 },
+    });
+    s = armed(s, 'a', { x: 500, y: 450 });
+    const r = run(s, 60);
+    expect(types(r.events)).toContain('DEFLECTED');
+    expect(blasted(r.events)).toHaveLength(1);
+    expect(player(r.state, 'b').alive).toBe(true); // the deflector is immune on that leg
   });
 });
 
-describe('what does NOT detonate it', () => {
-  it('reaching the end of its range does not; it stays armed and comes home armed', () => {
-    let s = field();
-    s = place(s, 'b', 700, 560);
+describe('the boomerang it destroyed comes back', () => {
+  function spent(): FuState {
+    let s = field(['a', 'b']);
+    s = own(s, 'a', 'EXPLOSIVE_BOOMERANG');
+    s = place(place(s, 'b', 1500, 850), 'a', 300, 450);
     s = armed(s, 'a', { x: 400, y: 450 });
     s = patchBoomerang(s, 'a', { travelled: C.throwRange - 10 });
-    const r = run(s, 3);
-    expect(blasted(r.events)).toEqual([]);
-    expect(boom(r.state, 'a')).toMatchObject({ state: 'RETURNING', blast: true });
-    expect(player(r.state, 'b').alive).toBe(true);
+    return run(s, 2).state;
+  }
+
+  it("it is gone for 1.5 s: harmless, nothing to throw, then in its thrower's hand again, and the next throw is armed", () => {
+    let s = spent();
+    expect(boom(s, 'a').state).toBe('SPENT');
+    const steps = Math.round(C.explosiveRespawnSeconds / DT);
+    for (let i = 0; i < steps - 2; i += 1) {
+      const r = stepFu(face(s, 'a', 1, 0), input({ a: { throw: true } }), DT);
+      s = r.state;
+      expect(types(r.events)).not.toContain('THROWN');
+      expect(boom(s, 'a').state).toBe('SPENT');
+    }
+    s = run(s, 3).state;
+    expect(boom(s, 'a').state).toBe('HELD');
+    expect(boom(s, 'a').position).toEqual(at(s, 'a'));
+    const again = stepFu(face(s, 'a', 1, 0), input({ a: { throw: true } }), DT).state;
+    expect(boom(again, 'a')).toMatchObject({ state: 'THROWN', blast: true });
   });
 
+  it('a spent boomerang cannot be knocked away, breaks nothing and kills nobody', () => {
+    let s = spent();
+    s = place(s, 'b', boom(s, 'a').position.x + 20, boom(s, 'a').position.y);
+    s = patchPlayer(s, 'b', {
+      facing: { x: -1, y: 0 },
+      slash: { phase: 'ACTIVE', direction: { x: -1, y: 0 }, remaining: 0.12 },
+    });
+    const r = run(s, 10);
+    expect(types(r.events)).not.toContain('DEFLECTED');
+    expect(hits(r.events)).toEqual([]);
+  });
+});
+
+describe('contact, and what does NOT set it off', () => {
   it('…and the RETURNING armed boomerang detonates on contact with an enemy in its way home', () => {
     let s = field();
     s = place(s, 'a', 100, 450);
@@ -224,33 +301,14 @@ describe('what does NOT detonate it', () => {
     expect(player(r.state, 'b').alive).toBe(true); // ~125 from the blast, in the clear — but he knocked it away
   });
 
-  it('the capability survives an explosion and the return: still owned, and the next throw is armed again', () => {
-    let s = field(['a', 'b']);
+  it('the capability survives an explosion: still owned after it', () => {
+    let s = field(['a', 'b', 'c']);
     s = own(s, 'a', 'EXPLOSIVE_BOOMERANG');
     s = place(place(s, 'b', 520, 450), 'a', 300, 450);
     s = armed(s, 'a', { x: 400, y: 450 });
     const exploded = run(s, 14);
     expect(blasted(exploded.events)).toHaveLength(1);
-    expect(boom(exploded.state, 'a').blast).toBe(false); // this projectile's blast is spent
-    expect(player(exploded.state, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG']); // the power is not
-    // the boomerang comes home (the round is over for the dead victim, so look at it directly)
-    let home = patchBoomerang(place(exploded.state, 'a', 300, 450), 'a', {
-      state: 'RETURNING',
-      position: { x: 320, y: 450 },
-      direction: { x: 0, y: 0 },
-    });
-    home = run(
-      {
-        ...home,
-        phase: 'PLAYING',
-        roundOver: undefined,
-        players: home.players.map((p) => ({ ...p, alive: true })),
-      },
-      8,
-    ).state;
-    expect(boom(home, 'a').state).toBe('HELD');
-    const again = stepFu(face(home, 'a', 1, 0), input({ a: { throw: true } }), DT).state;
-    expect(boom(again, 'a').blast).toBe(true);
+    expect(player(exploded.state, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG']);
   });
 });
 

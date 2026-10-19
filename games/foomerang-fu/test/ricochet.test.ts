@@ -142,14 +142,13 @@ describe('ricochets', () => {
     expect(bounces(r.events)).toEqual([]);
   });
 
-  it('an armed BLAST boomerang explodes at its first wall impact, then bounces on unarmed', () => {
+  it('an armed EXPLOSIVE boomerang bounces off a wall still armed: a wall does not set it off (the video, 5:20 and 10:16)', () => {
     let s = own(match(), 'a', 'EXPLOSIVE_BOOMERANG');
     s = flying(s, 'a', { x: 700, y: 450 }, { x: 1, y: 0 }, { blast: true });
     const r = fly(s, 12);
-    expect(r.events.filter((e) => e.type === 'BLASTED')).toHaveLength(1);
+    expect(r.events.filter((e) => e.type === 'BLASTED')).toEqual([]);
     expect(bounces(r.events)).toHaveLength(1);
-    expect(boom(r.s, 'a').blast).toBe(false);
-    expect(boom(r.s, 'a').state).toBe('THROWN');
+    expect(boom(r.s, 'a')).toMatchObject({ state: 'THROWN', blast: true });
   });
 
   it('a full charge bounces at full speed', () => {

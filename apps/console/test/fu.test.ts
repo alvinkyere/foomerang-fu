@@ -1079,6 +1079,21 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(buildFuView(state, [], entries, slots).walls).toEqual([]);
   });
 
+  it('a boomerang its own blast destroyed (SPENT) is not drawn, and its thrower is not shown armed until the new one', () => {
+    const { state, entries, slots } = playing();
+    const spent: FuState = {
+      ...state,
+      boomerangs: state.boomerangs.map((b) =>
+        b.ownerId === 'a'
+          ? { ...b, state: 'SPENT' as const, position: { x: 900, y: 300 }, respawn: 1 }
+          : b,
+      ),
+    };
+    const view = buildFuView(spent, [], entries, slots);
+    expect(view.boomerangs.map((b) => b.ownerId)).not.toContain('a');
+    expect(view.circles.find((c) => c.id === 'a')?.armed).toBe(false);
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

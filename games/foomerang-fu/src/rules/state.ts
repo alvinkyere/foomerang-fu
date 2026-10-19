@@ -188,6 +188,7 @@ export function startRound(
       ricochets: 0,
       velocity: Object.freeze({ x: 0, y: 0 }),
       recall: 0,
+      respawn: 0,
     }),
   );
 

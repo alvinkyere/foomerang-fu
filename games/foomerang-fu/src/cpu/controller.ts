@@ -133,8 +133,14 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
     (b): ShotView[] => {
       const n = count.get(b.ownerId) ?? 0;
       count.set(b.ownerId, n + 1);
-      // a boomerang lying on the ground is no threat (one pulled home is, and flies like any other)
-      if (b.state === 'HELD' || b.state === 'GROUNDED' || b.ownerId === selfId) return [];
+      // a boomerang lying on the ground, or destroyed by its blast, is no threat (one pulled home is, and flies like any other)
+      if (
+        b.state === 'HELD' ||
+        b.state === 'GROUNDED' ||
+        b.state === 'SPENT' ||
+        b.ownerId === selfId
+      )
+        return [];
       return [
         {
           key: `${b.ownerId}:${n}`,

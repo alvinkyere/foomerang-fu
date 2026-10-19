@@ -156,3 +156,26 @@ Two armed throws, both charged (pink trails), read at 0.1 s on 2× crops: 5:20.0
 
 **Ricochets, seen again:** both throws bounce at least 3 times, so `maxRicochets` 3 is the least the video allows. It may be 4
 or more.
+
+**Explosive, applied (2026-10-19).** The owner decided the three things the video doesn't show:
+
+- **Kill radius:** the drawn ring kills. A sample every frame along a ray from the 10:17.4 blast's centre shows the ring still
+  growing as it fades: 177 px at 0.4 s, **197 px at the end**. Against the 30 px character that is ≈ 6.6 widths, ≈ **470 u**
+  (±30%), so `blastRadius` is 470. The ~420 u figure in the question was read at 0.4 s, before the ring had finished.
+- **An enemy touched in flight:** the boomerang explodes on them.
+- **Getting it back:** a new boomerang is in hand **1.5 s** after the blast (`explosiveRespawnSeconds`).
+
+The TV draws the sampled timeline (`apps/console/src/render/blastMotion.ts`), with t from the puff:
+
+| t         | What it draws                                                                         |
+| --------- | ------------------------------------------------------------------------------------- |
+| 0–0.10    | a white puff, 0.3 R (by eye)                                                          |
+| 0.10–0.20 | a yellow flash filling out to 0.63 R                                                  |
+| 0.20–0.74 | the ring, its outer edge sampled: 0.84 R at 0.3 s, 0.90 at 0.4, 0.96 at 0.5, R at 0.6 |
+
+- **The ring's colour:** yellow `#fdfd8c` until 0.43 s, then orange, then red-pink `#f3857f`, fading out from 0.6 s.
+- **Its band:** about 0.1 R thick (by eye) until 0.5 s. After that it thins from the inside, per the samples.
+- **Smoke:** three dark lumps near the middle from 0.3 s (positions and sizes by eye).
+
+**Not modelled:** the boomerang's brief rest before it goes off (≈ 0.2 s at 10:17.2; a slower crawl at 5:20.6). In ours it
+explodes the moment its flight ends.

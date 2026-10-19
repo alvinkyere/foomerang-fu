@@ -432,10 +432,8 @@ interface Flight {
   readonly caught: boolean;
   /** It could not get home (its trip round the walls failed, or its thrower died): it dropped to the ground this step. */
   readonly dropped?: boolean;
-  /** THROWN/DEFLECTED and it met a wall or the arena edge this step (bounced off it, or stopped by it). */
-  readonly wallImpact?: boolean;
-  /** Where it first met a wall this step (a blast goes off there). */
-  readonly impactAt?: Vec2;
+  /** THROWN/DEFLECTED: its flight out ended this step (its range ran out, or an impact turned it home) here. An armed one goes off here. */
+  readonly ended?: Vec2;
   /** The path it flew this step when it bounced (start, each bounce, end); hits are judged along it. */
   readonly path?: readonly Vec2[];
 }
@@ -466,6 +464,7 @@ const IN_HAND = Object.freeze({
   ricochets: 0,
   velocity: ZERO,
   recall: 0,
+  respawn: 0,
 });
 
 /**
@@ -775,7 +774,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           ) ||
           startWeapons.some(
             (w) =>
-              w.state !== 'HELD' && distanceToRect(w.position, gate.rect) < config.boomerangRadius,
+              w.state !== 'HELD' &&
+              w.state !== 'SPENT' &&
+              distanceToRect(w.position, gate.rect) < config.boomerangRadius,
           );
         if (!busy) gatesShut[k] = true;
       }
@@ -917,6 +918,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           ricochets: 0,
           velocity: ZERO,
           recall: 0,
+          respawn: 0,
         } satisfies Boomerang),
       );
     }
@@ -998,6 +1000,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const flights: Flight[] = weapons.map((b, k) => {
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
     if (thrownNow.has(k)) return { boomerang: b, lethalAt: b.position, caught: false };
+    if (b.state === 'SPENT') {
+      // destroyed by its own blast: nowhere, harmless; a new one is in its thrower's hand when the time is up
+      const respawn = b.respawn - dt;
+      return {
+        boomerang:
+          respawn <= EPSILON
+            ? transition(b, 'HELD', { ...IN_HAND, position: positionOf(b.ownerId) })
+            : Object.freeze({ ...b, respawn }),
+        lethalAt: undefined,
+        caught: false,
+      };
+    }
 
     if (b.state === 'THROWN' || b.state === 'DEFLECTED') {
       // A deflected boomerang flies just like a thrown one — straight, at throw speed, stopped by walls —
@@ -1018,7 +1032,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       let heading = b.direction;
       let travelled = b.travelled;
       let ricochets = b.ricochets;
-      let impactAt: Vec2 | undefined;
       let stopped = false;
       const path: Vec2[] = [b.position];
       for (let leg = 0; leg <= config.maxRicochets + 1 && left > EPSILON; leg += 1) {
@@ -1049,7 +1062,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         const incoming = normalized(rotate(heading, curvature * flown));
         position = hit;
         path.push(hit);
-        impactAt ??= hit;
         if (ricochets >= config.maxRicochets) {
           heading = incoming;
           stopped = true;
@@ -1068,10 +1080,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         events.push({ type: 'RICOCHET', ownerId: b.ownerId, position: hit, direction: heading });
       }
       if (path.length > 1) path.push(position);
-      const extra: Pick<Flight, 'wallImpact' | 'impactAt' | 'path'> = {
-        ...(impactAt !== undefined ? { wallImpact: true, impactAt } : {}),
-        ...(path.length > 2 ? { path } : {}),
-      };
+      const extra: Pick<Flight, 'path'> = path.length > 2 ? { path } : {};
       if (stopped || travelled >= range - EPSILON) {
         // home: it carries on round its curve (a wall it may not bounce off turns it straight back towards its thrower)
         const owner = positionOf(b.ownerId);
@@ -1089,6 +1098,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           }),
           lethalAt: position,
           caught: false,
+          ended: position,
           ...extra,
         };
       }
@@ -1325,7 +1335,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   if (breakables.length > 0)
     flights.forEach((f, k) => {
       const before = flownFrom[k] as Boomerang;
-      if (before.state === 'HELD' || before.state === 'GROUNDED') return; // (sliding on the ground breaks nothing)
+      // (sliding on the ground breaks nothing; nor does one destroyed by its blast)
+      if (before.state === 'HELD' || before.state === 'GROUNDED' || before.state === 'SPENT')
+        return;
       const to = f.lethalAt ?? f.boomerang.position;
       const byId =
         before.state === 'DEFLECTED' && before.deflectedBy !== undefined
@@ -1349,8 +1361,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // detonate that step, and each boomerang of a pair is judged on its own.)
   const lethalAt: (Vec2 | undefined)[] = flights.map((f) => f.lethalAt);
   weapons.forEach((b, k) => {
-    // (a boomerang lying on the ground cannot be knocked away; one being pulled home is flying, and can)
-    if (b.state === 'HELD' || b.state === 'GROUNDED' || b.deflections >= config.maxDeflections)
+    // (a boomerang lying on the ground cannot be knocked away, nor one its blast destroyed; one pulled home is flying, and can)
+    if (
+      b.state === 'HELD' ||
+      b.state === 'GROUNDED' ||
+      b.state === 'SPENT' ||
+      b.deflections >= config.maxDeflections
+    )
       return;
     let best: number | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
@@ -1408,7 +1425,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // 5. Hits (simultaneous: everyone alive at the start of the step can be hit) ---------------
   // Every lethal contact is collected first, per victim, in a fixed order (attacker's place in the match,
   // then boomerangs/blasts before the slash, then the weapon); then a SHIELD takes the FIRST one and the
-  // rest kill. An armed boomerang's first contact (or wall impact) is an explosion instead: everyone
+  // rest kill. An armed boomerang's first contact, or the end of its flight out, is an explosion instead: everyone
   // (not its owner, not whoever just deflected it) within `blastRadius` with a clear line is a victim.
   const contacts: Contact[][] = players.map(() => []);
   const blastRadiusSquared = config.blastRadius * config.blastRadius;
@@ -1418,14 +1435,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const a = ownerIdx[k] as number;
     // A deflected boomerang is credited to whoever deflected it (they sent it; its owner is immune to it anyway);
     // every other weapon is credited to its owner. Twins and blasts follow the same rule.
+    // (judged on the leg it flew this step: one whose deflected flight ended this step has already turned home)
+    const leg = (flownFrom[k] as Boomerang).state === 'DEFLECTED' ? (flownFrom[k] as Boomerang) : w;
     const credit =
-      w.state === 'DEFLECTED' && w.deflectedBy !== undefined
-        ? (ownerOf.get(w.deflectedBy) ?? a)
+      leg.state === 'DEFLECTED' && leg.deflectedBy !== undefined
+        ? (ownerOf.get(leg.deflectedBy) ?? a)
         : a;
     // (a shield it met on this leg still covers the step it is caught in: its list is cleared by the catch, but the path
     // judged this step began on that leg)
     const immuneTo = (victim: FuPlayer): boolean =>
-      (w.state === 'DEFLECTED' && w.deflectedBy === victim.id) ||
+      (leg.state === 'DEFLECTED' && leg.deflectedBy === victim.id) ||
       w.absorbed.includes(victim.id) ||
       (flownFrom[k] as Boomerang).absorbed.includes(victim.id);
     const touched: number[] = [];
@@ -1439,9 +1458,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       if (approachAlong(flights[k]?.path ?? [from, at], start, positionOf(victim.id)) < reach)
         touched.push(v);
     });
-    // an armed boomerang goes off at its first contact: a player, or the wall where it struck
-    const blastAt = touched.length === 0 ? (flights[k]?.impactAt ?? at) : at;
-    if (w.blast && (touched.length > 0 || flights[k]?.wallImpact === true)) {
+    // an armed boomerang goes off at its first contact with a player, or where its flight out ended (walls only bounce it)
+    const ended = flights[k]?.ended;
+    const blastAt = touched.length === 0 ? (ended ?? at) : at;
+    if (w.blast && (touched.length > 0 || ended !== undefined)) {
       const hit = new Set(touched);
       players.forEach((victim, v) => {
         if (v === a || !victim.alive || immuneTo(victim)) return;
@@ -1462,7 +1482,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           lineIsClear(blastAt, closestPointOn(blastAt, prop), walls)
         )
           breakProp(prop, w.ownerId, 'BLAST');
-      weapons[k] = Object.freeze({ ...w, blast: false }); // spent: it flies on as a plain boomerang
+      // its own blast destroys it; a new one is in its thrower's hand `explosiveRespawnSeconds` later
+      weapons[k] = transition(w, 'SPENT', {
+        ...IN_HAND,
+        position: blastAt,
+        blast: false,
+        respawn: config.explosiveRespawnSeconds,
+      });
       events.push({
         type: 'BLASTED',
         ownerId: w.ownerId,
