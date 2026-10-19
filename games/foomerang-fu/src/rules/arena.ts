@@ -36,12 +36,20 @@ export interface TurnedBox {
 /** Anything solid: an axis-aligned rectangle (most walls), a disc or a turned box. */
 export type Solid = Rect | Disc | TurnedBox;
 
+/**
+ * A prop that breaks (a crate, a pot): solid to bodies until a boomerang or a slash hits it (or a blast reaches it). It never
+ * stops a boomerang, which flies straight through and breaks it. Broken props are back at the start of every round.
+ */
+export type Breakable = Solid & { readonly id: string };
+
 /** `W`: the kinds of wall it has (an arena of plain rectangles says so: `FuArena<Rect>`). */
 export interface FuArena<W extends Solid = Solid> {
   readonly width: number;
   readonly height: number;
   /** Solid cover. Blocks living players, thrown boomerangs and a slash's line of sight. */
   readonly walls?: readonly W[];
+  /** Props that break (see `Breakable`). Absent: none. */
+  readonly breakables?: readonly Breakable[];
   /** Exactly one point per slot (6). Absent: the Slice 1 ellipse. */
   readonly spawns?: readonly Vec2[];
   /** Slice 6: timed gates (solid while CLOSED). */
@@ -60,6 +68,7 @@ export interface FuArena<W extends Solid = Solid> {
 const NO_WALLS: readonly never[] = Object.freeze([]);
 export const wallsOf = <W extends Solid>(arena: FuArena<W>): readonly W[] =>
   arena.walls ?? NO_WALLS;
+export const breakablesOf = (arena: FuArena): readonly Breakable[] => arena.breakables ?? NO_WALLS;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry. All of it is pure and symmetric in nothing but the data it is handed.
@@ -305,43 +314,63 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
  * Walls must be at least one player radius thick in both directions: thin enough and a body that is
  * shoved by contact could end up on the wrong side of one. `playerRadius` comes from the config.
  */
+/** One solid: a known shape, finite numbers, at least one player radius thick, and on the arena. `label` names it. */
+function assertValidSolid(
+  wall: unknown,
+  label: string,
+  arena: FuArena,
+  playerRadius: number,
+): void {
+  if (typeof wall !== 'object' || wall === null) throw new RangeError(`${label} is not a solid`);
+  const w = wall as Record<string, unknown>;
+  const shape = w['shape'];
+  const fields =
+    shape === undefined
+      ? ['x', 'y', 'width', 'height']
+      : shape === 'disc'
+        ? ['x', 'y', 'radius']
+        : shape === 'box'
+          ? ['x', 'y', 'halfWidth', 'halfHeight', 'angle']
+          : undefined;
+  if (fields === undefined) throw new RangeError(`${label} has an unknown shape`);
+  if (fields.some((f) => !finite(w[f]))) throw new RangeError(`${label} has a non-finite number`);
+  const solid = wall as Solid;
+  const thickness = !('shape' in solid)
+    ? Math.min(solid.width, solid.height)
+    : solid.shape === 'disc'
+      ? 2 * solid.radius
+      : 2 * Math.min(solid.halfWidth, solid.halfHeight);
+  if (thickness < playerRadius) {
+    throw new RangeError(`${label} is thinner than a player radius (${playerRadius})`);
+  }
+  // a rectangle lies wholly inside the arena; a disc or a turned box (a model standing at the edge) needs only its centre in it
+  const inside = !('shape' in solid)
+    ? solid.x >= 0 &&
+      solid.y >= 0 &&
+      solid.x + solid.width <= arena.width &&
+      solid.y + solid.height <= arena.height
+    : solid.x >= 0 && solid.y >= 0 && solid.x <= arena.width && solid.y <= arena.height;
+  if (!inside) throw new RangeError(`${label} is not inside the arena`);
+}
+
 export function assertValidWalls(arena: FuArena, playerRadius: number): void {
   const walls: unknown = arena.walls;
-  if (walls === undefined) return;
-  if (!Array.isArray(walls)) throw new RangeError('arena.walls must be a list of solids');
-  walls.forEach((wall: unknown, index) => {
-    if (typeof wall !== 'object' || wall === null)
-      throw new RangeError(`wall ${index} is not a solid`);
-    const w = wall as Record<string, unknown>;
-    const shape = w['shape'];
-    const fields =
-      shape === undefined
-        ? ['x', 'y', 'width', 'height']
-        : shape === 'disc'
-          ? ['x', 'y', 'radius']
-          : shape === 'box'
-            ? ['x', 'y', 'halfWidth', 'halfHeight', 'angle']
-            : undefined;
-    if (fields === undefined) throw new RangeError(`wall ${index} has an unknown shape`);
-    if (fields.some((f) => !finite(w[f])))
-      throw new RangeError(`wall ${index} has a non-finite number`);
-    const solid = wall as Solid;
-    const thickness = !('shape' in solid)
-      ? Math.min(solid.width, solid.height)
-      : solid.shape === 'disc'
-        ? 2 * solid.radius
-        : 2 * Math.min(solid.halfWidth, solid.halfHeight);
-    if (thickness < playerRadius) {
-      throw new RangeError(`wall ${index} is thinner than a player radius (${playerRadius})`);
-    }
-    // a rectangle lies wholly inside the arena; a disc or a turned box (a model standing at the edge) needs only its centre in it
-    const inside = !('shape' in solid)
-      ? solid.x >= 0 &&
-        solid.y >= 0 &&
-        solid.x + solid.width <= arena.width &&
-        solid.y + solid.height <= arena.height
-      : solid.x >= 0 && solid.y >= 0 && solid.x <= arena.width && solid.y <= arena.height;
-    if (!inside) throw new RangeError(`wall ${index} is not inside the arena`);
+  if (walls !== undefined) {
+    if (!Array.isArray(walls)) throw new RangeError('arena.walls must be a list of solids');
+    walls.forEach((wall: unknown, index) =>
+      assertValidSolid(wall, `wall ${index}`, arena, playerRadius),
+    );
+  }
+  const breakables: unknown = arena.breakables;
+  if (breakables === undefined) return;
+  if (!Array.isArray(breakables)) throw new RangeError('arena.breakables must be a list of solids');
+  const ids = new Set<string>();
+  breakables.forEach((b: unknown, index) => {
+    assertValidSolid(b, `breakable ${index}`, arena, playerRadius);
+    const id = (b as { id?: unknown }).id;
+    if (typeof id !== 'string' || id === '' || ids.has(id))
+      throw new RangeError(`breakable ${index} needs its own id`);
+    ids.add(id);
   });
 }
 
@@ -366,6 +395,9 @@ export function assertValidSpawns(
     }
     if (circleHitsWalls(p, playerRadius, walls)) {
       throw new RangeError(`spawn ${index} overlaps a wall`);
+    }
+    if (circleHitsWalls(p, playerRadius, breakablesOf(arena))) {
+      throw new RangeError(`spawn ${index} overlaps a breakable`);
     }
     for (let other = index + 1; other < spawns.length; other += 1) {
       const q = spawns[other] as Vec2;

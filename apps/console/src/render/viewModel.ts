@@ -79,6 +79,7 @@ export interface ViewEvent {
     | 'GUARD_BLOCKED'
     | 'PHASE_ENTERED'
     | 'PHASE_EXITED'
+    | 'PROP_BROKEN'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;
@@ -97,6 +98,10 @@ export interface ViewEvent {
   readonly who?: string;
   /** For POWER_LOST: why. */
   readonly reason?: 'EVICTED' | 'SHIELD_BROKEN';
+  /** For PROP_BROKEN: which prop (its id in the arena data, which is its model's name). */
+  readonly propId?: string;
+  /** For PROP_BROKEN: where whoever broke it stood (its pieces fly away from there). */
+  readonly from?: Vec2;
   /** For BLASTED: the blast radius, exactly as the rules resolve it. */
   readonly radius?: number;
   /** For SLASHED: the swing exactly as the rules resolve it, so it can be drawn but never decided. */
@@ -211,6 +216,8 @@ export interface ArenaView {
   readonly pickups: readonly PickupView[];
   /** Gates, platforms and hazards (empty in arenas without them). */
   readonly systems: SystemsViewModel;
+  /** The ids of the arena's breakable props broken this round (none at a round's start). */
+  readonly broken: readonly string[];
   readonly events: readonly ViewEvent[];
   /** Text to show big while a round is over. */
   readonly banner: string | undefined;
@@ -278,6 +285,7 @@ export function buildArenaView(
     boomerangs: [],
     pickups: [],
     systems: NO_SYSTEMS,
+    broken: [],
     events: [],
     banner: undefined,
     round: undefined,

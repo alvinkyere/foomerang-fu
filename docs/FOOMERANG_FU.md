@@ -602,6 +602,17 @@ every body (about a fifth of it, more mid-dash) vanished into the ground and pla
 everything, so it is drawn first and keeps no depth (`render/three/plazaFloor.ts`); the models still hide a character
 standing behind them.
 
+**Breakables** (owner, 2026-10-17; the reference video at 02:21). The plaza's crates and pots are `breakables`
+(`FuArena.breakables`, `MARKET_PLAZA_BREAKABLES`): solid to bodies like any wall until something breaks them, never a wall to a
+boomerang. A boomerang (thrown, returning or deflected) breaks every prop its path touches that step and flies straight on; a
+slash breaks a prop whose nearest point is inside its arc with a clear line; a blast breaks every prop within its radius. A dash
+never breaks one: it stops against it. Each break is a `PROP_BROKEN` event (`id`, `byId`, `cause`, centre), and the state's
+`broken` list holds this round's; a new round puts every prop back. Props are not cover: lines of sight pass them (a slash or
+blast that reaches one breaks it). CPUs route round props (their planning treats every prop as solid) and see the standing ones
+as cover. On the TV the model vanishes and bursts into pieces of its own colour that pop up, scatter away from whoever broke it,
+land and stay until the round ends (`render/propDebris.ts`, `render/three/plazaProps.ts`); a crate stacked on a broken one goes
+with it. `plazaPhysics.e2e.ts` breaks a crate in the real game.
+
 ## The border (market plaza; owner, 2026-10-17)
 
 An arena may have a **safe zone** (`FuArena.safeZone`). On the plaza it is the strip between the two dashed lines on the sand;

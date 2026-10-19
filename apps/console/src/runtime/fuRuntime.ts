@@ -281,6 +281,8 @@ export class FuRuntime implements MatchRuntime {
       tiebreak: state.tiebreak,
       phase: state.phase,
       walls: (state.config.arena.walls ?? []).map((w) => ({ ...w })),
+      broken: [...state.broken],
+      breakables: (state.config.arena.breakables ?? []).map((b) => b.id),
       elapsed: state.elapsed,
       winnerId: state.roundOver?.winnerId,
       players: state.players.map((p) => ({

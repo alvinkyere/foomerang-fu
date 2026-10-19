@@ -1,5 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
-import type { FuArena, Rect, Solid } from './arena';
+import type { Breakable, FuArena, Rect, Solid } from './arena';
 
 /**
  * MARKET PLAZA (`market_plaza`) — the plaza of environ2.avif, the owner's reference still (art/reconstruction/environ2), as DATA
@@ -9,7 +9,8 @@ import type { FuArena, Rect, Solid } from './arena';
  * not edit them by hand. Each is ONE model in its real shape (owner, 2026-10-17), fitted to the parts that stand on the ground:
  * POT, POLE (banner poles, bunting posts), SIGN (its post) and FOUNTAIN (its rim) are discs; CRATE, STALL (plinth, body and
  * posts, not the roof) and FENCE are boxes turned as they stand; TERRACE (the raised terrace and its stairs) is rectangles.
- * Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
+ * Crates and pots BREAK (owner, 2026-10-17): they are MARKET_PLAZA_BREAKABLES, solid until a boomerang, a slash or a blast
+ * breaks them. Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
  * thinner than a player radius is widened to one. The world scale (2748 world units per plan unit) and the arena (the plaza
  * between the two side fences plus the outside sand beyond each, from the far wall's base to the bottom of the frame) come from
  * art/reconstruction/environ2/arena_environ2.py and the image's solved camera.
@@ -20,100 +21,13 @@ export const MARKET_PLAZA_HEIGHT = 1108;
 
 export type MarketPlazaWall = Solid & {
   readonly id: string;
-  readonly kind: 'STALL' | 'FOUNTAIN' | 'CRATE' | 'POT' | 'POLE' | 'SIGN' | 'FENCE' | 'TERRACE';
+  readonly kind: 'STALL' | 'FOUNTAIN' | 'POLE' | 'SIGN' | 'FENCE' | 'TERRACE';
 };
 
+/** A crate or a pot: solid until a boomerang, a slash or a blast breaks it (back every round). */
+export type MarketPlazaBreakable = Breakable & { readonly kind: 'CRATE' | 'POT' };
+
 export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
-  Object.freeze({
-    id: 'CRATE_12_crate_0',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 475,
-    y: 118.8,
-    halfWidth: 22.3,
-    halfHeight: 22.3,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'CRATE_13_crates_0a',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 724.1,
-    y: 68,
-    halfWidth: 22.5,
-    halfHeight: 22.5,
-    angle: 0.14,
-  }),
-  Object.freeze({
-    id: 'CRATE_13_crates_0b',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 773.5,
-    y: 93.2,
-    halfWidth: 22.5,
-    halfHeight: 22.5,
-    angle: 0.104,
-  }),
-  Object.freeze({
-    id: 'CRATE_13_crates_0c',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 772.9,
-    y: 47.6,
-    halfWidth: 22.5,
-    halfHeight: 22.5,
-    angle: -0.064,
-  }),
-  Object.freeze({
-    id: 'CRATE_14_crate_0',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 1255.4,
-    y: 119.7,
-    halfWidth: 22.6,
-    halfHeight: 22.6,
-    angle: 0.251,
-  }),
-  Object.freeze({
-    id: 'CRATE_15_crate_0',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 1440.3,
-    y: 31,
-    halfWidth: 21,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'CRATE_16_crates_0',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 577,
-    y: 911.8,
-    halfWidth: 23.4,
-    halfHeight: 23.4,
-    angle: 0.2438,
-  }),
-  Object.freeze({
-    id: 'CRATE_16_crates_1',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 488.3,
-    y: 943.4,
-    halfWidth: 21.8,
-    halfHeight: 21.8,
-    angle: -0.5416,
-  }),
-  Object.freeze({
-    id: 'CRATE_17_crate_0',
-    kind: 'CRATE',
-    shape: 'box',
-    x: 1318.3,
-    y: 1094.8,
-    halfWidth: 23.5,
-    halfHeight: 23.5,
-    angle: 0.2918,
-  }),
   Object.freeze({
     id: 'STALL_FAR_E',
     kind: 'STALL',
@@ -244,6 +158,109 @@ export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
     y: 663.5,
     radius: 162.1,
   }),
+  Object.freeze({ id: 'SIGN', kind: 'SIGN', shape: 'disc', x: 891.4, y: 150.5, radius: 18 }),
+  Object.freeze({ id: 'TERRACE', kind: 'TERRACE', x: 787.9, y: 0, width: 649, height: 114 }),
+  Object.freeze({
+    id: 'TERRACE_STAIRS',
+    kind: 'TERRACE',
+    x: 999.4,
+    y: 114,
+    width: 209.4,
+    height: 48,
+  }),
+] as const);
+
+export const MARKET_PLAZA_BREAKABLES: readonly MarketPlazaBreakable[] = Object.freeze([
+  Object.freeze({
+    id: 'CRATE_12_crate_0',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 475,
+    y: 118.8,
+    halfWidth: 22.3,
+    halfHeight: 22.3,
+    angle: 0,
+  }),
+  Object.freeze({
+    id: 'CRATE_13_crates_0a',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 724.1,
+    y: 68,
+    halfWidth: 22.5,
+    halfHeight: 22.5,
+    angle: 0.14,
+  }),
+  Object.freeze({
+    id: 'CRATE_13_crates_0b',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 773.5,
+    y: 93.2,
+    halfWidth: 22.5,
+    halfHeight: 22.5,
+    angle: 0.104,
+  }),
+  Object.freeze({
+    id: 'CRATE_13_crates_0c',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 772.9,
+    y: 47.6,
+    halfWidth: 22.5,
+    halfHeight: 22.5,
+    angle: -0.064,
+  }),
+  Object.freeze({
+    id: 'CRATE_14_crate_0',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 1255.4,
+    y: 119.7,
+    halfWidth: 22.6,
+    halfHeight: 22.6,
+    angle: 0.251,
+  }),
+  Object.freeze({
+    id: 'CRATE_15_crate_0',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 1440.3,
+    y: 31,
+    halfWidth: 21,
+    halfHeight: 21,
+    angle: 0,
+  }),
+  Object.freeze({
+    id: 'CRATE_16_crates_0',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 577,
+    y: 911.8,
+    halfWidth: 23.4,
+    halfHeight: 23.4,
+    angle: 0.2438,
+  }),
+  Object.freeze({
+    id: 'CRATE_16_crates_1',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 488.3,
+    y: 943.4,
+    halfWidth: 21.8,
+    halfHeight: 21.8,
+    angle: -0.5416,
+  }),
+  Object.freeze({
+    id: 'CRATE_17_crate_0',
+    kind: 'CRATE',
+    shape: 'box',
+    x: 1318.3,
+    y: 1094.8,
+    halfWidth: 23.5,
+    halfHeight: 23.5,
+    angle: 0.2918,
+  }),
   Object.freeze({ id: 'POT_19_pot_0', kind: 'POT', shape: 'disc', x: 858.3, y: 313, radius: 18 }),
   Object.freeze({ id: 'POT_20_pots_0a', kind: 'POT', shape: 'disc', x: 1730, y: 28.2, radius: 26 }),
   Object.freeze({
@@ -286,16 +303,6 @@ export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
     y: 1006.2,
     radius: 19.4,
   }),
-  Object.freeze({ id: 'SIGN', kind: 'SIGN', shape: 'disc', x: 891.4, y: 150.5, radius: 18 }),
-  Object.freeze({ id: 'TERRACE', kind: 'TERRACE', x: 787.9, y: 0, width: 649, height: 114 }),
-  Object.freeze({
-    id: 'TERRACE_STAIRS',
-    kind: 'TERRACE',
-    x: 999.4,
-    y: 114,
-    width: 209.4,
-    height: 48,
-  }),
 ] as const);
 
 /** One spawn per slot; greedy farthest-point order so every prefix (2 to 6 players) is spread. */
@@ -335,6 +342,7 @@ export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({
   width: MARKET_PLAZA_WIDTH,
   height: MARKET_PLAZA_HEIGHT,
   walls: MARKET_PLAZA_WALLS,
+  breakables: MARKET_PLAZA_BREAKABLES,
   spawns: MARKET_PLAZA_SPAWNS,
   safeZone: MARKET_PLAZA_SAFE_ZONE,
 });

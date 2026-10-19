@@ -182,6 +182,16 @@ export function buildFuView(
             radius: event.radius,
           },
         ];
+      case 'PROP_BROKEN':
+        return [
+          {
+            type: 'PROP_BROKEN',
+            ...event.position,
+            color: styleOf(event.byId, slots).color,
+            propId: event.id,
+            from: positionOf(event.byId),
+          },
+        ];
       case 'GUARD_BLOCKED':
         return [
           { type: 'GUARD_BLOCKED', ...event.position, color: styleOf(event.playerId, slots).color },
@@ -313,6 +323,7 @@ export function buildFuView(
       y: p.position.y,
     })),
     systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
+    broken: state.broken,
     events: viewEvents,
     banner,
     round: state.round,

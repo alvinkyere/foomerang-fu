@@ -294,6 +294,46 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
   });
 });
 
+describe('buildFuView: breakable props → what the renderer draws', () => {
+  const base = fresh();
+
+  it('a PROP_BROKEN event names the prop and where its breaker stood (the debris flies away from them)', () => {
+    const view = buildFuView(
+      base,
+      [
+        {
+          type: 'PROP_BROKEN',
+          id: 'POT_22_pots_0',
+          byId: 'a',
+          cause: 'SLASH',
+          position: { x: 538, y: 982 },
+        },
+      ],
+      roster,
+      slots(),
+    );
+    expect(view.events).toEqual([
+      {
+        type: 'PROP_BROKEN',
+        x: 538,
+        y: 982,
+        color: SLOT_STYLES[0]?.color,
+        propId: 'POT_22_pots_0',
+        from: base.world.bodies[0]?.position,
+      },
+    ]);
+  });
+
+  it('the view lists the props broken this round, exactly as the rules hold them', () => {
+    expect(buildFuView(base, [], roster, slots()).broken).toEqual([]);
+    const broken = { ...base, broken: ['CRATE_16_crates_0', 'POT_22_pots_1'] };
+    expect(buildFuView(broken, [], roster, slots()).broken).toEqual([
+      'CRATE_16_crates_0',
+      'POT_22_pots_1',
+    ]);
+  });
+});
+
 describe('?enable= (the enabled power pool, for playtesting one power at a time)', () => {
   it("keeps only known names, in the rules' order; nothing valid means the default pool", async () => {
     const { parseEnabledParam } = await import('../src/runtime/powerupMode');

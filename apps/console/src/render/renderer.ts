@@ -23,6 +23,8 @@ export interface ArenaRenderer {
   drawnPickups?(): readonly DrawnCircle[];
   /** What the arena systems look like right now on screen (gate/hazard status, platform places). */
   drawnSystems?(): SystemsViewModel | undefined;
+  /** The breakable props drawn broken and how many pieces lie about (the 3D plaza; undefined elsewhere). */
+  drawnProps?(): { readonly broken: readonly string[]; readonly pieces: number };
   /** The walls currently on screen (games without geometry return none). */
   drawnWalls(): readonly WallView[];
   /** DEVELOPMENT ONLY (the showcase and its capture script): take the renderer's clock away from the browser and hand back a function that advances it to a virtual time, so frames are deterministic. */

@@ -9,12 +9,17 @@ import {
 import { transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
 import {
+  boundsOf,
+  breakablesOf,
   circleHitsWalls,
+  closestPointOn,
   distanceToRect,
+  distanceToSolid,
   lineClearTo,
   lineIsClear,
   sweepCircle,
   wallsOf,
+  type Breakable,
   type Solid,
 } from './arena';
 import { deflectionDirection } from './deflect';
@@ -111,6 +116,14 @@ export type FuEvent =
       readonly playerId: string;
       readonly kind: PowerKind;
       readonly reason: 'EVICTED' | 'SHIELD_BROKEN';
+    }
+  /** A breakable prop (`id`) was broken by `byId`'s boomerang, slash or blast; `position` is its centre. */
+  | {
+      readonly type: 'PROP_BROKEN';
+      readonly id: string;
+      readonly byId: string;
+      readonly cause: 'BOOMERANG' | 'SLASH' | 'BLAST';
+      readonly position: Vec2;
     }
   /** Slice 5: an armed boomerang exploded at `position`; `victims` were inside the blast with a clear line (before any guard). */
   | {
@@ -462,6 +475,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const hazards = hazardsOf(config.arena);
   const gatesShut: boolean[] = [...state.gatesShut];
   let walls: readonly Solid[] = solidNow(staticWalls, gates, gatesShut);
+  // Breakables: solid to bodies while standing (as at the start of the step); boomerangs fly through them
+  const breakables = breakablesOf(config.arena);
+  const brokenNow: string[] = [...state.broken];
+  const standing = breakables.filter((b) => !state.broken.includes(b.id));
+  const forBodies = (w: readonly Solid[]): readonly Solid[] =>
+    standing.length === 0 ? w : [...w, ...standing];
+  let bodyWalls = forBodies(walls);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
   const R = config.playerRadius;
@@ -566,7 +586,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const boostedDash = overdriven[index] === true;
       // A holder of PHASE_DASH, starting from valid (non-wall) space, dashes along a planned straight line.
       let plan: { origin: Vec2; limit: number } | undefined;
-      if (has(index, 'PHASE_DASH') && !circleHitsWalls(origin, R, walls)) {
+      if (has(index, 'PHASE_DASH') && !circleHitsWalls(origin, R, bodyWalls)) {
         const speed =
           config.dashSpeed *
           (tired ? config.fatiguedDashFactor : 1) *
@@ -576,7 +596,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           direction,
           speed * config.dashSeconds,
           R,
-          walls,
+          bodyWalls,
           config.arena,
           state.world.bodies.filter(
             (b) => b.id !== player.id && state.players.some((p) => p.id === b.id && p.alive),
@@ -627,7 +647,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const body = world.bodies.find((b) => b.id === player.id);
     if (body === undefined) return;
     const run = ended.phasing;
-    const t = lastValidAlong(run.origin, ended.direction, run.travelled, R, walls);
+    const t = lastValidAlong(run.origin, ended.direction, run.travelled, R, bodyWalls);
     const to = {
       x: run.origin.x + ended.direction.x * t,
       y: run.origin.y + ended.direction.y * t,
@@ -661,6 +681,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       }
     });
     walls = solidNow(staticWalls, gates, gatesShut);
+    bodyWalls = forBodies(walls);
     // Riders (standing on a platform at the start of the sub-step, not mid-dash) are carried with it.
     const rides = new Map<string, Vec2>();
     platforms.forEach((platform) => {
@@ -697,7 +718,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         ),
       );
     }
-    const carried = carryBodies(world, state.players, dashes, boosted, solid, h, config, walls);
+    const carried = carryBodies(world, state.players, dashes, boosted, solid, h, config, bodyWalls);
     world = carried.world;
     for (let j = 0; j < dashes.length; j += 1) {
       let dash = dashes[j] as DashState;
@@ -730,7 +751,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         d.phase === 'DASHING' && d.phasing !== undefined ? [(state.players[j] as FuPlayer).id] : [],
       ),
     );
-    world = separateBodies(world, (id) => solid.has(id), walls, phasingNow);
+    world = separateBodies(world, (id) => solid.has(id), bodyWalls, phasingNow);
     // Hazards: an ACTIVE strip is lethal to a living body whose centre is on it — unless it is riding a
     // platform over it, or an earlier shield already met this window.
     hazards.forEach((hazard, hi) => {
@@ -1005,6 +1026,38 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
   });
 
+  // 4a. Breakables ------------------------------------------------------------------------------
+  // A boomerang breaks every standing prop its path touched this step and flies on: they never stop one. Credited to
+  // whoever sent it (the deflector of a deflected one). A slash and a blast break props too (below); a dash never does.
+  const breakProp = (prop: Breakable, byId: string, cause: 'BOOMERANG' | 'SLASH' | 'BLAST') => {
+    if (brokenNow.includes(prop.id)) return;
+    brokenNow.push(prop.id);
+    const box = boundsOf(prop);
+    events.push({
+      type: 'PROP_BROKEN',
+      id: prop.id,
+      byId,
+      cause,
+      position: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    });
+  };
+  if (breakables.length > 0)
+    flights.forEach((f, k) => {
+      const before = flownFrom[k] as Boomerang;
+      if (before.state === 'HELD') return;
+      const to = f.lethalAt ?? f.boomerang.position;
+      const byId =
+        before.state === 'DEFLECTED' && before.deflectedBy !== undefined
+          ? before.deflectedBy
+          : before.ownerId;
+      for (const prop of breakables) {
+        if (brokenNow.includes(prop.id)) continue;
+        const r = config.boomerangRadius;
+        if (circleHitsWalls(to, r, [prop]) || sweepCircle(before.position, to, r, [prop]).blocked)
+          breakProp(prop, byId, 'BOOMERANG');
+      }
+    });
+
   // 4b. Deflection (Slice 3) ---------------------------------------------------------------------
   // A boomerang inside an ENEMY'S ACTIVE slash region (with a clear line to it) is knocked off course
   // instead of being lethal this step. Judged on end-of-step positions, before anyone is killed, so a
@@ -1102,6 +1155,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const ordered = [...hit].sort((x, y) => x - y);
       for (const v of ordered)
         contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BLAST', credit });
+      for (const prop of breakables)
+        if (
+          !brokenNow.includes(prop.id) &&
+          distanceToSolid(at, prop) < config.blastRadius &&
+          lineIsClear(at, closestPointOn(at, prop), walls)
+        )
+          breakProp(prop, w.ownerId, 'BLAST');
       weapons[k] = Object.freeze({ ...w, blast: false }); // spent: it flies on as a plain boomerang
       events.push({
         type: 'BLASTED',
@@ -1130,6 +1190,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         contacts[v]?.push({ attacker: a, rank: 1, weapon: -1, source: 'SLASH', credit: a }); // a wall is cover: no cutting through it
       }
     });
+    for (const prop of breakables) {
+      if (brokenNow.includes(prop.id)) continue;
+      const near = closestPointOn(from, prop);
+      if (inSlashRegion(from, swing.direction, near, config) && lineIsClear(from, near, walls))
+        breakProp(prop, attacker.id, 'SLASH');
+    }
   });
   hazardHits.forEach((hits, v) => {
     if (hits.size === 0 || !(players[v] as FuPlayer).alive) return;
@@ -1334,6 +1400,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       elapsed: state.elapsed + dt,
       roundTime: tFinal,
       gatesShut: Object.freeze(gatesShut),
+      broken: brokenNow.length === state.broken.length ? state.broken : Object.freeze(brokenNow),
       world,
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.
       players: Object.freeze(finalPlayers),

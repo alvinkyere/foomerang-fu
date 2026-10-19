@@ -27,6 +27,8 @@ export interface Snapshot {
     : never;
   /** The pickups Phaser has on screen. */
   drawnPickups: { id: string; x: number; y: number }[] | undefined;
+  /** The props the 3D plaza draws broken, and the debris lying about. */
+  drawnProps: { broken: string[]; pieces: number } | undefined;
   /** The walls Phaser has on screen. */
   drawnWalls: { x: number; y: number; width: number; height: number }[] | undefined;
   /** Foomerang Fu's own state (undefined for the primitive arena). */
@@ -35,6 +37,8 @@ export interface Snapshot {
         round: number;
         /** The arena's walls, as the rules define them. */
         walls: { x: number; y: number; width: number; height: number }[];
+        /** The breakable props broken this round (the rules' list). */
+        broken: string[];
         phase: 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
         /** Slice 8: the kill race. */
         scores: Record<string, number>;

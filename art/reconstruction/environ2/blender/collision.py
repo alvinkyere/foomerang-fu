@@ -11,6 +11,8 @@ others adds nothing):
   CRATE, STALL, FENCE                                                         -> the smallest box round it, turned as it stands
   TERRACE (the raised terrace and its stairs)                                 -> rectangles
 
+Crates and pots BREAK (owner, 2026-10-17): they are written as MARKET_PLAZA_BREAKABLES, everything else as MARKET_PLAZA_WALLS.
+
 Trees, the bunting's rope, rugs and the floor are not solid. A solid thinner than a player radius (a post 15 units across) is
 widened to one: the rules require it, so that no shove can carry a body through. World units are the rules': x right, y down.
 """
@@ -31,6 +33,7 @@ MODULE = os.path.join(ROOT, "games/foomerang-fu/src/rules/marketPlazaArena.ts")
 REPORT = os.path.join(os.path.dirname(__file__), "collision.json")
 
 PLAYER_RADIUS = 36
+BREAKS = ("CRATE", "POT")
 MIN_HALF = PLAYER_RADIUS / 2
 GROUND = 0.6  # a part whose lowest point is below this (scene units) stands on the ground
 
@@ -187,7 +190,7 @@ def ts_solid(kind, ident, s):
 
 
 HEADER = '''import type { Vec2 } from '@foomerang/game-core';
-import type { FuArena, Rect, Solid } from './arena';
+import type { Breakable, FuArena, Rect, Solid } from './arena';
 
 /**
  * MARKET PLAZA (`market_plaza`) — the plaza of environ2.avif, the owner's reference still (art/reconstruction/environ2), as DATA
@@ -197,7 +200,8 @@ import type { FuArena, Rect, Solid } from './arena';
  * not edit them by hand. Each is ONE model in its real shape (owner, 2026-10-17), fitted to the parts that stand on the ground:
  * POT, POLE (banner poles, bunting posts), SIGN (its post) and FOUNTAIN (its rim) are discs; CRATE, STALL (plinth, body and
  * posts, not the roof) and FENCE are boxes turned as they stand; TERRACE (the raised terrace and its stairs) is rectangles.
- * Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
+ * Crates and pots BREAK (owner, 2026-10-17): they are MARKET_PLAZA_BREAKABLES, solid until a boomerang, a slash or a blast
+ * breaks them. Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
  * thinner than a player radius is widened to one. The world scale (2748 world units per plan unit) and the arena (the plaza
  * between the two side fences plus the outside sand beyond each, from the far wall's base to the bottom of the frame) come from
  * art/reconstruction/environ2/arena_environ2.py and the image's solved camera.
@@ -208,10 +212,12 @@ export const MARKET_PLAZA_HEIGHT = 1108;
 
 export type MarketPlazaWall = Solid & {
   readonly id: string;
-  readonly kind: 'STALL' | 'FOUNTAIN' | 'CRATE' | 'POT' | 'POLE' | 'SIGN' | 'FENCE' | 'TERRACE';
+  readonly kind: 'STALL' | 'FOUNTAIN' | 'POLE' | 'SIGN' | 'FENCE' | 'TERRACE';
 };
 
-export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
+/** A crate or a pot: solid until a boomerang, a slash or a blast breaks it (back every round). */
+export type MarketPlazaBreakable = Breakable & { readonly kind: 'CRATE' | 'POT' };
+
 '''
 
 
@@ -228,8 +234,21 @@ def write_module(out):
         "MARKET_PLAZA_WALLS.map(({ x, y, width, height }) => Object.freeze({ x, y, width, height })),",
         "MARKET_PLAZA_WALLS,",
     )
-    body = "\n".join(ts_solid(k, i, s) for k, i, s in out)
-    open(MODULE, "w").write(HEADER + body + "\n] as const);\n\n" + rest)
+    walls = "\n".join(ts_solid(k, i, s) for k, i, s in out if k not in BREAKS)
+    props = "\n".join(ts_solid(k, i, s) for k, i, s in out if k in BREAKS)
+    if "breakables: MARKET_PLAZA_BREAKABLES" not in rest:
+        rest = rest.replace(
+            "  walls: MARKET_PLAZA_WALLS,\n", "  walls: MARKET_PLAZA_WALLS,\n  breakables: MARKET_PLAZA_BREAKABLES,\n"
+        )
+    open(MODULE, "w").write(
+        HEADER
+        + "export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([\n"
+        + walls
+        + "\n] as const);\n\nexport const MARKET_PLAZA_BREAKABLES: readonly MarketPlazaBreakable[] = Object.freeze([\n"
+        + props
+        + "\n] as const);\n\n"
+        + rest
+    )
 
 
 parts = load()

@@ -8,10 +8,11 @@ export {
   MARKET_PLAZA_BOOK_SPOTS,
   MARKET_PLAZA_HEIGHT,
   MARKET_PLAZA_SPAWNS,
+  MARKET_PLAZA_BREAKABLES,
   MARKET_PLAZA_WALLS,
   MARKET_PLAZA_WIDTH,
 } from './marketPlazaArena';
-export type { MarketPlazaWall } from './marketPlazaArena';
+export type { MarketPlazaBreakable, MarketPlazaWall } from './marketPlazaArena';
 export {
   HARBOUR_FORT_ARENA,
   HARBOUR_FORT_BOOK_SPOTS,
@@ -39,7 +40,7 @@ export type {
   PlatformSpec,
   SystemsView,
 } from './systems';
-export type { Disc, FuArena, Rect, Solid, TurnedBox } from './arena';
+export type { Breakable, Disc, FuArena, Rect, Solid, TurnedBox } from './arena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';

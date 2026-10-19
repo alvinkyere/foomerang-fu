@@ -6,6 +6,7 @@ import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera
 import { parseMapLayers } from '../reconstructed/mapLayers';
 import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
+import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
 
 /**
@@ -307,6 +308,7 @@ class Plaza {
   #circles: DrawnCircle[] = [];
   #virtual: number | undefined;
   #restX = 0;
+  readonly #props: PlazaProps;
   readonly #resize: ResizeObserver;
 
   constructor(
@@ -401,6 +403,7 @@ class Plaza {
         this.#fadeable.push({ root, materials, opacity: 1 });
       }
     }
+    this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -607,6 +610,7 @@ class Plaza {
         this.scene.remove(book);
         this.#books.delete(id);
       }
+    this.#props.show(view, now);
     for (const e of view.events) this.#event(e, now);
     this.#banner.textContent = view.banner ?? '';
     this.#banner.style.display = view.banner === undefined ? 'none' : 'block';
@@ -724,6 +728,7 @@ class Plaza {
     this.#follow();
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
+    this.#props.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
       const k = (time - b.born) / b.life;
@@ -762,6 +767,9 @@ class Plaza {
       x: b.userData['x'] as number,
       y: b.userData['y'] as number,
     }));
+  }
+  drawnProps(): { readonly broken: readonly string[]; readonly pieces: number } {
+    return this.#props.drawn();
   }
   drawnWalls(): readonly WallView[] {
     return this.#view?.walls ?? [];
@@ -822,6 +830,7 @@ export async function createThreePlaza(
     drawn: () => plaza.drawn(),
     drawnBoomerangs: () => plaza.drawnBoomerangs(),
     drawnPickups: () => plaza.drawnPickups(),
+    drawnProps: () => plaza.drawnProps(),
     drawnWalls: () => plaza.drawnWalls(),
     drawnSystems: () => undefined,
     driveClock: () => plaza.drive(),

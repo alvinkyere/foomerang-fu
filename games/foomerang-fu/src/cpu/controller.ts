@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS as DT, type Vec2 } from '@foomerang/game-core';
 import {
+  breakablesOf,
   circleHitsWalls,
   lineClearTo,
   lineIsClear,
@@ -74,7 +75,10 @@ const positionOf = (s: FuState, id: string): Vec2 =>
 function observe(past: FuState, earlier: FuState, selfId: string): Observation {
   const gates = gatesOf(past.config.arena);
   const systems = systemsView(past.config.arena, past.roundTime, past.gatesShut);
-  const solids: Solid[] = [...wallsOf(past.config.arena)];
+  const solids: Solid[] = [
+    ...wallsOf(past.config.arena),
+    ...breakablesOf(past.config.arena).filter((b) => !past.broken.includes(b.id)),
+  ];
   gates.forEach((g, k) => {
     if (past.gatesShut[k] === true) solids.push(g.rect);
   });
@@ -480,7 +484,10 @@ export class CpuController {
         p.y >= margin &&
         p.x <= state.config.arena.width - margin &&
         p.y <= state.config.arena.height - margin &&
-        !circleHitsWalls(p, state.config.playerRadius, wallsOf(state.config.arena)),
+        !circleHitsWalls(p, state.config.playerRadius, [
+          ...wallsOf(state.config.arena),
+          ...breakablesOf(state.config.arena),
+        ]),
     );
     const best = exits.reduce<Vec2 | undefined>(
       (b, e) => (b === undefined || dist(here, e) < dist(here, b) ? e : b),

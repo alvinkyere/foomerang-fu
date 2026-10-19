@@ -30,6 +30,8 @@ export interface DebugSnapshot {
   readonly drawnBoomerangs: readonly { id: string; x: number; y: number }[] | undefined;
   /** What the renderer has drawn of the arena systems (undefined until Phaser is up). */
   readonly drawnSystems: unknown;
+  /** The props drawn broken and the debris lying about (the 3D plaza only). */
+  readonly drawnProps: { readonly broken: readonly string[]; readonly pieces: number } | undefined;
   /** The pickups the renderer has on screen (undefined until Phaser is up). */
   readonly drawnPickups: readonly { id: string; x: number; y: number }[] | undefined;
   /** The walls the renderer has on screen (undefined until Phaser is up). */
@@ -81,6 +83,7 @@ export function installDebugHook(
           ?.drawnBoomerangs()
           .map((d) => ({ ...d })),
         drawnSystems: getRenderer()?.drawnSystems?.(),
+        drawnProps: getRenderer()?.drawnProps?.(),
         drawnPickups: getRenderer()
           ?.drawnPickups?.()
           .map((d) => ({ ...d })),

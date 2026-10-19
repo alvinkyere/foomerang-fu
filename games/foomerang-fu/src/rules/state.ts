@@ -60,6 +60,8 @@ export interface FuState {
   readonly roundTime: number;
   /** Slice 6: per timed gate, whether it has actually SHUT (a gate scheduled to close waits until nothing is in it). */
   readonly gatesShut: readonly boolean[];
+  /** The ids of the arena's breakables broken this round, in the order they broke (a new round starts with none). */
+  readonly broken: readonly string[];
   readonly world: WorldState;
   /** In creation order, which is the order every rule uses to break ties. */
   readonly players: readonly FuPlayer[];
@@ -185,6 +187,7 @@ export function startRound(
     elapsed,
     roundTime: 0,
     gatesShut: Object.freeze((config.arena.gates ?? []).map(() => false)),
+    broken: Object.freeze([]),
     world,
     players: Object.freeze(players),
     boomerangs: Object.freeze(boomerangs),
