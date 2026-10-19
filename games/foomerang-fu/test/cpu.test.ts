@@ -767,31 +767,32 @@ describe('powerups: the same Books, the same builds', () => {
     void killedPlain;
   });
 
-  it('BLAST_BOOMERANG: an owner uses cover-shots (wall impact beside a hidden target) that a plain thrower cannot', () => {
-    let blastThrows = 0;
-    let plainThrows = 0;
+  it('BLAST_BOOMERANG: an owner uses cover-shots — a wall impact beside a hidden target kills it with the blast', () => {
+    // (a plain quick throw can curve round cover too since 2026-10-19; what only a Blast owner has is the blast at the wall)
+    let blastKills = 0;
+    let wallBlasts = 0;
     for (let seed = 1; seed <= 12; seed += 1) {
-      for (const blast of [true, false]) {
-        playMatch({
-          participants: [
-            { id: 'a', cpu: 'HARD' },
-            { id: 'b', human: still },
-          ],
-          seed,
-          steps: 60 * 5,
-          start: (s) => {
-            const t = place(place(s, 'a', 330, 450), 'b', 680, 330);
-            return blast ? own(t, 'a', 'BLAST_BOOMERANG') : t;
-          },
-          onStep: (_s, events) => {
-            const n = events.filter((e) => e.type === 'THROWN' && e.playerId === 'a').length;
-            if (blast) blastThrows += n;
-            else plainThrows += n;
-          },
-        });
-      }
+      playMatch({
+        participants: [
+          { id: 'a', cpu: 'HARD' },
+          { id: 'b', human: still },
+        ],
+        seed,
+        steps: 60 * 5,
+        start: (s) => own(place(place(s, 'a', 330, 450), 'b', 680, 330), 'a', 'BLAST_BOOMERANG'),
+        onStep: (st, events) => {
+          for (const e of events) {
+            if (e.type === 'BLASTED' && e.ownerId === 'a') {
+              const nearB = Math.hypot(e.position.x - at(st, 'b').x, e.position.y - at(st, 'b').y);
+              if (nearB > st.config.playerRadius + st.config.boomerangRadius) wallBlasts += 1; // not a direct hit
+            }
+            if (e.type === 'HIT' && e.victimId === 'b' && e.source === 'BLAST') blastKills += 1;
+          }
+        },
+      });
     }
-    expect(blastThrows).toBeGreaterThanOrEqual(plainThrows);
+    expect(wallBlasts).toBeGreaterThan(0);
+    expect(blastKills).toBeGreaterThan(0);
   });
 
   it('SHIELD: a CPU owning one gets exactly the shield rule — one blocked hit, then it is gone (no hidden protection)', () => {

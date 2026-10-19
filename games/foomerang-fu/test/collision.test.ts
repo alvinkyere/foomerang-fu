@@ -4,6 +4,8 @@ import {
   type WorldState,
 } from '@foomerang/game-core';
 import { STRAIGHT } from './support/fixtures';
+import { separateBodies } from '../src/rules/collision';
+import { distanceToSolid } from '../src/rules/arena';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
@@ -437,5 +439,25 @@ describe('spawning', () => {
     expect(() =>
       createFuMatch([{ id: 'a', slot: 0 }], { ...STRAIGHT, playerSpeed: 100_000 }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('a body wedged between a wall and the arena edge', () => {
+  // A wall corner close to the arena's edge: pushed out of the corner diagonally, a body would cross the edge, and clamped back
+  // it would be inside the wall again (they used to ping-pong, and the last push won). It must end inside the arena AND clear of
+  // the wall: on the edge, slid along it until it clears the corner.
+  it('ends on the edge, slid clear of the corner, never past the edge nor inside the wall', () => {
+    // diamond_walls: a wall whose bottom corner (1360, 1200) is 71 above the bottom edge (1271) — narrower than a body (72)
+    const wall = { x: 1320, y: 760, width: 40, height: 440 };
+    const world = {
+      arena: { width: 1760, height: 1271 },
+      bodies: [{ id: 'a', position: { x: 1362.959853025314, y: 1235 }, radius: 36 }],
+      movement: { maxSpeed: 360, deadZone: 0.1 },
+    } as unknown as WorldState;
+    const out = separateBodies(world, () => true, [wall]);
+    const p = out.bodies[0]?.position ?? { x: 0, y: 0 };
+    expect(p.y).toBeLessThanOrEqual(1271 - 36 + 1e-9);
+    expect(p.x).toBeLessThanOrEqual(1760 - 36 + 1e-9);
+    expect(distanceToSolid(p, wall)).toBeGreaterThanOrEqual(36 - 1e-6);
   });
 });

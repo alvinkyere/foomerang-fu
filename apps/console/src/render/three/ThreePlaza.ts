@@ -671,6 +671,19 @@ class Plaza {
         bit.userData = { dir: new THREE.Vector3(Math.cos(a), 0.6, Math.sin(a)) };
         add(bit, 450, 0);
       }
+    } else if (e.type === 'RICOCHET') {
+      // a boomerang bounced off a wall: a small spark there, in its thrower's character colour
+      const owner = this.#view?.circles.find((c) => c.id === e.ownerId);
+      const kind = characterFor(this.map.roster, owner?.number ?? 1);
+      const spark = new THREE.Mesh(
+        new THREE.RingGeometry(0.5, 1, 24).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({
+          color: color(CHARACTER_COLOURS[kind]),
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      add(spark, 220, 1.6);
     } else if (e.type === 'BLASTED') {
       const r = this.#space.length(e.radius ?? 170);
       const ring = new THREE.Mesh(

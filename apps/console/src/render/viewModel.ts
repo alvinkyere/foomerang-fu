@@ -84,6 +84,7 @@ export interface ViewEvent {
     | 'PHASE_ENTERED'
     | 'PHASE_EXITED'
     | 'PROP_BROKEN'
+    | 'RICOCHET'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;
@@ -102,6 +103,8 @@ export interface ViewEvent {
   readonly who?: string;
   /** For POWER_LOST: why. */
   readonly reason?: 'EVICTED' | 'SHIELD_BROKEN';
+  /** For RICOCHET: whose boomerang bounced (its spark is their character's colour). */
+  readonly ownerId?: string;
   /** For PROP_BROKEN: which prop (its id in the arena data, which is its model's name). */
   readonly propId?: string;
   /** For PROP_BROKEN: where whoever broke it stood (its pieces fly away from there). */

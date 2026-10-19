@@ -442,7 +442,8 @@ test('Foomerang Fu: a returning boomerang cannot pass through cover — even whe
   // Throw right along the open top lane, then immediately start ducking down the left lane, so that by the
   // time the boomerang turns back Alice is behind the left corridor's wall (x 200–250, y 300–600).
   await aim(alice, SPAWNS[0] as Point, { x: 210, y: 110 });
-  await alice.tapThrow();
+  // a full charge flies straight along the lane (a quick throw curves and bounces; owner, 2026-10-19)
+  await alice.holdThrow(750);
   const mine = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === aliceId);
   await alice.thumbDown();
   await alice.thumbMove(0, FAR);

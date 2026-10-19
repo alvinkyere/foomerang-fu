@@ -59,10 +59,15 @@ const arenaWith = (walls: Rect[], extra: Partial<FuArena> = {}): FuArena => ({
   spawns: EDGE_SPAWNS,
   ...extra,
 });
-function match(ids: readonly string[], arena: FuArena, at: Record<string, [number, number]>) {
+function match(
+  ids: readonly string[],
+  arena: FuArena,
+  at: Record<string, [number, number]>,
+  extra: object = {},
+) {
   let s = createFuMatch(
     ids.map((id, slot) => ({ id, slot })),
-    { arena },
+    { arena, ...extra },
   );
   for (const id of ids) s = place(s, id, ...must(at[id], `position ${id}`));
   return s;
@@ -335,10 +340,17 @@ describe('players are solid against walls', () => {
   });
 });
 
-describe('a thrown boomerang stops at a wall and turns back', () => {
+describe('a thrown boomerang that may not bounce stops at a wall and turns back', () => {
+  // (a throw bounces off walls up to maxRicochets times, ricochet.test.ts; the impact after its last allowed bounce stops it
+  // and sends it home: these tests allow none, so the first impact is that one)
   /** Alice at x=400 facing right, the slab ahead at x = 700. */
   const aimed = () =>
-    face(match(['a', 'b'], ONE_WALL, { a: [400, 450], b: [1500, 100] }), 'a', 1, 0);
+    face(
+      match(['a', 'b'], ONE_WALL, { a: [400, 450], b: [1500, 100] }, { maxRicochets: 0 }),
+      'a',
+      1,
+      0,
+    );
 
   it('THROWN → RETURNING on impact, stopped flush against the wall, not inside it', () => {
     let s = stepFu(aimed(), input({ a: { throw: true } }), DT).state;
@@ -401,7 +413,12 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
   });
 
   it('a throw made with the player pressed against the wall never puts the boomerang inside it', () => {
-    let s = match(['a', 'b'], ONE_WALL, { a: [SLAB.x - R, 450], b: [1500, 100] });
+    let s = match(
+      ['a', 'b'],
+      ONE_WALL,
+      { a: [SLAB.x - R, 450], b: [1500, 100] },
+      { maxRicochets: 0 },
+    );
     s = face(s, 'a', 1, 0);
     s = stepFu(s, input({ a: { throw: true } }), DT).state;
     expect(boom(s, 'a').state).toBe('THROWN');
@@ -416,7 +433,12 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
   it('cannot tunnel at ANY start offset, at the longest accepted step (the end point alone would let it through)', () => {
     const thin = arenaWith([{ x: 700, y: 200, width: R, height: 500 }]);
     for (let x = 400; x <= 460; x += 3) {
-      let s = face(match(['a', 'b'], thin, { a: [x, 450], b: [1500, 100] }), 'a', 1, 0);
+      let s = face(
+        match(['a', 'b'], thin, { a: [x, 450], b: [1500, 100] }, { maxRicochets: 0 }),
+        'a',
+        1,
+        0,
+      );
       s = stepFu(s, input({ a: { throw: true } }), MAX_STEP_SECONDS).state;
       for (let i = 0; i < 12; i += 1) {
         s = stepFu(s, NONE, MAX_STEP_SECONDS).state;
@@ -445,7 +467,12 @@ describe('a thrown boomerang stops at a wall and turns back', () => {
   it('is blocked by the wall’s corner at exactly its own radius: 13 away is a hit, 15 away passes', () => {
     // flying DOWN a line 10 to the left of the slab's face: it clips the top-left corner
     const clip = (offset: number) => {
-      let s = match(['a', 'b'], ONE_WALL, { a: [SLAB.x - offset, 100], b: [1500, 800] });
+      let s = match(
+        ['a', 'b'],
+        ONE_WALL,
+        { a: [SLAB.x - offset, 100], b: [1500, 800] },
+        { maxRicochets: 0 },
+      );
       s = face(s, 'a', 0, 1);
       s = stepFu(s, input({ a: { throw: true } }), DT).state;
       for (let i = 0; i < 40 && boom(s, 'a').state === 'THROWN'; i += 1)

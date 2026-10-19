@@ -44,6 +44,8 @@ export interface FuConfig {
   readonly returnTurnRadius: number;
   /** ...and its turn rate grows by this much per second of the trip home (rad/s²), so it always gets there. A proposal. */
   readonly returnTurnGrowth: number;
+  /** How many times one throw may bounce off walls and the arena's edge on its way out (the reference video); 0 = none. A proposal. */
+  readonly maxRicochets: number;
   /** Slash reach: the swing hits anyone strictly nearer than this, centre to centre, world units. */
   readonly slashReach: number;
   /** Slash arc: the full angle of the swing, radians, centred on the facing direction. */
@@ -119,6 +121,7 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   throwCurvature: 1 / 300,
   returnTurnRadius: 150,
   returnTurnGrowth: 20,
+  maxRicochets: 3,
   slashReach: 130,
   slashArc: (Math.PI * 2) / 3,
   slashActiveSeconds: 0.12,
@@ -299,6 +302,8 @@ export function assertValidConfig(config: FuConfig): void {
   ] as const) {
     if (!(Number.isFinite(value) && value >= 0)) throw new RangeError(`${name} must be 0 or more`);
   }
+  if (!(Number.isInteger(config.maxRicochets) && config.maxRicochets >= 0))
+    throw new RangeError('maxRicochets must be a whole number, 0 or more');
   if (!(Number.isFinite(config.returnTurnGrowth) && config.returnTurnGrowth > 0))
     throw new RangeError('returnTurnGrowth must be a positive, finite number');
   // Hits are swept (the closest approach during a step), but a deflecting swing is judged where the boomerang ends a step:

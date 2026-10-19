@@ -193,6 +193,15 @@ export function buildFuView(
             radius: event.radius,
           },
         ];
+      case 'RICOCHET':
+        return [
+          {
+            type: 'RICOCHET',
+            ...event.position,
+            color: styleOf(event.ownerId, slots).color,
+            ownerId: event.ownerId,
+          },
+        ];
       case 'PROP_BROKEN':
         return [
           {

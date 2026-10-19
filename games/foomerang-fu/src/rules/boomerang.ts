@@ -66,6 +66,8 @@ export interface Boomerang {
   readonly power: number;
   /** RETURNING only: seconds of this trip home (its turn towards the thrower tightens with them). 0 otherwise. */
   readonly homing: number;
+  /** How many times this throw has bounced off walls on its way out (0 again once it is home, and for a new deflected leg). */
+  readonly ricochets: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */

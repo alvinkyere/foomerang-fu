@@ -185,6 +185,7 @@ export function startRound(
       absorbed: Object.freeze([]),
       power: 0,
       homing: 0,
+      ricochets: 0,
     }),
   );
 

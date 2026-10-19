@@ -1,5 +1,5 @@
 import type { Body, WorldState } from '@foomerang/game-core';
-import { pushOutOfSolid, type Solid } from './arena';
+import { closestPointOn, distanceToSolid, pushOutOfSolid, type Solid } from './arena';
 
 /**
  * Player-vs-player contact: the minimum circle-vs-circle separation Foomerang Fu needs. Pure and
@@ -95,8 +95,11 @@ export function separateBodies(
       for (const wall of walls) {
         const out = pushOutOfSolid(xs[index] as number, ys[index] as number, r, wall, TOLERANCE);
         if (out !== undefined) {
-          xs[index] = out[0];
-          ys[index] = out[1];
+          // pushed past the arena's edge (a wall closer to it than a body is wide): stay on the edge and slide along it,
+          // away from the wall, until clear (pushing and clamping by turns would ping-pong, and the last push would win)
+          const [x, y] = onTheEdge(out[0], out[1], r, wall, world.arena);
+          xs[index] = x;
+          ys[index] = y;
           overlapping = true;
         }
       }
@@ -119,4 +122,44 @@ export function separateBodies(
       ),
     ),
   });
+}
+
+/**
+ * Where a body pushed out of `wall` to (x, y) ends when that is past the arena's edge: clamped onto the edge, then slid along it
+ * (the axis that is not clamped) away from the wall until it is clear of it. Inside the arena it is (x, y) unchanged.
+ */
+function onTheEdge(
+  x: number,
+  y: number,
+  r: number,
+  wall: Solid,
+  arena: { readonly width: number; readonly height: number },
+): [number, number] {
+  const cx = Math.min(Math.max(x, r), arena.width - r);
+  const cy = Math.min(Math.max(y, r), arena.height - r);
+  if (cx === x && cy === y) return [x, y];
+  if (cx !== x && cy !== y) return [cx, cy]; // a corner of the arena: nowhere to slide
+  const near = closestPointOn({ x: cx, y: cy }, wall);
+  const along = cx !== x ? 'y' : 'x';
+  const from = along === 'x' ? cx : cy;
+  const dir = from >= (along === 'x' ? near.x : near.y) ? 1 : -1;
+  const limit = along === 'x' ? arena.width - r : arena.height - r;
+  const at = (t: number): [number, number] => {
+    const v = Math.min(Math.max(from + dir * t, r), limit);
+    return along === 'x' ? [v, cy] : [cx, v];
+  };
+  const clear = (t: number) => {
+    const [px, py] = at(t);
+    return distanceToSolid({ x: px, y: py }, wall) >= r - TOLERANCE;
+  };
+  if (clear(0)) return at(0);
+  let lo = 0;
+  let hi = 2 * r;
+  if (!clear(hi)) return at(hi);
+  for (let k = 0; k < 40; k += 1) {
+    const mid = (lo + hi) / 2;
+    if (clear(mid)) hi = mid;
+    else lo = mid;
+  }
+  return at(hi);
 }

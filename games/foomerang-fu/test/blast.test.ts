@@ -160,7 +160,9 @@ describe('cover: a blast does not go through walls', () => {
     }
     expect(victims(r.events)).toEqual(['b']);
     expect(player(r.state, 'c').alive).toBe(true);
-    expect(boom(r.state, 'a').state).toBe('RETURNING');
+    // spent at the wall, it bounces off and flies on unarmed (ricochets, 2026-10-19)
+    expect(boom(r.state, 'a').state).toBe('THROWN');
+    expect(boom(r.state, 'a').blast).toBe(false);
   });
 });
 

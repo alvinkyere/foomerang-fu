@@ -387,8 +387,8 @@ describe('travel over fixed timesteps', () => {
     expect(boom(result.state, 'a').position.x - start.x).toBeCloseTo(C.throwRange, 9);
   });
 
-  it('turns to RETURNING at a wall instead of leaving the arena', () => {
-    let s = place(duel(), 'a', 120, 450);
+  it('never leaves the arena: with no bounce left, the edge turns it home', () => {
+    let s = place({ ...duel(), config: { ...duel().config, maxRicochets: 0 } }, 'a', 120, 450);
     s = face(s, 'a', -1, 0);
     s = stepFu(s, input({ a: { throw: true } }), DT).state;
     s = run(s, 20).state;

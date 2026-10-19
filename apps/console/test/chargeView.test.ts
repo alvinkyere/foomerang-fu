@@ -70,3 +70,24 @@ describe('buildFuView: charging and charged throws', () => {
     );
   });
 });
+
+describe('buildFuView: ricochets', () => {
+  it('a RICOCHET becomes a drawable event at the bounce, naming whose boomerang it was', () => {
+    const view = buildFuView(
+      base(),
+      [
+        {
+          type: 'RICOCHET',
+          ownerId: 'a',
+          position: { x: 786, y: 450 },
+          direction: { x: -1, y: 0 },
+        },
+      ],
+      roster,
+      slots(),
+    );
+    expect(view.events).toEqual([
+      expect.objectContaining({ type: 'RICOCHET', x: 786, y: 450, ownerId: 'a' }),
+    ]);
+  });
+});

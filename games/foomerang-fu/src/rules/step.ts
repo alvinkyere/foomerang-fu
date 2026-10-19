@@ -11,6 +11,7 @@ import type { FuConfig } from './config';
 import {
   boundsOf,
   breakablesOf,
+  nearestWallNormal,
   circleHitsWalls,
   closestPointOn,
   distanceToRect,
@@ -128,6 +129,13 @@ export type FuEvent =
       readonly byId: string;
       readonly cause: 'BOOMERANG' | 'SLASH' | 'BLAST';
       readonly position: Vec2;
+    }
+  /** A boomerang on its way out bounced off a wall or the arena's edge at `position`, now heading `direction`. */
+  | {
+      readonly type: 'RICOCHET';
+      readonly ownerId: string;
+      readonly position: Vec2;
+      readonly direction: Vec2;
     }
   /** Slice 5: an armed boomerang exploded at `position`; `victims` were inside the blast with a clear line (before any guard). */
   | {
@@ -440,8 +448,12 @@ interface Flight {
   readonly caught: boolean;
   /** Returned to the owner's hand by the wall-following failsafe rather than caught. */
   readonly recalled?: boolean;
-  /** THROWN/DEFLECTED and it stopped against a wall or the arena edge this step (not merely at the end of its range). */
+  /** THROWN/DEFLECTED and it met a wall or the arena edge this step (bounced off it, or stopped by it). */
   readonly wallImpact?: boolean;
+  /** Where it first met a wall this step (a blast goes off there). */
+  readonly impactAt?: Vec2;
+  /** The path it flew this step when it bounced (start, each bounce, end); hits are judged along it. */
+  readonly path?: readonly Vec2[];
 }
 
 /** Where a lethal contact came from, in the order a guard absorbs them. */
@@ -455,6 +467,52 @@ interface Contact {
 }
 
 const CANCELLED: ThrowCharge = Object.freeze({ phase: 'CANCELLED' });
+
+/** Where a boomerang moving from `from` along `dir` for `length` first leaves the arena's inner box (its centre's bounds), as a
+ * fraction of `length`, with that edge's inward normal; undefined if it stays inside. */
+function edgeCrossing(
+  from: Vec2,
+  dir: Vec2,
+  length: number,
+  config: FuConfig,
+): { readonly at: number; readonly normal: Vec2 } | undefined {
+  const r = config.boomerangRadius;
+  let best: { at: number; normal: Vec2 } | undefined;
+  const consider = (bound: number, p: number, d: number, normal: Vec2) => {
+    if (d === 0) return;
+    const t = (bound - p) / (d * length);
+    if (t > 1e-9 && t <= 1 && (best === undefined || t < best.at)) best = { at: t, normal };
+  };
+  if (dir.x < 0) consider(r, from.x, dir.x, { x: 1, y: 0 });
+  if (dir.x > 0) consider(config.arena.width - r, from.x, dir.x, { x: -1, y: 0 });
+  if (dir.y < 0) consider(r, from.y, dir.y, { x: 0, y: 1 });
+  if (dir.y > 0) consider(config.arena.height - r, from.y, dir.y, { x: 0, y: -1 });
+  return best;
+}
+
+/** The closest a victim (moving straight from `b0` to `b1` over the step) comes to a path flown over the same step. */
+function approachAlong(path: readonly Vec2[], b0: Vec2, b1: Vec2): number {
+  const total = path.reduce(
+    (sum, p, i) =>
+      i === 0 ? 0 : sum + Math.hypot(p.x - (path[i - 1] as Vec2).x, p.y - (path[i - 1] as Vec2).y),
+    0,
+  );
+  let done = 0;
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < path.length; i += 1) {
+    const a0 = path[i - 1] as Vec2;
+    const a1 = path[i] as Vec2;
+    const len = Math.hypot(a1.x - a0.x, a1.y - a0.y);
+    const t0 = total === 0 ? 0 : done / total;
+    const t1 = total === 0 ? 1 : (done + len) / total;
+    const at = (t: number) => ({ x: b0.x + (b1.x - b0.x) * t, y: b0.y + (b1.y - b0.y) * t });
+    best = Math.min(best, closestApproach(a0, a1, at(t0), at(t1)));
+    done += len;
+  }
+  return path.length < 2
+    ? Math.hypot((path[0] as Vec2).x - b1.x, (path[0] as Vec2).y - b1.y)
+    : best;
+}
 
 /** The closest two points come while each moves in a straight line from its first position to its second. */
 function closestApproach(a0: Vec2, a1: Vec2, b0: Vec2, b1: Vec2): number {
@@ -880,6 +938,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           absorbed: EMPTY,
           power: 0,
           homing: 0,
+          ricochets: 0,
         } satisfies Boomerang),
       );
     }
@@ -971,32 +1030,78 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           ? config.deflectRange
           : config.throwRange + (config.chargedThrowRange - config.throwRange) * b.power;
       const speed = config.throwSpeed + (config.chargedThrowSpeed - config.throwSpeed) * b.power;
-      const length = Math.min(speed * dt, range - b.travelled);
       // a thrown boomerang curves (clockwise on screen) along an arc, the less the more it was charged; a deflected one flies
-      // straight. Over the step it moves along the arc's chord and its heading turns by curvature × length.
+      // straight. Each piece of the step moves along the arc's chord and turns the heading by curvature × length. Meeting a
+      // wall or the arena's edge it bounces (R = V − 2(V·N)N) and flies on for the rest of the step, up to `maxRicochets` a
+      // throw; after that an impact turns it home.
       const curvature = b.state === 'THROWN' ? config.throwCurvature * (1 - b.power) : 0;
-      const turn = curvature * length;
-      const chord = turn > 1e-12 ? (2 * Math.sin(turn / 2)) / curvature : length;
-      const along = rotate(b.direction, turn / 2);
-      const heading = turn > 0 ? normalized(rotate(b.direction, turn)) : b.direction;
-      const free = {
-        x: b.position.x + along.x * chord,
-        y: b.position.y + along.y * chord,
+      let left = Math.min(speed * dt, range - b.travelled);
+      let position = b.position;
+      let heading = b.direction;
+      let travelled = b.travelled;
+      let ricochets = b.ricochets;
+      let impactAt: Vec2 | undefined;
+      let stopped = false;
+      const path: Vec2[] = [b.position];
+      for (let leg = 0; leg <= config.maxRicochets + 1 && left > EPSILON; leg += 1) {
+        const turn = curvature * left;
+        const chord = turn > 1e-12 ? (2 * Math.sin(turn / 2)) / curvature : left;
+        const along = rotate(heading, turn / 2);
+        const free = { x: position.x + along.x * chord, y: position.y + along.y * chord };
+        // the first thing it meets along the chord: a wall, or the arena's edge
+        const swept = sweepCircle(position, free, config.boomerangRadius, walls);
+        const wallAt = swept.blocked
+          ? Math.hypot(swept.position.x - position.x, swept.position.y - position.y) / chord
+          : Number.POSITIVE_INFINITY;
+        const edge = edgeCrossing(position, along, chord, config);
+        if (wallAt === Number.POSITIVE_INFINITY && edge === undefined) {
+          position = free;
+          heading = turn > 0 ? normalized(rotate(heading, turn)) : heading;
+          travelled += left;
+          break;
+        }
+        const f = edge !== undefined && edge.at < wallAt ? edge.at : wallAt;
+        const hit =
+          f === wallAt
+            ? swept.position
+            : { x: position.x + along.x * chord * f, y: position.y + along.y * chord * f };
+        const flown = left * f;
+        travelled += flown;
+        left -= flown;
+        const incoming = normalized(rotate(heading, curvature * flown));
+        position = hit;
+        path.push(hit);
+        impactAt ??= hit;
+        if (ricochets >= config.maxRicochets) {
+          heading = incoming;
+          stopped = true;
+          break;
+        }
+        const normal =
+          f === wallAt
+            ? (nearestWallNormal(hit, walls) ?? { x: -incoming.x, y: -incoming.y })
+            : (edge as { normal: Vec2 }).normal;
+        const dot = incoming.x * normal.x + incoming.y * normal.y;
+        heading =
+          dot < 0
+            ? normalized({ x: incoming.x - 2 * dot * normal.x, y: incoming.y - 2 * dot * normal.y })
+            : incoming;
+        ricochets += 1;
+        events.push({ type: 'RICOCHET', ownerId: b.ownerId, position: hit, direction: heading });
+      }
+      if (path.length > 1) path.push(position);
+      const extra: Pick<Flight, 'wallImpact' | 'impactAt' | 'path'> = {
+        ...(impactAt !== undefined ? { wallImpact: true, impactAt } : {}),
+        ...(path.length > 2 ? { path } : {}),
       };
-      const bounded = clampToArena(free, config);
-      // Solid geometry stops it where it would touch: no penetration, no bounce, no tunnelling.
-      const swept = sweepCircle(b.position, bounded, config.boomerangRadius, walls);
-      const position = swept.position;
-      const hitWall = swept.blocked || bounded.x !== free.x || bounded.y !== free.y;
-      const travelled = b.travelled + length;
-      if (hitWall || travelled >= range - EPSILON) {
-        // home: it carries on round its curve (a wall turns it straight back towards its thrower)
+      if (stopped || travelled >= range - EPSILON) {
+        // home: it carries on round its curve (a wall it may not bounce off turns it straight back towards its thrower)
         const owner = positionOf(b.ownerId);
         const back = normalized({ x: owner.x - position.x, y: owner.y - position.y });
         return {
           boomerang: transition(b, 'RETURNING', {
             position,
-            direction: hitWall ? back : heading,
+            direction: stopped ? back : heading,
             homing: 0,
             travelled: 0,
             follow: 0,
@@ -1006,13 +1111,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           }),
           lethalAt: position,
           caught: false,
-          wallImpact: hitWall,
+          ...extra,
         };
       }
       return {
-        boomerang: Object.freeze({ ...b, position, travelled, direction: heading }),
+        boomerang: Object.freeze({ ...b, position, travelled, direction: heading, ricochets }),
         lethalAt: position,
         caught: false,
+        ...extra,
       };
     }
 
@@ -1034,6 +1140,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
               absorbed: EMPTY,
               power: 0,
               homing: 0,
+              ricochets: 0,
             })
           : Object.freeze({ ...b, position, homing: b.homing + dt, ...extra }),
         lethalAt: position,
@@ -1213,6 +1320,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       deflectedBy: defender.id,
       absorbed: EMPTY,
       power: 0,
+      ricochets: 0,
     });
     lethalAt[k] = undefined; // the clank absorbs it: it kills nobody on the step it is deflected
     events.push({
@@ -1255,14 +1363,20 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     players.forEach((victim, v) => {
       if (v === a || !victim.alive || immuneTo(victim)) return;
       const start = startPosition.get(victim.id) ?? positionOf(victim.id);
-      if (closestApproach(from, at, start, positionOf(victim.id)) < reach) touched.push(v);
+      if (approachAlong(flights[k]?.path ?? [from, at], start, positionOf(victim.id)) < reach)
+        touched.push(v);
     });
+    // an armed boomerang goes off at its first contact: a player, or the wall where it struck
+    const blastAt = touched.length === 0 ? (flights[k]?.impactAt ?? at) : at;
     if (w.blast && (touched.length > 0 || flights[k]?.wallImpact === true)) {
       const hit = new Set(touched);
       players.forEach((victim, v) => {
         if (v === a || !victim.alive || immuneTo(victim)) return;
         const where = positionOf(victim.id);
-        if (distanceSquared(at, where) < blastRadiusSquared && lineClearTo(at, where, R, walls))
+        if (
+          distanceSquared(blastAt, where) < blastRadiusSquared &&
+          lineClearTo(blastAt, where, R, walls)
+        )
           hit.add(v);
       });
       const ordered = [...hit].sort((x, y) => x - y);
@@ -1271,15 +1385,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       for (const prop of breakables)
         if (
           !brokenNow.includes(prop.id) &&
-          distanceToSolid(at, prop) < config.blastRadius &&
-          lineIsClear(at, closestPointOn(at, prop), walls)
+          distanceToSolid(blastAt, prop) < config.blastRadius &&
+          lineIsClear(blastAt, closestPointOn(blastAt, prop), walls)
         )
           breakProp(prop, w.ownerId, 'BLAST');
       weapons[k] = Object.freeze({ ...w, blast: false }); // spent: it flies on as a plain boomerang
       events.push({
         type: 'BLASTED',
         ownerId: w.ownerId,
-        position: at,
+        position: blastAt,
         radius: config.blastRadius,
         victims: ordered.map((v) => (players[v] as FuPlayer).id),
       });

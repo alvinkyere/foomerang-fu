@@ -620,6 +620,21 @@ the wall-following homing takes over (`homing.ts`). `throwCurvature: 0` / `retur
 homing; tests about other mechanics that arrange a straight throw say so (`STRAIGHT` in the test fixtures). CPUs aim for the curve
 (the throw starts turned back by half the arc to the target; the arc must fit the range) and read a returning boomerang's heading.
 
+## Ricochets (owner, 2026-10-19; the reference video)
+
+A boomerang on its way **out** (thrown or deflected) that meets a wall or the arena's edge bounces: its heading at the impact is
+reflected about the surface normal, R = V − 2(V·N)N (the normal of the nearest solid, or the edge's), and it flies on for the rest
+of its range, still lethal; a curved throw keeps curving from its new heading. Up to `maxRicochets` (3, a proposal) bounces a
+throw; the impact after the last one stops it and sends it home (straight back towards its thrower), as every impact did before.
+On its way **home** it never bounces: it follows walls home. A step that bounces is flown in pieces (start, each bounce, end) and
+a hit is judged along that bent path. An armed BLAST boomerang explodes at its first wall impact (centred there) and bounces on
+unarmed. The count is per throw (0 again when caught, and for a new deflected leg). Each bounce is a `RICOCHET` event; on the TV
+a small spark in the thrower's character colour.
+
+Found on the way: a body pushed out of a wall corner that stands closer to the arena's edge than a body is wide could be pushed
+just past the edge (pushing out and clamping by turns ping-ponged, and the last push won). Separation now keeps it on the edge
+and slides it along the edge until clear of the wall (`collision.ts`, `onTheEdge`).
+
 ## The plaza's physics (market plaza; owner, 2026-10-19)
 
 **Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`

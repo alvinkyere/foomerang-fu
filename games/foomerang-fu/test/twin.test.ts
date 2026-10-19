@@ -167,6 +167,7 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
   it('a Twin throw against a wall starts each boomerang as close as the wall allows and turns both back (each independent)', () => {
     let s = make(['a', 'b'], {
       ...STRAIGHT,
+      maxRicochets: 0, // (no bounce: the impact turns them home; ricochets are ricochet.test.ts's subject)
       arena: { width: 1600, height: 900, walls: [{ x: 660, y: 0, width: 60, height: 900 }] },
     });
     s = own(place(place(s, 'a', 600, 450), 'b', 1500, 850), 'a', 'TWIN_THROW');
