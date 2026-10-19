@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { HARBOUR_FORT_ARENA, MARKET_PLAZA_ARENA, SKY_ISLANDS_ARENA } from '@foomerang/foomerang-fu';
+import {
+  HARBOUR_FORT_ARENA,
+  MARKET_PLAZA_ARENA,
+  SKY_ISLANDS_ARENA,
+  distanceToSolid,
+  type Solid,
+} from '@foomerang/foomerang-fu';
 import { describe, expect, it } from 'vitest';
 import { createMapCamera, parseMapCamera } from '../src/render/reconstructed/mapCamera';
 import {
@@ -15,19 +21,9 @@ import { parseArenaParam, productArena } from '../src/runtime/powerupMode';
 // Maps reconstructed from the master gameplay video are registered as DATA (asset folder, seat roster); everything else about a
 // map — camera, layers, character atlases — ships in its manifest, so adding a map needs no renderer branch.
 
-/** A body of radius r at p overlaps a wall rectangle (the rules' own test: strictly inside its radius). */
-const insideAWall = (
-  p: { x: number; y: number },
-  r: number,
-  walls: readonly { x: number; y: number; width: number; height: number }[],
-): boolean =>
-  walls.some(
-    (w) =>
-      Math.hypot(
-        p.x - Math.min(Math.max(p.x, w.x), w.x + w.width),
-        p.y - Math.min(Math.max(p.y, w.y), w.y + w.height),
-      ) < r,
-  );
+/** A body of radius r at p overlaps a wall (the rules' own test: strictly inside its radius). */
+const insideAWall = (p: { x: number; y: number }, r: number, walls: readonly Solid[]): boolean =>
+  walls.some((w) => distanceToSolid(p, w) < r);
 
 const manifestOf = (dir: string): Record<string, unknown> =>
   JSON.parse(readFileSync(join(__dirname, '..', 'public', dir, 'manifest.json'), 'utf8')) as Record<
@@ -86,8 +82,11 @@ describe('reconstructed maps', () => {
           if (insideAWall({ x, y }, 36, walls)) continue;
           const p = camera.project(x, y);
           const where = `${map.id} (${x}, ${y})`;
-          expect(p.x, where).toBeGreaterThanOrEqual(0);
-          expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width);
+          // with a border, the camera also slides sideways to follow (ThreePlaza): the open corner just inside a dashed line,
+          // which only an invisible wall used to cover, may reach a hair past the frame's side (at most 1% of its width)
+          const side = rules.safeZone === undefined ? 0 : camera.canvas.width * 0.01;
+          expect(p.x, where).toBeGreaterThanOrEqual(-side);
+          expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width + side);
           expect(p.y, where).toBeGreaterThanOrEqual(0);
           expect(p.y, where).toBeLessThanOrEqual(camera.canvas.height);
         }

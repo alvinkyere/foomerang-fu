@@ -13,11 +13,35 @@ export interface Rect {
   readonly height: number;
 }
 
-export interface FuArena {
+/** A round wall: a pot, a post, the fountain. */
+export interface Disc {
+  readonly shape: 'disc';
+  /** Its centre. */
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+}
+
+/** A box turned the way its model stands: a crate, a stall. `angle` in radians (clockwise on screen: +Y is down). */
+export interface TurnedBox {
+  readonly shape: 'box';
+  /** Its centre. */
+  readonly x: number;
+  readonly y: number;
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+  readonly angle: number;
+}
+
+/** Anything solid: an axis-aligned rectangle (most walls), a disc or a turned box. */
+export type Solid = Rect | Disc | TurnedBox;
+
+/** `W`: the kinds of wall it has (an arena of plain rectangles says so: `FuArena<Rect>`). */
+export interface FuArena<W extends Solid = Solid> {
   readonly width: number;
   readonly height: number;
   /** Solid cover. Blocks living players, thrown boomerangs and a slash's line of sight. */
-  readonly walls?: readonly Rect[];
+  readonly walls?: readonly W[];
   /** Exactly one point per slot (6). Absent: the Slice 1 ellipse. */
   readonly spawns?: readonly Vec2[];
   /** Slice 6: timed gates (solid while CLOSED). */
@@ -33,8 +57,9 @@ export interface FuArena {
   readonly safeZone?: Rect;
 }
 
-const NO_WALLS: readonly Rect[] = Object.freeze([]);
-export const wallsOf = (arena: FuArena): readonly Rect[] => arena.walls ?? NO_WALLS;
+const NO_WALLS: readonly never[] = Object.freeze([]);
+export const wallsOf = <W extends Solid>(arena: FuArena<W>): readonly W[] =>
+  arena.walls ?? NO_WALLS;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry. All of it is pure and symmetric in nothing but the data it is handed.
@@ -49,9 +74,78 @@ export function distanceToRect(p: Vec2, rect: Rect): number {
   return Math.hypot(p.x - cx, p.y - cy);
 }
 
+// A turned box is an axis-aligned rectangle in its own frame: points go in, answers come back out.
+const toLocal = (p: Vec2, b: TurnedBox): Vec2 => {
+  const dx = p.x - b.x;
+  const dy = p.y - b.y;
+  const c = Math.cos(b.angle);
+  const s = Math.sin(b.angle);
+  return { x: dx * c + dy * s, y: -dx * s + dy * c };
+};
+const toWorld = (p: Vec2, b: TurnedBox): Vec2 => {
+  const c = Math.cos(b.angle);
+  const s = Math.sin(b.angle);
+  return { x: b.x + p.x * c - p.y * s, y: b.y + p.x * s + p.y * c };
+};
+const localRect = (b: TurnedBox): Rect => ({
+  x: -b.halfWidth,
+  y: -b.halfHeight,
+  width: 2 * b.halfWidth,
+  height: 2 * b.halfHeight,
+});
+
+/** The point of `solid` nearest to `p` (`p` itself when it is inside). */
+export function closestPointOn(p: Vec2, solid: Solid): Vec2 {
+  if (!('shape' in solid))
+    return {
+      x: clamp(p.x, solid.x, solid.x + solid.width),
+      y: clamp(p.y, solid.y, solid.y + solid.height),
+    };
+  if (solid.shape === 'disc') {
+    const dx = p.x - solid.x;
+    const dy = p.y - solid.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= solid.radius) return p;
+    return { x: solid.x + (dx / d) * solid.radius, y: solid.y + (dy / d) * solid.radius };
+  }
+  const q = toLocal(p, solid);
+  return toWorld(
+    {
+      x: clamp(q.x, -solid.halfWidth, solid.halfWidth),
+      y: clamp(q.y, -solid.halfHeight, solid.halfHeight),
+    },
+    solid,
+  );
+}
+
+/** Distance from `p` to the nearest point of `solid`; 0 inside it. */
+export function distanceToSolid(p: Vec2, solid: Solid): number {
+  if (!('shape' in solid)) return distanceToRect(p, solid);
+  if (solid.shape === 'disc')
+    return Math.max(0, Math.hypot(p.x - solid.x, p.y - solid.y) - solid.radius);
+  return distanceToRect(toLocal(p, solid), localRect(solid));
+}
+
+/** The axis-aligned box around a solid. */
+export function boundsOf(solid: Solid): Rect {
+  if (!('shape' in solid)) return solid;
+  if (solid.shape === 'disc')
+    return {
+      x: solid.x - solid.radius,
+      y: solid.y - solid.radius,
+      width: 2 * solid.radius,
+      height: 2 * solid.radius,
+    };
+  const c = Math.abs(Math.cos(solid.angle));
+  const s = Math.abs(Math.sin(solid.angle));
+  const hw = solid.halfWidth * c + solid.halfHeight * s;
+  const hh = solid.halfWidth * s + solid.halfHeight * c;
+  return { x: solid.x - hw, y: solid.y - hh, width: 2 * hw, height: 2 * hh };
+}
+
 /** A circle overlaps a wall only if it is STRICTLY inside its radius: touching is free, like every contact in Fu. */
-export const circleHitsWalls = (p: Vec2, radius: number, walls: readonly Rect[]): boolean =>
-  walls.some((wall) => distanceToRect(p, wall) < radius);
+export const circleHitsWalls = (p: Vec2, radius: number, walls: readonly Solid[]): boolean =>
+  walls.some((wall) => distanceToSolid(p, wall) < radius);
 
 /**
  * Where a circle centred at (x, y) must be moved so it no longer overlaps `rect`, or undefined if
@@ -83,6 +177,31 @@ export function pushOutOfRect(
   return [x, rect.y + rect.height + radius];
 }
 
+/** `pushOutOfRect` for any solid: a disc pushes radially (from its very centre: to the left), a turned box in its own frame. */
+export function pushOutOfSolid(
+  x: number,
+  y: number,
+  radius: number,
+  solid: Solid,
+  tolerance: number,
+): [number, number] | undefined {
+  if (!('shape' in solid)) return pushOutOfRect(x, y, radius, solid, tolerance);
+  if (solid.shape === 'disc') {
+    const dx = x - solid.x;
+    const dy = y - solid.y;
+    const d = Math.hypot(dx, dy);
+    const reach = solid.radius + radius;
+    if (d >= reach - tolerance) return undefined;
+    if (d === 0) return [solid.x - reach, solid.y];
+    return [solid.x + (dx / d) * reach, solid.y + (dy / d) * reach];
+  }
+  const q = toLocal({ x, y }, solid);
+  const out = pushOutOfRect(q.x, q.y, radius, localRect(solid), tolerance);
+  if (out === undefined) return undefined;
+  const w = toWorld({ x: out[0], y: out[1] }, solid);
+  return [w.x, w.y];
+}
+
 const SWEEP_ITERATIONS = 32;
 
 /**
@@ -96,7 +215,7 @@ export function sweepCircle(
   from: Vec2,
   to: Vec2,
   radius: number,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
 ): { readonly position: Vec2; readonly blocked: boolean } {
   if (walls.length === 0) return { position: to, blocked: false };
   const length = Math.hypot(to.x - from.x, to.y - from.y);
@@ -145,6 +264,19 @@ export function segmentHitsRect(a: Vec2, b: Vec2, rect: Rect): boolean {
   return true;
 }
 
+/** Does the segment a→b touch `solid`? */
+export function segmentHitsSolid(a: Vec2, b: Vec2, solid: Solid): boolean {
+  if (!('shape' in solid)) return segmentHitsRect(a, b, solid);
+  if (solid.shape === 'disc') {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 === 0 ? 0 : clamp(((solid.x - a.x) * dx + (solid.y - a.y) * dy) / l2, 0, 1);
+    return Math.hypot(a.x + dx * t - solid.x, a.y + dy * t - solid.y) <= solid.radius;
+  }
+  return segmentHitsRect(toLocal(a, solid), toLocal(b, solid), localRect(solid));
+}
+
 /**
  * Line of sight to a VICTIM: like `lineIsClear`, except that a wall the victim's own body overlaps
  * (a player part-way through a Phase Dash) is not cover for them. A player is never immune merely
@@ -154,14 +286,14 @@ export const lineClearTo = (
   from: Vec2,
   victim: Vec2,
   radius: number,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
 ): boolean =>
   !walls.some(
-    (wall) => distanceToRect(victim, wall) >= radius && segmentHitsRect(from, victim, wall),
+    (wall) => distanceToSolid(victim, wall) >= radius && segmentHitsSolid(from, victim, wall),
   );
 
-export const lineIsClear = (a: Vec2, b: Vec2, walls: readonly Rect[]): boolean =>
-  !walls.some((wall) => segmentHitsRect(a, b, wall));
+export const lineIsClear = (a: Vec2, b: Vec2, walls: readonly Solid[]): boolean =>
+  !walls.some((wall) => segmentHitsSolid(a, b, wall));
 
 // ---------------------------------------------------------------------------------------------
 // Validation: an invalid arena is a programming error (RangeError), never a game state.
@@ -176,20 +308,40 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 export function assertValidWalls(arena: FuArena, playerRadius: number): void {
   const walls: unknown = arena.walls;
   if (walls === undefined) return;
-  if (!Array.isArray(walls)) throw new RangeError('arena.walls must be a list of rectangles');
+  if (!Array.isArray(walls)) throw new RangeError('arena.walls must be a list of solids');
   walls.forEach((wall: unknown, index) => {
-    const w = wall as Partial<Rect> | null;
-    if (typeof w !== 'object' || w === null)
-      throw new RangeError(`wall ${index} is not a rectangle`);
-    if (!finite(w.x) || !finite(w.y) || !finite(w.width) || !finite(w.height)) {
+    if (typeof wall !== 'object' || wall === null)
+      throw new RangeError(`wall ${index} is not a solid`);
+    const w = wall as Record<string, unknown>;
+    const shape = w['shape'];
+    const fields =
+      shape === undefined
+        ? ['x', 'y', 'width', 'height']
+        : shape === 'disc'
+          ? ['x', 'y', 'radius']
+          : shape === 'box'
+            ? ['x', 'y', 'halfWidth', 'halfHeight', 'angle']
+            : undefined;
+    if (fields === undefined) throw new RangeError(`wall ${index} has an unknown shape`);
+    if (fields.some((f) => !finite(w[f])))
       throw new RangeError(`wall ${index} has a non-finite number`);
-    }
-    if (w.width < playerRadius || w.height < playerRadius) {
+    const solid = wall as Solid;
+    const thickness = !('shape' in solid)
+      ? Math.min(solid.width, solid.height)
+      : solid.shape === 'disc'
+        ? 2 * solid.radius
+        : 2 * Math.min(solid.halfWidth, solid.halfHeight);
+    if (thickness < playerRadius) {
       throw new RangeError(`wall ${index} is thinner than a player radius (${playerRadius})`);
     }
-    if (w.x < 0 || w.y < 0 || w.x + w.width > arena.width || w.y + w.height > arena.height) {
-      throw new RangeError(`wall ${index} is not inside the arena`);
-    }
+    // a rectangle lies wholly inside the arena; a disc or a turned box (a model standing at the edge) needs only its centre in it
+    const inside = !('shape' in solid)
+      ? solid.x >= 0 &&
+        solid.y >= 0 &&
+        solid.x + solid.width <= arena.width &&
+        solid.y + solid.height <= arena.height
+      : solid.x >= 0 && solid.y >= 0 && solid.x <= arena.width && solid.y <= arena.height;
+    if (!inside) throw new RangeError(`wall ${index} is not inside the arena`);
   });
 }
 
@@ -243,7 +395,7 @@ const at = (x: number, y: number): Vec2 => Object.freeze({ x, y });
  *   - six spawns: top-left and bottom-right first (two players start opposite), then the other
  *     corners, then the two lane ends.
  */
-export const PRIMITIVE_ARENA: FuArena = Object.freeze({
+export const PRIMITIVE_ARENA: FuArena<Rect> = Object.freeze({
   width: 1600,
   height: 900,
   walls: Object.freeze([
@@ -272,18 +424,17 @@ export const PRIMITIVE_ARENA: FuArena = Object.freeze({
 });
 
 /** The unit vector pointing away from the wall nearest to `p`, or undefined if `p` is on a wall's surface or there are none. */
-export function nearestWallNormal(p: Vec2, walls: readonly Rect[]): Vec2 | undefined {
-  let best: Rect | undefined;
+export function nearestWallNormal(p: Vec2, walls: readonly Solid[]): Vec2 | undefined {
+  let best: Solid | undefined;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const wall of walls) {
-    const d = distanceToRect(p, wall);
+    const d = distanceToSolid(p, wall);
     if (d < bestDistance) {
       best = wall;
       bestDistance = d;
     }
   }
   if (best === undefined || bestDistance === 0) return undefined;
-  const cx = clamp(p.x, best.x, best.x + best.width);
-  const cy = clamp(p.y, best.y, best.y + best.height);
-  return { x: (p.x - cx) / bestDistance, y: (p.y - cy) / bestDistance };
+  const c = closestPointOn(p, best);
+  return { x: (p.x - c.x) / bestDistance, y: (p.y - c.y) / bestDistance };
 }

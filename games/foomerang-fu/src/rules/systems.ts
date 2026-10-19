@@ -1,5 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
-import { circleHitsWalls, wallsOf, type FuArena, type Rect } from './arena';
+import { boundsOf, circleHitsWalls, wallsOf, type FuArena, type Rect } from './arena';
 
 /**
  * Slice 6 — arena systems. Three families, all PURE FUNCTIONS OF ROUND TIME (`FuState.roundTime`, simulated
@@ -128,7 +128,7 @@ const overlap = (a: Rect, b: Rect): boolean =>
 
 /** A bad arena-system definition is a programming error (RangeError), never a game state. */
 export function assertValidSystems(arena: FuArena, radius: number, spawns: readonly Vec2[]): void {
-  const walls = wallsOf(arena);
+  const walls = wallsOf(arena).map(boundsOf);
   const inside = (r: Rect) =>
     r.x >= 0 && r.y >= 0 && r.x + r.width <= arena.width && r.y + r.height <= arena.height;
   gatesOf(arena).forEach((gate, i) => {

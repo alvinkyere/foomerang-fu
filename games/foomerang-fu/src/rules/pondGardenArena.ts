@@ -66,7 +66,7 @@ export const POND_GARDEN_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 496, y: 496 }),
 ]);
 
-export const POND_GARDEN_ARENA: FuArena = Object.freeze({
+export const POND_GARDEN_ARENA: FuArena<Rect> = Object.freeze({
   width: POND_GARDEN_WIDTH,
   height: POND_GARDEN_HEIGHT,
   walls: Object.freeze(

@@ -1,5 +1,5 @@
 import type { Body, WorldState } from '@foomerang/game-core';
-import { pushOutOfRect, type Rect } from './arena';
+import { pushOutOfSolid, type Solid } from './arena';
 
 /**
  * Player-vs-player contact: the minimum circle-vs-circle separation Foomerang Fu needs. Pure and
@@ -35,7 +35,7 @@ const TOLERANCE = 1e-9;
 export function separateBodies(
   world: WorldState,
   isSolid: (id: string) => boolean,
-  walls: readonly Rect[] = [],
+  walls: readonly Solid[] = [],
   /** Slice 5: bodies that are being carried through walls by a Phase Dash and so skip the wall push-out. */
   throughWalls: ReadonlySet<string> = NO_BODIES,
 ): WorldState {
@@ -93,7 +93,7 @@ export function separateBodies(
       if (throughWalls.has((bodies[index] as Body).id)) continue; // phasing: walls do not push this body now
       const r = (bodies[index] as Body).radius;
       for (const wall of walls) {
-        const out = pushOutOfRect(xs[index] as number, ys[index] as number, r, wall, TOLERANCE);
+        const out = pushOutOfSolid(xs[index] as number, ys[index] as number, r, wall, TOLERANCE);
         if (out !== undefined) {
           xs[index] = out[0];
           ys[index] = out[1];

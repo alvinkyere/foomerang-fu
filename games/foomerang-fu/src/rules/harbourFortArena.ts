@@ -65,7 +65,7 @@ export const HARBOUR_FORT_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 1072, y: 688 }),
 ]);
 
-export const HARBOUR_FORT_ARENA: FuArena = Object.freeze({
+export const HARBOUR_FORT_ARENA: FuArena<Rect> = Object.freeze({
   width: HARBOUR_FORT_WIDTH,
   height: HARBOUR_FORT_HEIGHT,
   walls: Object.freeze(

@@ -8,6 +8,7 @@ import {
   stepFu,
   systemsView,
   type FuArena,
+  type Rect,
   type FuState,
 } from '../src/rules';
 import { circleHitsWalls, wallsOf } from '../src/rules/arena';
@@ -48,7 +49,7 @@ const CORNERS = [
   { x: 800, y: 840 },
 ];
 /** A plain 1600 × 900 arena with the given systems and six far-away spawns. */
-const arenaOf = (parts: Partial<FuArena>): FuArena => ({
+const arenaOf = (parts: Partial<FuArena<Rect>>): FuArena<Rect> => ({
   width: 1600,
   height: 900,
   spawns: CORNERS,
@@ -246,7 +247,7 @@ describe('the experimental arena is valid, symmetric and has alternate routes', 
     ['a platform with no travel time', { platforms: [{ ...PLATFORM, travelSeconds: 0 }] }],
   ])('rejects %s', (_name, parts) => {
     expect(() =>
-      createFuMatch([{ id: 'a', slot: 0 }], { arena: arenaOf(parts as Partial<FuArena>) }),
+      createFuMatch([{ id: 'a', slot: 0 }], { arena: arenaOf(parts as Partial<FuArena<Rect>>) }),
     ).toThrow(RangeError);
   });
 });

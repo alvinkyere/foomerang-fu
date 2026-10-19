@@ -34,7 +34,7 @@ The design notes for Slice 2 follow.
 
 Slice 2 asks one question: *does deliberate arena geometry make the existing combat substantially deeper and more fun?* It adds geometry and nothing else: no new abilities, no new tuning.
 
-**Arena = data** (`rules/arena.ts`). A `FuArena` is `{ width, height, walls?, spawns? }`; a wall is an axis-aligned rectangle; `spawns` is one point per slot. The rules own all of it; Phaser only draws it. `DEFAULT_FU_CONFIG.arena` is still the **open Slice 1 arena** (no walls, ellipse spawns), which is why every Slice 1 test runs unchanged and passes; the console plays `PRIMITIVE_ARENA` by passing it explicitly (`FuRuntime`).
+**Arena = data** (`rules/arena.ts`). A `FuArena` is `{ width, height, walls?, spawns? }`; a wall is an axis-aligned rectangle, a **disc** (`{ shape: 'disc', x, y, radius }`, centre) or a **turned box** (`{ shape: 'box', x, y, halfWidth, halfHeight, angle }`, centre; radians, clockwise on screen) — the plaza's real shapes (see below); `spawns` is one point per slot. The rules own all of it; Phaser only draws it. `DEFAULT_FU_CONFIG.arena` is still the **open Slice 1 arena** (no walls, ellipse spawns), which is why every Slice 1 test runs unchanged and passes; the console plays `PRIMITIVE_ARENA` by passing it explicitly (`FuRuntime`).
 
 **The one primitive test arena** (`PRIMITIVE_ARENA`, 1600 × 900, mirrored left–right and top–bottom so no seat is better): a central block with a way round every side; four *gate* walls leaving a **120-wide chokepoint** (one body, not two) in the top and bottom lanes; two **100-wide, 300-long corridors** down the flanks, open at both ends; four free-standing cover blocks between corridors and middle; open corners, edges and middle. Spawns: top-left and bottom-right first (two players start opposite), then the other corners, then the two lane ends. A test walks a player through a corridor and a chokepoint and checks every spawn can reach every other.
 
@@ -47,7 +47,7 @@ Slice 2 asks one question: *does deliberate arena geometry make the existing com
  BL ·  └──gate──┐  ┌──gate──┘  · BR
 ```
 
-**Players vs walls.** Living players are solid against walls, resolved by the same deterministic separation that handles player-vs-player (`rules/collision.ts`): a circle is pushed straight out of a rectangle (away from its nearest point; out by the nearest face if its centre got inside). Only the contact normal is corrected, so a player **slides** along a wall at full tangential speed, rounds a convex corner smoothly, and is held by a concave one. Walls are fixed and win over player shoves, so a shove can never put anyone inside one. Movement still runs in sub-steps no longer than the fixed step, so no accepted `dt` tunnels. Walls must be at least one player radius thick (validated), so nothing pushed by contact can end up on the far side of one. Dead players are not solid (unchanged).
+**Players vs walls.** Living players are solid against walls, resolved by the same deterministic separation that handles player-vs-player (`rules/collision.ts`): a circle is pushed straight out of a rectangle (away from its nearest point; out by the nearest face if its centre got inside); out of a disc radially; out of a turned box the same way as out of a rectangle, in the box's own frame. Only the contact normal is corrected, so a player **slides** along a wall at full tangential speed, rounds a convex corner smoothly, and is held by a concave one. Walls are fixed and win over player shoves, so a shove can never put anyone inside one. Movement still runs in sub-steps no longer than the fixed step, so no accepted `dt` tunnels. Walls must be at least one player radius thick (validated), so nothing pushed by contact can end up on the far side of one. Dead players are not solid (unchanged).
 
 **Boomerangs vs walls.** Solid geometry blocks a boomerang in **both** states. A **THROWN** boomerang is swept along its step against the walls (cut into pieces no longer than its radius, then bisected to the touching point): it stops flush against the wall, turns **RETURNING** on that very step, and never penetrates, bounces, ricochets or tunnels. A throw made pressed against a wall starts as close to its owner as the wall allows and turns straight back.
 
@@ -80,7 +80,7 @@ It only ever moves to places the sweep says are free, so it cannot penetrate, tu
 | Boomerang kills vs walls | Unchanged: a boomerang kills by proximity at its own position; a stopped THROWN boomerang is a wall's thickness away from anyone behind it. | — |
 | Shoving into walls | A shove cannot push a player into or through a wall; the pusher is held behind them. | — |
 | Dead players | Not solid to walls or players (Slice 1 policy). | — |
-| Wall shape | Axis-aligned rectangles only, at least one player radius thick. | Polygons/circles: not needed for the question. |
+| Wall shape | Axis-aligned rectangles, discs and turned boxes (2026-10-19, for the plaza's models), at least one player radius thick (a disc's diameter, a box's shorter side). | Polygons: not needed yet. |
 | Default config | Stays the open Slice 1 arena; the console plays the primitive arena. | Making walls the default would have meant editing Slice 1's tests. |
 
 **Presentation.** Walls are drawn from the rules' data as slate slabs with a bright edge on a darker floor, under the players. `drawnWalls()` lets a browser test prove what is on screen is what the rules define.
@@ -585,6 +585,23 @@ No randomness is used yet, so there is no seed; when randomness arrives it must 
 - A press becomes `slash: true` or `throw: true` for exactly one step. If both are pending before one step, both are passed in and the rules resolve it (SLASH wins).
 - A controller reload or reconnect starts with nothing held and sends nothing until a finger presses: a test proves no action is manufactured.
 
+## The plaza's physics (market plaza; owner, 2026-10-19)
+
+**Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`
+by `art/reconstruction/environ2/blender/collision.py` (the rules module says so in its header; never edit the walls by hand):
+pots, the banner poles, the bunting's posts, the sign's post and the fountain's rim are discs; crates, stalls (plinth, body and
+posts, not the roof) and the side fences are boxes turned as they stand; the terrace and its stairs are rectangles. Posts
+thinner than a player radius are widened to one (the rules require it). Trees, the bunting's rope and the rugs stay walkable.
+This replaced the image's 40-unit wall cells, which joined the bottom-left crates and pots into one block twice their size,
+filled every gap narrower than a body, and laid an invisible strip along the bottom of the plaza: the owner felt it as a
+barrier. `plazaPhysics.e2e.ts` walks a player into that corner in the real game.
+
+**Standing on the floor.** A character is a flat picture facing the camera, so all of it lies at the depth of the point it
+stands on, and the floor in front of that point is nearer the camera: tested against the floor's depth, the lower part of
+every body (about a fifth of it, more mid-dash) vanished into the ground and players looked sunk. The floor is under
+everything, so it is drawn first and keeps no depth (`render/three/plazaFloor.ts`); the models still hide a character
+standing behind them.
+
 ## The border (market plaza; owner, 2026-10-17)
 
 An arena may have a **safe zone** (`FuArena.safeZone`). On the plaza it is the strip between the two dashed lines on the sand;
@@ -628,7 +645,7 @@ Equivalent mutants (no observable difference): duplicate ids and a too-small are
 - One movement joystick per manifest (protocol limitation, unchanged). There is no aim stick.
 - The simulation runs in the host browser: a console reload restarts the round state (host-loss policy: see CONSOLE.md).
 - Collision is circle-vs-circle between living players only. Boomerangs and slashes pass through bodies exactly as before.
-- Geometry is axis-aligned rectangles. A RETURNING boomerang uses local wall-following, not a map: it is deterministic and tested to get home from everywhere in the primitive arena, but in an arena with a sealed-off owner it would be recalled by the failsafe (see below).
+- Geometry is rectangles, discs and turned boxes. A RETURNING boomerang uses local wall-following, not a map: it is deterministic and tested to get home from everywhere in the primitive arena, but in an arena with a sealed-off owner it would be recalled by the failsafe (see below).
 - A boomerang in flight at round end freezes in the rules until the reset (the renderer fades it out; the state itself is not advanced).
 - The slash numbers and the SLASH/THROW button layout were played by one human (Playtest #2) and passed as the baseline; they have not been measured, and more players, other devices and longer sessions are untested.
 - **Not built, on purpose:** slashing an incoming boomerang (deflect / destroy / redirect / parry). It could become the deepest interaction in the game, but only after the simpler loop has been played.

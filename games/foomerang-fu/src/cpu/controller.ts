@@ -6,6 +6,7 @@ import {
   sweepCircle,
   wallsOf,
   type Rect,
+  type Solid,
 } from '../rules/arena';
 import { planPhaseDash } from '../rules/phase';
 import type { FuPlayerInput } from '../rules/step';
@@ -54,7 +55,7 @@ interface Observation {
   readonly books: readonly Vec2[];
   readonly systems: SystemsView;
   /** Walls as they stood (static walls and gates that had shut). */
-  readonly solids: readonly Rect[];
+  readonly solids: readonly Solid[];
 }
 
 const norm = (v: Vec2): Vec2 => {
@@ -73,7 +74,7 @@ const positionOf = (s: FuState, id: string): Vec2 =>
 function observe(past: FuState, earlier: FuState, selfId: string): Observation {
   const gates = gatesOf(past.config.arena);
   const systems = systemsView(past.config.arena, past.roundTime, past.gatesShut);
-  const solids: Rect[] = [...wallsOf(past.config.arena)];
+  const solids: Solid[] = [...wallsOf(past.config.arena)];
   gates.forEach((g, k) => {
     if (past.gatesShut[k] === true) solids.push(g.rect);
   });

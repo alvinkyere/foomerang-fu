@@ -69,7 +69,7 @@ export const FLOODED_RUINS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 432, y: 784 }),
 ]);
 
-export const FLOODED_RUINS_ARENA: FuArena = Object.freeze({
+export const FLOODED_RUINS_ARENA: FuArena<Rect> = Object.freeze({
   width: FLOODED_RUINS_WIDTH,
   height: FLOODED_RUINS_HEIGHT,
   walls: Object.freeze(

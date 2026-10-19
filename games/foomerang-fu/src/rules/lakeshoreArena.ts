@@ -68,7 +68,7 @@ export const LAKESHORE_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 336, y: 464 }),
 ]);
 
-export const LAKESHORE_ARENA: FuArena = Object.freeze({
+export const LAKESHORE_ARENA: FuArena<Rect> = Object.freeze({
   width: LAKESHORE_WIDTH,
   height: LAKESHORE_HEIGHT,
   walls: Object.freeze(

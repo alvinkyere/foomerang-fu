@@ -23,7 +23,7 @@ const at = (x: number, y: number): Vec2 => Object.freeze({ x, y });
  * run the same timings in opposite directions. Spawns are the primitive arena's six corner/lane places.
  * Timings are playtest hypotheses.
  */
-export const SYSTEMS_ARENA: FuArena = Object.freeze({
+export const SYSTEMS_ARENA: FuArena<Rect> = Object.freeze({
   width: 1600,
   height: 900,
   walls: Object.freeze([

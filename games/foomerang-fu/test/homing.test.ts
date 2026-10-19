@@ -10,7 +10,9 @@ import {
   type FuInputs,
   type FuState,
   type Rect,
+  type Solid,
 } from '../src/rules';
+import { distanceToSolid } from '../src/rules/arena';
 
 // These files run thousands of simulation steps; on a cold, loaded checkout a few took longer than vitest's
 // 5 s default. This only gives them room; no assertion depends on it.
@@ -93,12 +95,10 @@ const player = (s: FuState, id: string) =>
     s.players.find((p) => p.id === id),
     `player ${id}`,
   );
-function gap(p: { x: number; y: number }, w: Rect): number {
-  const cx = Math.min(Math.max(p.x, w.x), w.x + w.width);
-  const cy = Math.min(Math.max(p.y, w.y), w.y + w.height);
-  return Math.hypot(p.x - cx, p.y - cy);
+function gap(p: { x: number; y: number }, w: Solid): number {
+  return distanceToSolid(p, w);
 }
-const inWall = (p: { x: number; y: number }, walls: readonly Rect[]) =>
+const inWall = (p: { x: number; y: number }, walls: readonly Solid[]) =>
   walls.some((w) => gap(p, w) < RB - EPS);
 
 interface Flight {

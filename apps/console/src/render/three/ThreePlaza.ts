@@ -5,6 +5,7 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
 import { parseMapLayers } from '../reconstructed/mapLayers';
 import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
+import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { characterHeight, sceneSpace } from './plazaSpace';
 
 /**
@@ -100,7 +101,7 @@ class Character {
       new THREE.SpriteMaterial({ map: this.#texture, transparent: true, alphaTest: 0.05 }),
     );
     this.sprite.center.set(anchor[0] / cell, 1 - anchor[1] / cell);
-    this.sprite.renderOrder = 2;
+    this.sprite.renderOrder = CHARACTER_RENDER_ORDER;
     this.#ring = new THREE.Mesh(
       new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false }),
@@ -368,14 +369,7 @@ class Plaza {
     this.scene.add(gltf);
     // our vector floor (art/reconstruction/environ2/blender/floor_vector.py): one crisp flat-coloured ground, top-down
     for (const o of [...gltf.children]) if (/^(FLOOR|RUG)/.test(o.name)) o.removeFromParent();
-    const { x0, x1, y0, y1 } = floor.extent;
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(x1 - x0, y1 - y0).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ map: floor.texture }),
-    );
-    ground.position.set((x0 + x1) / 2, 0, -(y0 + y1) / 2);
-    ground.name = 'FLOOR_vector';
-    this.scene.add(ground);
+    this.scene.add(plazaFloor(floor.texture, floor.extent));
     const gradient = toonGradient();
     gltf.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;

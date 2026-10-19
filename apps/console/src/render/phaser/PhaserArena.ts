@@ -18,6 +18,7 @@ import type {
   CircleView,
   PickupView,
   ViewEvent,
+  RectView,
   WallView,
 } from '../viewModel';
 
@@ -463,7 +464,7 @@ class BoomerangSprite {
 }
 
 /** A rectangle outlined with dashes (so "open / safe / not solid" reads differently from a solid frame). */
-function dashedRect(g: Phaser.GameObjects.Graphics, r: WallView, dash = 16): void {
+function dashedRect(g: Phaser.GameObjects.Graphics, r: RectView, dash = 16): void {
   const edge = (x1: number, y1: number, x2: number, y2: number) => {
     const length = Math.hypot(x2 - x1, y2 - y1);
     const n = Math.max(1, Math.floor(length / dash));
@@ -483,7 +484,7 @@ function dashedRect(g: Phaser.GameObjects.Graphics, r: WallView, dash = 16): voi
 }
 
 /** Diagonal hazard stripes across a rectangle, clipped to it. */
-function stripes(g: Phaser.GameObjects.Graphics, r: WallView, gap: number, offset: number): void {
+function stripes(g: Phaser.GameObjects.Graphics, r: RectView, gap: number, offset: number): void {
   for (let k = -r.height; k < r.width; k += gap) {
     const x0 = r.x + k + (offset % gap);
     const x1 = x0 + r.height;
@@ -624,7 +625,7 @@ class ArenaScene extends Phaser.Scene {
 
   /** The arena's geometry, exactly as the rules hand it over. Redrawn only when it changes. */
   #showWalls(walls: readonly WallView[]): void {
-    const key = walls.map((w) => `${w.x},${w.y},${w.width},${w.height}`).join('|');
+    const key = JSON.stringify(walls);
     if (key === this.#wallsKey) return;
     this.#wallsKey = key;
     this.#wallViews = walls.map((w) => ({ ...w }));
@@ -632,6 +633,33 @@ class ArenaScene extends Phaser.Scene {
     const g = this.#walls;
     g.clear();
     for (const w of walls) {
+      if ('shape' in w) {
+        // a disc or a turned box (the plaza's real shapes): the same slab colours, drawn as its shape
+        g.fillStyle(WALL_FACE, 1);
+        g.lineStyle(5, WALL_EDGE, 1);
+        if (w.shape === 'disc') {
+          g.fillCircle(w.x, w.y, w.radius);
+          g.strokeCircle(w.x, w.y, w.radius);
+        } else {
+          const c = Math.cos(w.angle);
+          const s = Math.sin(w.angle);
+          const corners = [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+          ].map(
+            ([u = 0, v = 0]) =>
+              new Phaser.Math.Vector2(
+                w.x + u * w.halfWidth * c - v * w.halfHeight * s,
+                w.y + u * w.halfWidth * s + v * w.halfHeight * c,
+              ),
+          );
+          g.fillPoints(corners, true);
+          g.strokePoints(corners, true);
+        }
+        continue;
+      }
       g.fillStyle(WALL_SIDE, 1); // a slab with a lit top edge and a dark base, so cover reads as solid
       g.fillRect(w.x, w.y, w.width, w.height);
       g.fillStyle(WALL_FACE, 1);

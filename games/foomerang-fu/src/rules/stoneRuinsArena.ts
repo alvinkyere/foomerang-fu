@@ -83,7 +83,7 @@ export const STONE_RUINS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 880, y: 368 }),
 ]);
 
-export const STONE_RUINS_ARENA: FuArena = Object.freeze({
+export const STONE_RUINS_ARENA: FuArena<Rect> = Object.freeze({
   width: STONE_RUINS_WIDTH,
   height: STONE_RUINS_HEIGHT,
   walls: Object.freeze(

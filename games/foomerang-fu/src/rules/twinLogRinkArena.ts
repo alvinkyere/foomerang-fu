@@ -68,7 +68,7 @@ export const TWIN_LOG_RINK_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 464, y: 336 }),
 ]);
 
-export const TWIN_LOG_RINK_ARENA: FuArena = Object.freeze({
+export const TWIN_LOG_RINK_ARENA: FuArena<Rect> = Object.freeze({
   width: TWIN_LOG_RINK_WIDTH,
   height: TWIN_LOG_RINK_HEIGHT,
   walls: Object.freeze(

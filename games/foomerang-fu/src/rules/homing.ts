@@ -1,5 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
-import { nearestWallNormal, sweepCircle, type Rect } from './arena';
+import { nearestWallNormal, sweepCircle, type Solid } from './arena';
 
 /**
  * How a RETURNING boomerang gets home around solid geometry: LOCAL steering, no map of the arena.
@@ -41,7 +41,7 @@ export function homeStep(
   owner: Vec2,
   travel: number,
   radius: number,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
   arena: { readonly width: number; readonly height: number },
   hand: Hand,
 ): HomingResult {

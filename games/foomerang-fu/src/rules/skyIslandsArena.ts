@@ -95,7 +95,7 @@ export const SKY_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 336, y: 176 }),
 ]);
 
-export const SKY_ISLANDS_ARENA: FuArena = Object.freeze({
+export const SKY_ISLANDS_ARENA: FuArena<Rect> = Object.freeze({
   width: SKY_ISLANDS_WIDTH,
   height: SKY_ISLANDS_HEIGHT,
   walls: Object.freeze(

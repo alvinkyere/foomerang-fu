@@ -67,7 +67,7 @@ export const FARM_PLOTS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 496, y: 304 }),
 ]);
 
-export const FARM_PLOTS_ARENA: FuArena = Object.freeze({
+export const FARM_PLOTS_ARENA: FuArena<Rect> = Object.freeze({
   width: FARM_PLOTS_WIDTH,
   height: FARM_PLOTS_HEIGHT,
   walls: Object.freeze(

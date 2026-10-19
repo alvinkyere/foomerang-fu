@@ -110,29 +110,43 @@ export interface ViewEvent {
 }
 
 /** A solid rectangle of the arena, as the rules define it. The renderer only draws it. */
-export interface WallView {
+/** An axis-aligned rectangle (x, y = top-left corner). */
+export interface RectView {
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
 }
 
+/** A solid as the rules define it: a rectangle, a disc (x, y = centre) or a turned box (x, y = centre; angle in radians). */
+export type WallView =
+  | RectView
+  | { readonly shape: 'disc'; readonly x: number; readonly y: number; readonly radius: number }
+  | {
+      readonly shape: 'box';
+      readonly x: number;
+      readonly y: number;
+      readonly halfWidth: number;
+      readonly halfHeight: number;
+      readonly angle: number;
+    };
+
 /** The arena's interactive systems, exactly as the rules have them right now (Slice 6). */
 export interface SystemsViewModel {
   readonly gates: readonly {
-    readonly rect: WallView;
+    readonly rect: RectView;
     readonly status: 'OPEN' | 'CLOSING' | 'CLOSED';
     /** Scheduled to be closed but something is in the way, so it is still open. */
     readonly held: boolean;
     readonly secondsToChange: number;
   }[];
   readonly platforms: readonly {
-    readonly rect: WallView;
+    readonly rect: RectView;
     readonly direction: Vec2;
     readonly moving: boolean;
   }[];
   readonly hazards: readonly {
-    readonly rect: WallView;
+    readonly rect: RectView;
     readonly phase: 'SAFE' | 'WARNING' | 'ACTIVE';
     readonly secondsToChange: number;
   }[];

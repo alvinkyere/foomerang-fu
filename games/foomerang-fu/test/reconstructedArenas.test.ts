@@ -56,6 +56,7 @@ import {
   createFuMatch,
   stepFu,
   type FuArena,
+  type Rect,
 } from '../src/rules';
 import type { Vec2 } from '@foomerang/game-core';
 import { circleHitsWalls, wallsOf } from '../src/rules/arena';
@@ -67,7 +68,7 @@ import { DT, R, at, input, make } from './support/fixtures';
 
 interface Case {
   readonly name: string;
-  readonly arena: FuArena;
+  readonly arena: FuArena<Rect>;
   readonly walls: readonly { readonly id: string; readonly kind: string }[];
   readonly spawns: readonly Vec2[];
   readonly books: readonly Vec2[];

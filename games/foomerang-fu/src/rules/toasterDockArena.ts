@@ -69,7 +69,7 @@ export const TOASTER_DOCK_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 880, y: 272 }),
 ]);
 
-export const TOASTER_DOCK_ARENA: FuArena = Object.freeze({
+export const TOASTER_DOCK_ARENA: FuArena<Rect> = Object.freeze({
   width: TOASTER_DOCK_WIDTH,
   height: TOASTER_DOCK_HEIGHT,
   walls: Object.freeze(

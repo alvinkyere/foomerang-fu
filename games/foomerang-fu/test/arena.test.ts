@@ -12,7 +12,9 @@ import {
   type FuInputs,
   type FuState,
   type Rect,
+  type Solid,
 } from '../src/rules';
+import { distanceToSolid } from '../src/rules/arena';
 
 // These files run thousands of simulation steps; on a cold, loaded checkout a few took longer than vitest's
 // 5 s default. This only gives them room; no assertion depends on it.
@@ -112,10 +114,8 @@ function run(
 }
 
 /** Distance from a point to the nearest point of a rectangle (0 if inside). */
-function gap(p: { x: number; y: number }, w: Rect): number {
-  const cx = Math.min(Math.max(p.x, w.x), w.x + w.width);
-  const cy = Math.min(Math.max(p.y, w.y), w.y + w.height);
-  return Math.hypot(p.x - cx, p.y - cy);
+function gap(p: { x: number; y: number }, w: Solid): number {
+  return distanceToSolid(p, w);
 }
 /** The deepest a living player is inside any wall, or any other living player (0 if none). */
 function worstOverlap(s: FuState): number {

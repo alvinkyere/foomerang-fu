@@ -15,7 +15,7 @@ import {
   lineIsClear,
   sweepCircle,
   wallsOf,
-  type Rect,
+  type Solid,
 } from './arena';
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
@@ -243,7 +243,7 @@ function carryBodies(
   solid: ReadonlySet<string>,
   h: number,
   config: FuConfig,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
 ): Carried {
   const ends = new Set<string>();
   const progress = new Map<string, { travelled: number; inside: boolean }>();
@@ -442,10 +442,10 @@ const ARENA_ID = 'HAZARD';
 
 /** The solid geometry right now: the static walls plus every timed gate that has shut. */
 const solidNow = (
-  statics: readonly Rect[],
+  statics: readonly Solid[],
   gates: readonly GateSpec[],
   shut: readonly boolean[],
-): readonly Rect[] =>
+): readonly Solid[] =>
   gates.some((_g, k) => shut[k] === true)
     ? [...statics, ...gates.flatMap((g, k) => (shut[k] === true ? [g.rect] : []))]
     : statics;
@@ -461,7 +461,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const platforms = platformsOf(config.arena);
   const hazards = hazardsOf(config.arena);
   const gatesShut: boolean[] = [...state.gatesShut];
-  let walls: readonly Rect[] = solidNow(staticWalls, gates, gatesShut);
+  let walls: readonly Solid[] = solidNow(staticWalls, gates, gatesShut);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
   const R = config.playerRadius;

@@ -27,9 +27,13 @@ Measured, not chosen:
 - **Edges.** The three side fences stand on two ground lines (X = const in the camera's ground plane), which fixes the
   arena's west and east edges; the far wall's base and the bottom of the frame fix the rest. The terrace, its stairs and the
   archway legs are out of play.
-- **Solid objects.** Stalls from their four post tops on the canopy, unprojected at the post height measured on three stalls
-  (0.042–0.050 plan units); the fountain from a circle fitted to its base outline (median error 0.26 px); crates and pots one
-  object deep behind their base line; poles and the sign at their feet.
+- **Solid objects.** SUPERSEDED 2026-10-19 by `blender/collision.py` (run after `arena_environ2.py`, which still writes the
+  arena's size, spawns, Book spots and border): the walls now come from the 3D models the game draws (`plaza.glb`), one solid
+  per model in its real shape: pots, posts, the sign's post and the fountain's rim as discs; crates, stalls (plinth, body and
+  posts) and fences as boxes turned as they stand; the terrace and its stairs as rectangles. The image-cell walls (40-unit
+  cells, gaps narrower than a body filled, an EDGE strip along the bottom) made the bottom-left crates and pots one block
+  twice their size, which the owner felt as a barrier. (Before: stalls from their post tops, the fountain from a circle fitted
+  to its base outline, crates and pots one object deep behind their base line, poles and the sign at their feet.)
 - **Depth.** A layer's depth is its ground-contact line, column by column: the base for things that stand on the ground, the
   line through trunk, post and pole feet for things held up in the air (canopies, the bunting's rope, banners, the sign).
 

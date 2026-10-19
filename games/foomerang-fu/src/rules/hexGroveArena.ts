@@ -93,7 +93,7 @@ export const HEX_GROVE_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 944, y: 464 }),
 ]);
 
-export const HEX_GROVE_ARENA: FuArena = Object.freeze({
+export const HEX_GROVE_ARENA: FuArena<Rect> = Object.freeze({
   width: HEX_GROVE_WIDTH,
   height: HEX_GROVE_HEIGHT,
   walls: Object.freeze(

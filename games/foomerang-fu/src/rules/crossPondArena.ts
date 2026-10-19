@@ -79,7 +79,7 @@ export const CROSS_POND_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 272, y: 848 }),
 ]);
 
-export const CROSS_POND_ARENA: FuArena = Object.freeze({
+export const CROSS_POND_ARENA: FuArena<Rect> = Object.freeze({
   width: CROSS_POND_WIDTH,
   height: CROSS_POND_HEIGHT,
   walls: Object.freeze(

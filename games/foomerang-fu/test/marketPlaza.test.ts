@@ -10,12 +10,12 @@ import {
   createFuMatch,
   stepFu,
 } from '../src/rules';
-import { circleHitsWalls, wallsOf } from '../src/rules/arena';
+import { boundsOf, circleHitsWalls, wallsOf } from '../src/rules/arena';
 import { DT, R, at, input, make } from './support/fixtures';
 
 // market_plaza: the plaza of environ2.avif (the owner's reference still, art/reconstruction/environ2). Its geometry is DATA owned
-// by the rules, generated from the image and its solved camera by art/reconstruction/environ2/arena_environ2.py. These tests
-// check the data; the approved mechanics are unchanged — the plaza adds no new mechanic.
+// by the rules, generated from the 3D models the game draws (plaza.glb) by art/reconstruction/environ2/blender/collision.py:
+// each solid is ONE model in its real shape (owner, 2026-10-17). These tests check the data; the mechanics are the approved ones.
 
 const walls = wallsOf(MARKET_PLAZA_ARENA);
 
@@ -31,6 +31,60 @@ describe('market_plaza: the arena data', () => {
     expect(createFuMatch([{ id: 'a', slot: 0 }], { arena: MARKET_PLAZA_ARENA }).config.arena).toBe(
       MARKET_PLAZA_ARENA,
     );
+  });
+
+  it('every solid is one model we draw, in its real shape: round pots, posts and fountain; turned crates, stalls and fences', () => {
+    const shapeOf = (w: (typeof MARKET_PLAZA_WALLS)[number]) => ('shape' in w ? w.shape : 'rect');
+    const expected = {
+      POT: 'disc',
+      POLE: 'disc',
+      SIGN: 'disc',
+      FOUNTAIN: 'disc',
+      CRATE: 'box',
+      STALL: 'box',
+      FENCE: 'box',
+      TERRACE: 'rect',
+    } as const;
+    for (const w of MARKET_PLAZA_WALLS) expect(shapeOf(w), w.id).toBe(expected[w.kind]);
+    // no blanket cells: one wall per model (the four far-left posts are four poles, not a strip)
+    expect(MARKET_PLAZA_WALLS.filter((w) => w.kind === 'FOUNTAIN')).toHaveLength(1);
+    expect(MARKET_PLAZA_WALLS.filter((w) => w.kind === 'CRATE')).toHaveLength(9);
+    expect(MARKET_PLAZA_WALLS.filter((w) => w.kind === 'STALL')).toHaveLength(6);
+  });
+
+  it('the bottom-left crates and pots are solid only where they stand: the sand round them is open (the owner’s barrier)', () => {
+    // the models' centres (plaza.glb): two crates and two pots
+    for (const p of [
+      { x: 577, y: 912 },
+      { x: 488, y: 943 },
+      { x: 538, y: 982 },
+      { x: 494, y: 1006 },
+    ])
+      expect(circleHitsWalls(p, 1, walls), `${p.x},${p.y}`).toBe(true);
+    // all of this was one 200 × 240 block; now a body stands on open sand left of, above, right of and below the group
+    for (const p of [
+      { x: 420, y: 940 },
+      { x: 480, y: 870 },
+      { x: 660, y: 950 },
+      { x: 620, y: 1010 },
+      { x: 500, y: 1068 },
+    ])
+      expect(circleHitsWalls(p, R, walls), `${p.x},${p.y}`).toBe(false);
+  });
+
+  it('a player walks right along the bottom of the plaza, under the pots, until the bunting post stops them', () => {
+    let s = make(['a', 'b'], { arena: MARKET_PLAZA_ARENA, seed: 2 });
+    s = {
+      ...s,
+      world: {
+        ...s.world,
+        bodies: s.world.bodies.map((b) =>
+          b.id === 'a' ? { ...b, position: { x: 300, y: 1068 } } : b,
+        ),
+      },
+    };
+    for (let t = 0; t < 4; t += DT) s = stepFu(s, input({ a: { move: { x: 1, y: 0 } } }), DT).state;
+    expect(at(s, 'a').x).toBeGreaterThan(800);
   });
 
   it('stalls, the fountain, crates, pots, poles and the sign are solid (the owner’s decision); so is the raised terrace', () => {
@@ -68,18 +122,15 @@ describe('market_plaza: the arena data', () => {
   it('every obstacle lies inside the boundary, has a positive size and a unique id; the fountain centre is solid', () => {
     expect(new Set(MARKET_PLAZA_WALLS.map((w) => w.id)).size).toBe(MARKET_PLAZA_WALLS.length);
     for (const w of MARKET_PLAZA_WALLS) {
-      expect(w.width, w.id).toBeGreaterThan(0);
-      expect(w.height, w.id).toBeGreaterThan(0);
-      expect(w.x, w.id).toBeGreaterThanOrEqual(0);
-      expect(w.y, w.id).toBeGreaterThanOrEqual(0);
-      expect(w.x + w.width, w.id).toBeLessThanOrEqual(MARKET_PLAZA_WIDTH);
-      expect(w.y + w.height, w.id).toBeLessThanOrEqual(MARKET_PLAZA_HEIGHT);
+      const b = boundsOf(w);
+      expect(b.width, w.id).toBeGreaterThan(0);
+      expect(b.height, w.id).toBeGreaterThan(0);
+      // a model standing at the frame's edge may reach past it; its middle is always on the plaza
+      expect(b.x + b.width / 2, w.id).toBeGreaterThanOrEqual(0);
+      expect(b.y + b.height / 2, w.id).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width / 2, w.id).toBeLessThanOrEqual(MARKET_PLAZA_WIDTH);
+      expect(b.y + b.height / 2, w.id).toBeLessThanOrEqual(MARKET_PLAZA_HEIGHT);
     }
-    const f = MARKET_PLAZA_WALLS.filter((w) => w.kind === 'FOUNTAIN');
-    expect(f.length).toBeGreaterThan(0);
-    const cx = f.reduce((s, w) => s + w.x + w.width / 2, 0) / f.length;
-    const cy = f.reduce((s, w) => s + w.y + w.height / 2, 0) / f.length;
-    expect(circleHitsWalls({ x: cx, y: cy }, 1, walls)).toBe(true);
   });
 
   it('every spawn and Book spot is on open floor with room around it; spawns are well spread', () => {

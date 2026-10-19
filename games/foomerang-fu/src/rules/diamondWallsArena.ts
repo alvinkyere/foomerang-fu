@@ -106,7 +106,7 @@ export const DIAMOND_WALLS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 432, y: 400 }),
 ]);
 
-export const DIAMOND_WALLS_ARENA: FuArena = Object.freeze({
+export const DIAMOND_WALLS_ARENA: FuArena<Rect> = Object.freeze({
   width: DIAMOND_WALLS_WIDTH,
   height: DIAMOND_WALLS_HEIGHT,
   walls: Object.freeze(

@@ -1,5 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
-import { circleHitsWalls, type Rect } from './arena';
+import { circleHitsWalls, type Solid } from './arena';
 import { distanceToCircle } from './dash';
 
 /**
@@ -22,7 +22,7 @@ export function lastValidAlong(
   direction: Vec2,
   tStop: number,
   radius: number,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
 ): number {
   const ok = (t: number): boolean =>
     !circleHitsWalls(
@@ -61,7 +61,7 @@ export function planPhaseDash(
   direction: Vec2,
   length: number,
   radius: number,
-  walls: readonly Rect[],
+  walls: readonly Solid[],
   arena: { readonly width: number; readonly height: number },
   others: readonly { readonly position: Vec2; readonly radius: number }[],
 ): number {

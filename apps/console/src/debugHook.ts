@@ -1,5 +1,6 @@
 import type { ConsoleRuntime } from './consoleRuntime';
 import type { ArenaRenderer } from './render/renderer';
+import type { WallView } from './render/viewModel';
 
 /**
  * A READ-ONLY window for automated browser tests, installed ONLY in development builds (main.tsx
@@ -32,8 +33,7 @@ export interface DebugSnapshot {
   /** The pickups the renderer has on screen (undefined until Phaser is up). */
   readonly drawnPickups: readonly { id: string; x: number; y: number }[] | undefined;
   /** The walls the renderer has on screen (undefined until Phaser is up). */
-  readonly drawnWalls:
-    readonly { x: number; y: number; width: number; height: number }[] | undefined;
+  readonly drawnWalls: readonly WallView[] | undefined;
   /** The running game's own state (Foomerang Fu: round, phase, who is alive, boomerangs). */
   readonly game: unknown;
   /** Counters from the console's own session (no credentials). */

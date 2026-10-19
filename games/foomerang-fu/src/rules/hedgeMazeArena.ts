@@ -157,7 +157,7 @@ export const HEDGE_MAZE_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 816, y: 1072 }),
 ]);
 
-export const HEDGE_MAZE_ARENA: FuArena = Object.freeze({
+export const HEDGE_MAZE_ARENA: FuArena<Rect> = Object.freeze({
   width: HEDGE_MAZE_WIDTH,
   height: HEDGE_MAZE_HEIGHT,
   walls: Object.freeze(

@@ -1,5 +1,5 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
-import { assertValidSpawns, assertValidWalls, distanceToRect, type FuArena } from './arena';
+import { assertValidSpawns, assertValidWalls, distanceToSolid, type FuArena } from './arena';
 import {
   SPAWN_RATES,
   isPowerKind,
@@ -314,7 +314,7 @@ function assertValidPowerups(config: FuConfig): void {
     if (hazardsOf(arena).some((h) => inRect(spot, h.rect))) {
       throw new RangeError(`pickup spot ${index} is on a hazard`);
     }
-    if (walls.some((w) => distanceToRect(spot, w) < p.pickupRadius)) {
+    if (walls.some((w) => distanceToSolid(spot, w) < p.pickupRadius)) {
       throw new RangeError(`pickup spot ${index} is in or against a wall`);
     }
     if (p.spots.some((other, j) => j > index && other.x === spot.x && other.y === spot.y)) {
