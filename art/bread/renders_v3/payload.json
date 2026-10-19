@@ -1,0 +1,45 @@
+{
+ "frames_body": 245,
+ "frames_prop": 206,
+ "frames_body_after_dedupe": 229,
+ "frames_prop_after_dedupe": 196,
+ "untrimmed_bytes": 81285120,
+ "trimmed_area_body": 5327744,
+ "trimmed_area_prop": 950838,
+ "trimmed_area_body_dedupe": 4953789,
+ "trimmed_area_prop_dedupe": 908878,
+ "raw_packed_bytes_lower_bound": 23450668,
+ "body_atlas_4096": {
+  "px": [
+   4096,
+   2048
+  ],
+  "used_h": 1330,
+  "png": 4900125,
+  "webp": 639798,
+  "decoded": 33554432,
+  "tight_decoded": 21790720
+ },
+ "prop_atlas": {
+  "px": [
+   1024,
+   1024
+  ],
+  "used_h": 1024,
+  "png": 953506,
+  "webp": 171844,
+  "decoded": 4194304,
+  "tight_decoded": 4194304
+ },
+ "body_atlas_2048_pages": {
+  "px": [
+   2048,
+   4096
+  ],
+  "used_h": 2639,
+  "png": 4944397,
+  "webp": 640012,
+  "decoded": 33554432,
+  "tight_decoded": 21618688
+ }
+}

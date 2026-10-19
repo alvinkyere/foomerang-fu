@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixel-Exact 2.5D/3D Asset Extractor</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #141419; color: #f0f0f5; overflow: hidden; }
+    #sidebar { position: absolute; top: 16px; left: 16px; width: 320px; max-height: 92vh; overflow-y: auto; background: rgba(28, 28, 38, 0.95); padding: 18px; border-radius: 12px; border: 1px solid #333; z-index: 10; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    h2 { margin: 0 0 8px 0; font-size: 16px; color: #7dd3fc; }
+    p { font-size: 12px; color: #a1a1aa; margin: 0 0 12px 0; line-height: 1.4; }
+    input[type="file"] { width: 100%; margin-bottom: 12px; font-size: 12px; }
+    .control-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 10px; }
+    button { width: 100%; padding: 10px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-bottom: 8px; transition: 0.15s; }
+    button:hover { background: #3b82f6; }
+    button.secondary { background: #10b981; }
+    button.secondary:hover { background: #059669; }
+    .asset-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .asset-card { background: #22222e; border: 1px solid #3f3f4e; border-radius: 6px; padding: 6px; text-align: center; cursor: pointer; transition: 0.15s; }
+    .asset-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+    .asset-card img { max-width: 100%; height: 55px; object-fit: contain; }
+    .asset-card span { display: block; font-size: 10px; color: #ccc; margin-top: 4px; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>Pixel-Exact 3D Asset Extractor</h2>
+    <p>1. Save the generated asset sheet image above.<br>2. Select it below to auto-slice every item pixel-by-pixel with alpha transparency and convert into textured 3D .GLB meshes.</p>
+    <input type="file" id="imageInput" accept="image/*">
+    <div class="control-row">
+      <label>BG Tolerance:</label>
+      <input type="range" id="tolerance" min="5" max="75" value="28">
+    </div>
+    <div class="control-row">
+      <label>3D Layer Depth:</label>
+      <input type="range" id="depthLayers" min="1" max="24" value="10">
+    </div>
+    <button class="secondary" id="exportAllBtn" style="display:none;">Download All Exact 3D Meshes (.GLB)</button>
+    <div id="status" style="font-size:12px; color:#fbbf24; margin-bottom:8px;">Waiting for image...</div>
+    <div class="asset-list" id="assetGrid"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1e1e26);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 6, 22);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 10);
+    scene.add(dirLight);
+
+    const modelsGroup = new THREE.Group();
+    scene.add(modelsGroup);
+
+    let lastImage = null;
+    const imageInput = document.getElementById('imageInput');
+    const toleranceInput = document.getElementById('tolerance');
+    const depthInput = document.getElementById('depthLayers');
+    const statusEl = document.getElementById('status');
+    const assetGrid = document.getElementById('assetGrid');
+    const exportAllBtn = document.getElementById('exportAllBtn');
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => { lastImage = img; processImage(img); };
+      img.src = URL.createObjectURL(file);
+    });
+
+    toleranceInput.addEventListener('change', () => { if (lastImage) processImage(lastImage); });
+    depthInput.addEventListener('change', () => { if (lastImage) processImage(lastImage); });
+
+    function processImage(img) {
+      statusEl.textContent = "Slicing pixels & generating 3D meshes...";
+      modelsGroup.clear();
+      assetGrid.innerHTML = '';
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const w = canvas.width, h = canvas.height;
+
+      // Sample top-left pixel as background color
+      const bgR = data[0], bgG = data[1], bgB = data[2];
+      const tol = parseInt(toleranceInput.value, 10);
+
+      // Remove background pixel by pixel with soft edge anti-aliasing
+      const mask = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        const idx = i * 4;
+        const dr = data[idx] - bgR, dg = data[idx+1] - bgG, db = data[idx+2] - bgB;
+        const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+        if (dist < tol) {
+          data[idx + 3] = 0;
+          mask[i] = 0;
+        } else {
+          mask[i] = 1;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      // Connected components flood-fill to find bounding boxes of every separate object
+      const visited = new Uint8Array(w * h);
+      const boxes = [];
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = y * w + x;
+          if (mask[i] && !visited[i]) {
+            let minX = x, maxX = x, minY = y, maxY = y, count = 0;
+            const queue = [i];
+            visited[i] = 1;
+
+            while (queue.length > 0) {
+              const curr = queue.pop();
+              const cx = curr % w, cy = (curr / w) | 0;
+              count++;
+              if (cx < minX) minX = cx;
+              if (cx > maxX) maxX = cx;
+              if (cy < minY) minY = cy;
+              if (cy > maxY) maxY = cy;
+
+              for (const [dx, dy] of dirs) {
+                const nx = cx + dx, ny = cy + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                  const ni = ny * w + nx;
+                  if (mask[ni] && !visited[ni]) {
+                    visited[ni] = 1;
+                    queue.push(ni);
+                  }
+                }
+              }
+            }
+            // Filter out tiny noise specks
+            if (count > 250 && (maxX - minX) > 15 && (maxY - minY) > 15) {
+              boxes.push({ minX, minY, maxX, maxY });
+            }
+          }
+        }
+      }
+
+      // Merge nearby sub-islands (e.g. floating grass blades or broken wood pieces)
+      let merged = true;
+      while (merged) {
+        merged = false;
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i], b = boxes[j];
+            const pad = 18;
+            if (!(b.minX > a.maxX + pad || b.maxX < a.minX - pad || b.minY > a.maxY + pad || b.maxY < a.minY - pad)) {
+              a.minX = Math.min(a.minX, b.minX);
+              a.minY = Math.min(a.minY, b.minY);
+              a.maxX = Math.max(a.maxX, b.maxX);
+              a.maxY = Math.max(a.maxY, b.maxY);
+              boxes.splice(j, 1);
+              merged = true;
+              break;
+            }
+          }
+          if (merged) break;
+        }
+      }
+
+      const layers = parseInt(depthInput.value, 10);
+
+      boxes.forEach((box, idx) => {
+        const bw = box.maxX - box.minX + 8;
+        const bh = box.maxY - box.minY + 8;
+        const subCanvas = document.createElement('canvas');
+        subCanvas.width = bw;
+        subCanvas.height = bh;
+        const subCtx = subCanvas.getContext('2d');
+        subCtx.drawImage(canvas, box.minX - 4, box.minY - 4, bw, bh, 0, 0, bw, bh);
+
+        const tex = new THREE.CanvasTexture(subCanvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.minFilter = THREE.LinearFilter;
+
+        // Build extruded volumetric sprite mesh so every pixel is 100% faithful in 3D space
+        const itemGroup = new THREE.Group();
+        const aspect = bw / bh;
+        const heightWorld = 2.2;
+        const widthWorld = heightWorld * aspect;
+        const geo = new THREE.PlaneGeometry(widthWorld, heightWorld);
+
+        const mat = new THREE.MeshStandardMaterial({
+          map: tex,
+          transparent: true,
+          alphaTest: 0.15,
+          side: THREE.DoubleSide,
+          roughness: 0.6
+        });
+
+        const totalThickness = 0.28;
+        for (let l = 0; l < layers; l++) {
+          const slice = new THREE.Mesh(geo, mat);
+          slice.position.z = (l / Math.max(1, layers - 1) - 0.5) * totalThickness;
+          slice.position.y = heightWorld / 2;
+          itemGroup.add(slice);
+        }
+
+        const assetName = `Asset_${idx + 1}`;
+        itemGroup.name = assetName;
+
+        const cols = 6;
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        itemGroup.position.set((col - 2.5) * 3.2, (1.5 - row) * 2.8, 0);
+        modelsGroup.add(itemGroup);
+
+        // Add thumbnail card in sidebar to download individually
+        const card = document.createElement('div');
+        card.className = 'asset-card';
+        const thumb = document.createElement('img');
+        thumb.src = subCanvas.toDataURL();
+        const label = document.createElement('span');
+        label.textContent = `${assetName}.glb`;
+        card.appendChild(thumb);
+        card.appendChild(label);
+        card.onclick = () => exportGLB(itemGroup, assetName);
+        assetGrid.appendChild(card);
+      });
+
+      statusEl.textContent = `Extracted ${boxes.length} pixel-exact 3D objects! Click any item to download its .GLB.`;
+      exportAllBtn.style.display = 'block';
+    }
+
+    function exportGLB(obj, name) {
+      const exporter = new GLTFExporter();
+      const clone = obj.clone();
+      clone.position.set(0, 0, 0);
+      exporter.parse(clone, (res) => {
+        const blob = new Blob([res], { type: 'application/octet-stream' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${name}.glb`;
+        a.click();
+      }, (err) => console.error(err), { binary: true });
+    }
+
+    exportAllBtn.onclick = () => exportGLB(modelsGroup, 'All_Pixel_Exact_Maze_Assets');
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

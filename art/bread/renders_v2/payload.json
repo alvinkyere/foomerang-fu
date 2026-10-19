@@ -1,0 +1,28 @@
+{
+ "frames_unique": 250,
+ "frames_if_all_8_headings_baked": 382,
+ "frame_px": 288,
+ "uncompressed_bytes_untrimmed": 82944000,
+ "trimmed_area_px": 6699664,
+ "trimmed_mean_px": [
+  165,
+  164
+ ],
+ "atlas_px": [
+  4096,
+  2048
+ ],
+ "atlas_used_height": 1826,
+ "atlas_bytes": {
+  "png": 5933603,
+  "webp": 784998,
+  "png8": 821526
+ },
+ "decoded_texture_bytes": 33554432,
+ "four_characters_encoded_bytes": {
+  "png": 23734412,
+  "webp": 3139992,
+  "png8": 3286104
+ },
+ "four_characters_decoded_bytes": 134217728
+}
