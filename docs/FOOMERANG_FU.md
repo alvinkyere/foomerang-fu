@@ -653,6 +653,17 @@ the next throw. Each drop is a `DROPPED` event. While it is pulled the TV shakes
 pulse every quarter second; the border's warning wins if both). On the TV a dropped boomerang falls from its flight height under
 gravity (about 0.3 s), lands flat and lies still. CPUs hold THROW to pull theirs home.
 
+## Death effects (owner's brief; the reference video at 0:07, 1:03, 2:21)
+
+Presentation of a rules fact (a `HIT`), but physical (`render/deathMotion.ts`, drawn by `render/three/deathRemains.ts`). The view's
+`HIT` says where the killer stood (`from`; none for an environment death), and the victim comes apart across the line of the
+hit. A **soft** character (everyone but the mug) splits into the two halves of its own sprite: **momentum is conserved** — both
+carry on along the hit with the same push and separate across it with equal and opposite speeds — they fly under gravity,
+tumbling opposite ways, land on their sides and slide to a stop under friction (exact: v/μ seconds, v²/2μ along), with a burst
+of droplets in its colour. The **mug** shatters into shards and spills coffee: a puddle spreading like a viscous liquid,
+r(t) = R(1 − e^(−t/τ)) (R 0.9 of its height, τ 0.6 s). The character's sprite goes at once; its remains lie there until it is back
+(a new round).
+
 ## The plaza's physics (market plaza; owner, 2026-10-19)
 
 **Real shapes.** Every solid on the plaza is one of the 3D models the game draws, in its own shape, generated from `plaza.glb`

@@ -7,6 +7,7 @@ import { parseMapLayers } from '../reconstructed/mapLayers';
 import { CHARACTER_COLOURS } from '../reconstructed/characterColours';
 import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
+import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
@@ -21,6 +22,8 @@ import { characterHeight, sceneSpace } from './plazaSpace';
 
 const CANVAS = { width: 1920, height: 1080 } as const;
 const BOOMERANG_HEIGHT = 24;
+/** A character fills about this much of its atlas cell's height (the rest is room for its pose). */
+const BODY_OF_CELL = 0.32;
 /** How far (scene units) the camera may slide sideways to follow a player out onto the sand beyond the dashed lines. */
 const FOLLOW_LIMIT = 14;
 const FADE_OPACITY = 0.35;
@@ -91,6 +94,23 @@ class Character {
   #deadAt: number | undefined;
   #last: { x: number; y: number; t: number } | undefined;
   logical = { x: 0, y: 0 };
+
+  /** What its remains are made from, as it is now (its feet, its sprite and the frame it shows). */
+  victim(id: string, brittle: boolean): Victim {
+    const h = this.sprite.scale.y;
+    return {
+      id,
+      at: this.sprite.position.clone(),
+      atlas: this.#texture,
+      cell: this.cell,
+      anchor: this.anchor,
+      frame: this.#heading,
+      spriteHeight: h,
+      bodyHeight: h * BODY_OF_CELL,
+      colour: this.colour,
+      brittle,
+    };
+  }
 
   constructor(
     scene: THREE.Scene,
@@ -168,7 +188,8 @@ class Character {
     this.#shadow.scale.set(r * 0.85, 1, r * 0.55);
     if (c.dead) this.#deadAt ??= now;
     else this.#deadAt = undefined;
-    const fade = this.#deadAt === undefined ? 1 : Math.max(0, 1 - (now - this.#deadAt) / 450);
+    // dead, it is gone at once: its remains (halves, or shards and a puddle) take its place (deathRemains.ts)
+    const fade = this.#deadAt === undefined ? 1 : 0;
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
     this.#warn(c, cam, space, h, now);
@@ -366,6 +387,7 @@ class Plaza {
   #virtual: number | undefined;
   #restX = 0;
   readonly #props: PlazaProps;
+  readonly #remains: DeathRemains;
   readonly #resize: ResizeObserver;
 
   constructor(
@@ -461,6 +483,7 @@ class Plaza {
       }
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
+    this.#remains = new DeathRemains(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -619,6 +642,8 @@ class Plaza {
       ch.update(this.#space, this.camera, this.config, scale, c, now);
       this.#circles.push({ id: c.id, x: c.x, y: c.y });
     }
+    // back alive (a new round): their remains go
+    for (const c of view.circles) if (!c.dead && this.#remains.has(c.id)) this.#remains.clear(c.id);
     for (const [id, ch] of this.#characters)
       if (!present.has(id)) {
         ch.destroy(this.scene);
@@ -688,15 +713,20 @@ class Plaza {
       this.scene.add(object);
       this.#bursts.push({ object, born: now, life, grow });
     };
-    if (e.type === 'HIT') {
-      for (let i = 0; i < 10; i += 1) {
-        const bit = new THREE.Mesh(
-          new THREE.SphereGeometry(0.35, 8, 6),
-          new THREE.MeshBasicMaterial({ color: tint, transparent: true }),
-        );
-        const a = (i / 10) * Math.PI * 2;
-        bit.userData = { dir: new THREE.Vector3(Math.cos(a), 0.6, Math.sin(a)) };
-        add(bit, 450, 0);
+    if (e.type === 'HIT' && e.actor !== undefined) {
+      // the victim comes apart across the line of the hit: halves (or, the mug, shards and a puddle)
+      const ch = this.#characters.get(e.actor);
+      const circle = this.#view?.circles.find((c) => c.id === e.actor);
+      if (ch !== undefined && circle !== undefined) {
+        const kind = characterFor(this.map.roster, circle.number);
+        const victim = ch.victim(e.actor, kind === 'coffee');
+        let hit: { x: number; z: number } | undefined;
+        if (e.from !== undefined) {
+          const f = this.#space.toScene(e.from.x, e.from.y);
+          const d = { x: victim.at.x - f.x, z: victim.at.z - f.z };
+          if (Math.hypot(d.x, d.z) > 1e-6) hit = d;
+        }
+        this.#remains.burst(victim, hit, now);
       }
     } else if (e.type === 'RICOCHET') {
       // a boomerang bounced off a wall: a small spark there, in its thrower's character colour
@@ -806,6 +836,7 @@ class Plaza {
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#props.frame(time);
+    this.#remains.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
       const k = (time - b.born) / b.life;

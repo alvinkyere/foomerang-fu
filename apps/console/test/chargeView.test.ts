@@ -91,3 +91,48 @@ describe('buildFuView: ricochets', () => {
     ]);
   });
 });
+
+describe('buildFuView: a death and where it came from', () => {
+  it('a HIT says where the killer stood, so the TV can split the victim across the line of the hit', () => {
+    const s = base();
+    const view = buildFuView(
+      s,
+      [
+        {
+          type: 'HIT',
+          byId: 'a',
+          victimId: 'b',
+          position: { x: 700, y: 450 },
+          source: 'SLASH',
+          creditedTo: 'a',
+        },
+      ],
+      roster,
+      slots(),
+    );
+    expect(view.events[0]).toMatchObject({
+      type: 'HIT',
+      actor: 'b',
+      from: s.world.bodies[0]?.position,
+    });
+  });
+
+  it('an environment death (the border) has no killer, so no direction', () => {
+    const view = buildFuView(
+      base(),
+      [
+        {
+          type: 'HIT',
+          byId: 'HAZARD',
+          victimId: 'b',
+          position: { x: 700, y: 450 },
+          source: 'OUT_OF_BOUNDS',
+          creditedTo: undefined,
+        },
+      ],
+      roster,
+      slots(),
+    );
+    expect(view.events[0]?.from).toBeUndefined();
+  });
+});

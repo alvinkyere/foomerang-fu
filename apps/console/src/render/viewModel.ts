@@ -109,7 +109,7 @@ export interface ViewEvent {
   readonly ownerId?: string;
   /** For PROP_BROKEN: which prop (its id in the arena data, which is its model's name). */
   readonly propId?: string;
-  /** For PROP_BROKEN: where whoever broke it stood (its pieces fly away from there). */
+  /** For PROP_BROKEN: where whoever broke it stood (its pieces fly away from there); for HIT: where the killer stood. */
   readonly from?: Vec2;
   /** For BLASTED: the blast radius, exactly as the rules resolve it. */
   readonly radius?: number;

@@ -246,6 +246,10 @@ export function buildFuView(
             ...event.position,
             color: styleOf(event.victimId, slots).color,
             actor: event.victimId,
+            // where the killer stood: the victim comes apart across the line of the hit (none for an environment death)
+            ...(event.byId !== event.victimId && state.players.some((p) => p.id === event.byId)
+              ? { from: positionOf(event.byId) }
+              : {}),
           },
         ];
       case 'DROPPED': // a boomerang that could not get home landed where it is
