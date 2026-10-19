@@ -21,6 +21,55 @@ export interface SeatView {
   readonly detail?: string;
 }
 
+/** A character as character select shows it. */
+export interface CharacterView {
+  readonly id: string;
+  readonly name: string;
+  /** Its one colour (its player's badge, cursor and boomerang). */
+  readonly color: string;
+  /** Its colour, softened: a READY circle and tile are filled with it. */
+  readonly tint: string;
+  readonly portrait: string;
+}
+
+/** One of the six circles at the top of character select. */
+export interface SelectSeatView {
+  readonly slot: number;
+  readonly number: number;
+  readonly kind: 'phone' | 'cpu' | 'empty';
+  readonly id?: string;
+  readonly name?: string;
+  readonly status?: PlayerStatus;
+  /** CPU difficulty, shown and stepped with ←/→. */
+  readonly detail?: string;
+  /** The character under their cursor (or chosen, once READY). */
+  readonly character?: CharacterView;
+  readonly ready: boolean;
+}
+
+/** A player's cursor on a grid tile: their badge (number, in their character's colour). */
+export interface SelectCursorView {
+  readonly number: number;
+  readonly color: string;
+  readonly ready: boolean;
+}
+
+export interface SelectTileView {
+  readonly character: CharacterView;
+  /** Everyone whose cursor is on it, in seat order (a READY player's is their choice). */
+  readonly cursors: readonly SelectCursorView[];
+}
+
+/** Character select (Foomerang Fu), as in the reference video: who is where, the grid, and the begin bar. */
+export interface CharacterSelectView {
+  readonly seats: readonly SelectSeatView[];
+  readonly grid: readonly (readonly SelectTileView[])[];
+  /** No person is still choosing: the begin bar shows. */
+  readonly everyoneReady: boolean;
+  readonly bots: number;
+  readonly canAddBot: boolean;
+}
+
 /** 'none': no room. 'opening': asking for one. 'open': ready for phones. 'reconnecting': the room is kept, the line is down. 'closed': it ended. */
 export type RoomPhase = 'none' | 'opening' | 'open' | 'reconnecting' | 'closed';
 export type JoinStatus = 'loading' | 'ready' | 'reconnecting' | 'error';
@@ -52,6 +101,8 @@ export interface ShellRoom {
   readonly notice?: string | undefined;
   /** This screen was reloaded and the match it was running is gone. */
   readonly interrupted: boolean;
+  /** Foomerang Fu: the room's lobby is character select. */
+  readonly select?: CharacterSelectView | undefined;
 }
 
 export interface ShellFacts {
@@ -82,6 +133,8 @@ export interface ShellActions {
   addCpu(): void;
   removeCpu(id: string): void;
   stepCpu(id: string, delta: 1 | -1): void;
+  /** The begin bar's ‹ BOTS ›: one more bot, or one fewer (the last added). */
+  stepBots(delta: 1 | -1): void;
   /** Acknowledge a failure. */
   dismissFailure(): void;
 }

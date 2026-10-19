@@ -80,6 +80,65 @@ async function room(gameId = 'primitive-arena') {
   return api;
 }
 
+describe('character select: in a Foomerang Fu lobby every phone drives its own cursor (game-setting.mp4)', () => {
+  it('a phone’s stick moves its own cursor and SLASH readies it; the shared focus hears nothing', async () => {
+    const r = await room('foomerang-fu');
+    await r.enter('LOBBY');
+    await r.move('a', 0, -1); // up: bread → milk
+    await r.move('b', 1, 0); // right, at the same moment: coffee → icecream
+    await r.press('a', 'PRIMARY');
+    expect(r.runtime.director.picks.pick('a')).toEqual({ character: 'milk', ready: true });
+    expect(r.runtime.director.picks.pick('b')).toEqual({ character: 'icecream', ready: false });
+    expect(r.menu).toEqual([]);
+  });
+
+  it('THROW un-readies (and never asks to close the room)', async () => {
+    const r = await room('foomerang-fu');
+    await r.enter('LOBBY');
+    await r.press('a', 'PRIMARY');
+    await r.press('a', 'PRIMARY', 'released');
+    r.setNow(500);
+    await r.press('a', 'SECONDARY');
+    expect(r.runtime.director.picks.pick('a')?.ready).toBe(false);
+    expect(r.menu).toEqual([]);
+  });
+
+  it('once everyone is ready, SLASH from a ready player begins the match', async () => {
+    const r = await room('foomerang-fu');
+    await r.enter('LOBBY');
+    await r.press('a', 'PRIMARY');
+    await r.press('a', 'PRIMARY', 'released');
+    await r.press('b', 'PRIMARY');
+    expect(r.network.last.of('MATCH_START')).toHaveLength(0);
+    r.setNow(500);
+    await r.press('a', 'PRIMARY');
+    expect(r.network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('while everyone is ready, a ready player’s ◀ ▶ changes how many bots play', async () => {
+    const r = await room('foomerang-fu');
+    await r.enter('LOBBY');
+    await r.press('a', 'PRIMARY');
+    await r.press('b', 'PRIMARY');
+    await r.move('a', 1, 0);
+    await r.move('a', 0, 0);
+    r.setNow(500);
+    await r.move('a', 1, 0);
+    expect(r.runtime.director.cpus.entries).toHaveLength(2);
+    await r.move('a', 0, 0);
+    r.setNow(1000);
+    await r.move('a', -1, 0);
+    expect(r.runtime.director.cpus.entries).toHaveLength(1);
+  });
+
+  it('other games keep the one shared focus', async () => {
+    const r = await room('primitive-arena');
+    await r.enter('LOBBY');
+    await r.move('a', 0, 1);
+    expect(r.menu).toEqual([['down', 'a']]);
+  });
+});
+
 describe('the runtime publishes the context and routes phone input by it', () => {
   it('a lobby is CONSOLE: the phone’s stick and buttons drive the console, not a game', async () => {
     const r = await room();

@@ -59,7 +59,7 @@ test('the root route is the console home — not a lobby — and a phone link la
   );
 });
 
-test('couch flow by keyboard: Home → Fu → PLAY → phone joins → CPUs → START → real match → back on Join → close room → Home', async ({
+test('couch flow by keyboard: Home → Fu → PLAY → phone joins and gets READY → bots → begin → real match → back on character select → close room → Home', async ({
   hostAt,
   newPhone,
 }) => {
@@ -81,23 +81,20 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins → CPUs → 
   const alice = await newPhone();
   await alice.join(code, 'Alice');
   await expect(host.filledSeats).toHaveCount(1);
-  await expect(host.filledSeats.first()).toContainText('Alice');
-  await expect(host.filledSeats.first()).toContainText('Connected');
+  await expect(host.filledSeats.first()).toHaveAccessibleName(/^Player 1: Alice, .*, choosing$/);
+  await expect(host.startButton).toHaveCount(0); // she is choosing: no begin bar yet
+  await alice.ready();
   await expect(host.startButton).toBeDisabled(); // alone: not a match, and it says why
   await expect(page.getByText(/At least 2 players are needed/)).toBeVisible();
 
-  // Focus survived the seat being taken: Enter adds a CPU to the next empty seat, and ↓ → Enter another.
-  await page.keyboard.press('Enter');
+  // The begin bar has the focus: → adds a bot, twice.
+  await expect.poll(() => focusId(page)).toBe('begin');
+  await page.keyboard.press('ArrowRight');
   await expect(host.filledSeats).toHaveCount(2);
   await expect(host.startButton).toBeEnabled();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowRight');
   await expect(host.filledSeats).toHaveCount(3);
-
-  for (let i = 0; i < 8 && (await focusId(page)) !== 'start'; i += 1) {
-    await page.keyboard.press('ArrowDown');
-  }
-  await expect.poll(() => focusId(page)).toBe('start');
+  await expect(page.getByTestId('bots')).toHaveText('2 BOTS');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('arena')).toBeVisible();
   await host.waitForDrawn(3);
@@ -106,9 +103,10 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins → CPUs → 
   await expect(page.getByRole('dialog', { name: 'Match over' })).toBeVisible({ timeout: 150_000 });
   await page.getByRole('button', { name: 'Return to lobby' }).click();
 
-  // The shell is back, on Join, with the same room and the same people.
+  // The shell is back, on character select, with the same room and the same people (Alice choosing again).
   await expect(codeEl).toHaveText(code);
   await expect(host.filledSeats).toHaveCount(3);
+  await alice.ready();
   await expect(host.startButton).toBeEnabled();
 
   // Back asks first; a stray Back never closes a room.

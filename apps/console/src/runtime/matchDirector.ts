@@ -9,6 +9,7 @@ import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
 import { DEFAULT_MODE, ModeSelection, isStartableMode, type GameModeId } from './gameMode';
 import { MAX_PARTICIPANTS } from './cpuRoster';
+import { CharacterSelect } from './characterSelect';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
@@ -51,10 +52,14 @@ export class MatchDirector {
   readonly cpus = new CpuRoster();
   /** The game mode the host has chosen (Free For All is the only one that can start). */
   readonly mode = new ModeSelection();
+  /** Character select (Foomerang Fu): every participant's character, and whether each person is READY on it. */
+  readonly picks = new CharacterSelect();
   #roster: readonly RosterEntry[] = [];
   #connected = new Set<string>();
   #inMatch = false;
   #gameId = 'primitive-arena';
+  /** The game the room is for (known from the lobby on): only Foomerang Fu has character select. */
+  #roomGameId = 'primitive-arena';
   /** The people who have a body in the match that is running (anyone else seated is waiting for the next one). */
   #matchHumans = new Set<string>();
   /** Two independent reasons the simulation may be frozen: the host lost its server (network) or somebody opened the pause menu (manual). */
@@ -99,6 +104,14 @@ export class MatchDirector {
         seated: r.seat === 'HELD',
       })),
     );
+    this.picks.sync(
+      [...this.#roster, ...this.#cpuRoster()].flatMap((r) => {
+        const slot = this.slots.slotOf(r.playerId);
+        return r.seat !== 'HELD' || slot === undefined
+          ? []
+          : [{ id: r.playerId, slot, cpu: isCpuId(r.playerId) }];
+      }),
+    );
   }
 
   onRoom(
@@ -108,12 +121,14 @@ export class MatchDirector {
     gameId = 'primitive-arena',
   ): void {
     this.#roster = roster;
+    this.#roomGameId = gameId;
     this.#connected = new Set(
       roster.filter((r) => r.connection === 'CONNECTED').map((r) => r.playerId),
     );
     this.#syncSlots();
 
     if (roomState !== 'PLAYING') {
+      if (this.#inMatch) this.picks.unready(); // back in the lobby: everyone chooses again
       this.#inMatch = false;
       this.#warmUp(gameId);
       return;
@@ -131,15 +146,22 @@ export class MatchDirector {
     for (const r of this.#roster) {
       const slot = this.slots.slotOf(r.playerId);
       if (r.seat !== 'HELD' || slot === undefined || humans.size >= room) continue;
-      bodies.push({ playerId: r.playerId, slot });
+      bodies.push({ playerId: r.playerId, slot, ...this.#character(r.playerId) });
       humans.add(r.playerId);
     }
     // CPUs join after the people, so a full table never turns a person away.
     for (const c of this.cpus.entries) {
       const slot = this.slots.slotOf(c.id);
-      if (slot !== undefined) bodies.push({ playerId: c.id, slot, cpu: c.difficulty });
+      if (slot !== undefined)
+        bodies.push({ playerId: c.id, slot, cpu: c.difficulty, ...this.#character(c.id) });
     }
     return { bodies, humans };
+  }
+
+  /** The character a participant chose (Foomerang Fu only; other games draw no characters). */
+  #character(id: string): Pick<MatchPlayer, 'character'> {
+    const pick = this.#roomGameId === 'foomerang-fu' ? this.picks.pick(id) : undefined;
+    return pick === undefined ? {} : { character: pick.character };
   }
 
   #begin(gameId: string, nowMs: number): void {
@@ -165,6 +187,7 @@ export class MatchDirector {
 
   /** The match is over for good: back to the lobby (the console tells the server). */
   returnToLobby(): void {
+    if (this.#inMatch) this.picks.unready();
     this.#inMatch = false;
     this.#matchHumans = new Set();
     this.#networkPaused = false;
@@ -181,12 +204,14 @@ export class MatchDirector {
    * Whether a match may begin now, and if not why. Free For All needs two to six participants, people and CPUs
    * together: any mix (all people, all CPUs, or both) is the host's choice.
    */
-  startBlock(): 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | undefined {
+  startBlock(): 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | 'NOT_READY' | undefined {
     if (!isStartableMode(this.mode.id)) return 'MODE_UNAVAILABLE';
     const participants =
       this.#roster.filter((r) => r.seat === 'HELD').length + this.cpus.entries.length;
     if (participants < 2) return 'TOO_FEW';
     if (participants > MAX_PARTICIPANTS) return 'TOO_MANY';
+    // Foomerang Fu's character select: everyone must be READY on a character (game-setting.mp4)
+    if (this.#roomGameId === 'foomerang-fu' && !this.picks.allReady) return 'NOT_READY';
     return undefined;
   }
 

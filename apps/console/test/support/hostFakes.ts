@@ -157,11 +157,14 @@ export class FakeHostNetwork {
     players: ReturnType<typeof roster>,
   ): void {
     this.roomStateOnReconnect = state; // the server's room is in this state now
+    this.#players = players; // ...and has these people (a reconnecting host is sent them, as the real server does)
     transport.deliver({
       type: 'ROOM_UPDATED',
       payload: { joinCode: this.joinCode, state, hostConnection: 'CONNECTED', players },
     });
   }
+
+  #players: ReturnType<typeof roster> = [];
 
   serverReceives(transport: FakeHostTransport, message: Sent): void {
     switch (message.type) {
@@ -194,7 +197,7 @@ export class FakeHostNetwork {
           type: 'HOST_RECONNECTED',
           payload: { joinCode: this.joinCode, hostToken: this.validToken },
         });
-        this.roomUpdated(transport, this.roomStateOnReconnect, []);
+        this.roomUpdated(transport, this.roomStateOnReconnect, this.#players);
         return;
       case 'MATCH_END':
         this.roomStateOnReconnect = 'LOBBY';

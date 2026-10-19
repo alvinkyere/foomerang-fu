@@ -2,6 +2,7 @@ import type { Vec2, WorldState } from '@foomerang/game-core';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { ArenaChoice } from '../runtime/powerupMode';
+import type { PackCharacter } from './reconstructed/maps';
 import { SLOT_STYLES, type SlotAllocator, type SlotStyle } from '../runtime/slots';
 
 export type CircleStatus = RosterEntry['connection'] | 'RELEASED';
@@ -15,6 +16,8 @@ export interface CircleView {
   readonly radius: number;
   readonly label: string;
   readonly number: number;
+  /** The character they chose in character select (absent: their seat's own). */
+  readonly character?: PackCharacter;
   readonly color: string;
   readonly shape: SlotStyle['shape'];
   readonly status: CircleStatus;

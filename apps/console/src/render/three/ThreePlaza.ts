@@ -5,7 +5,12 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
 import { parseMapLayers } from '../reconstructed/mapLayers';
 import { CHARACTER_COLOURS } from '../reconstructed/characterColours';
-import { characterFor, headingFrame, type ReconstructedMap } from '../reconstructed/maps';
+import {
+  characterOf,
+  headingFrame,
+  type PackCharacter,
+  type ReconstructedMap,
+} from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
@@ -375,6 +380,10 @@ class Plaza {
   readonly camera: THREE.PerspectiveCamera;
   readonly #space: ReturnType<typeof sceneSpace>;
   readonly #characters = new Map<string, Character>();
+  /** Which character each player is drawn as. */
+  readonly #kinds = new Map<string, string>();
+  /** The characters this map has art for. */
+  readonly #hasArt = (kind: PackCharacter): boolean => this.manifest.characters[kind] !== undefined;
   readonly #boomerangs = new Map<string, Boomerang>();
   readonly #books = new Map<number, THREE.Group>();
   readonly #bursts: Burst[] = [];
@@ -632,12 +641,13 @@ class Plaza {
       present.add(c.id);
       let ch = this.#characters.get(c.id);
       if (ch === undefined) {
-        const kind = characterFor(this.map.roster, c.number);
+        const kind = characterOf(this.map.roster, c, this.#hasArt);
         const meta = this.manifest.characters[kind];
         const atlas = this.#atlases.get(kind);
         if (meta === undefined || atlas === undefined) continue;
         ch = new Character(this.scene, atlas, meta.cell, meta.anchor, CHARACTER_COLOURS[kind]);
         this.#characters.set(c.id, ch);
+        this.#kinds.set(c.id, kind);
       }
       ch.update(this.#space, this.camera, this.config, scale, c, now);
       this.#circles.push({ id: c.id, x: c.x, y: c.y });
@@ -648,6 +658,7 @@ class Plaza {
       if (!present.has(id)) {
         ch.destroy(this.scene);
         this.#characters.delete(id);
+        this.#kinds.delete(id);
       }
     const flying = new Set<string>();
     for (const b of view.boomerangs) {
@@ -656,7 +667,7 @@ class Plaza {
       if (art === undefined) {
         // in its thrower's character colour (a yellow banana throws a yellow boomerang)
         const owner = view.circles.find((c) => c.id === b.ownerId);
-        const kind = characterFor(this.map.roster, owner?.number ?? 1);
+        const kind = characterOf(this.map.roster, owner ?? { number: 1 }, this.#hasArt);
         art = new Boomerang(
           this.scene,
           CHARACTER_COLOURS[kind],
@@ -718,7 +729,7 @@ class Plaza {
       const ch = this.#characters.get(e.actor);
       const circle = this.#view?.circles.find((c) => c.id === e.actor);
       if (ch !== undefined && circle !== undefined) {
-        const kind = characterFor(this.map.roster, circle.number);
+        const kind = characterOf(this.map.roster, circle, this.#hasArt);
         const victim = ch.victim(e.actor, kind === 'coffee');
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
@@ -731,7 +742,7 @@ class Plaza {
     } else if (e.type === 'RICOCHET') {
       // a boomerang bounced off a wall: a small spark there, in its thrower's character colour
       const owner = this.#view?.circles.find((c) => c.id === e.ownerId);
-      const kind = characterFor(this.map.roster, owner?.number ?? 1);
+      const kind = characterOf(this.map.roster, owner ?? { number: 1 }, this.#hasArt);
       const spark = new THREE.Mesh(
         new THREE.RingGeometry(0.5, 1, 24).rotateX(-Math.PI / 2),
         new THREE.MeshBasicMaterial({
@@ -876,6 +887,10 @@ class Plaza {
       y: b.userData['y'] as number,
     }));
   }
+  drawnCharacters(): Readonly<Record<string, string>> {
+    return Object.fromEntries(this.#kinds);
+  }
+
   drawnProps(): { readonly broken: readonly string[]; readonly pieces: number } {
     return this.#props.drawn();
   }
@@ -939,6 +954,7 @@ export async function createThreePlaza(
     drawnBoomerangs: () => plaza.drawnBoomerangs(),
     drawnPickups: () => plaza.drawnPickups(),
     drawnProps: () => plaza.drawnProps(),
+    drawnCharacters: () => plaza.drawnCharacters(),
     drawnWalls: () => plaza.drawnWalls(),
     drawnSystems: () => undefined,
     driveClock: () => plaza.drive(),

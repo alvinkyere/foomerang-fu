@@ -19,7 +19,7 @@ import {
   type MapLayer,
 } from '../../reconstructed/mapLayers';
 import {
-  characterFor,
+  characterOf,
   headingFrame,
   type PackCharacter,
   type ReconstructedMap,
@@ -221,6 +221,9 @@ class ReconstructedScene extends Phaser.Scene {
   }[] = [];
   #characterScale = 1;
   #manifest: Manifest | undefined;
+  /** The characters this map has art for. */
+  readonly #hasArt = (kind: PackCharacter): boolean =>
+    this.#manifest?.characters[kind] !== undefined;
   readonly #animated: { image: Phaser.GameObjects.Image; prop: AnimatedProp }[] = [];
   #cam: MapCamera | undefined;
   #vfx: Vfx | undefined;
@@ -305,7 +308,7 @@ class ReconstructedScene extends Phaser.Scene {
         const circle = this.#view?.circles.find((q) => q.id === id);
         return circle === undefined
           ? undefined
-          : characterFor(this.#map.roster, circle.number).toUpperCase();
+          : characterOf(this.#map.roster, circle, this.#hasArt).toUpperCase();
       },
       cam,
     );
@@ -343,7 +346,7 @@ class ReconstructedScene extends Phaser.Scene {
       present.add(c.id);
       let sprite = this.#sprites.get(c.id);
       if (sprite === undefined) {
-        const kind = characterFor(this.#map.roster, c.number);
+        const kind = characterOf(this.#map.roster, c, this.#hasArt);
         const meta = this.#manifest.characters[kind];
         if (meta === undefined) continue;
         sprite = new CharacterSprite(this, kind, meta.cell, meta.anchor, this.#characterScale);

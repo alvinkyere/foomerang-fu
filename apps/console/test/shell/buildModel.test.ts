@@ -161,3 +161,95 @@ describe('buildShellModel (session state → what the shell shows)', () => {
     expect(m.failure).toBeUndefined();
   });
 });
+
+describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
+  const lobby = (extra: Partial<AdapterInput> = {}) =>
+    buildShellModel(
+      input(
+        {
+          phase: 'ACTIVE',
+          joinCode: 'K7M4PX',
+          roomState: 'LOBBY',
+          roster: [
+            { playerId: 'a', displayName: 'Al', connection: 'CONNECTED', seat: 'HELD' },
+            { playerId: 'b', displayName: 'Bea', connection: 'CONNECTED', seat: 'HELD' },
+          ],
+        },
+        {
+          slotOf: (id) => ({ a: 0, b: 1, 'cpu:1': 2 })[id],
+          picks: new Map([
+            ['a', { character: 'milk', ready: true }],
+            ['b', { character: 'milk', ready: false }],
+          ]),
+          ...extra,
+        },
+      ),
+    ).room.select;
+
+  it('six circles: each player’s character, colour and READY', () => {
+    const select = lobby();
+    expect(select?.seats).toHaveLength(6);
+    const [a, b, empty] = select?.seats ?? [];
+    expect(a).toMatchObject({ kind: 'phone', name: 'Al', number: 1, ready: true });
+    expect(a?.character).toMatchObject({
+      id: 'milk',
+      name: 'Milk',
+      color: '#1085e0',
+      portrait: 'characters/milk.webp',
+    });
+    expect(b).toMatchObject({ kind: 'phone', number: 2, ready: false });
+    expect(empty).toMatchObject({ kind: 'empty', number: 3, ready: false });
+    expect(empty?.character).toBeUndefined();
+  });
+
+  it('the grid is the 10 characters in the video’s order, with every cursor on its tile in seat order', () => {
+    const grid = lobby()?.grid ?? [];
+    expect(grid.map((row) => row.map((t) => t.character.id))).toEqual([
+      ['avocado', 'banana', 'milk', 'watermelon', 'donut'],
+      ['coffee', 'icecream', 'bread', 'bacon', 'carrot'],
+    ]);
+    expect(grid[0]?.[2]?.cursors).toEqual([
+      { number: 1, color: '#1085e0', ready: true },
+      { number: 2, color: '#1085e0', ready: false },
+    ]);
+  });
+
+  it('the begin bar shows only when no person is still choosing; CPUs count as bots', () => {
+    expect(lobby()?.everyoneReady).toBe(false);
+    const ready = lobby({
+      picks: new Map([
+        ['a', { character: 'milk', ready: true }],
+        ['b', { character: 'bread', ready: true }],
+        ['cpu:1', { character: 'donut', ready: true }],
+      ]),
+      cpus: [{ id: 'cpu:1', name: 'CPU 1', difficulty: 'HARD' }],
+    });
+    expect(ready?.everyoneReady).toBe(true);
+    expect(ready?.bots).toBe(1);
+    expect(ready?.canAddBot).toBe(true);
+    expect(ready?.seats[2]).toMatchObject({ kind: 'cpu', detail: 'Hard', ready: true });
+  });
+
+  it('the mug’s and the ice cream’s badges are the video’s grey and teal: their own pale colours could not carry a white number', () => {
+    const select = lobby({
+      picks: new Map([
+        ['a', { character: 'coffee', ready: false }],
+        ['b', { character: 'icecream', ready: false }],
+      ]),
+    });
+    expect(select?.seats[0]?.character?.color).toBe('#aeb5b1');
+    expect(select?.seats[1]?.character?.color).toBe('#4dccbe');
+  });
+
+  it('other games have no character select', () => {
+    const model = buildShellModel(
+      input(
+        { phase: 'ACTIVE', joinCode: 'K7M4PX', roomState: 'LOBBY', gameId: 'primitive-arena' },
+        {
+          gameId: 'primitive-arena',
+        },
+      ),
+    );
+    expect(model.room.select).toBeUndefined();
+  });
+});

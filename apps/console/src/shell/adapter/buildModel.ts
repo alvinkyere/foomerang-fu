@@ -1,26 +1,32 @@
 import { buildJoinUrl } from '../../config';
 import type { HostState } from '../../host';
 import { MAX_PARTICIPANTS, type CpuEntry } from '../../runtime/cpuRoster';
+import { SELECT_GRID, type Pick } from '../../runtime/characterSelect';
 import { SLOT_STYLES } from '../../runtime/slots';
 import { noticeCopy } from '../../ui/copy';
 import { CHARACTER_BY_SEAT } from '../components/Characters';
 import type { PlayerStatus } from '../components/PlayerTile';
 import {
   EMPTY_ROOM,
+  type CharacterSelectView,
   type RoomPhase,
   type SeatView,
+  type SelectSeatView,
   type ShellModel,
   type ShellRoom,
 } from '../model';
+import { characterView } from './characters';
 import { addressAdvice, failureView } from './copy';
 
-export type StartBlock = 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | undefined;
+export type StartBlock = 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | 'NOT_READY' | undefined;
 
 export interface AdapterInput {
   readonly state: HostState;
   readonly cpus: readonly CpuEntry[];
   readonly slotOf: (id: string) => number | undefined;
   readonly startBlock: StartBlock;
+  /** Character select (Foomerang Fu): every participant's character and READY. */
+  readonly picks?: ReadonlyMap<string, Pick>;
   /** The game PLAY opens. */
   readonly gameId: string;
   readonly controllerBaseUrl: string;
@@ -52,6 +58,46 @@ const shortAddress = (base: string): string => {
     return base;
   }
 };
+
+/** The lobby's seats as character select draws them: each with their character and READY, and the grid with every cursor. */
+function characterSelect(
+  seats: readonly SeatView[],
+  picks: ReadonlyMap<string, Pick>,
+  bots: number,
+  participants: number,
+): CharacterSelectView {
+  const selectSeats = seats.map((seat): SelectSeatView => {
+    const pick = seat.id === undefined ? undefined : picks.get(seat.id);
+    return {
+      slot: seat.slot,
+      number: seat.number,
+      kind: seat.kind,
+      ...(seat.id !== undefined ? { id: seat.id } : {}),
+      ...(seat.name !== undefined ? { name: seat.name } : {}),
+      ...(seat.status !== undefined ? { status: seat.status } : {}),
+      ...(seat.detail !== undefined ? { detail: seat.detail } : {}),
+      ...(pick !== undefined ? { character: characterView(pick.character) } : {}),
+      ready: pick?.ready ?? false,
+    };
+  });
+  const grid = SELECT_GRID.map((row) =>
+    row.map((id) => ({
+      character: characterView(id),
+      cursors: selectSeats.flatMap((seat) =>
+        seat.character?.id === id
+          ? [{ number: seat.number, color: seat.character.color, ready: seat.ready }]
+          : [],
+      ),
+    })),
+  );
+  return {
+    seats: selectSeats,
+    grid,
+    everyoneReady: selectSeats.every((seat) => seat.kind !== 'phone' || seat.ready),
+    bots,
+    canAddBot: participants < MAX_PARTICIPANTS,
+  };
+}
 
 /**
  * session state → what the shell shows. Pure, so every real-state transition can be tested with
@@ -110,13 +156,15 @@ export function buildShellModel(input: AdapterInput): ShellModel {
         ? 'Reconnecting… START is back as soon as the connection is.'
         : block === 'TOO_FEW'
           ? 'At least 2 players are needed. Invite a friend or add a CPU.'
-          : block === 'TOO_MANY'
-            ? `A match holds at most ${MAX_PARTICIPANTS} players. Remove a CPU.`
-            : block === 'MODE_UNAVAILABLE'
-              ? 'This game mode is not available yet.'
-              : launching
-                ? 'Starting…'
-                : 'Getting your room ready…';
+          : block === 'NOT_READY'
+            ? 'Everyone must be READY on a character.'
+            : block === 'TOO_MANY'
+              ? `A match holds at most ${MAX_PARTICIPANTS} players. Remove a CPU.`
+              : block === 'MODE_UNAVAILABLE'
+                ? 'This game mode is not available yet.'
+                : launching
+                  ? 'Starting…'
+                  : 'Getting your room ready…';
   }
 
   const hasRoom = phase === 'open' || phase === 'reconnecting' || phase === 'opening';
@@ -139,6 +187,9 @@ export function buildShellModel(input: AdapterInput): ShellModel {
         canAddCpu: isFu && live && participants < MAX_PARTICIPANTS,
         notice: state.notice === undefined ? undefined : noticeCopy(state.notice),
         interrupted: state.matchInterrupted,
+        select: isFu
+          ? characterSelect(seats, input.picks ?? new Map(), cpus.length, participants)
+          : undefined,
       }
     : { ...EMPTY_ROOM, phase };
 

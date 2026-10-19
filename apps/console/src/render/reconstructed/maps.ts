@@ -256,6 +256,20 @@ export const reconstructedMapFor = (arena: ArenaChoice): ReconstructedMap | unde
 export const characterFor = (roster: readonly PackCharacter[], number: number): PackCharacter =>
   roster[Math.max(0, number - 1) % roster.length] as PackCharacter;
 
+/**
+ * Who a circle is drawn as: the character its player chose in character select, else its seat's own on this map. `has`
+ * says which characters this map has art for (a reconstructed map bakes only its own roster): a choice it cannot draw is
+ * drawn as the seat's own, never not at all.
+ */
+export const characterOf = (
+  roster: readonly PackCharacter[],
+  circle: { readonly number: number; readonly character?: PackCharacter | undefined },
+  has: (kind: PackCharacter) => boolean = () => true,
+): PackCharacter =>
+  circle.character !== undefined && has(circle.character)
+    ? circle.character
+    : characterFor(roster, circle.number);
+
 /** Which of the N baked headings shows a character facing world direction (fx, fy) (world y grows toward the viewer). */
 export const headingFrame = (fx: number, fy: number, n = 16): number => {
   const yaw = Math.atan2(fx, fy);

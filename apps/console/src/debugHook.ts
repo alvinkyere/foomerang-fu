@@ -32,6 +32,8 @@ export interface DebugSnapshot {
   readonly drawnSystems: unknown;
   /** The props drawn broken and the debris lying about (the 3D plaza only). */
   readonly drawnProps: { readonly broken: readonly string[]; readonly pieces: number } | undefined;
+  /** Which character each player is drawn as (the 3D plaza only). */
+  readonly drawnCharacters: Readonly<Record<string, string>> | undefined;
   /** The pickups the renderer has on screen (undefined until Phaser is up). */
   readonly drawnPickups: readonly { id: string; x: number; y: number }[] | undefined;
   /** The walls the renderer has on screen (undefined until Phaser is up). */
@@ -84,6 +86,7 @@ export function installDebugHook(
           .map((d) => ({ ...d })),
         drawnSystems: getRenderer()?.drawnSystems?.(),
         drawnProps: getRenderer()?.drawnProps?.(),
+        drawnCharacters: getRenderer()?.drawnCharacters?.(),
         drawnPickups: getRenderer()
           ?.drawnPickups?.()
           .map((d) => ({ ...d })),

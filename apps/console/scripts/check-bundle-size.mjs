@@ -15,7 +15,10 @@ import { gzipSync } from 'node:zlib';
 // Raised on purpose (the plaza in real-time 3D, owner-approved 2026-10-17): the lazy total now holds TWO alternative
 // renderers — three.js for the market plaza (~156 kB) and Phaser for every other map (~324 kB). A match downloads only
 // one of them. Measured lazy total 522.6 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 145_000, initialCss: 10_000, lazyJs: 540_000 };
+// Raised on purpose (character select, owner-approved 2026-10-19): Foomerang Fu's lobby is now the video's character select
+// (its screen, per-phone cursors, the picks model), the first thing after PLAY, beside the QR. Measured: initial JS 144.8 ->
+// 147.8 kB gzip. Lazy-loading it was measured too (initial 138.1 kB) but moves the QR library into the lazy total (542.8 kB).
+const BUDGET_GZIP_BYTES = { initialJs: 150_000, initialCss: 10_000, lazyJs: 540_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

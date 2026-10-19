@@ -29,6 +29,8 @@ export interface Snapshot {
   drawnPickups: { id: string; x: number; y: number }[] | undefined;
   /** The props the 3D plaza draws broken, and the debris lying about. */
   drawnProps: { broken: string[]; pieces: number } | undefined;
+  /** Which character each player is drawn as (the 3D plaza only). */
+  drawnCharacters: Record<string, string> | undefined;
   /** The walls Phaser has on screen. */
   drawnWalls: { x: number; y: number; width: number; height: number }[] | undefined;
   /** Foomerang Fu's own state (undefined for the primitive arena). */
@@ -137,6 +139,9 @@ export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The TV: the console in a laptop-sized browser. */
+/** Every phone that has joined each room (by room code), in join order: what the host's start() readies. */
+const phonesByRoom = new Map<string, Phone[]>();
+
 export class Host {
   readonly errors: string[] = [];
   readonly requests: string[] = [];
@@ -162,33 +167,69 @@ export class Host {
     await this.page.getByRole('button', { name: 'PLAY', exact: true }).click();
     const code = this.page.getByTestId('room-code');
     await expect(code).toHaveText(/^[A-Z0-9]{6}$/);
-    return (await code.textContent()) ?? '';
+    this.#roomCode = (await code.textContent()) ?? '';
+    return this.#roomCode;
   }
 
-  /** A seat taken by someone (a phone or a CPU). */
+  #roomCode = '';
+
+  /**
+   * Character select (Foomerang Fu): every phone in this room that is still choosing presses SELECT, exactly as its
+   * player would, until the TV shows them READY. Nothing else is touched; other games have no character select.
+   */
+  async readyEveryone(): Promise<void> {
+    if ((await this.characterSelect.count()) === 0) return;
+    for (const phone of phonesByRoom.get(this.#roomCode) ?? []) {
+      if (phone.closed || phone.name === undefined) continue;
+      const choosing = this.page.getByRole('listitem', {
+        name: new RegExp(`^Player \\d: ${phone.name}, .*, choosing$`),
+      });
+      if ((await choosing.count()) === 0) continue;
+      await phone.ready();
+      await expect(choosing).toHaveCount(0);
+    }
+  }
+
+  /** A seat taken by someone (a phone or a CPU): Join's tiles, or character select's circles (Foomerang Fu). */
   get filledSeats(): Locator {
-    return this.page.locator('.ptile:not(.ptile--empty)');
+    return this.page.locator('.ptile:not(.ptile--empty), .cs__seat:not(.cs__seat--empty)');
   }
 
-  /** The seat of "CPU n" (the nth CPU ever added in this console). */
+  /** The seat of "CPU n" (the nth CPU ever added in this console): its control on Join or on character select. */
   cpuSeat(n: number): Locator {
-    return this.page.getByRole('button', { name: new RegExp(`^Player \\d: CPU ${n}$`) });
+    return this.page.getByRole('button', { name: new RegExp(`^Player \\d: CPU ${n}($|,)`) });
   }
 
+  /** What starts a match: Join's START GAME, or character select's begin bar (Foomerang Fu). */
   get startButton(): Locator {
-    return this.page.getByRole('button', { name: 'START GAME', exact: true });
+    return this.page
+      .getByRole('button', { name: 'START GAME', exact: true })
+      .or(this.page.getByRole('button', { name: /^Begin/ }));
+  }
+
+  /** Character select (Foomerang Fu) is showing. */
+  get characterSelect(): Locator {
+    return this.page.getByTestId('character-select');
   }
 
   #cpusAdded = 0;
 
-  /** Adds a CPU (Select on an empty seat), then sets its difficulty with the arrow keys, as a host would. */
+  /**
+   * Adds a CPU, then sets its difficulty with the arrow keys, as a host would. Foomerang Fu: the begin bar's "one bot
+   * more" (the bar shows once every person in the room is READY); other games: Select on an empty seat.
+   */
   async addCpu(difficulty: 'Easy' | 'Medium' | 'Hard'): Promise<void> {
     this.#cpusAdded += 1;
     const n = this.#cpusAdded;
-    await this.page
-      .getByRole('button', { name: /empty seat/ })
-      .first()
-      .click();
+    if ((await this.characterSelect.count()) > 0) {
+      await this.readyEveryone(); // the begin bar (and its bots) shows once nobody is choosing
+      await this.page.getByRole('button', { name: 'One bot more' }).click();
+    } else {
+      await this.page
+        .getByRole('button', { name: /empty seat/ })
+        .first()
+        .click();
+    }
     const seat = this.cpuSeat(n);
     await expect(seat).toBeVisible();
     if (difficulty !== 'Medium') {
@@ -229,7 +270,9 @@ export class Host {
     return game;
   }
 
+  /** Starts the match. Foomerang Fu: every phone in the room first gets READY on its character (see readyEveryone). */
   async start(): Promise<void> {
+    await this.readyEveryone();
     await this.startButton.click();
     await expect(this.page.getByTestId('arena')).toBeVisible();
   }
@@ -332,6 +375,11 @@ export class Phone {
     return phone;
   }
 
+  /** The name this phone joined with (undefined before it joins). */
+  name: string | undefined;
+  /** It was closed: it is no longer anyone's controller. */
+  closed = false;
+
   async join(roomCode: string, name: string): Promise<void> {
     // The link a QR code carries: the room and nothing else.
     await this.page.goto(`${this.stack.controllerUrl}/?room=${roomCode}`);
@@ -339,6 +387,10 @@ export class Phone {
     await this.page.getByRole('button', { name: 'Join' }).click();
     await expect(this.page.getByRole('group', { name: /joystick/ })).toBeVisible();
     await expect(this.page.getByRole('status')).toHaveText(/Connected/);
+    this.name = name;
+    const room = phonesByRoom.get(roomCode) ?? [];
+    if (!room.includes(this)) room.push(this);
+    phonesByRoom.set(roomCode, room);
   }
 
   private async zoneCenter(): Promise<{ x: number; y: number }> {
@@ -407,6 +459,11 @@ export class Phone {
     await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   }
 
+  /** Character select: SELECT readies this player on the character under their cursor. */
+  async ready(): Promise<void> {
+    await this.tap('SELECT');
+  }
+
   /** A quick tap on whatever button is called `name` right now (SELECT, BACK, PAUSE, RESUME, ...). */
   async tap(name: string): Promise<void> {
     await this.holdButton(name, 60);
@@ -441,6 +498,7 @@ export class Phone {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     await this.context.close();
   }
 }

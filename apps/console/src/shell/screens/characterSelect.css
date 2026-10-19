@@ -1,0 +1,348 @@
+/* Character select, measured from game-setting.mp4 (640×360 frames; 1 video px = 0.1875rem on the 120×67.5rem canvas).
+   Colours are the frames' modal pixels: paper #f8f4ee, tile #dbd9d7, ring #dfdcd8, band #ece6de, ink #6e6965, prompt
+   #a9a39e. Six circles where the video has four (we seat six), so they are 15rem, not 19.7rem. */
+
+.cs {
+  --cs-paper: #f8f4ee;
+  --cs-tile: #dbd9d7;
+  --cs-ring: #d6d2cd;
+  --cs-band: #ece6de;
+  --cs-ink: #6e6965;
+  --cs-faint: #a9a39e;
+  --cs-go: #7cc142;
+  --cs-stop: #e8484b;
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  color: var(--cs-ink);
+  background: radial-gradient(120% 120% at 50% 45%, var(--cs-paper) 60%, #e9e5e0 100%);
+  font-family: var(--font);
+  font-weight: 800;
+  color-scheme: light;
+}
+
+/* ---- notices (above the circles, only when there is something to say) ------------------------------------------- */
+.cs__notices {
+  position: absolute;
+  top: 1.4rem;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  row-gap: 0.5rem;
+  width: 80rem;
+  transform: translateX(-50%);
+}
+.cs__notice {
+  margin: 0;
+  padding: 0.4rem 1.4rem;
+  border-radius: 1rem;
+  color: var(--cs-ink);
+  background: rgb(255 255 255 / 0.75);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.cs__notice--warn {
+  color: #9a4a00;
+}
+
+/* ---- the circles ---------------------------------------------------------------------------------------------- */
+.cs__seats {
+  position: absolute;
+  top: 6.5rem;
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(6, 18.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateX(-50%);
+}
+.cs__seat {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  row-gap: 1.6rem;
+}
+.cs__circle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 15rem;
+  height: 15rem;
+  border: 0.35rem dashed var(--cs-ring);
+  border-radius: 50%;
+}
+.cs__seat[data-ready] .cs__circle {
+  border-color: transparent;
+  /* the video's ready fill is painted, not a perfect disc */
+  border-radius: 49% 51% 47% 53% / 52% 47% 53% 48%;
+  background: var(--tint);
+  animation: cs-fill 220ms ease-out;
+}
+.cs__portrait {
+  width: 12rem;
+  height: 12rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0.5rem 0.4rem rgb(80 60 40 / 0.18));
+  animation: cs-bob 1.8s ease-in-out infinite;
+}
+.cs__seat[data-ready] .cs__portrait {
+  animation:
+    cs-hop 420ms cubic-bezier(0.3, 1.6, 0.5, 1),
+    cs-bob 1.8s 420ms ease-in-out infinite;
+}
+.cs__seat.is-away .cs__portrait {
+  opacity: 0.45;
+}
+.cs__joinword {
+  color: var(--cs-faint);
+  font-size: 2.2rem;
+  letter-spacing: 0.04em;
+}
+.cs__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 3.75rem;
+  height: 3.75rem;
+  padding: 0 0.4rem;
+  border-radius: 1.9rem;
+  color: #fff;
+  background: var(--badge);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.cs__seat > .cs__badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.9rem;
+}
+.cs__seat--empty > .cs__badge {
+  display: none;
+}
+.cs__prompt,
+.cs__cpu {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--cs-faint);
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+}
+.cs__cpu {
+  padding: 0.3rem 0.9rem;
+  text-transform: uppercase;
+  border: 0;
+  border-radius: 1rem;
+  background: none;
+  font: inherit;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+.cs__cpu:focus-visible,
+.cs__begin:focus-visible {
+  outline: 0.3rem solid var(--cs-ink);
+  outline-offset: 0.3rem;
+}
+
+/* ---- the button glyphs (the video's green A / red B; here, what each device really has) -------------------------- */
+.cs__glyph {
+  display: inline-grid;
+  place-items: center;
+  height: 2.6rem;
+  padding: 0 0.8rem;
+  border-radius: 1.3rem;
+  color: #fff;
+  font: inherit;
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+.cs__glyph--select {
+  background: var(--cs-go);
+  box-shadow: inset 0 -0.25rem 0 rgb(0 0 0 / 0.15);
+}
+.cs__glyph--back {
+  background: var(--cs-stop);
+  box-shadow: inset 0 -0.25rem 0 rgb(0 0 0 / 0.15);
+}
+
+/* ---- the begin bar ----------------------------------------------------------------------------------------------- */
+.cs__bar {
+  position: absolute;
+  top: 30.2rem;
+  right: 0;
+  left: 0;
+  display: grid;
+  height: 15rem;
+  place-content: center;
+  justify-items: center;
+  row-gap: 1.2rem;
+  background: var(--cs-band);
+  animation: cs-fill 200ms ease-out;
+}
+.cs__begin {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  border: 0;
+  border-radius: 1rem;
+  color: var(--cs-ink);
+  background: none;
+  font: inherit;
+  font-size: 3rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.cs__begin[aria-disabled='true'] {
+  cursor: default;
+}
+.cs__begin-why {
+  color: var(--cs-faint);
+  font-size: 2.2rem;
+}
+.cs__bots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: #b9b4af;
+  font-size: 2rem;
+}
+.cs__step {
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  font-size: 2.4rem;
+  cursor: pointer;
+}
+.cs__step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- the grid ---------------------------------------------------------------------------------------------------- */
+.cs__grid {
+  position: absolute;
+  top: 49rem;
+  left: 50%;
+  display: grid;
+  row-gap: 2.8rem;
+  transform: translateX(-50%);
+}
+.cs__row {
+  display: grid;
+  grid-auto-flow: column;
+  column-gap: 2.8rem;
+}
+.cs__tile {
+  position: relative;
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  place-items: center;
+  border-radius: 0.35rem;
+  background: var(--tint, var(--cs-tile));
+}
+.cs__tile[data-cursor='hover']::after {
+  position: absolute;
+  inset: -0.4rem;
+  border: 0.4rem solid var(--cursor);
+  border-radius: 0.5rem;
+  content: '';
+}
+.cs__thumb {
+  width: 6rem;
+  height: 6rem;
+  object-fit: contain;
+}
+.cs__tags {
+  position: absolute;
+  top: -1.9rem;
+  left: -1.9rem;
+  z-index: 1;
+  display: flex;
+  gap: 0.2rem;
+}
+.cs__badge--tile {
+  min-width: 3rem;
+  height: 3rem;
+  font-size: 1.2rem;
+}
+
+/* ---- corners: BACK, and how to join -------------------------------------------------------------------------------- */
+.cs__back {
+  position: absolute;
+  bottom: 3.5rem;
+  left: 5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0;
+  color: var(--cs-faint);
+  font-size: 1.8rem;
+}
+.cs__join {
+  position: absolute;
+  right: 4rem;
+  bottom: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  background: rgb(255 255 255 / 0.7);
+}
+.cs__join svg,
+.cs__join img,
+.cs__join canvas {
+  width: 9rem;
+  height: 9rem;
+}
+.cs__join-text {
+  display: grid;
+  row-gap: 0.3rem;
+}
+.cs__join-title {
+  color: var(--cs-faint);
+  font-size: 1.4rem;
+}
+.cs__join-code {
+  color: var(--cs-ink);
+  font-size: 2.6rem;
+  letter-spacing: 0.12em;
+}
+.cs__join-or {
+  color: var(--cs-faint);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.cs__join-wait {
+  font-size: 1.4rem;
+}
+
+@keyframes cs-fill {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+@keyframes cs-hop {
+  40% {
+    transform: translateY(-1.6rem) scale(1.04, 0.97);
+  }
+}
+@keyframes cs-bob {
+  50% {
+    transform: translateY(-0.35rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs *,
+  .cs {
+    animation: none !important;
+  }
+}
+:root[data-reduced-motion='true'] .cs,
+:root[data-reduced-motion='true'] .cs * {
+  animation: none !important;
+}

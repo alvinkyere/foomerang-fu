@@ -23,6 +23,11 @@ export interface RouterOptions {
   readonly stick?: Partial<StickConfig>;
   /** Minimum spacing between accepted menu steps / presses, across ALL phones. */
   readonly gate?: { readonly navGapMs?: number; readonly pressGapMs?: number };
+  /**
+   * Asked on every step: true while each phone drives its OWN cursor (character select), so the gates above apply per phone
+   * and several people steering at once never cancel one another. False (the default): one shared focus.
+   */
+  readonly ownCursors?: () => boolean;
 }
 
 const NEUTRAL = 0.15;
@@ -38,6 +43,9 @@ interface PlayerState {
   /** Held through a context boundary: reads as neutral until it truly is. */
   latched: boolean;
   readonly nav: StickNavigator;
+  /** Its own gates, used while each phone has its own cursor. */
+  lastNavAt: number;
+  lastPressAt: number;
 }
 
 const SYSTEM: ReadonlySet<InputAction> = new Set<InputAction>(SYSTEM_ACTIONS);
@@ -206,14 +214,26 @@ export class InputRouter {
   }
 
   #emitNav(direction: StickDirection, playerId: string, nowMs: number): void {
-    if (nowMs - this.#lastNavAt < this.#navGap) return;
-    this.#lastNavAt = nowMs;
+    if (this.#options.ownCursors?.() === true) {
+      const player = this.#player(playerId);
+      if (nowMs - player.lastNavAt < this.#navGap) return;
+      player.lastNavAt = nowMs;
+    } else {
+      if (nowMs - this.#lastNavAt < this.#navGap) return;
+      this.#lastNavAt = nowMs;
+    }
     this.#options.menu(direction, playerId);
   }
 
   #emitPress(action: MenuAction, playerId: string, nowMs: number): void {
-    if (nowMs - this.#lastPressAt < this.#pressGap) return;
-    this.#lastPressAt = nowMs;
+    if (this.#options.ownCursors?.() === true) {
+      const player = this.#player(playerId);
+      if (nowMs - player.lastPressAt < this.#pressGap) return;
+      player.lastPressAt = nowMs;
+    } else {
+      if (nowMs - this.#lastPressAt < this.#pressGap) return;
+      this.#lastPressAt = nowMs;
+    }
     this.#options.menu(action, playerId);
   }
 
@@ -227,6 +247,8 @@ export class InputRouter {
         stick: { x: 0, y: 0 },
         latched: false,
         nav: new StickNavigator(this.#options.stick),
+        lastNavAt: Number.NEGATIVE_INFINITY,
+        lastPressAt: Number.NEGATIVE_INFINITY,
       };
       this.#players.set(playerId, player);
     }

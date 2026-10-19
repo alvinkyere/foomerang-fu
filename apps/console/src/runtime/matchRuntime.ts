@@ -4,6 +4,7 @@ import type { Difficulty } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
+import type { PackCharacter } from '../render/reconstructed/maps';
 import type { LatencyStats } from './inputBuffer';
 import type { TimingMetrics } from './frameStepper';
 import type { SlotAllocator } from './slots';
@@ -21,6 +22,8 @@ export interface MatchPlayer {
   readonly slot: number;
   /** Present for a CPU participant: its controller is software of this difficulty (no network, no seat). */
   readonly cpu?: Difficulty;
+  /** The character they chose in character select (absent: their seat's own). */
+  readonly character?: PackCharacter;
 }
 
 /**

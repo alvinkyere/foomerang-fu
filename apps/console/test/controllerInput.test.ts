@@ -83,7 +83,12 @@ describe('StickNavigator: a thumb stick becomes discrete menu steps', () => {
 // ---------------------------------------------------------------------------------------------
 type GameCall = ['move', string, number, number] | ['action', string, string, string];
 
-function rig(options: { navGapMs?: number; pressGapMs?: number } = { navGapMs: 0, pressGapMs: 0 }) {
+function rig(
+  options: { navGapMs?: number; pressGapMs?: number; ownCursors?: () => boolean } = {
+    navGapMs: 0,
+    pressGapMs: 0,
+  },
+) {
   const game: GameCall[] = [];
   const menu: [MenuAction, string][] = [];
   const system: [string, string][] = [];
@@ -96,6 +101,7 @@ function rig(options: { navGapMs?: number; pressGapMs?: number } = { navGapMs: 0
     },
     menu: (action, playerId) => menu.push([action, playerId]),
     gate: { navGapMs: options.navGapMs ?? 0, pressGapMs: options.pressGapMs ?? 0 },
+    ...(options.ownCursors === undefined ? {} : { ownCursors: options.ownCursors }),
   });
   let seq = 0;
   let ev = 0;
@@ -286,6 +292,53 @@ describe('simultaneous controllers share one focus, deterministically', () => {
     r.context('GAMEPLAY');
     r.press('b', 'PRIMARY');
     expect(r.game.filter((g) => g[0] === 'action')).toHaveLength(2);
+  });
+});
+
+describe('character select: every phone drives its own cursor (game-setting.mp4)', () => {
+  it('steps and presses from different phones are never collapsed into one', () => {
+    const r = rig({ navGapMs: 90, pressGapMs: 250, ownCursors: () => true });
+    r.context('CONSOLE');
+    r.at(1000);
+    r.move('a', 0, 1);
+    r.press('a', 'PRIMARY');
+    r.at(1010);
+    r.move('b', 1, 0);
+    r.press('b', 'PRIMARY');
+    expect(r.menu).toEqual([
+      ['down', 'a'],
+      ['select', 'a'],
+      ['right', 'b'],
+      ['select', 'b'],
+    ]);
+  });
+
+  it('each phone still has its own gate: one phone’s double press is one press', () => {
+    const r = rig({ navGapMs: 0, pressGapMs: 250, ownCursors: () => true });
+    r.context('CONSOLE');
+    r.at(1000);
+    r.press('a', 'PRIMARY');
+    r.release('a', 'PRIMARY');
+    r.at(1050);
+    r.press('a', 'PRIMARY');
+    r.at(1400);
+    r.press('a', 'PRIMARY');
+    expect(r.menu).toEqual([
+      ['select', 'a'],
+      ['select', 'a'],
+    ]);
+  });
+
+  it('is asked on every step: off again, the phones share one gate', () => {
+    let own = true;
+    const r = rig({ navGapMs: 0, pressGapMs: 250, ownCursors: () => own });
+    r.context('CONSOLE');
+    r.at(1000);
+    own = false;
+    r.press('a', 'PRIMARY');
+    r.at(1040);
+    r.press('b', 'PRIMARY');
+    expect(r.menu).toEqual([['select', 'a']]);
   });
 });
 

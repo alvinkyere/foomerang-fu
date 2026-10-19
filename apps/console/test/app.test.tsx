@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createConsoleRuntime } from '../src/consoleRuntime';
 import type { GameId } from '../src/config';
@@ -104,7 +104,6 @@ const flush = () => act(async () => void (await settle()));
 const press = (key: string) => fireEvent.keyDown(window, { key });
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
 const isDisabled = (el: HTMLElement) => el.getAttribute('aria-disabled') === 'true';
-const START = /START GAME/;
 
 /** Home → select the game → PLAY. Returns once the room exists and the Join screen is up. */
 async function inLobby(options?: Parameters<typeof setup>[0]) {
@@ -114,7 +113,6 @@ async function inLobby(options?: Parameters<typeof setup>[0]) {
   await flush();
   return ctx;
 }
-const seat = (n: number) => screen.getByRole('button', { name: new RegExp(`^Player ${n}:`) });
 const seatGroup = (n: number) => screen.getByRole('group', { name: new RegExp(`^Player ${n}`) });
 
 const twoPlayers = roster(
@@ -122,6 +120,15 @@ const twoPlayers = roster(
   { playerId: 'b', displayName: 'David' },
 );
 const code = () => screen.getByTestId('room-code').textContent;
+
+// Foomerang Fu's lobby is character select (game-setting.mp4): the begin bar shows once nobody is still choosing.
+const BEGIN = /^Begin/;
+const begin = () => button(BEGIN);
+const circle = (n: number) => screen.getByRole('listitem', { name: new RegExp(`^Player ${n}:`) });
+/** Every listed phone presses SELECT on its character: READY. */
+async function readyAll(ctx: Awaited<ReturnType<typeof inLobby>>, ...ids: string[]) {
+  for (const id of ids) await phone(ctx, id).tap('PRIMARY');
+}
 
 describe('couch flow: home → game → PLAY → real room → join', () => {
   it('opens on the console home: the games, the system bar, and nothing to do with a lobby', () => {
@@ -264,25 +271,31 @@ describe('Join shows the real roster, live', () => {
 });
 
 describe('starting', () => {
-  it('START is unavailable and says why until the table can play', async () => {
-    const { network } = await inLobby({ gameId: 'foomerang-fu' });
-    expect(isDisabled(button(START))).toBe(true);
+  it('Foomerang Fu’s lobby is character select: begin is unavailable and says why until the table can play', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    expect(screen.getByTestId('character-select')).toBeTruthy();
+    expect(isDisabled(begin())).toBe(true);
     expect(document.body.textContent).toMatch(/At least 2 players are needed/);
-    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
     await flush();
-    expect(isDisabled(button(START))).toBe(false);
+    // two people are choosing: no begin bar until both are READY
+    expect(screen.queryByRole('button', { name: BEGIN })).toBeNull();
+    expect(circle(1).textContent).toContain('READY?');
+    await readyAll(ctx, 'a', 'b');
+    expect(isDisabled(begin())).toBe(false);
   });
 
-  it('START asks the server; a refusal is explained and the room stays', async () => {
-    const { network } = await inLobby({ gameId: 'foomerang-fu' });
-    network.roomUpdated(network.last, 'LOBBY', twoPlayers);
+  it('begin asks the server; a refusal is explained and the room stays', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
     await flush();
-    network.startError = 'INVALID_STATE';
-    fireEvent.click(button(START));
+    await readyAll(ctx, 'a', 'b');
+    ctx.network.startError = 'INVALID_STATE';
+    fireEvent.click(begin());
     await flush();
-    expect(network.last.of('MATCH_START')).toHaveLength(1);
+    expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
     expect(document.body.textContent).toMatch(/cannot start right now/);
-    expect(button(START)).toBeTruthy();
+    expect(begin()).toBeTruthy();
   });
 
   it('the arena renderer is NOT loaded while people are in the room', async () => {
@@ -292,30 +305,35 @@ describe('starting', () => {
     expect(loadRenderer).not.toHaveBeenCalled();
   });
 
-  it('Home → Fu → PLAY → room → players connect → START → the real arena replaces the shell', async () => {
-    const { network, loadRenderer } = await inLobby({ gameId: 'foomerang-fu' });
+  it('Home → Fu → PLAY → room → players connect and get READY → begin → the real arena replaces the shell', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    const { network, loadRenderer } = ctx;
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
-    fireEvent.click(button(START));
+    await readyAll(ctx, 'a', 'b');
+    fireEvent.click(begin());
     expect(network.last.of('MATCH_START')).toHaveLength(1);
     network.roomUpdated(network.last, 'PLAYING', twoPlayers);
     await flush();
     expect(screen.getByTestId('arena')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: START })).toBeNull();
+    expect(screen.queryByTestId('character-select')).toBeNull();
     expect(document.documentElement.dataset['view']).toBeUndefined(); // the arena keeps its own sizes
     expect(loadRenderer).toHaveBeenCalledTimes(1);
   });
 
-  it('when the match ends and the room returns to its lobby, the shell is back on Join with the same players', async () => {
-    const { network, runtime } = await inLobby({ gameId: 'foomerang-fu' });
+  it('when the match ends and the room returns to its lobby, the shell is back on character select with the same players, choosing again', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    const { network, runtime } = ctx;
     network.roomUpdated(network.last, 'PLAYING', twoPlayers);
     await flush();
     act(() => runtime.returnToLobby());
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
     expect(code()).toBe('K7M4PX');
-    expect(seatGroup(1).textContent).toContain('Alvin');
-    expect(isDisabled(button(START))).toBe(false);
+    expect(circle(1).getAttribute('aria-label')).toContain('Alvin');
+    expect(circle(1).getAttribute('aria-label')).toContain('choosing');
+    await readyAll(ctx, 'a', 'b');
+    expect(isDisabled(begin())).toBe(false);
   });
 });
 
@@ -339,15 +357,17 @@ describe('Join → close → Home', () => {
 });
 
 describe('Join → connection interruption → reconnect', () => {
-  it('says the room is kept, blocks START with the reason, and recovers by itself', async () => {
-    const { network, clock } = await inLobby({ gameId: 'foomerang-fu' });
+  it('says the room is kept, blocks begin with the reason, and recovers by itself', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    const { network, clock } = ctx;
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
+    await readyAll(ctx, 'a', 'b');
     network.refuseConnections = true;
     act(() => network.last.serverDrops());
     await flush();
     expect(screen.getByText(/Reconnecting… your room is still here/)).toBeTruthy();
-    expect(isDisabled(button(START))).toBe(true);
+    expect(isDisabled(begin())).toBe(true);
     expect(document.body.textContent).toMatch(/Reconnecting… START is back/);
     expect(code()).toBe('K7M4PX');
     network.refuseConnections = false;
@@ -358,7 +378,7 @@ describe('Join → connection interruption → reconnect', () => {
     network.roomUpdated(network.last, 'LOBBY', twoPlayers);
     await flush();
     expect(screen.queryByText(/Reconnecting… your room/)).toBeNull();
-    expect(isDisabled(button(START))).toBe(false);
+    expect(isDisabled(begin())).toBe(false);
   });
 
   it('a room that cannot be reclaimed ends with an explanation and sends you Home', async () => {
@@ -397,73 +417,78 @@ describe('Join → connection interruption → reconnect', () => {
     expect(document.body.textContent).toMatch(
       /The last match ended because this screen was reloaded/,
     );
-    expect(button(START)).toBeTruthy();
+    expect(screen.getByTestId('character-select')).toBeTruthy();
   });
 });
 
-describe('CPU players on Join (Foomerang Fu)', () => {
+describe('CPU players on character select (Foomerang Fu): the begin bar’s ‹ BOTS ›', () => {
+  /** The people, all READY: the begin bar (and its bots) shows. */
   const lobbyWith = async (people: ReturnType<typeof roster>) => {
     const ctx = await inLobby({ gameId: 'foomerang-fu' });
     ctx.network.roomUpdated(ctx.network.last, 'LOBBY', people);
     await flush();
+    await readyAll(ctx, ...people.map((p) => p.playerId));
     return ctx;
   };
-  const addCpu = () =>
-    fireEvent.click(screen.getAllByRole('button', { name: /empty seat/ })[0] as HTMLElement);
+  const addCpu = () => fireEvent.click(button('One bot more'));
+  const cpuControl = (name: RegExp) => button(name);
 
-  it('one person alone cannot start; adding a CPU makes two participants and enables START', async () => {
+  it('one person alone cannot begin; one more bot makes two participants and enables begin', async () => {
     await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
-    expect(isDisabled(button(START))).toBe(true);
+    expect(screen.getByTestId('bots').textContent).toBe('NO BOTS');
+    expect(isDisabled(begin())).toBe(true);
     addCpu();
-    expect(isDisabled(button(START))).toBe(false);
+    expect(screen.getByTestId('bots').textContent).toBe('1 BOT');
+    expect(isDisabled(begin())).toBe(false);
   });
 
-  it('a CPU has a name, a number, a marker and its difficulty — and humans are told apart', async () => {
+  it('a CPU has a name, a number and its difficulty, and is always READY on a character of its own', async () => {
     const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
     addCpu();
     expect(runtime.director.cpus.entries.map((c) => [c.name, c.difficulty])).toEqual([
       ['CPU 1', 'MEDIUM'],
     ]);
-    const cpu = seat(2);
-    expect(cpu.textContent).toContain('CPU 1');
-    expect(cpu.textContent).toContain('■');
-    expect(cpu.textContent).toContain('Medium');
-    expect(within(cpu).getByText('CPU')).toBeTruthy();
-    expect(seatGroup(1).textContent).toContain('Alvin');
+    expect(circle(2).getAttribute('aria-label')).toMatch(/^Player 2: CPU 1, .*, ready$/);
+    expect(circle(2).textContent).toContain('P2');
+    expect(circle(2).textContent).toContain('Medium');
+    expect(runtime.director.picks.pick('cpu:1')?.character).not.toBe(
+      runtime.director.picks.pick('a')?.character,
+    );
   });
 
-  it('each CPU has its own difficulty (←/→ on its seat) and Select removes it, freeing its seat', async () => {
+  it('each CPU has its own difficulty (←/→ on it) and Select removes it, freeing its seat', async () => {
     const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
     addCpu();
     addCpu();
-    act(() => seat(2).focus());
+    act(() => cpuControl(/^Player 2: CPU/).focus());
     press('ArrowLeft');
-    act(() => seat(3).focus());
+    act(() => cpuControl(/^Player 3: CPU/).focus());
     press('ArrowRight');
     expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
     press('ArrowRight'); // Hard is the top: it does not wrap round to Easy
     expect(runtime.director.cpus.entries.map((c) => c.difficulty)).toEqual(['EASY', 'HARD']);
-    fireEvent.click(seat(2));
+    fireEvent.click(cpuControl(/^Player 2: CPU/));
     expect(runtime.director.cpus.entries.map((c) => c.name)).toEqual(['CPU 2']);
     expect(runtime.director.slots.slotOf('cpu:1')).toBeUndefined();
     expect(runtime.director.slots.slotOf('cpu:2')).toBe(2);
   });
 
-  it('a match holds at most six: no empty seat is left to add to, and START still works', async () => {
+  it('a match holds at most six: bots stop at a full table, and begin still works', async () => {
     const { runtime } = await lobbyWith(
       roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
     );
     for (let i = 0; i < 8; i += 1) {
-      const empty = screen.queryAllByRole('button', { name: /empty seat/ })[0];
-      if (empty) fireEvent.click(empty);
+      const more = button('One bot more') as HTMLButtonElement;
+      if (!more.disabled) fireEvent.click(more);
     }
     expect(runtime.director.cpus.entries).toHaveLength(4);
-    expect(screen.queryAllByRole('button', { name: /empty seat/ })).toHaveLength(0);
-    expect(isDisabled(button(START))).toBe(false);
+    expect((button('One bot more') as HTMLButtonElement).disabled).toBe(true);
+    expect(isDisabled(begin())).toBe(false);
   });
 
-  it('a person joining a full table is told to remove a CPU, and START waits', async () => {
-    const { network, runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+  it('a person joining a full table is told to remove a CPU; once there is room they choose, and begin waits for them', async () => {
+    const ctx = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    const { network, runtime } = ctx;
     for (let i = 0; i < 5; i += 1) addCpu();
     expect(runtime.director.cpus.entries).toHaveLength(5);
     network.roomUpdated(
@@ -473,10 +498,12 @@ describe('CPU players on Join (Foomerang Fu)', () => {
     );
     await flush();
     expect(document.body.textContent).toMatch(/No seat for David: remove a CPU/);
-    expect(isDisabled(button(START))).toBe(true);
+    expect(isDisabled(begin())).toBe(true);
     expect(document.body.textContent).toMatch(/at most 6 players/);
-    fireEvent.click(seat(6));
-    expect(isDisabled(button(START))).toBe(false);
+    fireEvent.click(cpuControl(/^Player 6: CPU/));
+    expect(circle(6).getAttribute('aria-label')).toMatch(/^Player 6: David, .*, choosing$/);
+    await readyAll(ctx, 'b');
+    expect(isDisabled(begin())).toBe(false);
   });
 
   it('nothing adds a CPU for the host: an empty seat stays empty', async () => {
@@ -484,13 +511,13 @@ describe('CPU players on Join (Foomerang Fu)', () => {
     expect(runtime.director.cpus.entries).toEqual([]);
   });
 
-  it('CPU-only: two CPUs can start (the console asks the server, which allows it)', async () => {
+  it('CPU-only: two bots can begin (the console asks the server, which allows it)', async () => {
     const { network } = await lobbyWith(roster());
-    expect(isDisabled(button(START))).toBe(true);
+    expect(isDisabled(begin())).toBe(true);
     addCpu();
     addCpu();
-    expect(isDisabled(button(START))).toBe(false);
-    fireEvent.click(button(START));
+    expect(isDisabled(begin())).toBe(false);
+    fireEvent.click(begin());
     expect(network.last.of('MATCH_START')).toHaveLength(1);
   });
 
@@ -767,35 +794,43 @@ const BACK = 'SECONDARY';
 const waitOutAnimation = () => act(async () => void (await new Promise((r) => setTimeout(r, 250))));
 
 describe('a phone operates the console (no keyboard, no mouse)', () => {
-  it('lobby: the phone’s BACK asks to close the room on the TV, and its SELECT answers (Cancel first)', async () => {
+  it('character select: a phone’s stick moves its own cursor, SELECT readies it and BACK un-readies it; a phone never closes the room', async () => {
     const ctx = await inLobby({ gameId: 'foomerang-fu' });
     ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
     await flush();
     const alvin = phone(ctx);
-    await alvin.tap(BACK);
-    expect(screen.getByRole('dialog', { name: 'Close this room?' })).toBeTruthy();
-    expect(document.activeElement).toBe(button('Cancel'));
+    await alvin.stick(0, -1); // up: bread → milk
+    expect(screen.getByRole('gridcell', { name: /^Milk: P1$/ })).toBeTruthy();
     await alvin.tap(SELECT);
-    await waitOutAnimation();
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Milk, ready');
+    await alvin.tap(BACK);
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Milk, choosing');
+    await alvin.tap(BACK); // not ready: nothing, and certainly not “close the room”
     expect(screen.queryByRole('dialog', { name: 'Close this room?' })).toBeNull();
     expect(code()).toBe('K7M4PX');
   });
 
-  it('lobby: the phone’s SELECT presses START when it is focused', async () => {
-    const layout = layoutInDocumentOrder();
-    try {
-      const ctx = await inLobby({ gameId: 'foomerang-fu' });
-      ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
-      await flush();
-      const alvin = phone(ctx);
-      for (let i = 0; i < 12 && document.activeElement !== button(START); i += 1)
-        await alvin.stick(0, 1);
-      expect(document.activeElement).toBe(button(START));
-      await alvin.tap(SELECT);
-      expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
-    } finally {
-      layout.mockRestore();
-    }
+  it('character select: once everyone is READY, a phone’s SELECT begins the match', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
+    await flush();
+    const alvin = phone(ctx);
+    const david = phone(ctx, 'b');
+    await alvin.tap(SELECT);
+    await alvin.tap(SELECT); // David is still choosing: nothing begins
+    expect(ctx.network.last.of('MATCH_START')).toHaveLength(0);
+    await david.tap(SELECT);
+    await alvin.tap(SELECT);
+    expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('character select: the TV’s own Esc asks to close the room', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
+    await flush();
+    press('Escape');
+    expect(screen.getByRole('dialog', { name: 'Close this room?' })).toBeTruthy();
+    expect(document.activeElement).toBe(button('Cancel'));
   });
 
   it('match: PAUSE on the phone opens the pause menu on the TV; SELECT on Resume resumes', async () => {

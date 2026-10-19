@@ -64,19 +64,19 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await expect(pad.getByRole('button', { name: 'BACK', exact: true })).toBeVisible();
   await expect(pad.getByRole('button', { name: 'PAUSE', exact: true })).toHaveCount(0);
 
-  // BACK asks on the TV before anything is closed, and starts on Cancel.
+  // Character select (game-setting.mp4): the phone drives its own cursor; its BACK never closes the room.
+  await expect(tv.getByTestId('character-select')).toBeVisible();
   await alice.tap('BACK');
-  await expect(tv.getByRole('dialog', { name: 'Close this room?' })).toBeVisible();
-  await expect(tv.getByRole('button', { name: 'Cancel' })).toBeFocused();
-  await alice.tap('SELECT');
+  await tv.waitForTimeout(200);
   await expect(tv.getByRole('dialog', { name: 'Close this room?' })).toHaveCount(0);
+  await alice.flick('up'); // bread → milk
+  await alice.ready();
+  await expect(tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, ready$/ })).toBeVisible();
 
-  // The phone adds a CPU opponent and starts the match.
-  await steer(host, alice, tv.getByRole('button', { name: /empty seat/ }).first());
-  await alice.tap('SELECT');
+  // Everyone (just Alice) is READY: her ▶ adds a CPU opponent and her SELECT begins the match.
+  await alice.flick('right');
   await expect(host.cpuSeat(1)).toBeVisible();
   await expect(host.startButton).not.toHaveAttribute('aria-disabled', 'true');
-  await steer(host, alice, host.startButton);
   await alice.tap('SELECT');
   await host.waitForDrawn(2);
 
@@ -123,12 +123,13 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await steer(host, alice, leave.getByRole('button', { name: 'Return to Lobby' }));
   await alice.tap('SELECT');
 
-  // Back in the lobby, same room, same phone, and it keeps driving the console.
+  // Back in the lobby, same room, same phone: choosing again, and it keeps driving the console.
   await expect(tv.getByTestId('room-code')).toHaveText(code);
   await expect(pad.getByRole('group', { name: /navigate/i })).toBeVisible();
-  await alice.tap('BACK');
-  await expect(tv.getByRole('dialog', { name: 'Close this room?' })).toBeVisible();
-  await alice.tap('SELECT'); // Cancel: the room stays
-  await expect(tv.getByRole('dialog', { name: 'Close this room?' })).toHaveCount(0);
+  await expect(
+    tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, choosing$/ }),
+  ).toBeVisible();
+  await alice.ready();
+  await expect(tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, ready$/ })).toBeVisible();
   await expect(tv.getByTestId('room-code')).toHaveText(code);
 });

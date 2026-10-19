@@ -11,6 +11,8 @@ import {
   type TransitionDirection,
 } from './components';
 import type { ShellActions, ShellModel } from './model';
+import { CharacterSelectScreen } from './screens/CharacterSelectScreen';
+import { JoinScreen } from './screens/JoinScreen';
 import { GameDetailScreen } from './screens/GameDetailScreen';
 import {
   HomeScreen,
@@ -19,7 +21,6 @@ import {
   useClock,
   type SystemDestination,
 } from './screens/HomeScreen';
-import { JoinScreen } from './screens/JoinScreen';
 import { SettingsScreen, type CategoryId } from './screens/SettingsScreen';
 import {
   AboutSheet,
@@ -166,79 +167,104 @@ export function ConsoleApp({ model, actions, initial }: ConsoleAppProps) {
   const closeSheet = (): void => setSheet(null);
   const failureOpensRoom = failure !== undefined && room.phase === 'none';
 
+  // Character select is its own full screen, as in the reference video: no console chrome around it.
+  const characterSelect =
+    screen === 'join' && room.select !== undefined ? (
+      <CharacterSelectScreen
+        select={room.select}
+        status={joinStatus}
+        roomCode={room.code}
+        joinUrl={room.joinUrl}
+        shortAddress={room.shortAddress}
+        warnings={model.warnings}
+        interrupted={room.interrupted}
+        waitingForSeat={room.waitingForSeat}
+        canStart={room.canStart}
+        startBlockedReason={room.startBlockedReason}
+        launching={room.launching}
+        onBegin={actions.start}
+        onStepBots={actions.stepBots}
+        onCpuStep={actions.stepCpu}
+        onCpuRemove={actions.removeCpu}
+        onBack={() => setSheet('leave')}
+      />
+    ) : undefined;
+
   return (
     <>
-      <ConsoleShell
-        artwork={artGame.art}
-        artworkKey={artGame.art === undefined ? 'plain' : artGame.id}
-        top={top}
-        bottom={<ControlHintBar hints={hints} style={settings.controlHints} />}
-      >
-        <ScreenTransition screenKey={screen} direction={direction}>
-          {screen === 'home' && (
-            <HomeScreen
-              selectedId={selectedId}
-              onSelectedChange={setSelectedId}
-              onOpenGame={(game) => {
-                if (game.comingSoon === true) toast('Coming soon. More games are on the way.');
-                else {
-                  setOpenGame(game);
-                  go('detail', 'forward');
-                }
-              }}
-              onSystem={onSystem}
-            />
-          )}
-          {screen === 'detail' && (
-            <GameDetailScreen
-              game={openGame}
-              starting={room.phase === 'opening'}
-              onPlay={actions.openRoom}
-              onHowToPlay={() => setSheet('howto')}
-              onGameSettings={() => setSheet('gamesettings')}
-              onBack={() => go('home', 'back')}
-            />
-          )}
-          {screen === 'settings' && (
-            <SettingsScreen
-              settings={settings}
-              {...(initial?.category ? { initialCategory: initial.category } : {})}
-              facts={{
-                phonesConnected: room.phones,
-                phoneAddress: model.facts.phoneAddress,
-                connection: model.facts.connection,
-                addressNote: model.facts.addressNote,
-                version: model.facts.version,
-                build: model.facts.build,
-              }}
-              onChange={setSettings}
-              onBack={() => go('home', 'back')}
-            />
-          )}
-          {screen === 'join' && (
-            <JoinScreen
-              status={joinStatus}
-              roomCode={room.code}
-              joinUrl={room.joinUrl}
-              shortAddress={room.shortAddress}
-              seats={room.seats}
-              waitingForSeat={room.waitingForSeat}
-              warnings={model.warnings}
-              interrupted={room.interrupted}
-              canStart={room.canStart}
-              startBlockedReason={room.startBlockedReason}
-              launching={room.launching}
-              canAddCpu={room.canAddCpu}
-              onStart={actions.start}
-              onAddCpu={actions.addCpu}
-              onCpuStep={actions.stepCpu}
-              onCpuRemove={actions.removeCpu}
-              onRetry={actions.openRoom}
-              onBack={() => setSheet('leave')}
-            />
-          )}
-        </ScreenTransition>
-      </ConsoleShell>
+      {characterSelect ?? (
+        <ConsoleShell
+          artwork={artGame.art}
+          artworkKey={artGame.art === undefined ? 'plain' : artGame.id}
+          top={top}
+          bottom={<ControlHintBar hints={hints} style={settings.controlHints} />}
+        >
+          <ScreenTransition screenKey={screen} direction={direction}>
+            {screen === 'home' && (
+              <HomeScreen
+                selectedId={selectedId}
+                onSelectedChange={setSelectedId}
+                onOpenGame={(game) => {
+                  if (game.comingSoon === true) toast('Coming soon. More games are on the way.');
+                  else {
+                    setOpenGame(game);
+                    go('detail', 'forward');
+                  }
+                }}
+                onSystem={onSystem}
+              />
+            )}
+            {screen === 'detail' && (
+              <GameDetailScreen
+                game={openGame}
+                starting={room.phase === 'opening'}
+                onPlay={actions.openRoom}
+                onHowToPlay={() => setSheet('howto')}
+                onGameSettings={() => setSheet('gamesettings')}
+                onBack={() => go('home', 'back')}
+              />
+            )}
+            {screen === 'settings' && (
+              <SettingsScreen
+                settings={settings}
+                {...(initial?.category ? { initialCategory: initial.category } : {})}
+                facts={{
+                  phonesConnected: room.phones,
+                  phoneAddress: model.facts.phoneAddress,
+                  connection: model.facts.connection,
+                  addressNote: model.facts.addressNote,
+                  version: model.facts.version,
+                  build: model.facts.build,
+                }}
+                onChange={setSettings}
+                onBack={() => go('home', 'back')}
+              />
+            )}
+            {screen === 'join' && room.select === undefined && (
+              <JoinScreen
+                status={joinStatus}
+                roomCode={room.code}
+                joinUrl={room.joinUrl}
+                shortAddress={room.shortAddress}
+                seats={room.seats}
+                waitingForSeat={room.waitingForSeat}
+                warnings={model.warnings}
+                interrupted={room.interrupted}
+                canStart={room.canStart}
+                startBlockedReason={room.startBlockedReason}
+                launching={room.launching}
+                canAddCpu={room.canAddCpu}
+                onStart={actions.start}
+                onAddCpu={actions.addCpu}
+                onCpuStep={actions.stepCpu}
+                onCpuRemove={actions.removeCpu}
+                onRetry={actions.openRoom}
+                onBack={() => setSheet('leave')}
+              />
+            )}
+          </ScreenTransition>
+        </ConsoleShell>
+      )}
 
       <HowToPlaySheet open={sheet === 'howto'} onClose={closeSheet} />
       <GameSettingsSheet open={sheet === 'gamesettings'} onClose={closeSheet} />

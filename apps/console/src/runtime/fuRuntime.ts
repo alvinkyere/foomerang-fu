@@ -27,6 +27,7 @@ import type { PlayerAction } from '../host';
 import { buildFuView } from '../render/fuView';
 import { PLAYABLE_ARENAS, choiceOf } from './arenas';
 import type { ArenaView } from '../render/viewModel';
+import type { PackCharacter } from '../render/reconstructed/maps';
 import { FrameStepper } from './frameStepper';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
 import type { PowerupMode } from './powerupMode';
@@ -142,6 +143,8 @@ export class FuRuntime implements MatchRuntime {
   #pendingDashes = new Set<string>();
   #seenEvents = new Map<string, { order: string[]; set: Set<string> }>();
   #events: FuEvent[] = [];
+  /** Each player's chosen character, fixed when the match starts. */
+  #characters: ReadonlyMap<string, PackCharacter> = new Map();
   /** CPU participants: software controllers that answer through the same `FuPlayerInput` a person's phone produces. */
   #cpus = new Map<string, CpuController>();
   #cpuDecisions = { count: 0, totalMs: 0, maxMs: 0 };
@@ -166,6 +169,11 @@ export class FuRuntime implements MatchRuntime {
     this.#stepper.start(nowMs);
     this.#inputs = new InputBuffer();
     this.#playerIds = new Set(players.map((p) => p.playerId));
+    this.#characters = new Map(
+      players.flatMap((p) =>
+        p.character === undefined ? [] : [[p.playerId, p.character] as const],
+      ),
+    );
     this.#pendingThrows = new Set();
     this.#holdingThrow = new Set();
     this.#throwPressedSinceStep = new Set();
@@ -305,7 +313,7 @@ export class FuRuntime implements MatchRuntime {
 
   view(roster: readonly RosterEntry[], slots: SlotAllocator): ArenaView | undefined {
     if (this.state === undefined) return undefined;
-    return buildFuView(this.state, this.#events.splice(0), roster, slots);
+    return buildFuView(this.state, this.#events.splice(0), roster, slots, this.#characters);
   }
 
   debugState(): unknown {

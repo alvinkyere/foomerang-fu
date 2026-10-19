@@ -107,7 +107,35 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
   });
 
   const menuListeners = new Set<MenuListener>();
+  /** A Foomerang Fu room in its lobby is character select: every phone drives its own cursor there (game-setting.mp4). */
+  const choosing = (): boolean => {
+    const { gameId, roomState } = session.getState();
+    return gameId === 'foomerang-fu' && roomState === 'LOBBY';
+  };
+  const humans = (): number =>
+    session.getState().roster.filter((entry) => entry.seat === 'HELD').length;
+  /** One phone's menu action on character select: its own cursor, its own READY, and (once everyone is) bots and begin. */
+  const choose = (action: MenuAction, playerId: string): void => {
+    const picks = director.picks;
+    const pick = picks.pick(playerId);
+    if (pick === undefined) return;
+    if (action === 'select') {
+      if (picks.select(playerId) === 'BEGIN') startMatch();
+    } else if (action === 'back') picks.back(playerId);
+    else if (action === 'left' || action === 'right') {
+      if (!pick.ready) picks.move(playerId, action);
+      else if (picks.allReady) {
+        // the begin bar's ‹ BOTS ›: one more, or one fewer (the last added)
+        if (action === 'right') director.cpus.add('MEDIUM', humans());
+        else {
+          const last = director.cpus.entries.at(-1);
+          if (last !== undefined) director.cpus.remove(last.id);
+        }
+      }
+    } else if (action === 'up' || action === 'down') picks.move(playerId, action);
+  };
   const router = new InputRouter({
+    ownCursors: choosing,
     // the phone's PAUSE button: anyone may pause a running match, and anyone may resume it
     system: () => {
       if (router.context === 'GAMEPLAY') pause();
@@ -119,6 +147,10 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       action: (action) => director.onAction(action),
     },
     menu: (action, playerId) => {
+      if (choosing()) {
+        choose(action, playerId);
+        return;
+      }
       for (const listener of [...menuListeners]) {
         try {
           listener(action, playerId);
@@ -173,6 +205,12 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
           1000 / 60,
         );
 
+  function startMatch(): void {
+    const { gameId } = session.getState();
+    if (gameId === 'foomerang-fu' && director.startBlock() !== undefined) return;
+    session.startMatch();
+  }
+
   function pause(): void {
     if (!director.inMatch || session.getState().roomState !== 'PLAYING') return;
     director.setManualPause(true, now());
@@ -219,11 +257,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
           session.rumble(r.playerId, r.intensity, r.durationMs);
       syncContext(); // the match may have just ended: RESULTS
     },
-    startMatch: () => {
-      const { gameId } = session.getState();
-      if (gameId === 'foomerang-fu' && director.startBlock() !== undefined) return;
-      session.startMatch();
-    },
+    startMatch,
     rematch: () => {
       director.rematch(now());
       syncContext();

@@ -10,6 +10,7 @@ import type { RosterEntry } from '@foomerang/protocol';
 import { PLAYABLE_ARENAS, choiceOf } from '../runtime/arenas';
 import { isCpuId } from '../runtime/cpuRoster';
 import type { ArenaChoice } from '../runtime/powerupMode';
+import type { PackCharacter } from './reconstructed/maps';
 import { SLOT_STYLES, type SlotAllocator } from '../runtime/slots';
 import {
   identityOf,
@@ -45,6 +46,8 @@ export function buildFuView(
   events: readonly FuEvent[],
   roster: readonly RosterEntry[],
   slots: SlotAllocator,
+  /** Each player's chosen character (character select); someone absent is drawn as their seat's own. */
+  characters: ReadonlyMap<string, PackCharacter> = new Map(),
 ): ArenaView {
   const positionOf = (id: string): { x: number; y: number } =>
     state.world.bodies.find((b) => b.id === id)?.position ?? { x: 0, y: 0 };
@@ -60,6 +63,7 @@ export function buildFuView(
       y: body.position.y,
       radius: body.radius,
       ...identity,
+      ...(characters.has(body.id) ? { character: characters.get(body.id) as PackCharacter } : {}),
       dimmed: identity.dimmed || dead,
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),

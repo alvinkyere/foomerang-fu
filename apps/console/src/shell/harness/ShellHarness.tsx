@@ -128,6 +128,7 @@ export function ShellHarness({ search = window.location.search }: { readonly sea
       openRoom: () => setOpened(true),
       closeRoom: () => setOpened(false),
       start: () => undefined,
+      stepBots: () => undefined,
       addCpu: () =>
         setSeats((prev) => {
           const at = prev.findIndex((s) => s.kind === 'empty');

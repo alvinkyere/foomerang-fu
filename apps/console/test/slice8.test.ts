@@ -74,6 +74,8 @@ describe('Free For All participant configuration', () => {
     d.onRoom('LOBBY', [human('a')], 0, 'foomerang-fu');
     expect(d.startBlock()).toBe('TOO_FEW');
     d.onRoom('LOBBY', [human('a'), human('b'), human('c'), human('d')], 0, 'foomerang-fu');
+    expect(d.startBlock()).toBe('NOT_READY'); // character select: everyone must be READY
+    for (const id of ['a', 'b', 'c', 'd']) d.picks.select(id);
     expect(d.startBlock()).toBeUndefined();
   });
 
@@ -99,6 +101,8 @@ describe('Free For All participant configuration', () => {
     d.cpus.add('MEDIUM', 2);
     d.cpus.add('HARD', 2);
     d.cpus.add('HARD', 2);
+    d.picks.select('a');
+    d.picks.select('b');
     expect(d.startBlock()).toBeUndefined();
     d.onRoom('LOBBY', [human('a'), human('b'), human('c')], 0, 'foomerang-fu'); // a third person joins a full table
     expect(d.startBlock()).toBe('TOO_MANY');
@@ -237,6 +241,9 @@ describe('host lifecycle', () => {
     runtime.startMatch();
     expect(network.last.of('MATCH_START')).toHaveLength(0);
     runtime.director.cpus.add('MEDIUM', 1);
+    runtime.startMatch(); // two now, but A is still choosing a character
+    expect(network.last.of('MATCH_START')).toHaveLength(0);
+    runtime.director.picks.select('a');
     runtime.startMatch();
     expect(network.last.of('MATCH_START')).toHaveLength(1);
   });

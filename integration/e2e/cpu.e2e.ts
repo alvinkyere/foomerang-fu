@@ -8,7 +8,8 @@ test('Foomerang Fu: one real controller plays a mixed match against a Medium and
   const alice = await newPhone();
   await alice.join(code, 'Alice');
 
-  // One person alone is not a match: Start waits until there are two participants.
+  // One person alone is not a match: once she is READY on a character, begin still waits for two participants.
+  await alice.ready();
   await expect(host.startButton).toBeDisabled();
   await host.addCpu('Medium');
   await host.addCpu('Hard');
@@ -63,7 +64,7 @@ test('Foomerang Fu: a CPU can be removed and its difficulty changed before the m
   const alice = await newPhone();
   await alice.join(code, 'Alice');
   for (let i = 0; i < 5; i += 1) await host.addCpu('Easy');
-  await expect(host.page.getByRole('button', { name: /empty seat/ })).toHaveCount(0); // six is the most
+  await expect(host.page.getByRole('button', { name: 'One bot more' })).toBeDisabled(); // six is the most
   await expect(host.filledSeats).toHaveCount(6);
   await host.removeCpu(3);
   await expect(host.filledSeats).toHaveCount(5);
