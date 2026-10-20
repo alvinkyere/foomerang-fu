@@ -799,12 +799,12 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
     await flush();
     const alvin = phone(ctx);
-    await alvin.stick(0, -1); // up: bread → milk
-    expect(screen.getByRole('gridcell', { name: /^Milk: P1$/ })).toBeTruthy();
+    await alvin.stick(0, -1); // up: bread → banana
+    expect(screen.getByRole('gridcell', { name: /^Banana: P1$/ })).toBeTruthy();
     await alvin.tap(SELECT);
-    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Milk, ready');
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Banana, ready');
     await alvin.tap(BACK);
-    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Milk, choosing');
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Banana, choosing');
     await alvin.tap(BACK); // not ready: nothing, and certainly not “close the room”
     expect(screen.queryByRole('dialog', { name: 'Close this room?' })).toBeNull();
     expect(code()).toBe('K7M4PX');

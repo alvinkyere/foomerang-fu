@@ -9,7 +9,7 @@ import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
 import { DEFAULT_MODE, ModeSelection, isStartableMode, type GameModeId } from './gameMode';
 import { MAX_PARTICIPANTS } from './cpuRoster';
-import { CharacterSelect } from './characterSelect';
+import { CharacterSelect, isPlayable } from './characterSelect';
 import { SlotAllocator } from './slots';
 
 /** The runtime for a game. Anything that is not Foomerang Fu is the primitive arena (test infrastructure). */
@@ -161,7 +161,8 @@ export class MatchDirector {
   /** The character a participant chose (Foomerang Fu only; other games draw no characters). */
   #character(id: string): Pick<MatchPlayer, 'character'> {
     const pick = this.#roomGameId === 'foomerang-fu' ? this.picks.pick(id) : undefined;
-    return pick === undefined ? {} : { character: pick.character };
+    // a coming-soon character is never chosen (a latecomer may still be hovering one): their seat's own, then
+    return pick === undefined || !isPlayable(pick.character) ? {} : { character: pick.character };
   }
 
   #begin(gameId: string, nowMs: number): void {

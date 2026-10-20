@@ -68,7 +68,8 @@ describe('MatchDirector: character picks', () => {
     const { d, last } = recordingDirector();
     const r = [entry('a', 'Alvin'), entry('b', 'David')];
     d.onRoom('LOBBY', r, 0, 'foomerang-fu');
-    d.picks.move('a', 'up'); // bread → milk
+    d.picks.move('a', 'up');
+    d.picks.move('a', 'right'); // bread → banana → milk
     d.picks.select('a');
     d.picks.select('b');
     d.onRoom('PLAYING', r, 10, 'foomerang-fu');
@@ -76,6 +77,21 @@ describe('MatchDirector: character picks', () => {
       ['a', 'milk'],
       ['b', 'coffee'],
     ]);
+  });
+
+  it('someone still hovering a coming-soon character (a latecomer, at a rematch) plays as their seat’s own', () => {
+    const { d, last } = recordingDirector();
+    const r = [entry('a', 'Alvin'), entry('b', 'David')];
+    d.onRoom('LOBBY', r, 0, 'foomerang-fu');
+    d.picks.select('a');
+    d.picks.select('b');
+    d.onRoom('PLAYING', r, 10, 'foomerang-fu');
+    const late = [...r, entry('c', 'Cleo')];
+    d.onRoom('PLAYING', late, 20, 'foomerang-fu'); // joins mid-match: seat 3, a cursor on the watermelon
+    for (let i = 0; i < 5; i += 1) d.picks.move('c', 'left'); // → the eggplant, row 1's first tile
+    expect(d.picks.pick('c')?.character).toBe('eggplant');
+    d.rematch(30);
+    expect(last().started.find((p) => p.playerId === 'c')).toEqual({ playerId: 'c', slot: 2 });
   });
 
   it('a person goes back to choosing when the room returns to its lobby', () => {

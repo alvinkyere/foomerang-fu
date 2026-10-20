@@ -1,11 +1,13 @@
-import type { PackCharacter } from '../../render/reconstructed/maps';
+import { isPlayable, type SelectCharacter } from '../../runtime/characterSelect';
 import type { CharacterView } from '../model';
 
-const NAMES: Readonly<Record<PackCharacter, string>> = {
+const NAMES: Readonly<Record<SelectCharacter, string>> = {
   avocado: 'Avocado',
   bacon: 'Bacon',
   banana: 'Banana',
   bread: 'Bread',
+  eggplant: 'Eggplant',
+  sushi: 'Sushi',
   carrot: 'Carrot',
   coffee: 'Coffee',
   donut: 'Donut',
@@ -21,7 +23,7 @@ const NAMES: Readonly<Record<PackCharacter, string>> = {
  * fill it shows). This is the menus' palette only: a boomerang and its trail stay the character's colour
  * (render/reconstructed/characterColours.ts).
  */
-const BADGE: Readonly<Record<PackCharacter, string>> = {
+const BADGE: Readonly<Record<SelectCharacter, string>> = {
   avocado: '#93d15a',
   bacon: '#d18667',
   banana: '#e1c83e',
@@ -29,14 +31,17 @@ const BADGE: Readonly<Record<PackCharacter, string>> = {
   carrot: '#de8b56',
   coffee: '#aeb5b1',
   donut: '#e8768f',
+  eggplant: '#8771de',
+  sushi: '#707773',
   icecream: '#50c9ba',
   milk: '#5597de',
   watermelon: '#e74548',
 };
-const MEASURED_FILL: Partial<Record<PackCharacter, string>> = {
+const MEASURED_FILL: Partial<Record<SelectCharacter, string>> = {
   banana: '#fcf2b9',
   coffee: '#fbf9f3',
   donut: '#ffc4d3',
+  eggplant: '#cdc1fd',
   watermelon: '#ffc2c4',
 };
 
@@ -65,10 +70,11 @@ const fillOf = (hex: string): string => {
     .join('')}`;
 };
 
-export const characterView = (id: PackCharacter): CharacterView => ({
+export const characterView = (id: SelectCharacter): CharacterView => ({
   id,
   name: NAMES[id],
   color: BADGE[id],
   tint: MEASURED_FILL[id] ?? fillOf(BADGE[id]),
-  portrait: `characters/${id}.webp`,
+  portrait: isPlayable(id) ? `characters/${id}.webp` : '',
+  ...(isPlayable(id) ? {} : { comingSoon: true as const }),
 });

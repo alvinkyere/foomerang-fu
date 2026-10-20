@@ -27,6 +27,36 @@ export interface CharacterSelectScreenProps {
   readonly onBack: () => void;
 }
 
+/**
+ * The READY fill's outline: the video's painted disc has a softly scalloped edge, twelve gentle lobes (owner's spec). A
+ * 100×100 SVG path, computed once.
+ */
+const SCALLOP = (() => {
+  const points = Array.from({ length: 144 }, (_, i) => {
+    const a = (i / 144) * Math.PI * 2;
+    const r = 47.5 + 1.5 * Math.cos(12 * a);
+    return `${(50 + r * Math.cos(a)).toFixed(2)},${(50 + r * Math.sin(a)).toFixed(2)}`;
+  });
+  return `M${points.join('L')}Z`;
+})();
+
+/** A character with no model yet (coming soon): a muted silhouette, never a broken image. */
+const ComingSoon = ({ big = false }: { readonly big?: boolean }) => (
+  <span className={big ? 'cs__soon cs__soon--big' : 'cs__soon'} aria-hidden="true">
+    <span className="cs__soon-mark">?</span>
+    <span className="cs__soon-text">COMING SOON</span>
+  </span>
+);
+
+/** The four corner brackets of the video's frame. */
+const Corners = () => (
+  <>
+    {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
+      <span key={corner} className={`cs__corner cs__corner--${corner}`} aria-hidden="true" />
+    ))}
+  </>
+);
+
 const botsLabel = (n: number): string => (n === 0 ? 'NO BOTS' : n === 1 ? '1 BOT' : `${n} BOTS`);
 
 /** The phone's own word for its SLASH button here (its screen says SELECT), in the video's green button. */
@@ -44,6 +74,7 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
   return (
     <FocusScope id="select" initialFocus="begin" remember={false} onBack={props.onBack}>
       <div className="cs" data-testid="character-select">
+        <Corners />
         <div className="cs__notices">
           {props.warnings?.map((warning) => (
             <p key={warning} className="cs__notice cs__notice--warn" role="alert" title={warning}>
@@ -77,6 +108,11 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
           ))}
         </ol>
 
+        {!select.everyoneReady && (
+          <h1 className="cs__divider">
+            <span>CHOOSE CHARACTERS</span>
+          </h1>
+        )}
         {select.everyoneReady && (
           <BeginBar
             bots={select.bots}
@@ -159,7 +195,14 @@ function SeatCircle({
       aria-label={label}
     >
       <span className="cs__circle">
-        {ch !== undefined ? (
+        {seat.ready && (
+          <svg className="cs__scallop" viewBox="0 0 100 100" aria-hidden="true">
+            <path d={SCALLOP} />
+          </svg>
+        )}
+        {ch?.comingSoon === true ? (
+          <ComingSoon big />
+        ) : ch !== undefined ? (
           <img
             key={`${ch.id}/${seat.ready}`}
             className="cs__portrait"
@@ -315,11 +358,16 @@ function Tile({ tile }: { readonly tile: SelectTileView }) {
     <div
       className="cs__tile"
       role="gridcell"
-      aria-label={`${tile.character.name}${tile.cursors.length > 0 ? `: ${tile.cursors.map((c) => `P${c.number}${c.ready ? ' ready' : ''}`).join(', ')}` : ''}`}
+      data-soon={tile.character.comingSoon}
+      aria-label={`${tile.character.name}${tile.character.comingSoon === true ? ' (coming soon)' : ''}${tile.cursors.length > 0 ? `: ${tile.cursors.map((c) => `P${c.number}${c.ready ? ' ready' : ''}`).join(', ')}` : ''}`}
       data-cursor={lead !== undefined ? (ready !== undefined ? 'ready' : 'hover') : undefined}
       style={style}
     >
-      <img className="cs__thumb" src={tile.character.portrait} alt="" draggable={false} />
+      {tile.character.comingSoon === true ? (
+        <ComingSoon />
+      ) : (
+        <img className="cs__thumb" src={tile.character.portrait} alt="" draggable={false} />
+      )}
       {tile.cursors.length > 0 && (
         <span className="cs__tags" aria-hidden="true">
           {tile.cursors.map((c) => (

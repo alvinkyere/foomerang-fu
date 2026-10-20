@@ -30,6 +30,8 @@ export interface CharacterView {
   /** Its colour, softened: a READY circle and tile are filled with it. */
   readonly tint: string;
   readonly portrait: string;
+  /** No model yet: shown on the grid, never chosen. */
+  readonly comingSoon?: true;
 }
 
 /** One of the six circles at the top of character select. */

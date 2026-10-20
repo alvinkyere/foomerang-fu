@@ -2,18 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   CharacterSelect,
   SELECT_GRID,
+  isPlayable,
   type SelectParticipant,
 } from '../src/runtime/characterSelect';
 
 const human = (id: string, slot: number): SelectParticipant => ({ id, slot, cpu: false });
 const cpu = (id: string, slot: number): SelectParticipant => ({ id, slot, cpu: true });
 
-describe('the character grid (game-setting.mp4, without the eggplant and sushi we have no models for)', () => {
-  it('is two rows of five, in the video’s order', () => {
+describe('the character grid (game-setting.mp4)', () => {
+  it('is the video’s two rows of six, in its order', () => {
     expect(SELECT_GRID).toEqual([
-      ['avocado', 'banana', 'milk', 'watermelon', 'donut'],
-      ['coffee', 'icecream', 'bread', 'bacon', 'carrot'],
+      ['eggplant', 'avocado', 'banana', 'milk', 'watermelon', 'donut'],
+      ['coffee', 'icecream', 'bread', 'bacon', 'carrot', 'sushi'],
     ]);
+  });
+
+  it('the eggplant and the sushi are coming soon (no model yet); every other character is playable', () => {
+    expect(SELECT_GRID.flat().filter((c) => !isPlayable(c))).toEqual(['eggplant', 'sushi']);
   });
 });
 
@@ -31,12 +36,31 @@ describe('CharacterSelect', () => {
     s.move('a', 'right');
     expect(s.pick('a')?.character).toBe('bacon');
     s.move('a', 'up');
-    expect(s.pick('a')?.character).toBe('watermelon');
+    expect(s.pick('a')?.character).toBe('milk');
     s.move('a', 'up');
-    expect(s.pick('a')?.character).toBe('watermelon');
+    expect(s.pick('a')?.character).toBe('milk');
     s.move('a', 'right');
     s.move('a', 'right');
     expect(s.pick('a')?.character).toBe('donut');
+    s.move('a', 'right');
+    expect(s.pick('a')?.character).toBe('donut');
+  });
+
+  it('a cursor may visit a coming-soon character, but nobody can be READY on it', () => {
+    const s = new CharacterSelect();
+    s.sync([human('a', 0)]);
+    s.move('a', 'right');
+    s.move('a', 'right');
+    s.move('a', 'right'); // bread → bacon → carrot → sushi
+    expect(s.pick('a')?.character).toBe('sushi');
+    expect(s.select('a')).toBe('COMING_SOON');
+    expect(s.pick('a')?.ready).toBe(false);
+  });
+
+  it('a CPU never takes a coming-soon character', () => {
+    const s = new CharacterSelect();
+    s.sync(Array.from({ length: 6 }, (_, i) => cpu(`cpu:${i}`, i)));
+    for (const [, pick] of s.picks()) expect(isPlayable(pick.character)).toBe(true);
   });
 
   it('SELECT readies the player on the character under their cursor, and a ready cursor does not move', () => {
@@ -111,7 +135,7 @@ describe('CharacterSelect', () => {
     s.sync([human('a', 0)]);
     s.move('a', 'up');
     s.sync([human('a', 0)]);
-    expect(s.pick('a')?.character).toBe('milk');
+    expect(s.pick('a')?.character).toBe('banana');
   });
 
   it('unready() puts every person back to choosing (a new lobby), keeping what they hovered', () => {

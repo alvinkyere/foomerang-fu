@@ -3,23 +3,111 @@
    #a9a39e. Six circles where the video has four (we seat six), so they are 15rem, not 19.7rem. */
 
 .cs {
-  --cs-paper: #f8f4ee;
+  /* the owner's spec (2026-10-19): paper, ink, muted, coral; the rest measured from the video */
+  --cs-paper: #f4f2ee;
+  --cs-ink: #3a3a3a;
+  --cs-faint: #8e8e8e;
+  --cs-coral: #ef3e36;
   --cs-tile: #dbd9d7;
   --cs-ring: #d6d2cd;
   --cs-band: #ece6de;
-  --cs-ink: #6e6965;
-  --cs-faint: #a9a39e;
   --cs-go: #7cc142;
-  --cs-stop: #e8484b;
+  --cs-stop: var(--cs-coral);
   position: fixed;
   inset: 0;
   z-index: 5;
   overflow: hidden;
   color: var(--cs-ink);
-  background: radial-gradient(120% 120% at 50% 45%, var(--cs-paper) 60%, #e9e5e0 100%);
+  background: radial-gradient(120% 120% at 50% 45%, var(--cs-paper) 60%, #e7e4df 100%);
   font-family: var(--font);
   font-weight: 800;
   color-scheme: light;
+}
+
+/* ---- the divider while people choose (replaced by the begin bar once nobody is) -------------------------------- */
+.cs__divider {
+  position: absolute;
+  top: 35.5rem;
+  right: 6rem;
+  left: 6rem;
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  margin: 0;
+  color: var(--cs-ink);
+  font-size: 3.2rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.cs__divider::before,
+.cs__divider::after {
+  flex: 1;
+  height: 0.25rem;
+  border-radius: 0.2rem;
+  background: #d9d5cf;
+  content: '';
+}
+
+/* ---- coming soon: no model yet ------------------------------------------------------------------------------------ */
+.cs__soon {
+  display: grid;
+  place-items: center;
+  color: var(--cs-faint);
+  line-height: 1;
+}
+.cs__soon-mark {
+  font-size: 3rem;
+  font-weight: 900;
+  opacity: 0.6;
+}
+.cs__soon-text {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+.cs__soon--big .cs__soon-mark {
+  font-size: 7rem;
+}
+.cs__soon--big .cs__soon-text {
+  font-size: 1.6rem;
+}
+.cs__tile[data-soon] {
+  background: #e6e4e1;
+}
+
+/* ---- corners: the video's frame marks ------------------------------------------------------------------------------ */
+.cs__corner {
+  position: absolute;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0 solid rgb(58 58 58 / 0.22);
+}
+.cs__corner--tl {
+  top: 1.8rem;
+  left: 1.8rem;
+  border-top-width: 0.35rem;
+  border-left-width: 0.35rem;
+  border-top-left-radius: 0.6rem;
+}
+.cs__corner--tr {
+  top: 1.8rem;
+  right: 1.8rem;
+  border-top-width: 0.35rem;
+  border-right-width: 0.35rem;
+  border-top-right-radius: 0.6rem;
+}
+.cs__corner--bl {
+  bottom: 1.8rem;
+  left: 1.8rem;
+  border-bottom-width: 0.35rem;
+  border-left-width: 0.35rem;
+  border-bottom-left-radius: 0.6rem;
+}
+.cs__corner--br {
+  right: 1.8rem;
+  bottom: 1.8rem;
+  border-right-width: 0.35rem;
+  border-bottom-width: 0.35rem;
+  border-bottom-right-radius: 0.6rem;
 }
 
 /* ---- notices (above the circles, only when there is something to say) ------------------------------------------- */
@@ -75,10 +163,18 @@
 }
 .cs__seat[data-ready] .cs__circle {
   border-color: transparent;
-  /* the video's ready fill is painted, not a perfect disc */
-  border-radius: 49% 51% 47% 53% / 52% 47% 53% 48%;
-  background: var(--tint);
+}
+.cs__scallop {
+  position: absolute;
+  inset: -0.35rem;
+  width: calc(100% + 0.7rem);
+  height: calc(100% + 0.7rem);
+  fill: var(--tint);
   animation: cs-fill 220ms ease-out;
+}
+.cs__portrait,
+.cs__soon--big {
+  position: relative;
 }
 .cs__portrait {
   width: 12rem;

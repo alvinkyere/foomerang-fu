@@ -20,23 +20,23 @@ test('phones pick their characters on the TV, get READY, begin from a phone, and
     host.page.getByRole('listitem', { name: new RegExp(`^Player ${n}:`) });
 
   // two people moving at the same moment: neither cancels the other
-  await Promise.all([alice.flick('up'), bob.flick('right')]); // bread → milk; coffee → ice cream
-  await expect(tile('Milk')).toHaveAccessibleName('Milk: P1');
+  await Promise.all([alice.flick('up'), bob.flick('right')]); // bread → banana; coffee → ice cream
+  await expect(tile('Banana')).toHaveAccessibleName('Banana: P1');
   await expect(tile('Ice Cream')).toHaveAccessibleName('Ice Cream: P2');
 
   await alice.ready();
-  await expect(circle(1)).toHaveAccessibleName('Player 1: Alice, Milk, ready');
-  // Bob walks onto Alice's milk: he may look, but not take it
-  await bob.flick('up');
-  await bob.flick('right');
-  await expect(tile('Milk')).toHaveAccessibleName('Milk: P1 ready, P2');
+  await expect(circle(1)).toHaveAccessibleName('Player 1: Alice, Banana, ready');
+  // Bob walks onto Alice's banana: he may look, but not take it
+  await bob.flick('up'); // ice cream → avocado
+  await bob.flick('right'); // → banana
+  await expect(tile('Banana')).toHaveAccessibleName('Banana: P1 ready, P2');
   await bob.ready();
-  await expect(circle(2)).toHaveAccessibleName('Player 2: Bob, Milk, choosing');
+  await expect(circle(2)).toHaveAccessibleName('Player 2: Bob, Banana, choosing');
   await expect(host.startButton).toHaveCount(0); // somebody is still choosing: no begin bar
 
-  await bob.flick('right'); // watermelon
+  await bob.flick('right'); // milk
   await bob.ready();
-  await expect(circle(2)).toHaveAccessibleName('Player 2: Bob, Watermelon, ready');
+  await expect(circle(2)).toHaveAccessibleName('Player 2: Bob, Milk, ready');
   await expect(host.startButton).toBeVisible();
 
   await bob.ready(); // everyone is READY: a ready player's SELECT begins
@@ -45,7 +45,7 @@ test('phones pick their characters on the TV, get READY, begin from a phone, and
   const bobId = await host.playerId('Bob');
   await expect
     .poll(async () => (await host.snapshot()).drawnCharacters, { timeout: 15_000 })
-    .toEqual({ [aliceId]: 'milk', [bobId]: 'watermelon' });
+    .toEqual({ [aliceId]: 'banana', [bobId]: 'milk' });
 });
 
 test('the TV can always add bots once every person is ready, and a phone’s BACK never closes the room', async ({

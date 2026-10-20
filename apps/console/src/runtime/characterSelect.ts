@@ -6,10 +6,18 @@ import type { PackCharacter } from '../render/reconstructed/maps';
  * is their character's colour, so two of one would be indistinguishable). CPUs are always ready, on a free character. Pure:
  * the host feeds it participants and each phone's menu actions; nothing here knows about screens or the network.
  */
-export const SELECT_GRID: readonly (readonly PackCharacter[])[] = Object.freeze([
-  Object.freeze(['avocado', 'banana', 'milk', 'watermelon', 'donut'] as const),
-  Object.freeze(['coffee', 'icecream', 'bread', 'bacon', 'carrot'] as const),
+/** Every character on the select grid: the pack characters, and the two the video has that we have no model for yet. */
+export type SelectCharacter = PackCharacter | 'eggplant' | 'sushi';
+
+/** The video's grid, two rows of six, in its order. */
+export const SELECT_GRID: readonly (readonly SelectCharacter[])[] = Object.freeze([
+  Object.freeze(['eggplant', 'avocado', 'banana', 'milk', 'watermelon', 'donut'] as const),
+  Object.freeze(['coffee', 'icecream', 'bread', 'bacon', 'carrot', 'sushi'] as const),
 ]);
+
+/** Coming soon: shown on the grid (and a cursor may visit them), never chosen, until they have a model. */
+const COMING_SOON: ReadonlySet<SelectCharacter> = new Set(['eggplant', 'sushi']);
+export const isPlayable = (c: SelectCharacter): c is PackCharacter => !COMING_SOON.has(c);
 
 /** The character each seat had before anyone could choose (the market plaza's roster): where a new cursor starts. */
 const SEAT_DEFAULT: readonly PackCharacter[] = [
@@ -21,7 +29,7 @@ const SEAT_DEFAULT: readonly PackCharacter[] = [
   'carrot',
 ];
 
-const ALL: readonly PackCharacter[] = SELECT_GRID.flat();
+const PLAYABLE: readonly PackCharacter[] = SELECT_GRID.flat().filter(isPlayable);
 
 export interface SelectParticipant {
   readonly id: string;
@@ -31,14 +39,15 @@ export interface SelectParticipant {
 }
 
 export interface Pick {
-  readonly character: PackCharacter;
+  /** Under their cursor; once READY, always a playable character. */
+  readonly character: SelectCharacter;
   readonly ready: boolean;
 }
 
 export type SelectDirection = 'up' | 'down' | 'left' | 'right';
 
 /** What a SELECT did: readied them, was refused (someone is ready on it), asked to begin (everyone is ready), or nothing. */
-export type SelectResult = 'READY' | 'TAKEN' | 'BEGIN' | 'NONE';
+export type SelectResult = 'READY' | 'TAKEN' | 'COMING_SOON' | 'BEGIN' | 'NONE';
 
 interface Cursor {
   row: number;
@@ -47,15 +56,15 @@ interface Cursor {
   readonly cpu: boolean;
 }
 
-const at = (character: PackCharacter): { row: number; col: number } => {
+const at = (character: SelectCharacter): { row: number; col: number } => {
   for (let row = 0; row < SELECT_GRID.length; row += 1) {
-    const col = (SELECT_GRID[row] as readonly PackCharacter[]).indexOf(character);
+    const col = (SELECT_GRID[row] as readonly SelectCharacter[]).indexOf(character);
     if (col >= 0) return { row, col };
   }
   return { row: 0, col: 0 };
 };
-const characterAt = (c: Cursor): PackCharacter =>
-  (SELECT_GRID[c.row] as readonly PackCharacter[])[c.col] as PackCharacter;
+const characterAt = (c: Cursor): SelectCharacter =>
+  (SELECT_GRID[c.row] as readonly SelectCharacter[])[c.col] as SelectCharacter;
 
 export class CharacterSelect {
   readonly #cursors = new Map<string, Cursor>();
@@ -80,7 +89,9 @@ export class CharacterSelect {
       if (this.#cursors.has(p.id)) continue;
       const wanted = SEAT_DEFAULT[p.slot % SEAT_DEFAULT.length] as PackCharacter;
       // a CPU takes a free character at once; a person may hover anything
-      const start = p.cpu ? ([wanted, ...ALL].find((c) => !this.isTaken(c)) ?? wanted) : wanted;
+      const start = p.cpu
+        ? ([wanted, ...PLAYABLE].find((c) => !this.isTaken(c)) ?? wanted)
+        : wanted;
       this.#cursors.set(p.id, { ...at(start), ready: p.cpu, cpu: p.cpu });
       changed = true;
     }
@@ -100,7 +111,7 @@ export class CharacterSelect {
   }
 
   /** Someone is ready on it. */
-  isTaken(character: PackCharacter, except?: string): boolean {
+  isTaken(character: SelectCharacter, except?: string): boolean {
     for (const [id, c] of this.#cursors)
       if (id !== except && c.ready && characterAt(c) === character) return true;
     return false;
@@ -119,7 +130,7 @@ export class CharacterSelect {
     const row = c.row + (direction === 'down' ? 1 : direction === 'up' ? -1 : 0);
     const col = c.col + (direction === 'right' ? 1 : direction === 'left' ? -1 : 0);
     if (row < 0 || row >= SELECT_GRID.length) return;
-    if (col < 0 || col >= (SELECT_GRID[row] as readonly PackCharacter[]).length) return;
+    if (col < 0 || col >= (SELECT_GRID[row] as readonly SelectCharacter[]).length) return;
     c.row = row;
     c.col = col;
     this.#emit();
@@ -129,6 +140,7 @@ export class CharacterSelect {
     const c = this.#cursors.get(id);
     if (c === undefined || c.cpu) return 'NONE';
     if (c.ready) return this.allReady ? 'BEGIN' : 'NONE';
+    if (!isPlayable(characterAt(c))) return 'COMING_SOON';
     if (this.isTaken(characterAt(c), id)) return 'TAKEN';
     c.ready = true;
     this.#emit();

@@ -69,9 +69,11 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await alice.tap('BACK');
   await tv.waitForTimeout(200);
   await expect(tv.getByRole('dialog', { name: 'Close this room?' })).toHaveCount(0);
-  await alice.flick('up'); // bread → milk
+  await alice.flick('up'); // bread → banana
   await alice.ready();
-  await expect(tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, ready$/ })).toBeVisible();
+  await expect(
+    tv.getByRole('listitem', { name: /^Player 1: Alice, Banana, ready$/ }),
+  ).toBeVisible();
 
   // Everyone (just Alice) is READY: her ▶ adds a CPU opponent and her SELECT begins the match.
   await alice.flick('right');
@@ -127,9 +129,11 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await expect(tv.getByTestId('room-code')).toHaveText(code);
   await expect(pad.getByRole('group', { name: /navigate/i })).toBeVisible();
   await expect(
-    tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, choosing$/ }),
+    tv.getByRole('listitem', { name: /^Player 1: Alice, Banana, choosing$/ }),
   ).toBeVisible();
   await alice.ready();
-  await expect(tv.getByRole('listitem', { name: /^Player 1: Alice, Milk, ready$/ })).toBeVisible();
+  await expect(
+    tv.getByRole('listitem', { name: /^Player 1: Alice, Banana, ready$/ }),
+  ).toBeVisible();
   await expect(tv.getByTestId('room-code')).toHaveText(code);
 });

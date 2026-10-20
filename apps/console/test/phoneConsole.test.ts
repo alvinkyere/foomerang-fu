@@ -84,10 +84,10 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
   it('a phone’s stick moves its own cursor and SLASH readies it; the shared focus hears nothing', async () => {
     const r = await room('foomerang-fu');
     await r.enter('LOBBY');
-    await r.move('a', 0, -1); // up: bread → milk
+    await r.move('a', 0, -1); // up: bread → banana
     await r.move('b', 1, 0); // right, at the same moment: coffee → icecream
     await r.press('a', 'PRIMARY');
-    expect(r.runtime.director.picks.pick('a')).toEqual({ character: 'milk', ready: true });
+    expect(r.runtime.director.picks.pick('a')).toEqual({ character: 'banana', ready: true });
     expect(r.runtime.director.picks.pick('b')).toEqual({ character: 'icecream', ready: false });
     expect(r.menu).toEqual([]);
   });

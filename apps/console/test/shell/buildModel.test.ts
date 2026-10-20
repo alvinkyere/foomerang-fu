@@ -202,13 +202,13 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
     expect(empty?.character).toBeUndefined();
   });
 
-  it('the grid is the 10 characters in the video’s order, with every cursor on its tile in seat order', () => {
+  it('the grid is the video’s 12 characters in its order, with every cursor on its tile in seat order', () => {
     const grid = lobby()?.grid ?? [];
     expect(grid.map((row) => row.map((t) => t.character.id))).toEqual([
-      ['avocado', 'banana', 'milk', 'watermelon', 'donut'],
-      ['coffee', 'icecream', 'bread', 'bacon', 'carrot'],
+      ['eggplant', 'avocado', 'banana', 'milk', 'watermelon', 'donut'],
+      ['coffee', 'icecream', 'bread', 'bacon', 'carrot', 'sushi'],
     ]);
-    expect(grid[0]?.[2]?.cursors).toEqual([
+    expect(grid[0]?.[3]?.cursors).toEqual([
       { number: 1, color: '#5597de', ready: true },
       { number: 2, color: '#5597de', ready: false },
     ]);
@@ -263,6 +263,18 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
     expect(select('donut')?.tint).toBe('#ffc4d3');
     expect(select('coffee')?.tint).toBe('#fbf9f3');
     expect(select('milk')?.tint).toBe('#bddcfc');
+  });
+
+  it('the eggplant and the sushi are on the grid as coming soon, in the video’s colours, with no portrait', () => {
+    const grid = lobby()?.grid ?? [];
+    const tiles = grid.flat().map((t) => t.character);
+    expect(
+      tiles.filter((c) => c.comingSoon === true).map((c) => [c.id, c.color, c.portrait]),
+    ).toEqual([
+      ['eggplant', '#8771de', ''],
+      ['sushi', '#707773', ''],
+    ]);
+    expect(tiles.find((c) => c.id === 'milk')?.comingSoon).toBeUndefined();
   });
 
   it('other games have no character select', () => {
