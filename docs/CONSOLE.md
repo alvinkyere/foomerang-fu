@@ -19,6 +19,8 @@ The root route IS the console shell (`src/shell/`, see [SHELL.md](SHELL.md)); th
 
 **Between rounds, the scoreboard** (owner, 2026-10-19, `ff scoreboard.jpg`; `src/ui/Scoreboard.tsx`): after a round's 2.5 s end beat the match WAITS (rules: `roundAdvance: 'ON_CONTINUE'`, `continueRound`), showing one band per player in seat order (P1… or BOT, the character's portrait, a dot per kill to win, filled per kill, the leader crowned). The phones' context is RESULTS there, so any phone's SELECT (or the TV) presses CONTINUE. Band colours are the image's for the six characters it shows, else its rule (`src/characters/videoPalette.ts`). CPU-only matches need the TV to continue (e2e: `host.autoContinue()`).
 
+**At the end of the match, the results** (owner, 2026-10-19, `foomerang fu results.jpg`; `src/ui/Results.tsx`): "<CHARACTER> WINS!", a column per player in seat order (their character in a soft circle in the image's results colour, a ribbon with their placing: ties share it, 1 2 2 2 5), the winner on a panel of their colour darkened and crowned, REMATCH / BACK TO MENU (BACK TO MENU = character select). Award pills are a later slice. The scoreboard and the results load as their own chunks (prefetched when the arena opens); the bundle check counts a lazy chunk's stylesheet as lazy (2026-10-20).
+
 The **primitive arena** (circles that follow thumbs) is platform **test infrastructure**: it is reachable only by asking for it by exact name in the address (`/?game=primitive-arena`, PLAY then creates that game), is used by the platform's browser tests, and is never offered in the UI.
 
 ## Who owns what

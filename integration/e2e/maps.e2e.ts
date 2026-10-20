@@ -26,7 +26,7 @@ test('only the market plaza, every match: start, rematch, and a new match from t
   await onThePlaza();
 
   await matchOver();
-  await host.page.getByRole('button', { name: 'Return to lobby' }).click();
+  await host.page.getByRole('button', { name: 'BACK TO MENU' }).click();
   await expect(host.startButton).toBeVisible();
   await host.start();
   await onThePlaza();

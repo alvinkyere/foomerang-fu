@@ -40,7 +40,10 @@ for (const file of readdirSync(assetsDir)) {
   const isCss = file.endsWith('.css');
   if (!isJs && !isCss) continue;
   const initial = referenced.has(file);
-  const key = isCss ? 'initialCss' : initial ? 'initialJs' : 'lazyJs';
+  // As the header says: INITIAL is what index.html loads, LAZY everything fetched later. A stylesheet of a lazy chunk
+  // (the scoreboard, the results) is fetched later with it, so it is lazy; until 2026-10-20 every CSS file was counted as
+  // initial, which over-stated the first download.
+  const key = initial ? (isCss ? 'initialCss' : 'initialJs') : 'lazyJs';
   totals[key] += gz;
   files.push(
     `${initial ? 'initial' : 'lazy   '} ${(gz / 1000).toFixed(1).padStart(7)} kB gzip  ${file}`,

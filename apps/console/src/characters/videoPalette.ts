@@ -114,6 +114,35 @@ export const scoreboardColours = (id: SelectCharacter): ScoreboardColours => {
   };
 };
 
+/** A character's name, as the menus write it. */
+export const characterName = (id: SelectCharacter): string => NAMES[id];
+
+/**
+ * The end-of-match results ("foomerang fu results.jpg"): each column's colour (its award pills and placing ribbon; the
+ * portrait's circle is the same, translucent). Measured for the five characters the image shows (medians over each pill);
+ * the rest by the rule those follow from the video badge: the badge's hue, saturation ×0.92, value 0.98.
+ */
+const MEASURED_RESULTS: Partial<Record<SelectCharacter, string>> = {
+  bread: '#f6c76a',
+  donut: '#f684af',
+  milk: '#77bafc',
+  sushi: '#d5f5ea',
+  watermelon: '#e63954',
+};
+export const resultsColour = (id: SelectCharacter): string => {
+  const measured = MEASURED_RESULTS[id];
+  if (measured !== undefined) return measured;
+  const [h, s] = toHsv(BADGE[id]);
+  return fromHsv(h, Math.min(1, s * 0.92), 0.98);
+};
+
+/** The winner's panel on the results: their results colour darkened as the image darkens the watermelon's. */
+export const resultsPanel = (id: SelectCharacter): string => {
+  if (id === 'watermelon') return '#a0263b'; // measured
+  const [h, s, v] = toHsv(resultsColour(id));
+  return fromHsv(h, Math.min(1, s * 1.05), v * 0.63);
+};
+
 export const characterView = (id: SelectCharacter): CharacterView => ({
   id,
   name: NAMES[id],

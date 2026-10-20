@@ -102,7 +102,7 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins and gets READ
 
   // The match runs to its end (two kills here) and the champion screen is the arena's own.
   await expect(page.getByRole('dialog', { name: 'Match over' })).toBeVisible({ timeout: 150_000 });
-  await page.getByRole('button', { name: 'Return to lobby' }).click();
+  await page.getByRole('button', { name: 'BACK TO MENU' }).click();
 
   // The shell is back, on character select, with the same room and the same people (Alice choosing again).
   await expect(codeEl).toHaveText(code);

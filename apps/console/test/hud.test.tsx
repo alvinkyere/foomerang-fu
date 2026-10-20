@@ -6,12 +6,11 @@ import {
   type FuState,
 } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { buildFuView } from '../src/render/fuView';
 import { SLOT_STYLES, SlotAllocator } from '../src/runtime/slots';
-import { FocusManager } from '../src/shell/focus/FocusManager';
-import { ChampionScreen, Meter, ScoreStrip, scoreToast } from '../src/ui/Hud';
+import { Meter, ScoreStrip, scoreToast } from '../src/ui/Hud';
 
 // The race is the rules' fact; the HUD only draws it. These tests read the view the HUD is built from, and the HUD.
 
@@ -161,39 +160,5 @@ describe('the kill meter', () => {
     const drained = container.querySelectorAll('.hole.drain');
     expect(drained).toHaveLength(1);
     expect(drained[0]?.textContent).toBe('○');
-  });
-});
-
-describe('the champion screen', () => {
-  it('the champion screen names the champion, shows the final meters, and offers REMATCH or RETURN TO LOBBY', () => {
-    const hud = hudOf(
-      match({
-        phase: 'MATCH_OVER',
-        matchOver: { winnerId: 'b' },
-        scores: { a: 12, b: 14, 'cpu:1': 4 },
-      }),
-    );
-    const rematch = vi.fn();
-    const lobby = vi.fn();
-    render(
-      <FocusManager>
-        <ChampionScreen hud={hud} waiting={['Cleo']} onRematch={rematch} onLobby={lobby} />
-      </FocusManager>,
-    );
-    // operable without a mouse: focus starts on Rematch (a phone's SELECT, Enter, A)
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Rematch' }));
-    expect(screen.getByRole('dialog', { name: 'Match over' }).textContent).toContain(
-      'BEA WINS THE MATCH',
-    );
-    expect(screen.getAllByRole('img').map((m) => m.getAttribute('aria-label'))).toEqual([
-      'Bea: 14 of 14 kills',
-      'Alvin: 12 of 14 kills',
-      'CPU 1: 4 of 14 kills',
-    ]);
-    expect(screen.getByText(/Waiting for the next match: Cleo/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Rematch' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Return to lobby' }));
-    expect(rematch).toHaveBeenCalledOnce();
-    expect(lobby).toHaveBeenCalledOnce();
   });
 });

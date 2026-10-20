@@ -58,9 +58,9 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   expect(over.phase).toBe('MATCH_OVER');
   const winner = over.matchOver?.winnerId ?? '';
   expect(over.scores[winner]).toBeGreaterThanOrEqual(3);
-  await expect(host.page.getByRole('dialog', { name: 'Match over' })).toContainText(
-    'WINS THE MATCH',
-  );
+  await expect(
+    host.page.getByRole('dialog', { name: 'Match over' }).getByRole('heading', { name: / WINS!$/ }),
+  ).toBeVisible();
   const frozen = JSON.stringify((await host.fu()).scores);
   await host.page.waitForTimeout(1_500);
   expect(JSON.stringify((await host.fu()).scores)).toBe(frozen); // nothing is scored after the win
@@ -77,7 +77,7 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   await expect(host.page.getByRole('dialog', { name: 'Match over' })).toBeVisible({
     timeout: 120_000,
   });
-  await host.page.getByRole('button', { name: 'Return to lobby' }).click();
+  await host.page.getByRole('button', { name: 'BACK TO MENU' }).click();
   await expect(host.startButton).toBeVisible();
   await expect(host.page.getByTestId('room-code')).toBeVisible(); // the shell is back, on Join, in the same room
   expect((await host.snapshot()).roomState).toBe('LOBBY');

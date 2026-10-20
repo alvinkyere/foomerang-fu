@@ -1,0 +1,182 @@
+/* The end-of-match results, measured from "foomerang fu results.jpg" (1280×720). --u is 1% of the game frame's width (the
+   frame is 56.25u tall). Title centred at 9% of the height, #e33b54; columns 17.2% apart (fewer fit six by narrowing),
+   portrait circles 13.7% wide centred at 32% of the height; the winner's crimson panel (#a0263b) 15.6% wide from 18.5% to
+   72% of the height; REMATCH (a white pill when focused) and BACK TO MENU at 81% and 89% of the height, right-aligned at
+   93% of the width; the arena behind dimmed grey (#525b5b in the image). */
+
+.rs {
+  --u: min(1vw, 1.7778vh);
+  --col: min(calc(17.2 * var(--u)), calc(94 * var(--u) / var(--n)));
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(52 60 60 / 0.7);
+  font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, sans-serif;
+  font-weight: 900;
+  animation: rs-in 300ms ease-out;
+}
+.rs__title {
+  position: absolute;
+  top: calc(50% - 28.125 * var(--u) + 1.6 * var(--u));
+  left: 0;
+  right: 0;
+  margin: 0;
+  color: #e33b54;
+  font-size: calc(5.6 * var(--u));
+  letter-spacing: -0.01em;
+  text-align: center;
+  animation: rs-title 420ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.rs__columns {
+  position: absolute;
+  top: calc(50% - 28.125 * var(--u) + 10.4 * var(--u));
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--col));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateX(-50%);
+}
+.rs__column {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  height: calc(30.2 * var(--u));
+  padding-top: calc(0.8 * var(--u));
+  animation: rs-col 360ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.rs__column:nth-child(2) {
+  animation-delay: 60ms;
+}
+.rs__column:nth-child(3) {
+  animation-delay: 120ms;
+}
+.rs__column:nth-child(4) {
+  animation-delay: 180ms;
+}
+.rs__column:nth-child(5) {
+  animation-delay: 240ms;
+}
+.rs__column:nth-child(6) {
+  animation-delay: 300ms;
+}
+.rs__column[data-winner]::before {
+  position: absolute;
+  inset: 0 calc((var(--col) - min(var(--col), 15.6 * var(--u))) / 2);
+  border-radius: calc(0.3 * var(--u));
+  background: var(--panel);
+  content: '';
+}
+.rs__circle {
+  position: relative;
+  display: grid;
+  width: min(calc(13.7 * var(--u)), calc(var(--col) * 0.8));
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 49% 51% 48% 52% / 51% 48% 52% 49%;
+  background: color-mix(in srgb, var(--c) 48%, transparent);
+}
+.rs__column[data-winner] .rs__circle {
+  background: color-mix(in srgb, var(--c) 72%, transparent);
+}
+.rs__circle img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+.rs__headcrown {
+  position: absolute;
+  top: 2%;
+  left: 50%;
+  color: #f2c94c;
+  font-size: calc(3 * var(--u));
+  line-height: 1;
+  text-shadow: 0 0.15em 0 #c99a1e;
+  transform: translateX(-50%);
+}
+.rs__ribbon {
+  position: absolute;
+  top: calc(1.2 * var(--u));
+  right: calc((var(--col) - min(13.7 * var(--u), var(--col) * 0.8)) / 2 - 0.4 * var(--u));
+  display: grid;
+  width: calc(2.1 * var(--u));
+  height: calc(3.1 * var(--u));
+  padding-bottom: calc(0.5 * var(--u));
+  place-items: center;
+  color: #2b2b2b;
+  background: var(--c);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  font-size: calc(1.5 * var(--u));
+}
+.rs__crown {
+  position: absolute;
+  top: calc(1.3 * var(--u));
+  right: calc((var(--col) - min(15.6 * var(--u), var(--col))) / 2 + 0.8 * var(--u));
+  display: grid;
+  width: calc(3.5 * var(--u));
+  height: calc(3.5 * var(--u));
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #fcd561;
+  font-size: calc(2 * var(--u));
+  line-height: 1;
+}
+.rs__waiting {
+  position: absolute;
+  bottom: calc(50% - 28.125 * var(--u) + 2 * var(--u));
+  left: calc(50% - 50 * var(--u) + 4 * var(--u));
+  margin: 0;
+  color: #fff;
+  font-size: calc(1.4 * var(--u));
+  font-weight: 700;
+}
+.rs__actions {
+  position: absolute;
+  top: calc(50% - 28.125 * var(--u) + 43.4 * var(--u));
+  right: calc(50% - 50 * var(--u) + 6.9 * var(--u));
+  display: grid;
+  justify-items: end;
+  row-gap: calc(0.9 * var(--u));
+}
+.rs__action {
+  padding: calc(0.35 * var(--u)) calc(1.2 * var(--u));
+  border: 0;
+  border-radius: calc(0.4 * var(--u));
+  color: #faf8f3;
+  background: transparent;
+  font: inherit;
+  font-size: calc(2.8 * var(--u));
+  cursor: pointer;
+}
+.rs__action:focus,
+.rs__action:focus-visible {
+  outline: none;
+  color: #62605f;
+  background: #fefdf9;
+}
+
+@keyframes rs-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rs-title {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+@keyframes rs-col {
+  from {
+    opacity: 0;
+    transform: translateY(calc(2 * var(--u)));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs,
+  .rs * {
+    animation: none !important;
+  }
+}

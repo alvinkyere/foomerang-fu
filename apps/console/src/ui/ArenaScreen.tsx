@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import type { ArenaRenderer, ArenaRendererLoader } from '../render/renderer';
 import { FrameLoop } from '../runtime/frameLoop';
@@ -8,8 +8,16 @@ import { PauseMenu } from '../shell/screens/PauseMenu';
 import '../shell/tokens.css';
 import '../shell/components.css';
 import { DebugOverlay } from './DebugOverlay';
-import { ChampionScreen, ScoreStrip, ScoreToasts, type Pulse } from './Hud';
-import { Scoreboard } from './Scoreboard';
+import { ScoreStrip, ScoreToasts, type Pulse } from './Hud';
+
+/**
+ * The scoreboard between rounds and the results at the end are fetched apart from the first download (its budget): the
+ * arena asks for them as soon as it opens, long before the first round can end.
+ */
+const loadScoreboard = () => import('./Scoreboard');
+const loadResults = () => import('./Results');
+const Scoreboard = lazy(() => loadScoreboard().then((m) => ({ default: m.Scoreboard })));
+const ResultsScreen = lazy(() => loadResults().then((m) => ({ default: m.ResultsScreen })));
 import { addScoreToasts, type ScoreToastState } from './scoreToasts';
 import { useHostState } from './useStore';
 
@@ -54,6 +62,12 @@ export function ArenaScreen({
   const context = useSyncExternalStore(runtime.subscribeContext, runtime.context);
   // The map of THIS match: a rematch on a rotating console is on another map, so the renderer is swapped.
   const arena = useSyncExternalStore(runtime.subscribeArena, runtime.arena);
+
+  // fetch the between-rounds and end-of-match screens now, so they are there the moment they are needed
+  useEffect(() => {
+    void loadScoreboard().catch(() => undefined);
+    void loadResults().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -154,21 +168,27 @@ export function ArenaScreen({
           {null}
         </FocusScope>
         {/* the scoreboard stands alone over the arena, as in the reference */}
-        {hud !== undefined && hud.phase !== 'SCOREBOARD' && (
+        {hud !== undefined && hud.phase !== 'SCOREBOARD' && hud.phase !== 'MATCH_OVER' && (
           <ScoreStrip hud={hud} pulses={pulses} />
         )}
         <div ref={containerRef} className="arena" data-testid="arena" />
-        {hud?.phase !== 'SCOREBOARD' && <ScoreToasts toasts={toasts} />}
+        {hud?.phase !== 'SCOREBOARD' && hud?.phase !== 'MATCH_OVER' && (
+          <ScoreToasts toasts={toasts} />
+        )}
         {hud?.phase === 'SCOREBOARD' && (
-          <Scoreboard hud={hud} onContinue={() => runtime.continueRound()} />
+          <Suspense fallback={null}>
+            <Scoreboard hud={hud} onContinue={() => runtime.continueRound()} />
+          </Suspense>
         )}
         {hud?.phase === 'MATCH_OVER' && (
-          <ChampionScreen
-            hud={hud}
-            waiting={waiting}
-            onRematch={() => runtime.rematch()}
-            onLobby={() => runtime.returnToLobby()}
-          />
+          <Suspense fallback={null}>
+            <ResultsScreen
+              hud={hud}
+              waiting={waiting}
+              onRematch={() => runtime.rematch()}
+              onLobby={() => runtime.returnToLobby()}
+            />
+          </Suspense>
         )}
         {hud !== undefined && hud.phase !== 'MATCH_OVER' && waiting.length > 0 && (
           <p className="muted waiting">Waiting for the next match: {waiting.join(', ')}</p>
