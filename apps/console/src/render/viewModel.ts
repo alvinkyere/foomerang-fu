@@ -232,8 +232,10 @@ export interface ArenaView {
   /** The ids of the arena's breakable props broken this round (none at a round's start). */
   readonly broken: readonly string[];
   readonly events: readonly ViewEvent[];
-  /** Text to show big while a round is over. */
+  /** Text to show big: while a round is over, and READY / GO at a round's start (render/roundIntro.ts). */
   readonly banner: string | undefined;
+  /** A round's intro (READY … GO, the rules holding everyone still): seconds into it, and who lands in what order. */
+  readonly intro?: { readonly elapsed: number; readonly order: readonly string[] };
   readonly round: number | undefined;
   /** The kill race (Free For All); absent for the primitive arena. */
   readonly hud?: HudView;

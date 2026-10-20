@@ -13,6 +13,7 @@ import {
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
 import { CALL_AURA, auraPulse } from '../callAura';
+import { landingPose, type LandingPose } from '../roundIntro';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
 import { PickupBadges } from './pickupBadges';
@@ -98,6 +99,8 @@ class Character {
   readonly sprite: THREE.Sprite;
   /** Calling a boomerang home: the same flashing aura on each hand (owner, 2026-10-19; render/callAura.ts). */
   readonly #hands: THREE.Mesh[];
+  /** A round's start: the white ring spreading from its feet as it lands (render/roundIntro.ts). */
+  readonly #landRing: THREE.Mesh;
   #callingAt: number | undefined;
   readonly #ring: THREE.Mesh;
   readonly #shadow: THREE.Mesh;
@@ -176,7 +179,17 @@ class Character {
       hand.visible = false;
       return hand;
     });
-    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow, ...this.#hands);
+    this.#landRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: '#ffffff',
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      }),
+    );
+    this.#landRing.visible = false;
+    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow, this.#landRing, ...this.#hands);
     this.#aim = new AimLine(scene);
   }
 
@@ -187,6 +200,8 @@ class Character {
     scale: number,
     c: CircleView,
     now: number,
+    /** A round's start: where it is in its landing (render/roundIntro.ts); undefined once play is on. */
+    landing?: LandingPose,
   ): void {
     this.logical = { x: c.x, y: c.y };
     const g = space.toScene(c.x, c.y);
@@ -237,6 +252,33 @@ class Character {
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
     this.#handAura(c, cam, at, h, now);
+    this.#land(landing, at, h);
+  }
+
+  /** A round's start (the reference video, 0:31.4–0:32.8): not there before its jump, two somersaults in the air, a crouch
+   * and a white ring spreading from its feet as it lands. */
+  #land(pose: LandingPose | undefined, feet: THREE.Vector3, h: number): void {
+    const material = this.sprite.material as THREE.SpriteMaterial;
+    material.rotation = pose?.turn ?? 0;
+    const ring = this.#landRing.material as THREE.MeshBasicMaterial;
+    if (pose === undefined) {
+      this.#landRing.visible = false;
+      return;
+    }
+    const body = h * BODY_OF_CELL;
+    if (!pose.visible) {
+      material.opacity = 0;
+      (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0;
+      (this.#ring.material as THREE.MeshBasicMaterial).opacity = 0;
+    }
+    this.sprite.position.y += pose.lift * body;
+    this.sprite.scale.set(h, h * pose.squash, 1);
+    this.#landRing.visible = pose.ring !== undefined;
+    if (pose.ring !== undefined) {
+      this.#landRing.position.set(feet.x, 0.1, feet.z);
+      this.#landRing.scale.setScalar(pose.ring.radius * body);
+      ring.opacity = 0.9 * pose.ring.opacity;
+    }
   }
 
   /** The aura on both hands while calling: at the body's sides, about a third of its height up, facing the camera. */
@@ -312,7 +354,14 @@ class Character {
   }
 
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.sprite, this.#ring, this.#shadow, this.#arrow, ...this.#hands);
+    scene.remove(
+      this.sprite,
+      this.#ring,
+      this.#shadow,
+      this.#arrow,
+      this.#landRing,
+      ...this.#hands,
+    );
     this.#aim.destroy(scene);
     this.#texture.dispose();
   }
@@ -746,7 +795,16 @@ class Plaza {
         this.#characters.set(c.id, ch);
         this.#kinds.set(c.id, kind);
       }
-      ch.update(this.#space, this.camera, this.config, scale, c, now);
+      const order = view.intro?.order.indexOf(c.id) ?? -1;
+      ch.update(
+        this.#space,
+        this.camera,
+        this.config,
+        scale,
+        c,
+        now,
+        view.intro === undefined || order < 0 ? undefined : landingPose(view.intro.elapsed, order),
+      );
       this.#circles.push({ id: c.id, x: c.x, y: c.y });
     }
     // back alive (a new round): their remains go

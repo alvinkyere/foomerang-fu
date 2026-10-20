@@ -12,6 +12,7 @@ import { PLAYABLE_ARENAS, choiceOf } from '../runtime/arenas';
 import { isCpuId } from '../runtime/cpuRoster';
 import type { ArenaChoice } from '../runtime/powerupMode';
 import type { PackCharacter } from './reconstructed/maps';
+import { introBanner } from './roundIntro';
 import { SLOT_STYLES, type SlotAllocator } from '../runtime/slots';
 import {
   identityOf,
@@ -292,10 +293,20 @@ export function buildFuView(
         return []; // shown as the banner, which comes from the state
       case 'SCOREBOARD':
         return []; // the scoreboard comes from the state (the HUD's phase)
+      case 'GO':
+        return []; // GO is the banner, which comes from the state
     }
   });
 
   let banner: string | undefined;
+  // a round's start (the reference video): READY in the intro's window, then GO for a moment once play starts
+  const introTotal = state.config.roundIntroSeconds ?? 0;
+  const introElapsed =
+    state.phase === 'PLAYING' && (state.intro ?? 0) > 0
+      ? introTotal - (state.intro ?? 0)
+      : undefined;
+  if (state.phase === 'PLAYING' && introTotal > 0)
+    banner = introBanner(introElapsed, introElapsed === undefined ? state.roundTime : undefined);
   if (state.phase === 'ROUND_OVER' && state.roundOver?.awaitingContinue !== true) {
     const winnerId = state.roundOver?.winnerId;
     banner =
@@ -374,6 +385,15 @@ export function buildFuView(
     broken: state.broken,
     events: viewEvents,
     banner,
+    ...(introElapsed === undefined
+      ? {}
+      : {
+          intro: {
+            elapsed: introElapsed,
+            // they land in seat order (the video: one after another)
+            order: [...state.players].sort((p, q) => p.slot - q.slot).map((p) => p.id),
+          },
+        }),
     round: state.round,
     hud,
     ...namedArena(state.config.arena),

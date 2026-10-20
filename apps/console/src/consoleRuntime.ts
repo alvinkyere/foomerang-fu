@@ -28,6 +28,8 @@ export interface ConsoleRuntimeOptions {
   readonly enabled?: readonly PowerKind[];
   /** Test/playtest only (the page address's `?kills=`): fewer kills to win, so a match ends in seconds. Default 14. */
   readonly targetKills?: number;
+  /** Each Foomerang Fu round's intro, READY … GO (the reference video: 2.84 s; the page address's `?intro=off`: none). Default none. */
+  readonly roundIntroSeconds?: number;
   /** Repeat held sticks on a timer while the phones drive the console (default on; tests turn it off and drive time themselves). */
   readonly inputPump?: boolean;
 }
@@ -100,6 +102,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       choice,
       mode,
       options.targetKills,
+      options.roundIntroSeconds,
     );
   }, warmUpFor);
   const session = new HostSession({

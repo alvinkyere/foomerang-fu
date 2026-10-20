@@ -1146,6 +1146,30 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     });
   });
 
+  it('a round’s intro: how far into it, who lands in what order, READY in its window, then GO once play starts', () => {
+    const { entries, slots } = playing();
+    const base = createFuMatch(
+      [
+        { id: 'a', slot: 0 },
+        { id: 'b', slot: 3 },
+      ],
+      { roundIntroSeconds: 2.84 },
+    );
+    const at = (left: number): FuState => ({ ...base, intro: left });
+    const early = buildFuView(at(2.84 - 1.0), [], entries, slots);
+    expect(early.intro?.elapsed).toBeCloseTo(1.0, 9);
+    expect(early.intro?.order).toEqual(['a', 'b']);
+    expect(early.banner).toBeUndefined();
+    expect(buildFuView(at(2.84 - 2.0), [], entries, slots).banner).toBe('READY');
+    const { intro: _intro, ...started } = base;
+    void _intro;
+    const go: FuState = { ...started, roundTime: 0.2 };
+    const after = buildFuView(go, [], entries, slots);
+    expect(after.intro).toBeUndefined();
+    expect(after.banner).toBe('GO');
+    expect(buildFuView({ ...go, roundTime: 1 }, [], entries, slots).banner).toBeUndefined();
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

@@ -186,7 +186,9 @@ export type FuEvent =
   | { readonly type: 'ROUND_OVER'; readonly winnerId: string | undefined }
   /** The end beat is over: the scoreboard is up and the next round waits for a CONTINUE (`roundAdvance: ON_CONTINUE`). */
   | { readonly type: 'SCOREBOARD' }
-  | { readonly type: 'ROUND_START'; readonly round: number };
+  | { readonly type: 'ROUND_START'; readonly round: number }
+  /** The round's intro is over (READY … GO): play starts now. */
+  | { readonly type: 'GO' };
 
 export interface FuStepResult {
   readonly state: FuState;
@@ -359,6 +361,22 @@ export function stepFu(state: FuState, inputs: FuInputs, dt: number): FuStepResu
   // The match is decided: nothing moves, nothing can kill, nothing is scored (Slice 8: no post-victory kills).
   if (state.phase === 'MATCH_OVER') return { state, events: [] };
   if (state.phase === 'ROUND_OVER') return stepRoundOver(state, probe, dt);
+  // The round's intro (READY … GO): everyone stands where they landed; nothing moves, acts or counts until GO.
+  if ((state.intro ?? 0) > 0) {
+    const left = (state.intro ?? 0) - dt;
+    if (left > EPSILON)
+      return {
+        state: Object.freeze({ ...state, intro: left, elapsed: state.elapsed + dt }),
+        events: [],
+      };
+    // GO: the intro is over (the field goes: absent means none)
+    const { intro: _over, ...playing } = state;
+    void _over;
+    return {
+      state: Object.freeze({ ...playing, elapsed: state.elapsed + dt }),
+      events: [{ type: 'GO' }],
+    };
+  }
   return stepPlaying(state, inputs, dt);
 }
 

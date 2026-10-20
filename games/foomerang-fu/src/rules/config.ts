@@ -112,6 +112,11 @@ export interface FuConfig {
    * round over, on the scoreboard, until `continueRound` is called (a player pressed CONTINUE; owner, 2026-10-19).
    */
   readonly roundAdvance?: 'AUTO' | 'ON_CONTINUE';
+  /**
+   * Each round opens with the reference video's intro (0:30.96–0:33.8: the characters land one by one, READY, then GO):
+   * nobody moves or acts for this long, seconds. Absent or 0: a round starts at once. The console sets the measured 2.84.
+   */
+  readonly roundIntroSeconds?: number;
   /** Slice 8: how many rounds are REGULATION (9). Only labels the lobby of rounds: a match that reaches the end of them without a winner simply goes on, as OVERTIME rounds. */
   readonly regulationRounds?: number;
   /** Slice 5: where and when pickups appear. Absent: no powerups (Slices 1–4 exactly). */
@@ -274,6 +279,11 @@ export function assertValidConfig(config: FuConfig): void {
     config.roundAdvance !== 'ON_CONTINUE'
   )
     throw new RangeError('roundAdvance must be AUTO or ON_CONTINUE');
+  if (
+    config.roundIntroSeconds !== undefined &&
+    !(Number.isFinite(config.roundIntroSeconds) && config.roundIntroSeconds >= 0)
+  )
+    throw new RangeError('roundIntroSeconds must be a finite number, 0 or more');
   if (config.enabledPowers !== undefined && !config.enabledPowers.every(isPowerKind)) {
     throw new RangeError('enabledPowers must be power kinds');
   }

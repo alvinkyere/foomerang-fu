@@ -14,6 +14,7 @@ import type { ArenaRenderer } from './render/renderer';
 import { arenaRendererFor } from './render/loadArenaRenderer';
 import { App } from './ui/App';
 import { ConfigError } from './ui/ConfigError';
+import { ROUND_INTRO } from './render/roundIntro';
 import './styles.css';
 
 function sessionStorageOrNothing(): Storage | undefined {
@@ -62,6 +63,9 @@ if (!config.ok) {
     arena: productArena(window.location.search),
     ...enabledOption,
     ...killsOption,
+    // each round opens with the reference video's landings, READY and GO (?intro=off for development and tests)
+    roundIntroSeconds:
+      new URLSearchParams(window.location.search).get('intro') === 'off' ? 0 : ROUND_INTRO.seconds,
   });
 
   // A reload reclaims the same room (the arena simulation itself restarts; see docs/CONSOLE.md).

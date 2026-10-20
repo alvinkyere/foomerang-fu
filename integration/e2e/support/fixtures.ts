@@ -42,6 +42,8 @@ export interface Snapshot {
         /** The breakable props broken this round (the rules' list). */
         broken: string[];
         phase: 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
+        /** Seconds of the round's intro left (READY … GO; the reference video): nobody can move or act until 0. */
+        intro: number;
         /** Slice 8: the kill race. */
         scores: Record<string, number>;
         matchOver: { winnerId: string } | undefined;
@@ -292,6 +294,16 @@ export class Host {
     await this.readyEveryone();
     await this.startButton.click();
     await expect(this.page.getByTestId('arena')).toBeVisible();
+    await this.waitForGo();
+  }
+
+  /** Foomerang Fu: until the round's intro (the landings, READY, GO) is over and players can act; at once otherwise. */
+  async waitForGo(): Promise<void> {
+    // a production build has no debug hook to ask (its tests watch the screen, as a person would)
+    if (await this.page.evaluate(() => window.__FOOMERANG__ === undefined)) return;
+    await expect
+      .poll(async () => (await this.snapshot()).game?.intro ?? 0, { timeout: 10_000 })
+      .toBe(0);
   }
 
   /** Waits until Phaser is up and has drawn `count` circles. */

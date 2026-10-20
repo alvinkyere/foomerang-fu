@@ -112,8 +112,11 @@ export class FuRuntime implements MatchRuntime {
     enabled?: readonly PowerKind[],
     mode: GameModeId = DEFAULT_MODE,
     targetKills?: number,
+    /** Each round's intro, READY … GO (the reference video: 2.84 s; render/roundIntro.ts). Default none. */
+    roundIntroSeconds = 0,
   ) {
     this.#targetKills = targetKills;
+    this.#roundIntroSeconds = roundIntroSeconds;
     if (mode !== 'FREE_FOR_ALL') throw new RangeError(`game mode ${mode} cannot be played yet`);
     this.#mode = mode;
     this.#arena = arena;
@@ -148,6 +151,7 @@ export class FuRuntime implements MatchRuntime {
   #characters: ReadonlyMap<string, PackCharacter> = new Map();
   /** CPU participants: software controllers that answer through the same `FuPlayerInput` a person's phone produces. */
   #cpus = new Map<string, CpuController>();
+  readonly #roundIntroSeconds: number;
   #cpuDecisions = { count: 0, totalMs: 0, maxMs: 0 };
 
   get world(): WorldState | undefined {
@@ -163,6 +167,7 @@ export class FuRuntime implements MatchRuntime {
         ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
         ...FREE_FOR_ALL,
         roundAdvance: 'ON_CONTINUE', // the scoreboard waits for CONTINUE between rounds (owner, 2026-10-19)
+        ...(this.#roundIntroSeconds > 0 ? { roundIntroSeconds: this.#roundIntroSeconds } : {}),
         ...(this.#targetKills === undefined ? {} : { targetKills: this.#targetKills }),
         // first to 14 kills wins at once; nine rounds are regulation, then overtime; what players own lasts until the match ends
         ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }),
@@ -340,6 +345,7 @@ export class FuRuntime implements MatchRuntime {
       matchOver: state.matchOver,
       tiebreak: state.tiebreak,
       phase: state.phase,
+      intro: state.intro ?? 0, // seconds of the round's intro left (READY … GO); 0: play is on
       walls: (state.config.arena.walls ?? []).map((w) => ({ ...w })),
       broken: [...state.broken],
       breakables: (state.config.arena.breakables ?? []).map((b) => b.id),

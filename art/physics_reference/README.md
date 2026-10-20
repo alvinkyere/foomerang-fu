@@ -249,3 +249,30 @@ red gem on its top. It is about half a character wide and nearly a character tal
 - **The font.** The lettering is a heavy rounded sans; the exact face can't be identified at 640 × 360, and none is bundled.
   The system's rounded font is used (`ui-rounded`, i.e. SF Pro Rounded on a Mac).
 - **Caffeinated's and Twin's badge colours and icons.** The video hasn't been studied for them yet; they keep their old colours.
+
+## A round's start (2026-10-20; applied)
+
+Read at 0.1 s steps (and every frame for the donut's landing) at 0:30.6–0:34.8, timed from the iris opening at 30.96:
+
+| t from the iris          | What happens                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| 0.82 s                   | the first character lands (the banana)                                                                                         |
+| ~0.32 s apart after that | the others land (31.78, 32.03, ~32.4, 32.73), each after ≈ 0.45 s in the air turning two somersaults (the donut: 31.57 → 32.0) |
+| on each landing          | a crouch, and a white ring spreading from its feet and fading over ≈ 0.4 s                                                     |
+| 1.84–2.74 s              | READY                                                                                                                          |
+| 2.84 s                   | GO, shown ≈ 0.6 s; play starts                                                                                                 |
+
+**Applied:**
+
+- `roundIntroSeconds` 2.84 in the console: nobody moves or acts before GO, and the round clock waits. The rules emit GO.
+- `render/roundIntro.ts`: the timeline above.
+- On the plaza, each character in seat order is hidden until its jump, then somersaults, crouches and shows the ring.
+- READY and GO are shown in the banner.
+- `?intro=off` turns it off for development.
+
+**Read by eye:**
+
+- the jump's height (1.2 body heights) and the crouch (0.78, 0.12 s);
+- the landing order (the video's matches seat order as far as can be told).
+
+**Not reproduced:** the iris (the circular reveal at 30.96–31.4).

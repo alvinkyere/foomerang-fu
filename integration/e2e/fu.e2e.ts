@@ -194,6 +194,7 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   expect((await host.fu()).round).toBe(1); // it waits
   await bob.tap('SELECT');
   await expect.poll(async () => (await host.fu()).round, { timeout: 10_000 }).toBe(2);
+  await host.waitForGo(); // each round opens with the landings, READY and GO
   fu = await host.fu();
   expect(fu.phase).toBe('PLAYING');
   expect(fu.players.map((p) => p.alive)).toEqual([true, true]);

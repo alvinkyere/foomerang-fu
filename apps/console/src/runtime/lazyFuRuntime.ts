@@ -54,14 +54,18 @@ export class LazyFuRuntime implements MatchRuntime {
 
   readonly #targetKills: number | undefined;
 
+  readonly #roundIntroSeconds: number;
+
   constructor(
     powerups?: PowerupMode,
     enabled?: readonly PowerKind[],
     arena?: ArenaChoice,
     mode: GameModeId = DEFAULT_MODE,
     targetKills?: number,
+    roundIntroSeconds = 0,
   ) {
     this.#targetKills = targetKills;
+    this.#roundIntroSeconds = roundIntroSeconds;
     this.#mode = mode;
     this.#arena = arena;
     this.#powerups = powerups;
@@ -93,6 +97,7 @@ export class LazyFuRuntime implements MatchRuntime {
           this.#enabled,
           this.#mode,
           this.#targetKills,
+          this.#roundIntroSeconds,
         );
         real.setActivity((playerId) => this.#isActive(playerId));
         real.start(players, nowMs);

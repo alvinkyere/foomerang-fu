@@ -73,6 +73,8 @@ export interface FuState {
   readonly elapsed: number;
   /** Slice 6: simulated seconds of ACTIVE play since this round began (frozen while the round is over); every arena system is a pure function of it. */
   readonly roundTime: number;
+  /** The round's intro (config `roundIntroSeconds`): seconds left before GO; nothing moves or acts until then. Absent: none. */
+  readonly intro?: number;
   /** Slice 6: per timed gate, whether it has actually SHUT (a gate scheduled to close waits until nothing is in it). */
   readonly gatesShut: readonly boolean[];
   /** The ids of the arena's breakables broken this round, in the order they broke (a new round starts with none). */
@@ -210,6 +212,7 @@ export function startRound(
     phase: 'PLAYING',
     elapsed,
     roundTime: 0,
+    ...((config.roundIntroSeconds ?? 0) > 0 ? { intro: config.roundIntroSeconds } : {}),
     gatesShut: Object.freeze((config.arena.gates ?? []).map(() => false)),
     broken: Object.freeze([]),
     world,
