@@ -342,8 +342,8 @@ describe('timed gates', () => {
     expect(boom(open.state, 'a').position.x).toBeGreaterThan(760);
   });
 
-  it('TWIN_THROW: both boomerangs are stopped by the closed gate, each on its own', () => {
-    let s = own(place(duel(arena), 'a', 560, 450), 'a', 'TWIN_THROW');
+  it('EXTRA_BOOMERANG: both boomerangs are stopped by the closed gate, each on its own', () => {
+    let s = own(place(duel(arena), 'a', 560, 450), 'a', 'EXTRA_BOOMERANG');
     s = face(stepFu(withTime(s, 7), NONE, DT).state, 'a', 1, 0);
     s = stepFu(s, input({ a: { throw: true } }), DT).state;
     s = run(s, 3).state;
@@ -630,13 +630,13 @@ describe('the lethal floor (hazard)', () => {
   });
 
   it('death by the floor leaves what the player owns, and a round reset puts the floor back to SAFE', () => {
-    let s = own(withTime(stood(), 3.2), 'a', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW');
+    let s = own(withTime(stood(), 3.2), 'a', 'EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG');
     s = run(s, 3).state;
     expect(player(s, 'a').alive).toBe(false);
-    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']);
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
-    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']);
     expect(systemsView(arena, s.roundTime, s.gatesShut).hazards[0]?.phase).toBe('SAFE');
     expect(player(s, 'a').hazardSpared).toEqual([]);
   });

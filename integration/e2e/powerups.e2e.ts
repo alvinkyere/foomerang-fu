@@ -143,11 +143,11 @@ test('Powerups: a SHIELD absorbs a real SLASH, breaks and leaves the inventory; 
   await expect.poll(async () => (await me(host, aliceId))?.alive, { timeout: 3_000 }).toBe(false);
 });
 
-test('Powerups: TWIN_THROW + EXPLOSIVE_BOOMERANG together — ONE throw press launches TWO armed boomerangs in a symmetric angled spread, drawn separately; the power survives the throw', async ({
+test('Powerups: EXTRA_BOOMERANG + EXPLOSIVE_BOOMERANG together — one press throws ONE armed boomerang, a second press the other while the first is out (the video, 7:18.95 / 7:19.15), drawn separately; the power survives the throw', async ({
   powerHost,
   newPhone,
 }) => {
-  const host = await powerHost('TWIN_THROW,EXPLOSIVE_BOOMERANG');
+  const host = await powerHost('EXTRA_BOOMERANG,EXPLOSIVE_BOOMERANG');
   const { alice, aliceId } = await setUp(host, newPhone);
   await takeABook(host, alice, aliceId);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 3_000 }).toBe(1);
@@ -157,31 +157,25 @@ test('Powerups: TWIN_THROW + EXPLOSIVE_BOOMERANG together — ONE throw press la
   const book = (await host.fu()).pickups[0] as { x: number; y: number };
   await goTo(host, alice, aliceId, spotName(book), 10);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 5_000 }).toBe(2);
-  expect([...(await owned(host, aliceId))].sort()).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+  expect([...(await owned(host, aliceId))].sort()).toEqual([
+    'EXPLOSIVE_BOOMERANG',
+    'EXTRA_BOOMERANG',
+  ]);
 
   const mine = async () => (await host.fu()).boomerangs.filter((b) => b.ownerId === aliceId);
   expect(await mine()).toHaveLength(2);
   expect((await mine()).every((b) => b.state === 'HELD')).toBe(true);
   await face(alice, 0, 1); // facing straight down the open lane
-  const actions = (await host.snapshot()).diagnostics.actionsReceived;
   await alice.tapThrow(); // ONE real THROW press…
-  // …launches BOTH boomerangs, on the same simulation step: there is no snapshot with just one away
+  // …throws ONE: her own; the extra stays in her hand
   await expect
-    .poll(async () => (await mine()).some((b) => b.state !== 'HELD'), { timeout: 3_000 })
+    .poll(async () => (await mine()).map((b) => b.state !== 'HELD'), { timeout: 3_000 })
+    .toEqual([true, false]);
+  await alice.tapThrow(); // a second press, the first still out: the extra goes too
+  await expect
+    .poll(async () => (await mine()).every((b) => b.state !== 'HELD'), { timeout: 3_000 })
     .toBe(true);
-  const pair = await mine();
-  expect(pair.map((b) => b.state !== 'HELD')).toEqual([true, true]);
-  expect((await host.snapshot()).diagnostics.actionsReceived - actions).toBe(2); // one press, one release
-  expect(pair.map((b) => b.blast)).toEqual([true, true]); // both armed while Blast is owned
-  // a symmetric ±13° spread (left = own boomerang, right = twin): 26° apart. Both curve alike as they fly (owner, 2026-10-19),
-  // so the angle BETWEEN them is the spread whenever it is looked at; at the throw they straddle her facing
-  const [left, right] = pair as [(typeof pair)[number], (typeof pair)[number]];
-  const between = Math.atan2(
-    left.direction.x * right.direction.y - left.direction.y * right.direction.x,
-    left.direction.x * right.direction.x + left.direction.y * right.direction.y,
-  );
-  // the twin is 26° clockwise of her own boomerang (own: facing − 13°, twin: facing + 13°)
-  expect(between).toBeCloseTo((26 * Math.PI) / 180, 2);
+  expect((await mine()).map((b) => b.blast)).toEqual([true, true]); // both armed while Explosive is owned
   await expect
     .poll(async () => (await host.snapshot()).drawnBoomerangs?.map((b) => b.id).sort(), {
       timeout: 3_000,
@@ -191,5 +185,8 @@ test('Powerups: TWIN_THROW + EXPLOSIVE_BOOMERANG together — ONE throw press la
     .poll(async () => (await mine()).every((b) => b.state === 'HELD'), { timeout: 12_000 })
     .toBe(true);
   expect((await me(host, aliceId))?.alive).toBe(true); // her own blasts never hurt her
-  expect([...(await owned(host, aliceId))].sort()).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']); // still owned
+  expect([...(await owned(host, aliceId))].sort()).toEqual([
+    'EXPLOSIVE_BOOMERANG',
+    'EXTRA_BOOMERANG',
+  ]); // still owned
 });

@@ -123,9 +123,9 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
   });
 
   it('lists what a player OWNS in the order they got it (at most three); the dead keep theirs', () => {
-    const owned = withInventory(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
+    const owned = withInventory(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'SHIELD']);
     const view = buildFuView(owned, [], entries, slots());
-    expect(view.circles[0]?.powers).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
+    expect(view.circles[0]?.powers).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'SHIELD']);
     expect(view.circles[1]?.powers).toEqual([]);
     const dead: FuState = {
       ...owned,
@@ -133,7 +133,7 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     };
     expect(buildFuView(dead, [], entries, slots()).circles[0]?.powers).toEqual([
       'EXPLOSIVE_BOOMERANG',
-      'TWIN_THROW',
+      'EXTRA_BOOMERANG',
       'SHIELD',
     ]);
   });
@@ -303,7 +303,10 @@ describe('?enable= (the enabled power pool, for playtesting one power at a time)
     const { parseEnabledParam } = await import('../src/runtime/powerupMode');
     expect(parseEnabledParam('?enable=SHIELD')).toEqual(['SHIELD']);
     // the rules' order, whatever order they were written in
-    expect(parseEnabledParam('?enable=TWIN_THROW,SHIELD')).toEqual(['SHIELD', 'TWIN_THROW']);
+    expect(parseEnabledParam('?enable=EXTRA_BOOMERANG,SHIELD')).toEqual([
+      'SHIELD',
+      'EXTRA_BOOMERANG',
+    ]);
     // a retired power (Phase Dash, 2026-10-19) is simply unknown now
     expect(parseEnabledParam('?enable=PHASE_DASH,SHIELD')).toEqual(['SHIELD']);
     expect(parseEnabledParam('?enable=SHIELD,NOPE')).toEqual(['SHIELD']);
@@ -313,8 +316,8 @@ describe('?enable= (the enabled power pool, for playtesting one power at a time)
   });
 
   it('reaches the rules: a Book awards only an enabled power', () => {
-    const runtime = new FuRuntime(PRIMITIVE_ARENA, 'fast', ['TWIN_THROW']);
+    const runtime = new FuRuntime(PRIMITIVE_ARENA, 'fast', ['EXTRA_BOOMERANG']);
     runtime.start(players, 0);
-    expect(runtime.state?.config.enabledPowers).toEqual(['TWIN_THROW']);
+    expect(runtime.state?.config.enabledPowers).toEqual(['EXTRA_BOOMERANG']);
   });
 });

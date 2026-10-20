@@ -301,10 +301,9 @@ export class CpuController {
     const mine = [...state.boomerangs, ...state.extraBoomerangs].filter(
       (b) => b.ownerId === this.#id,
     );
-    const twin = me.inventory.includes('TWIN_THROW');
     const heldCount = mine.filter((b) => b.state === 'HELD').length;
     const throwReady =
-      (twin ? heldCount === mine.length : heldCount > 0) &&
+      heldCount > 0 && // a throw throws one (EXTRA_BOOMERANG's second can go while the first is out)
       me.slash.phase !== 'ACTIVE' &&
       me.dash.phase !== 'DASHING';
     const slashReady = this.#canSlash(state);
@@ -407,7 +406,7 @@ export class CpuController {
         this.#tick - this.#lastThrow >= p.throwGap &&
         !this.#rng.chance(p.throwHold) // it does not always take the shot it has
       ) {
-        const shot = this.#aim(state, view, here, foe, twin);
+        const shot = this.#aim(state, view, here, foe);
         if (shot !== undefined) {
           out.throw = true;
           this.stats.throws += 1;
@@ -659,13 +658,7 @@ export class CpuController {
   }
 
   /** The throw direction (unit) it would use, or undefined if it sees no worthwhile throw. */
-  #aim(
-    state: FuState,
-    view: Observation,
-    here: Vec2,
-    foe: FoeView,
-    twin: boolean,
-  ): Vec2 | undefined {
+  #aim(state: FuState, view: Observation, here: Vec2, foe: FoeView): Vec2 | undefined {
     const p = this.#profile;
     const { config } = state;
     // what it saw is `delay` ticks old: a skilled CPU carries the target forward by that much of its observed velocity
@@ -695,7 +688,6 @@ export class CpuController {
     if (arc === undefined || arc > (config.throwRange + 30) * p.throwReach) return undefined;
     let dir = rotate(norm(sub(target, here)), -(arc * kappa) / 2);
     dir = rotate(dir, this.#rng.gauss() * p.aimError * (this.#rng.chance(p.aimLapse) ? 2.5 : 1));
-    if (twin && p.lead > 0.5) dir = rotate(dir, config.twinSpreadRadians); // so one of the pair is on the target
     // follow the arc it will fly, in short chords, to the first thing it would meet
     const swept = sweepArc(
       here,

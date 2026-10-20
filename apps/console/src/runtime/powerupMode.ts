@@ -17,11 +17,16 @@ export function parsePowerupsParam(search: string): PowerupMode {
 }
 
 /**
- * Which powers a Book may award, from the page address (`?enable=SHIELD,TWIN_THROW`): the match's
+ * Which powers a Book may award, from the page address (`?enable=SHIELD,EXTRA_BOOMERANG`): the match's
  * enabled power pool, for playtesting one power at a time. Unknown names are ignored; no valid names
  * (or no parameter) means the default pool (all of them).
  */
-const KNOWN: readonly PowerKind[] = ['CAFFEINATED', 'EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW'];
+const KNOWN: readonly PowerKind[] = [
+  'CAFFEINATED',
+  'EXPLOSIVE_BOOMERANG',
+  'SHIELD',
+  'EXTRA_BOOMERANG',
+];
 export function parseEnabledParam(search: string): PowerKind[] | undefined {
   const raw = new URLSearchParams(search).get('enable');
   if (raw === null) return undefined;

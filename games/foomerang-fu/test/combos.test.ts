@@ -66,11 +66,11 @@ describe('every pair can be owned together, and an exclusive pair cannot', () =>
   });
 });
 
-describe('TWIN_THROW + EXPLOSIVE_BOOMERANG', () => {
+describe('EXTRA_BOOMERANG + EXPLOSIVE_BOOMERANG', () => {
   it('both boomerangs are armed; each detonates once on its own contact', () => {
     let s = make(['a', 'b', 'c'], STRAIGHT);
     s = place(place(place(s, 'a', 100, 450), 'b', 550, 450), 'c', 550, 580);
-    s = face(own(s, 'a', 'TWIN_THROW', 'EXPLOSIVE_BOOMERANG'), 'a', 1, 0);
+    s = face(own(s, 'a', 'EXTRA_BOOMERANG', 'EXPLOSIVE_BOOMERANG'), 'a', 1, 0);
     const throws = input({ a: { throw: true } });
     let r = stepFu(s, throws, DT);
     const events: FuEvent[] = [...r.events];
@@ -94,7 +94,7 @@ describe('three powers at once', () => {
     s = own(
       place(place(s, 'a', 100, 450), 'b', 260, 450),
       'a',
-      'TWIN_THROW',
+      'EXTRA_BOOMERANG',
       'EXPLOSIVE_BOOMERANG',
       'SHIELD',
     );
@@ -109,7 +109,7 @@ describe('three powers at once', () => {
   it('a replay of a three-power scene is identical', () => {
     const play = () => {
       let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA });
-      s = own(s, 'a', 'CAFFEINATED', 'TWIN_THROW', 'EXPLOSIVE_BOOMERANG');
+      s = own(s, 'a', 'CAFFEINATED', 'EXTRA_BOOMERANG', 'EXPLOSIVE_BOOMERANG');
       const log: unknown[] = [];
       for (let i = 0; i < 1500; i += 1) {
         const r = stepFu(

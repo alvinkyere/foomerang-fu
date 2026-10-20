@@ -96,10 +96,10 @@ export const patchPlayer = (state: FuState, id: string, patch: object): FuState 
   ...state,
   players: state.players.map((p) => (p.id === id ? { ...p, ...patch } : p)),
 });
-/** Directly sets what a player OWNS (oldest first), giving TWIN_THROW owners their second boomerang. */
+/** Directly sets what a player OWNS (oldest first), giving EXTRA_BOOMERANG owners their second boomerang. */
 export function own(state: FuState, id: string, ...kinds: PowerKind[]): FuState {
   const withTwin =
-    kinds.includes('TWIN_THROW') && !state.extraBoomerangs.some((b) => b.ownerId === id)
+    kinds.includes('EXTRA_BOOMERANG') && !state.extraBoomerangs.some((b) => b.ownerId === id)
       ? [
           ...state.extraBoomerangs,
           {
@@ -122,7 +122,7 @@ export function patchPowers(state: FuState, id: string, patch: Record<string, un
   add(patch['overdrive'], 'CAFFEINATED');
   add(patch['blast'], 'EXPLOSIVE_BOOMERANG');
   add(patch['guard'], 'SHIELD');
-  add(patch['twin'], 'TWIN_THROW');
+  add(patch['twin'], 'EXTRA_BOOMERANG');
   return own(state, id, ...kinds);
 }
 export const patchBoomerang = (

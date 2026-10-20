@@ -702,41 +702,36 @@ describe('powerups: the same Books, the same builds', () => {
     expect(rematchOf(r.state).players.every((p) => p.inventory.length === 0)).toBe(true);
   });
 
-  it('TWIN_THROW: the CPU throws the pair on one press (two THROWN events at once) and aims so one of them is on target', () => {
+  it('EXTRA_BOOMERANG: the CPU throws one per press, sends the second while the first is out, and still kills', () => {
     let pairs = 0;
-    let singles = 0;
-    let killedTwin = 0;
-    let killedPlain = 0;
+    let bothOut = 0;
+    let killedExtra = 0;
     for (let seed = 1; seed <= 30; seed += 1) {
-      for (const twin of [true, false]) {
-        const r = playMatch({
-          participants: [
-            { id: 'a', cpu: 'HARD' },
-            { id: 'b', human: still },
-          ],
-          arena: OPEN,
-          seed,
-          steps: 60 * 6,
-          start: (s) => {
-            const t = place(place(s, 'a', 300, 450), 'b', 800, 450);
-            return twin ? own(t, 'a', 'TWIN_THROW') : t;
-          },
-          onStep: (_s, events) => {
-            const thrown = events.filter((e) => e.type === 'THROWN' && e.playerId === 'a').length;
-            if (twin && thrown === 2) pairs += 1;
-            if (twin && thrown === 1) singles += 1;
-          },
-        });
-        if (!player(r.state, 'b').alive || r.state.round > 1) {
-          if (twin) killedTwin += 1;
-          else killedPlain += 1;
-        }
-      }
+      const r = playMatch({
+        participants: [
+          { id: 'a', cpu: 'HARD' },
+          { id: 'b', human: still },
+        ],
+        arena: OPEN,
+        seed,
+        steps: 60 * 6,
+        start: (s) => own(place(place(s, 'a', 300, 450), 'b', 800, 450), 'a', 'EXTRA_BOOMERANG'),
+        onStep: (s, events) => {
+          if (events.filter((e) => e.type === 'THROWN' && e.playerId === 'a').length > 1)
+            pairs += 1;
+          if (
+            [...s.boomerangs, ...s.extraBoomerangs]
+              .filter((b) => b.ownerId === 'a')
+              .every((b) => b.state !== 'HELD')
+          )
+            bothOut += 1;
+        },
+      });
+      if (!player(r.state, 'b').alive || r.state.round > 1) killedExtra += 1;
     }
-    expect(pairs).toBeGreaterThan(0);
-    expect(singles).toBe(0); // a Twin throw is always the pair
-    expect(killedTwin).toBeGreaterThan(10); // aimed to hit, not just thrown
-    void killedPlain;
+    expect(pairs).toBe(0); // one press, one boomerang
+    expect(bothOut).toBeGreaterThan(0); // the second went while the first was out
+    expect(killedExtra).toBeGreaterThan(10); // aimed to hit, not just thrown
   });
 
   it('EXPLOSIVE_BOOMERANG: an owner uses cover-shots — a wall impact beside a hidden target kills it with the blast', () => {

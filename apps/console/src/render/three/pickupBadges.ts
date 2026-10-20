@@ -46,7 +46,8 @@ export class PickupBadges {
       display: 'grid',
       placeItems: 'center',
     });
-    disc.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="${BADGE_ICON[badge.icon]}"/></svg>`;
+    if (badge.icon !== undefined)
+      disc.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="${BADGE_ICON[badge.icon]}"/></svg>`;
     const bar = document.createElement('div');
     bar.textContent = badge.name;
     Object.assign(bar.style, {

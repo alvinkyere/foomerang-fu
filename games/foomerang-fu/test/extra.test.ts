@@ -25,19 +25,18 @@ import {
   STRAIGHT,
 } from './support/fixtures';
 
-// TWIN_THROW — PERSISTENT (until death or round reset). The player owns two boomerangs, each with
-// its own state. One THROW press throws ONE: the player's own boomerang first, then the twin; a press
-// with both away does nothing. Each flies, hits walls, is deflected, returns and is caught on its own.
-// SLASH needs at least one in hand. Both are the owner's: they never hurt the owner. A dead owner's
-// boomerangs keep flying. Round reset takes the twin away.
+// EXTRA_BOOMERANG — the reference video (7:16, the eggplant takes it; 7:18.95 and 7:19.15 it throws twice, the second while the
+// first is still out). The player owns two boomerangs, each with its own state. One THROW press throws ONE: the player's own
+// boomerang first, then the extra; a press with both away does nothing. Each flies, hits walls, is deflected, returns and is
+// caught on its own. SLASH needs at least one in hand. Both are the owner's: they never hurt the owner. Ownership persists.
 
 const THROW = input({ a: { throw: true } });
 const hits = (events: readonly FuEvent[]) => events.filter((e) => e.type === 'HIT');
 
-/** Alice at (600,450) facing right with TWIN_THROW; Bob far away. */
+/** Alice at (600,450) facing right with EXTRA_BOOMERANG; Bob far away. */
 function twinned(): FuState {
   const s = place(place(make(['a', 'b'], STRAIGHT), 'a', 600, 450), 'b', 1500, 850);
-  return face(give(s, 'a', 'TWIN_THROW'), 'a', 1, 0);
+  return face(give(s, 'a', 'EXTRA_BOOMERANG'), 'a', 1, 0);
 }
 
 describe('getting the second boomerang', () => {
@@ -54,7 +53,7 @@ describe('getting the second boomerang', () => {
     let s = twinned();
     s = {
       ...s,
-      config: { ...s.config, enabledPowers: ['TWIN_THROW'] },
+      config: { ...s.config, enabledPowers: ['EXTRA_BOOMERANG'] },
       pickups: [{ id: 77, position: at(s, 'a') }],
     };
     s = stepFu(s, NONE, DT).state;
@@ -69,78 +68,54 @@ describe('getting the second boomerang', () => {
   });
 });
 
-describe('THROW with two: one press, two boomerangs, same step, symmetric spread', () => {
-  const SPREAD = C.twinSpreadRadians;
-
-  it('the spread is 13° per side (inside the approved 12–15° experiment)', () => {
-    expect((SPREAD * 180) / Math.PI).toBeCloseTo(13, 9);
-  });
-
-  it('ONE press launches exactly TWO boomerangs on the same step: the own one left (−θ), the twin right (+θ), both THROWN events', () => {
+describe('THROW with two: one press, one boomerang; the second can go while the first is out (the video, 7:18.95 and 7:19.15)', () => {
+  it('ONE press throws exactly ONE boomerang, straight ahead: her own first; the extra stays in hand', () => {
     const r = stepFu(twinned(), THROW, DT); // she faces (1, 0)
-    expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(2);
-    const [own, twin] = weaponsOf(r.state, 'a');
+    expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
+    const [own, extra] = weaponsOf(r.state, 'a');
     expect(own?.state).toBe('THROWN');
-    expect(twin?.state).toBe('THROWN');
-    expect(own?.direction.x).toBeCloseTo(Math.cos(-SPREAD), 9);
-    expect(own?.direction.y).toBeCloseTo(Math.sin(-SPREAD), 9);
-    expect(twin?.direction.x).toBeCloseTo(Math.cos(SPREAD), 9);
-    expect(twin?.direction.y).toBeCloseTo(Math.sin(SPREAD), 9);
-    expect(own?.ownerId).toBe('a');
-    expect(twin?.ownerId).toBe('a');
+    expect(own?.direction).toEqual({ x: 1, y: 0 });
+    expect(extra?.state).toBe('HELD');
   });
 
-  it('the spread is symmetric about the facing for ANY facing, and the pair share one owner and one launch step', () => {
-    for (const [fx, fy] of [
-      [0, 1],
-      [-1, 0],
-      [0.6, -0.8],
-      [Math.SQRT1_2, Math.SQRT1_2],
-    ] as const) {
-      const r = stepFu(face(twinned(), 'a', fx, fy), THROW, DT);
-      const [own, twin] = weaponsOf(r.state, 'a');
-      const dot = (own?.direction.x ?? 0) * fx + (own?.direction.y ?? 0) * fy;
-      const dot2 = (twin?.direction.x ?? 0) * fx + (twin?.direction.y ?? 0) * fy;
-      expect(dot).toBeCloseTo(Math.cos(SPREAD), 9);
-      expect(dot2).toBeCloseTo(Math.cos(SPREAD), 9);
-      expect(Math.hypot(own?.direction.x ?? 0, own?.direction.y ?? 0)).toBeCloseTo(1, 9);
-      // they are on opposite sides of the facing line
-      const cross = (v?: { x: number; y: number }) => (v?.x ?? 0) * fy - (v?.y ?? 0) * fx;
-      expect(Math.sign(cross(own?.direction))).toBe(-Math.sign(cross(twin?.direction)));
-    }
-  });
-
-  it('they diverge: one goes up-and-away, one down-and-away, so they are never the same boomerang twice', () => {
-    const s = run(stepFu(twinned(), THROW, DT).state, 20).state;
-    const [own, twin] = weaponsOf(s, 'a');
-    expect(own?.position.y).toBeLessThan(450);
-    expect(twin?.position.y).toBeGreaterThan(450);
-    expect((own?.position.y ?? 0) - 450).toBeCloseTo(-((twin?.position.y ?? 0) - 450), 6);
-  });
-
-  it('readiness: both must be home. With one still away THROW does nothing; once both are home it throws the pair again', () => {
+  it('a second press while the first is still flying throws the extra, straight ahead too', () => {
     let s = stepFu(twinned(), THROW, DT).state;
-    const again = stepFu(s, THROW, DT);
-    expect(types(again.events)).not.toContain('THROWN'); // both are away
-    // one comes home, the other is still out: still refused
-    s = patchBoomerang(
-      s,
-      'a',
-      { state: 'HELD', position: at(s, 'a'), direction: { x: 0, y: 0 }, travelled: 0 },
-      0,
-    );
-    expect(types(stepFu(s, THROW, DT).events)).not.toContain('THROWN');
-    // both home: the pair goes out again
+    s = run(s, 3).state;
+    expect(boom(s, 'a').state).toBe('THROWN');
+    const r = stepFu(s, THROW, DT);
+    expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
+    const [own, extra] = weaponsOf(r.state, 'a');
+    expect(own?.state).toBe('THROWN');
+    expect(extra?.state).toBe('THROWN');
+    expect(extra?.direction).toEqual({ x: 1, y: 0 });
+  });
+
+  it('with both away a press does nothing; with either one home it throws that one', () => {
+    let s = stepFu(twinned(), THROW, DT).state;
+    s = stepFu(s, THROW, DT).state;
+    expect(types(stepFu(s, THROW, DT).events)).not.toContain('THROWN'); // both are away
+    // the extra comes home first: it is the one thrown
     s = patchBoomerang(
       s,
       'a',
       { state: 'HELD', position: at(s, 'a'), direction: { x: 0, y: 0 }, travelled: 0 },
       1,
     );
-    expect(stepFu(s, THROW, DT).events.filter((e) => e.type === 'THROWN')).toHaveLength(2);
+    const r = stepFu(s, THROW, DT);
+    expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
+    expect(weaponsOf(r.state, 'a')[1]?.state).toBe('THROWN');
   });
 
-  it('a normal (non-twin) THROW is unchanged: one boomerang straight ahead', () => {
+  it('a charged throw charges with one in hand and throws one', () => {
+    let s = stepFu(twinned(), THROW, DT).state; // her own is away, the extra in hand
+    s = run(s, 10, input({ a: { throwHeld: true } }), { repeat: true }).state;
+    expect(player(s, 'a').charge.phase).toBe('CHARGING');
+    const r = stepFu(s, NONE, DT); // let go
+    expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
+    expect(weaponsOf(r.state, 'a')[1]?.state).toBe('THROWN');
+  });
+
+  it('a normal THROW without the power is unchanged: one boomerang straight ahead', () => {
     const plain = place(place(make(['a', 'b'], STRAIGHT), 'a', 600, 450), 'b', 1500, 850);
     const r = stepFu(face(plain, 'a', 1, 0), THROW, DT);
     expect(r.events.filter((e) => e.type === 'THROWN')).toHaveLength(1);
@@ -149,6 +124,7 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
 
   it('both come home on their own and are caught — including on the very same step', () => {
     let s = stepFu(twinned(), THROW, DT).state;
+    s = stepFu(s, THROW, DT).state;
     s = run(s, 2 * Math.ceil(C.throwRange / (C.throwSpeed * DT)) + 30).state; // out its range and back
     expect(weaponsOf(s, 'a').every((w) => w.state === 'HELD')).toBe(true);
     let t = twinned();
@@ -164,15 +140,16 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
     expect(r.events.filter((e) => e.type === 'CAUGHT')).toHaveLength(2);
   });
 
-  it('a Twin throw against a wall starts each boomerang as close as the wall allows and turns both back (each independent)', () => {
+  it('a throw against a wall starts as close as the wall allows and turns back', () => {
     let s = make(['a', 'b'], {
       ...STRAIGHT,
       maxRicochets: 0, // (no bounce: the impact turns them home; ricochets are ricochet.test.ts's subject)
       arena: { width: 1600, height: 900, walls: [{ x: 660, y: 0, width: 60, height: 900 }] },
     });
-    s = own(place(place(s, 'a', 600, 450), 'b', 1500, 850), 'a', 'TWIN_THROW');
+    s = own(place(place(s, 'a', 600, 450), 'b', 1500, 850), 'a', 'EXTRA_BOOMERANG');
     s = face(s, 'a', 1, 0);
-    const r = run(stepFu(s, THROW, DT).state, 12);
+    s = stepFu(stepFu(s, THROW, DT).state, THROW, DT).state;
+    const r = run(s, 12);
     for (const w of weaponsOf(r.state, 'a'))
       expect(w.position.x).toBeLessThanOrEqual(660 - C.boomerangRadius + 1e-6);
     expect(
@@ -191,7 +168,7 @@ describe('SLASH with two', () => {
       1,
     );
     expect(types(stepFu(s, input({ a: { slash: true } }), DT).events)).toContain('SLASHED');
-    const away = stepFu(twinned(), THROW, DT).state;
+    const away = stepFu(stepFu(twinned(), THROW, DT).state, THROW, DT).state; // both thrown
     const refused = stepFu(away, input({ a: { slash: true } }), DT).state;
     expect(player(refused, 'a').slash.phase).toBe('READY');
   });
@@ -203,8 +180,8 @@ describe('SLASH with two', () => {
   });
 });
 
-describe('twin boomerangs in combat', () => {
-  it("the twin kills like any boomerang, and the kill is its owner's", () => {
+describe('two boomerangs in combat', () => {
+  it("the extra kills like any boomerang, and the kill is its owner's", () => {
     let s = twinned();
     s = place(s, 'b', 800, 450);
     s = stepFu(s, THROW, DT).state;
@@ -225,7 +202,7 @@ describe('twin boomerangs in combat', () => {
   it('each is deflected on its own: one defender can knock BOTH away on the same step', () => {
     let s = make(['a', 'b'], STRAIGHT);
     s = place(place(s, 'a', 100, 850), 'b', 600, 450);
-    s = give(place(s, 'a', 100, 850), 'a', 'TWIN_THROW');
+    s = give(place(s, 'a', 100, 850), 'a', 'EXTRA_BOOMERANG');
     s = patchPlayer(s, 'b', {
       facing: { x: -1, y: 0 },
       slash: { phase: 'ACTIVE', direction: { x: -1, y: 0 }, remaining: 0.12 },
@@ -244,11 +221,12 @@ describe('twin boomerangs in combat', () => {
       arena: { width: 1600, height: 900, walls: [{ x: 900, y: 0, width: 60, height: 900 }] },
     });
     s = place(place(s, 'a', 600, 450), 'b', 1500, 850);
-    s = face(give(s, 'a', 'TWIN_THROW'), 'a', 1, 0);
+    s = face(give(s, 'a', 'EXTRA_BOOMERANG'), 'a', 1, 0);
     s = stepFu(s, THROW, DT).state;
-    s = stepFu(s, input({ a: { throw: true, move: { x: 0, y: 1 } } }), DT).state; // second one goes down, the other still goes right
+    s = run(s, 4).state;
+    s = stepFu(s, THROW, DT).state; // the second, later, at the same wall
     const r = run(s, 40);
-    // both fly at the wall (±13° either side of right) and each bounces off it on its own: two RICOCHETs, both heading back
+    // each flies at the wall and bounces off it on its own: two RICOCHETs, both heading back
     expect(r.events.filter((e) => e.type === 'RICOCHET')).toHaveLength(2);
     for (const w of weaponsOf(r.state, 'a')) expect(w.direction.x).toBeLessThan(0);
   });
@@ -261,7 +239,7 @@ describe('twin boomerangs in combat', () => {
     s = stepFu(s, NONE, DT).state;
     expect(weaponsOf(s, 'a')).toHaveLength(2);
     expect(weaponsOf(s, 'a').every((w) => w.state !== 'HELD')).toBe(true);
-    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXTRA_BOOMERANG']);
   });
 
   it('a new round gives the owner their second boomerang again, in hand (it persists; thrown ones are restored)', () => {
@@ -275,15 +253,15 @@ describe('twin boomerangs in combat', () => {
     ).state;
     for (let i = 0; i < 400 && s.round === 1; i += 1) s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
-    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXTRA_BOOMERANG']);
     expect(weaponsOf(s, 'a')).toHaveLength(2);
     expect(weaponsOf(s, 'a').every((w) => w.state === 'HELD')).toBe(true);
     expect(weaponsOf(s, 'b')).toHaveLength(1); // nobody else gained one
   });
 
-  it('losing TWIN_THROW (FIFO eviction) takes the second boomerang away', () => {
+  it('losing EXTRA_BOOMERANG (FIFO eviction) takes the second boomerang away', () => {
     let s = twinned();
-    s = give(give(give(s, 'a', 'SHIELD'), 'a', 'EXPLOSIVE_BOOMERANG'), 'a', 'CAFFEINATED'); // the 4th power pushes TWIN_THROW out
+    s = give(give(give(s, 'a', 'SHIELD'), 'a', 'EXPLOSIVE_BOOMERANG'), 'a', 'CAFFEINATED'); // the 4th power pushes EXTRA_BOOMERANG out
     expect(player(s, 'a').inventory).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'CAFFEINATED']);
     expect(s.extraBoomerangs.filter((b) => b.ownerId === 'a')).toHaveLength(0);
   });
@@ -309,13 +287,14 @@ describe('twin boomerangs in combat', () => {
   });
 });
 
-describe('TWIN_THROW and EXPLOSIVE_BOOMERANG', () => {
-  it('owning both: both boomerangs of the one throw are armed', () => {
+describe('EXTRA_BOOMERANG and EXPLOSIVE_BOOMERANG', () => {
+  it('owning both: each boomerang thrown is armed', () => {
     let s = give(twinned(), 'a', 'EXPLOSIVE_BOOMERANG');
     s = stepFu(s, THROW, DT).state;
-    const [own, twin] = weaponsOf(s, 'a');
+    s = stepFu(s, THROW, DT).state;
+    const [own, extra] = weaponsOf(s, 'a');
     expect(own?.blast).toBe(true);
-    expect(twin?.blast).toBe(true);
-    expect(player(s, 'a').inventory).toEqual(['TWIN_THROW', 'EXPLOSIVE_BOOMERANG']);
+    expect(extra?.blast).toBe(true);
+    expect(player(s, 'a').inventory).toEqual(['EXTRA_BOOMERANG', 'EXPLOSIVE_BOOMERANG']);
   });
 });

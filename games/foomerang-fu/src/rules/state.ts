@@ -84,7 +84,7 @@ export interface FuState {
   readonly players: readonly FuPlayer[];
   /** One per player, in the same order: each player's own boomerang. */
   readonly boomerangs: readonly Boomerang[];
-  /** Slice 5: the second boomerang of each player holding TWIN_THROW, in the order they took it. Empty otherwise. */
+  /** Slice 5: the second boomerang of each player holding EXTRA_BOOMERANG, in the order they took it. Empty otherwise. */
   readonly extraBoomerangs: readonly Boomerang[];
   /** Slice 5: pickups lying in the arena, in spawn order. */
   readonly pickups: readonly Pickup[];
@@ -199,9 +199,9 @@ export function startRound(
     }),
   );
 
-  // A new round gives each owner of TWIN_THROW their second boomerang, in hand.
+  // A new round gives each owner of EXTRA_BOOMERANG their second boomerang, in hand.
   const twins = specs.flatMap((spec, index) =>
-    (carried.get(spec.id) ?? NO_POWERS).includes('TWIN_THROW')
+    (carried.get(spec.id) ?? NO_POWERS).includes('EXTRA_BOOMERANG')
       ? [Object.freeze({ ...(boomerangs[index] as Boomerang) })]
       : [],
   );

@@ -6,7 +6,12 @@ import type { FuConfig } from './config';
  * them, what they do, when they end — is plain deterministic state owned by the rules; the
  * renderer only draws it.
  */
-export const POWER_KINDS = ['CAFFEINATED', 'EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW'] as const;
+export const POWER_KINDS = [
+  'CAFFEINATED',
+  'EXPLOSIVE_BOOMERANG',
+  'SHIELD',
+  'EXTRA_BOOMERANG',
+] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
 export const isPowerKind = (value: unknown): value is PowerKind =>
@@ -20,7 +25,7 @@ export const MAX_POWERS = 3;
  * got them (at most MAX_POWERS). Ownership persists across rounds for the whole match; it ends only
  * by FIFO eviction (a 4th power pushes out the oldest), by a power consuming itself (SHIELD, when it
  * blocks a hit), or when the match ends. Nothing else is stored for a power: while owned, CAFFEINATED,
- * TWIN_THROW and EXPLOSIVE_BOOMERANG simply work (no charges, no timers); any per-round or
+ * EXTRA_BOOMERANG and EXPLOSIVE_BOOMERANG simply work (no charges, no timers); any per-round or
  * per-flight state lives on the thing it belongs to (a boomerang's `blast` flag, a swing's `spared`).
  */
 export type Inventory = readonly PowerKind[];
@@ -93,7 +98,7 @@ const pair = (a: PowerKind, b: PowerKind): string => (a < b ? `${a}+${b}` : `${b
 const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> = [
   ['CAFFEINATED', 'EXPLOSIVE_BOOMERANG', 'independent: speed has no effect on the blast.'],
   ['CAFFEINATED', 'SHIELD', 'independent.'],
-  ['CAFFEINATED', 'TWIN_THROW', 'independent: both boomerangs fly at normal speed.'],
+  ['CAFFEINATED', 'EXTRA_BOOMERANG', 'independent: both boomerangs fly at normal speed.'],
   [
     'EXPLOSIVE_BOOMERANG',
     'SHIELD',
@@ -101,10 +106,10 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   ],
   [
     'EXPLOSIVE_BOOMERANG',
-    'TWIN_THROW',
+    'EXTRA_BOOMERANG',
     'every boomerang thrown, of either of the pair, is armed (each can detonate once per throw).',
   ],
-  ['SHIELD', 'TWIN_THROW', 'independent.'],
+  ['SHIELD', 'EXTRA_BOOMERANG', 'independent.'],
 ];
 
 /**

@@ -676,10 +676,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // whose owner is not in the match is an impossible state and is dropped, never obeyed.
   const startExtras = state.extraBoomerangs.filter((b) => ownerOf.has(b.ownerId));
   const startWeapons = [...state.boomerangs, ...startExtras];
-  const twinOwner = state.players.map((p) => p.inventory.includes('TWIN_THROW'));
-  const heldAll = state.players.map((p) =>
-    startWeapons.filter((w) => w.ownerId === p.id).every((w) => w.state === 'HELD'),
-  );
   const heldAny = state.players.map((p) =>
     startWeapons.some((w) => w.ownerId === p.id && w.state === 'HELD'),
   );
@@ -725,7 +721,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const committed = dashingAtStart[index] === true; // mid-dash: no slash, throw or new dash
     const hasFacing = player.facing.x !== 0 || player.facing.y !== 0;
     const held = heldAny[index] === true; // at least one boomerang in hand (enough for a SLASH)
-    const throwReady = twinOwner[index] === true ? heldAll[index] === true : held; // a Twin throw needs both home
+    const throwReady = held; // one in hand is enough: a throw throws one (EXTRA_BOOMERANG's second can go while the first is out)
     const slashes =
       player.alive &&
       !committed &&
@@ -971,7 +967,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         reason: 'EVICTED',
       });
     }
-    if (kind === 'TWIN_THROW') {
+    if (kind === 'EXTRA_BOOMERANG') {
       newTwins.push(
         Object.freeze({
           ownerId: taker.id,
@@ -1022,9 +1018,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       : Object.freeze({ ...player, slash, dash, fatigue: rested });
   });
 
-  // One THROW press throws everything the player has in hand: ONE boomerang straight ahead, or — for an
-  // owner of TWIN_THROW (who needs both at home) — TWO on the same step, the player's own to the left and
-  // the twin to the right, at ∓`twinSpreadRadians` from the facing. Each is independent from then on.
+  // One THROW press throws ONE boomerang straight ahead: the player's own if it is in hand, else (an owner of EXTRA_BOOMERANG)
+  // the extra. The reference video, 7:18.95 and 7:19.15: the second goes while the first is still out. Each is independent.
   const thrownNow = new Set<number>();
   const rotate = (v: Vec2, angle: number): Vec2 => ({
     x: v.x * Math.cos(angle) - v.y * Math.sin(angle),
@@ -1039,11 +1034,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const player = players[index] as FuPlayer;
     const gap = config.playerRadius + config.boomerangRadius + 1; // starts just outside its owner
     const owner = positionOf(player.id);
-    const twin = has(index, 'TWIN_THROW') && mine.length > 1;
-    mine.forEach((k, n) => {
-      const direction = twin
-        ? rotate(player.facing, (n === 0 ? -1 : 1) * config.twinSpreadRadians)
-        : player.facing;
+    mine.slice(0, 1).forEach((k) => {
+      const direction = player.facing;
       // Pressed against a wall, the boomerang starts as close to the owner as the wall allows; it then
       // meets the wall on its first step and turns straight back.
       const position = sweepCircle(
@@ -1815,9 +1807,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.
       players: Object.freeze(finalPlayers),
       boomerangs: Object.freeze(weapons.slice(0, count)),
-      // A twin belongs to an owner of TWIN_THROW: when they lose the power (FIFO) their second boomerang goes too.
+      // A twin belongs to an owner of EXTRA_BOOMERANG: when they lose the power (FIFO) their second boomerang goes too.
       extraBoomerangs: Object.freeze(
-        weapons.slice(count).filter((b) => has(ownerOf.get(b.ownerId) as number, 'TWIN_THROW')),
+        weapons
+          .slice(count)
+          .filter((b) => has(ownerOf.get(b.ownerId) as number, 'EXTRA_BOOMERANG')),
       ),
       pickups: Object.freeze(pickups),
       pickupClock: clock,

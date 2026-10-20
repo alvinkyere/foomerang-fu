@@ -212,14 +212,14 @@ describe('attribution: who is credited (the complete table is in docs/FOOMERANG_
     expect(r.state.scores).toEqual({ a: 0, b: 1, c: 0, d: 0 });
   });
 
-  it('TWIN_THROW: both boomerangs are the owner’s; two victims score two, one victim hit by both scores one', () => {
-    let s = own(four(), 'a', 'TWIN_THROW');
+  it('EXTRA_BOOMERANG: both boomerangs are the owner’s; two victims score two, one victim hit by both scores one', () => {
+    let s = own(four(), 'a', 'EXTRA_BOOMERANG');
     s = aimedAt(s, 'a', 'b', {}, 0);
     s = aimedAt(s, 'a', 'c', {}, 1);
     const two = stepFu(s, NONE, DT);
     expect(two.state.scores['a']).toBe(2);
     expect(hitEvents(two.events).map((e) => e.creditedTo)).toEqual(['a', 'a']);
-    let both = own(four(), 'a', 'TWIN_THROW');
+    let both = own(four(), 'a', 'EXTRA_BOOMERANG');
     both = aimedAt(both, 'a', 'b', {}, 0);
     both = aimedAt(both, 'a', 'b', {}, 1);
     const one = stepFu(both, NONE, DT);
@@ -499,7 +499,7 @@ describe('regulation, overtime and the match lifecycle', () => {
 
   it('a rematch is a brand new match: round 1, empty meters, empty inventories, everything reset, same participants and settings', () => {
     let s = slashKills(withScores(four(), { a: 13 }), 'a', 'b').state;
-    s = own(s, 'c', 'SHIELD', 'TWIN_THROW');
+    s = own(s, 'c', 'SHIELD', 'EXTRA_BOOMERANG');
     const m = rematchOf(s);
     expect(m.phase).toBe('PLAYING');
     expect(m.matchOver).toBeUndefined();

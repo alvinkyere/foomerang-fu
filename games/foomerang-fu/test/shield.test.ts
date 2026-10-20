@@ -260,12 +260,16 @@ describe('SHIELD (SHIELD) lifecycle: owned until it blocks a hit', () => {
   it('a broken shield frees its slot at once and the others keep their order; the next power fills the freed slot', () => {
     let s = place(place(make(['a', 'b']), 'a', 600, 450), 'b', 700, 450);
     s = face(face(s, 'a', 1, 0), 'b', -1, 0);
-    s = own(s, 'a', 'EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW');
+    s = own(s, 'a', 'EXPLOSIVE_BOOMERANG', 'SHIELD', 'EXTRA_BOOMERANG');
     s = stepFu(s, SLASH_B, DT).state;
-    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']);
     s = place(s, 'a', 600, 450);
     s = give(s, 'a', 'CAFFEINATED');
-    expect(player(s, 'a').inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'CAFFEINATED']); // nothing was evicted
+    expect(player(s, 'a').inventory).toEqual([
+      'EXPLOSIVE_BOOMERANG',
+      'EXTRA_BOOMERANG',
+      'CAFFEINATED',
+    ]); // nothing was evicted
   });
 
   it('death does not remove an unused shield (ownership outlives the round)', () => {

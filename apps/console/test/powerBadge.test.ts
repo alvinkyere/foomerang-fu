@@ -24,9 +24,17 @@ describe('the pickup badge', () => {
     });
   });
 
-  it('the powers the video has not shown picked up yet are marked so', () => {
+  it('Extra: grey, "EXTRA BOOMERANG", the boomerang icon (7:16.6)', () => {
+    expect(POWER_BADGE.EXTRA_BOOMERANG).toMatchObject({
+      name: 'EXTRA BOOMERANG',
+      colour: '#9d9a9b',
+      icon: 'extra',
+      fromVideo: true,
+    });
+  });
+
+  it('the powers the video has not been studied for yet are marked so', () => {
     expect(POWER_BADGE.CAFFEINATED.fromVideo).toBe(false);
-    expect(POWER_BADGE.TWIN_THROW.fromVideo).toBe(false);
   });
 
   it('it stays up ~1.9 s', () => {

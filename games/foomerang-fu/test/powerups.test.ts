@@ -79,7 +79,7 @@ describe('the powers and their compatibility table', () => {
       'CAFFEINATED',
       'EXPLOSIVE_BOOMERANG',
       'SHIELD',
-      'TWIN_THROW',
+      'EXTRA_BOOMERANG',
     ]);
     for (const junk of ['', 'overdrive', 'GUARD', 'OVERDRIVE', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);
@@ -96,16 +96,16 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
     i = awardPower(i, 'SHIELD').inventory;
     i = awardPower(i, 'EXPLOSIVE_BOOMERANG').inventory;
     expect(i).toEqual(['CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG']);
-    const fourth = awardPower(i, 'TWIN_THROW');
-    expect(fourth.inventory).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    const fourth = awardPower(i, 'EXTRA_BOOMERANG');
+    expect(fourth.inventory).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']);
     expect(fourth.evicted).toBe('CAFFEINATED');
     const fifth = awardPower(fourth.inventory, 'CAFFEINATED');
-    expect(fifth.inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'CAFFEINATED']);
+    expect(fifth.inventory).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'CAFFEINATED']);
     expect(fifth.evicted).toBe('SHIELD');
     expect(awardPower(['SHIELD'], 'EXPLOSIVE_BOOMERANG').evicted).toBeUndefined();
-    expect(removePower(['EXPLOSIVE_BOOMERANG', 'SHIELD', 'TWIN_THROW'], 'SHIELD')).toEqual([
+    expect(removePower(['EXPLOSIVE_BOOMERANG', 'SHIELD', 'EXTRA_BOOMERANG'], 'SHIELD')).toEqual([
       'EXPLOSIVE_BOOMERANG',
-      'TWIN_THROW',
+      'EXTRA_BOOMERANG',
     ]);
   });
 
@@ -125,8 +125,8 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
         NONE,
         DT,
       );
-    const fourth = take(s, 'TWIN_THROW');
-    expect(inv(fourth.state)).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'TWIN_THROW']);
+    const fourth = take(s, 'EXTRA_BOOMERANG');
+    expect(inv(fourth.state)).toEqual(['SHIELD', 'EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']);
     expect(fourth.events).toContainEqual({
       type: 'POWER_LOST',
       playerId: 'a',
@@ -134,7 +134,7 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
       reason: 'EVICTED',
     });
     const fifth = take(fourth.state, 'CAFFEINATED');
-    expect(inv(fifth.state)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'CAFFEINATED']);
+    expect(inv(fifth.state)).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'CAFFEINATED']);
     expect(fifth.events).toContainEqual({
       type: 'POWER_LOST',
       playerId: 'a',
@@ -169,7 +169,7 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
     let s = own(lone(), 'a', 'CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG');
     s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
     const r = stepFu(s, NONE, DT);
-    expect(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW']).toContain(inv(r.state).at(-1));
+    expect(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']).toContain(inv(r.state).at(-1));
   });
 
   it('is deterministic: the same acquisitions give the same inventory', () => {
@@ -192,12 +192,12 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
     }
   });
 
-  it('a nine-round match: CAFFEINATED (r1), EXPLOSIVE_BOOMERANG (r4), TWIN_THROW (r6), SHIELD (r8) → round 9 holds [EXPLOSIVE_BOOMERANG, TWIN_THROW, SHIELD]', () => {
+  it('a nine-round match: CAFFEINATED (r1), EXPLOSIVE_BOOMERANG (r4), EXTRA_BOOMERANG (r6), SHIELD (r8) → round 9 holds [EXPLOSIVE_BOOMERANG, EXTRA_BOOMERANG, SHIELD]', () => {
     let s = lone();
     const gains: Record<number, PowerKind> = {
       1: 'CAFFEINATED',
       4: 'EXPLOSIVE_BOOMERANG',
-      6: 'TWIN_THROW',
+      6: 'EXTRA_BOOMERANG',
       8: 'SHIELD',
     };
     for (let round = 1; round <= 9; round += 1) {
@@ -205,10 +205,10 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
       if (round === 2) expect(inv(s)).toEqual(['CAFFEINATED']);
       const gained = gains[round];
       if (gained !== undefined) s = give(place(s, 'a', 600, 450), 'a', gained);
-      if (round === 8) expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']); // the 4th evicted CAFFEINATED
+      if (round === 8) expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'SHIELD']); // the 4th evicted CAFFEINATED
       if (round < 9) s = nextRound(s);
     }
-    expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'TWIN_THROW', 'SHIELD']);
+    expect(inv(s)).toEqual(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'SHIELD']);
   });
 
   it('death does not clear what a player owns', () => {
@@ -221,8 +221,8 @@ describe('persistence: ownership is a match upgrade, not a round state', () => {
   });
 
   it('a kill by a killed player and a round end do not clear it either (a dead player keeps ownership)', () => {
-    const s = nextRound(own(kill(lone(), 'a'), 'a', 'SHIELD', 'TWIN_THROW'));
-    expect(inv(s)).toEqual(['SHIELD', 'TWIN_THROW']);
+    const s = nextRound(own(kill(lone(), 'a'), 'a', 'SHIELD', 'EXTRA_BOOMERANG'));
+    expect(inv(s)).toEqual(['SHIELD', 'EXTRA_BOOMERANG']);
   });
 
   it('inventories survive any number of round resets (nothing about "round 9" clears them); only a REMATCH clears every inventory and starts at round 1', () => {
