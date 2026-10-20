@@ -71,11 +71,12 @@ function steps(s: FuState, n: number, inputs = input({})) {
 const speed = (s: FuState) => Math.hypot(boom(s, 'a').velocity.x, boom(s, 'a').velocity.y);
 
 describe('a dropped boomerang', () => {
-  it('the defaults: friction 2,500 u/s² and the 0.25 s delay (proposals); the pull as measured, 4,500 u/s² up to 1,800 u/s', () => {
-    // the video's tutorial at 0:18.7–0:19.2 (art/physics_reference/README.md): from rest, ~530 u home in ~0.45 s at a near
-    // constant ~4,500 u/s², still speeding up at ~1,800 u/s when caught (no cap seen; 1,800 is the fastest seen)
+  it('the defaults, as measured: friction 900 u/s², the pull after 0.2 s at 4,500 u/s² up to 1,800 u/s', () => {
+    // the video (art/physics_reference/README.md): a dropped boomerang slides to a stop in ~1.1 s from flight speed (0:39.1);
+    // the tutorial at 0:18.5–0:19.2: the banana stands still, 0.2 s later the boomerang lifts and comes ~530 u home in ~0.45 s
+    // at a near constant ~4,500 u/s², still speeding up at ~1,800 u/s when caught (no cap seen; 1,800 is the fastest seen)
     expect([C.groundFriction, C.recallDelaySeconds, C.recallAcceleration, C.recallSpeed]).toEqual([
-      2500, 0.25, 4500, 1800,
+      900, 0.2, 4500, 1800,
     ]);
   });
 
@@ -154,7 +155,7 @@ describe('a dropped boomerang', () => {
     const v0 = speed(s);
     expect(v0).toBeGreaterThan(400);
     const from = boom(s, 'a').position.x;
-    s = steps(s, 60).s;
+    s = steps(s, Math.ceil(v0 / C.groundFriction / DT) + 2).s; // long enough to stop
     expect(boom(s, 'a').state).toBe('GROUNDED');
     expect(speed(s)).toBe(0);
     expect(from - boom(s, 'a').position.x).toBeCloseTo((v0 * v0) / (2 * C.groundFriction), 0);
@@ -227,22 +228,27 @@ describe('a dropped boomerang', () => {
     s = steps(s, 5, input({ a: { throw: true } })).s;
     expect(boom(s, 'a').state).toBe('GROUNDED');
     s = steps(s, 20, HOLD).s;
-    expect(player(s, 'a').charge.phase).toBe('NONE');
+    expect(player(s, 'a').charge.phase).not.toBe('CHARGING'); // the hold is a call (CANCELLED until THROW is let go)
   });
 
-  it('caught by the pull while THROW is still held, the same press goes on to charge the next throw', () => {
+  it('caught by the pull while THROW is still held, the same press does not charge: it was a call (let go, press again)', () => {
     let s = dropped(match(), { x: 500, y: 450 });
     s = place(s, 'a', 300, 450);
     for (let i = 0; i < 120 && boom(s, 'a').state !== 'HELD'; i += 1) s = stepFu(s, HOLD, DT).state;
     expect(boom(s, 'a').state).toBe('HELD');
     s = steps(s, 6, HOLD).s;
+    expect(player(s, 'a').charge.phase).toBe('CANCELLED');
+    s = steps(s, 2).s; // let go: nothing is thrown
+    expect(boom(s, 'a').state).toBe('HELD');
+    s = steps(s, 6, HOLD).s; // a new press charges
     expect(player(s, 'a').charge.phase).toBe('CHARGING');
   });
 
   it('is deterministic, and at rest it stays exactly where it lies', () => {
     const s = dropped(match(), { x: 300, y: 750 }, { x: 700, y: -300 });
-    const one = steps(s, 50);
-    const two = steps(s, 50);
+    const rest = Math.ceil(Math.hypot(700, 300) / C.groundFriction / DT) + 2; // long enough to stop
+    const one = steps(s, rest);
+    const two = steps(s, rest);
     expect(two.s).toEqual(one.s);
     expect(steps(one.s, 50).s.boomerangs).toEqual(one.s.boomerangs);
     expect(at(one.s, 'a')).toEqual(at(s, 'a'));

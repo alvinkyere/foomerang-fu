@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_FU_CONFIG as C, stepFu, type FuState } from '../src/rules';
 import { DT, boom, face, flying, input, make, place } from './support/fixtures';
 
-// Curved flight (owner, 2026-10-19; the reference video: art/physics_reference). A quick throw does not fly straight: it curves
-// clockwise on screen (+y is down), along an arc of about 300 u radius (measured; ±100), so over its 520 u it turns about 100°.
-// The more it was charged the straighter it flies: a full charge is dead straight. On the way home it keeps its heading and
-// turns towards the thrower at a limited (and growing) rate, so it swings round them before it is caught.
+// Curved flight: the mechanism. The reference video, studied throw by throw (2026-10-19, 0:36.9 to 0:43.6), shows quick throws
+// flying OUT IN A STRAIGHT LINE; the curve seen earlier was the turn home. So the default curvature is 0 (flight.test.ts). The
+// mechanism stays and is tested here with an explicit arc of 300 u (`throwCurvature`): a thrown boomerang curves clockwise on
+// screen (+y is down), the more charged the straighter. On the way home it keeps its heading and turns towards the thrower at a
+// limited (and growing) rate: the hook home, measured at about 70 u.
 
-const CURVED = { arena: { width: 3000, height: 2000 } } as const;
+const ARC = 1 / 300;
+const CURVED = { arena: { width: 3000, height: 2000 }, throwCurvature: ARC } as const;
 /** `a` at (1000, 1000) facing right in a big open arena, `b` far away. */
 const ready = (): FuState =>
   face(place(place(make(['a', 'b'], CURVED), 'a', 1000, 1000), 'b', 2900, 100), 'a', 1, 0);
@@ -19,9 +21,9 @@ function fly(s: FuState, seconds: number): FuState {
 }
 
 describe('curved flight', () => {
-  it('the defaults: an arc of 300 u radius; the return turns at its own radius of 150 u, tightening by 20 rad/s²', () => {
-    expect(C.throwCurvature).toBeCloseTo(1 / 300, 12);
-    expect([C.returnTurnRadius, C.returnTurnGrowth]).toEqual([150, 20]);
+  it('the defaults: out straight (no arc); the hook home turns at 70 u, tightening by 20 rad/s²', () => {
+    expect(C.throwCurvature).toBe(0);
+    expect([C.returnTurnRadius, C.returnTurnGrowth]).toEqual([70, 20]);
   });
 
   it('a quick throw curves clockwise on screen: thrown right, it bends downwards', () => {
@@ -32,7 +34,7 @@ describe('curved flight', () => {
     expect(heading(s)).toBeGreaterThan(0.5); // turned clockwise (positive angle with +y down)
   });
 
-  it('it turns by its curvature times the distance flown: about 100° by the end of its range', () => {
+  it('it turns by its curvature times the distance flown: about 155° by the end of its 810 u range', () => {
     let s = stepFu(ready(), input({ a: { throw: true } }), DT).state;
     let last = s;
     while (boom(s, 'a').state === 'THROWN') {
@@ -40,9 +42,9 @@ describe('curved flight', () => {
       s = stepFu(s, input({}), DT).state;
     }
     const turned = heading(last);
-    expect(turned).toBeCloseTo(boom(last, 'a').travelled * C.throwCurvature, 2);
-    expect(turned).toBeGreaterThan(1.5);
-    expect(turned).toBeLessThan(1.9);
+    expect(turned).toBeCloseTo(boom(last, 'a').travelled * ARC, 2);
+    expect(turned).toBeGreaterThan(2.5);
+    expect(turned).toBeLessThan(2.8);
   });
 
   it('a full charge flies dead straight', () => {
@@ -61,7 +63,7 @@ describe('curved flight', () => {
     s = stepFu(s, input({}), DT).state;
     const power = boom(s, 'a').power;
     s = fly(s, 0.15);
-    expect(heading(s)).toBeCloseTo(boom(s, 'a').travelled * C.throwCurvature * (1 - power), 2);
+    expect(heading(s)).toBeCloseTo(boom(s, 'a').travelled * ARC * (1 - power), 2);
   });
 
   it('a deflected boomerang flies straight', () => {

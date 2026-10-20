@@ -88,7 +88,7 @@ export interface Snapshot {
           blast: boolean;
           direction: { x: number; y: number };
           ownerId: string;
-          state: 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED';
+          state: 'HELD' | 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING' | 'SPENT';
           x: number;
           y: number;
           travelled: number;

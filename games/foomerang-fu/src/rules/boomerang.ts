@@ -58,12 +58,17 @@ export const GROUND_TRANSITIONS: Readonly<
  * thrower's hand (SPENT → HELD).
  */
 export const EXPLOSIVE_TRANSITIONS: Readonly<
-  Record<'THROWN' | 'RETURNING' | 'DEFLECTED' | 'RECALLING' | 'SPENT', readonly BoomerangState[]>
+  Record<
+    'THROWN' | 'RETURNING' | 'DEFLECTED' | 'RECALLING' | 'GROUNDED' | 'SPENT',
+    readonly BoomerangState[]
+  >
 > = Object.freeze({
   THROWN: Object.freeze(['SPENT'] as const),
   RETURNING: Object.freeze(['SPENT'] as const),
   DEFLECTED: Object.freeze(['SPENT'] as const),
   RECALLING: Object.freeze(['SPENT'] as const),
+  // (knocked down by the impact that ends its flight out, it goes off there)
+  GROUNDED: Object.freeze(['SPENT'] as const),
   SPENT: Object.freeze(['HELD'] as const),
 });
 

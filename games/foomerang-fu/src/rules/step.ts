@@ -559,8 +559,9 @@ function edgeCrossing(
   let best: { at: number; normal: Vec2 } | undefined;
   const consider = (bound: number, p: number, d: number, normal: Vec2) => {
     if (d === 0) return;
-    const t = (bound - p) / (d * length);
-    if (t > 1e-9 && t <= 1 && (best === undefined || t < best.at)) best = { at: t, normal };
+    // (already on or past the bound and moving out: it meets the edge at once, never flies on beyond it)
+    const t = Math.max(0, (bound - p) / (d * length));
+    if (t <= 1 && (best === undefined || t < best.at)) best = { at: t, normal };
   };
   if (dir.x < 0) consider(r, from.x, dir.x, { x: 1, y: 0 });
   if (dir.x > 0) consider(config.arena.width - r, from.x, dir.x, { x: -1, y: 0 });
@@ -664,6 +665,17 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const heldAny = state.players.map((p) =>
     startWeapons.some((w) => w.ownerId === p.id && w.state === 'HELD'),
   );
+  // Calling a dropped boomerang home (THROW held, nothing in hand to charge): they stand still in the calling pose, as in the
+  // reference video (the banana at 0:18.5, arms out until it arrives).
+  const calling = state.players.map(
+    (p, index) =>
+      p.alive &&
+      entries[index]?.throwHeld === true &&
+      heldAny[index] !== true &&
+      startWeapons.some(
+        (w) => w.ownerId === p.id && (w.state === 'GROUNDED' || w.state === 'RECALLING'),
+      ),
+  );
 
   // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.
   const moved: FuPlayer[] = state.players.map((player, index) => {
@@ -724,11 +736,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const power =
       charge.phase === 'CHARGING' ? Math.min(1, charge.seconds / config.fullChargeSeconds) : 0;
     // what the charge is after this step: a throw spends it, a dash cancels it until THROW is let go; it builds while THROW
-    // is held with every boomerang the throw needs in hand
+    // is held with every boomerang the throw needs in hand. A hold that is calling a dropped boomerang home is not a charge
+    // either: once it is caught, letting go throws nothing (a new press does)
     const holding = player.alive && entry?.throwHeld === true;
     const nextCharge: ThrowCharge = throws
       ? NO_CHARGE
-      : dashes
+      : dashes || calling[index] === true
         ? holding
           ? CANCELLED
           : NO_CHARGE
@@ -769,7 +782,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
   moved.forEach((player, index) => {
     const move = entries[index]?.move;
-    if (!player.alive || (dashes[index] as DashState).phase === 'DASHING' || !isObject(move))
+    if (
+      !player.alive ||
+      (dashes[index] as DashState).phase === 'DASHING' ||
+      calling[index] === true ||
+      !isObject(move)
+    )
       return;
     // Slowed while committed to a swing and while fatigued, sped up under CAFFEINATED (they multiply).
     const factor =
@@ -1098,11 +1116,6 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         const incoming = normalized(rotate(heading, curvature * flown));
         position = hit;
         path.push(hit);
-        if (ricochets >= config.maxRicochets) {
-          heading = incoming;
-          stopped = true;
-          break;
-        }
         const normal =
           f === wallAt
             ? (nearestWallNormal(hit, walls) ?? { x: -incoming.x, y: -incoming.y })
@@ -1112,19 +1125,41 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           dot < 0
             ? normalized({ x: incoming.x - 2 * dot * normal.x, y: incoming.y - 2 * dot * normal.y })
             : incoming;
-        ricochets += 1;
         events.push({ type: 'RICOCHET', ownerId: b.ownerId, position: hit, direction: heading });
+        if (ricochets >= config.maxRicochets) {
+          // out of bounces: this one knocks it down (the reference video): it drops, sliding off the way it bounced
+          stopped = true;
+          break;
+        }
+        ricochets += 1;
       }
       if (path.length > 1) path.push(position);
       const extra: Pick<Flight, 'path'> = path.length > 2 ? { path } : {};
-      if (stopped || travelled >= range - EPSILON) {
-        // home: it carries on round its curve (a wall it may not bounce off turns it straight back towards its thrower)
-        const owner = positionOf(b.ownerId);
-        const back = normalized({ x: owner.x - position.x, y: owner.y - position.y });
+      if (stopped)
+        // knocked down: it lies where it fell, sliding to a stop, until its thrower picks it up or calls it
+        return {
+          boomerang: transition(b, 'GROUNDED', {
+            position,
+            direction: heading,
+            velocity: { x: heading.x * speed, y: heading.y * speed },
+            travelled: 0,
+            ricochets,
+            recall: 0,
+            follow: 0,
+            deflectedBy: undefined,
+          }),
+          lethalAt: position,
+          caught: false,
+          dropped: true,
+          ended: position,
+          ...extra,
+        };
+      if (travelled >= range - EPSILON) {
+        // its range is used up: it hooks round (returnTurnRadius) and homes on its thrower
         return {
           boomerang: transition(b, 'RETURNING', {
             position,
-            direction: stopped ? back : heading,
+            direction: heading,
             homing: 0,
             travelled: 0,
             follow: 0,
@@ -1252,9 +1287,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         caught: arrived,
       }) satisfies Flight;
 
-    // The swing (owner, 2026-10-19; the reference video): it keeps its heading and turns towards its thrower no faster than
-    // returnSpeed / returnTurnRadius, a rate that grows with the trip, so it comes round them on a curve and is caught.
-    if (config.returnTurnRadius > 0 && b.follow === 0) {
+    // The hook home (the reference video, 0:37.9): it keeps its heading and turns towards its thrower no faster than
+    // returnSpeed / returnTurnRadius, a rate that grows with the trip, so it comes round on a tight curve and is caught
+    // (returnTurnRadius 0: it turns at once, a straight line home).
+    {
       const dx = owner.x - b.position.x;
       const dy = owner.y - b.position.y;
       const want = Math.atan2(dy, dx);
@@ -1266,7 +1302,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       while (delta > Math.PI) delta -= 2 * Math.PI;
       while (delta < -Math.PI) delta += 2 * Math.PI;
       const most =
-        (config.returnSpeed / config.returnTurnRadius + config.returnTurnGrowth * b.homing) * dt;
+        config.returnTurnRadius > 0
+          ? (config.returnSpeed / config.returnTurnRadius + config.returnTurnGrowth * b.homing) * dt
+          : Number.POSITIVE_INFINITY;
       const angle = from + Math.max(-most, Math.min(most, delta));
       const heading = { x: Math.cos(angle), y: Math.sin(angle) };
       const free = { x: b.position.x + heading.x * travel, y: b.position.y + heading.y * travel };
@@ -1283,59 +1321,45 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         const near = Math.hypot(b.position.x + ex * t - owner.x, b.position.y + ey * t - owner.y);
         return home(free, near <= reach, { direction: heading });
       }
-      // a wall in the way: the wall-following steering below takes over
-    }
-
-    if (walls.length === 0) {
-      // Open ground (Slice 1 exactly): a straight line home.
-      const dx = owner.x - b.position.x;
-      const dy = owner.y - b.position.y;
-      const distance = Math.hypot(dx, dy);
-      const position =
-        distance <= travel
-          ? owner
-          : {
-              x: b.position.x + (dx / distance) * travel,
-              y: b.position.y + (dy / distance) * travel,
-            };
-      return home(position, distance - travel <= reach, {});
-    }
-
-    // Among walls: still home on the owner, but bound by the geometry — local steering, see homing.ts.
-    const homed = homeStep(
-      b.position,
-      owner,
-      travel,
-      config.boomerangRadius,
-      walls,
-      config.arena,
-      b.follow,
-    );
-    const wallSeconds = b.wallSeconds + (homed.followed ? dt : 0);
-    const arrived = Math.hypot(owner.x - homed.position.x, owner.y - homed.position.y) <= reach;
-    const moved = { x: homed.position.x - b.position.x, y: homed.position.y - b.position.y };
-    const heading = Math.hypot(moved.x, moved.y) > 1e-9 ? normalized(moved) : b.direction;
-    // Sliding along walls too long without getting home: the trip has failed and it drops where it is, keeping its speed (its
-    // thrower walks to it or pulls it home), deterministically.
-    if (!arrived && wallSeconds >= config.returnWallSeconds - EPSILON)
+      // Something in the way home (the reference video, 0:39.1): it bounces off and drops, sliding on the way it bounced,
+      // and lies there until its thrower picks it up or calls it. It does not find its own way round.
+      const swept = sweepCircle(b.position, free, config.boomerangRadius, walls);
+      const edge = edgeCrossing(b.position, heading, travel, config);
+      const wallAt = swept.blocked
+        ? Math.hypot(swept.position.x - b.position.x, swept.position.y - b.position.y)
+        : Number.POSITIVE_INFINITY;
+      const byEdge = edge !== undefined && edge.at * travel < wallAt;
+      const hit = byEdge
+        ? {
+            x: b.position.x + heading.x * travel * (edge as { at: number }).at,
+            y: b.position.y + heading.y * travel * (edge as { at: number }).at,
+          }
+        : swept.blocked
+          ? swept.position
+          : bounded;
+      const normal = byEdge
+        ? (edge as { normal: Vec2 }).normal
+        : (nearestWallNormal(hit, walls) ?? { x: -heading.x, y: -heading.y });
+      const dot = heading.x * normal.x + heading.y * normal.y;
+      const off =
+        dot < 0
+          ? normalized({ x: heading.x - 2 * dot * normal.x, y: heading.y - 2 * dot * normal.y })
+          : heading;
+      events.push({ type: 'RICOCHET', ownerId: b.ownerId, position: hit, direction: off });
       return {
         boomerang: transition(b, 'GROUNDED', {
-          position: homed.position,
-          direction: heading,
-          velocity: { x: heading.x * config.returnSpeed, y: heading.y * config.returnSpeed },
+          position: hit,
+          direction: off,
+          velocity: { x: off.x * config.returnSpeed, y: off.y * config.returnSpeed },
           recall: 0,
           follow: 0,
           wallSeconds: 0,
         }),
-        lethalAt: homed.position,
+        lethalAt: hit,
         caught: false,
         dropped: true,
       };
-    return home(homed.position, arrived, {
-      follow: homed.follow,
-      wallSeconds,
-      direction: heading,
-    });
+    }
   });
   const flownFrom = weapons; // where each boomerang was before it flew this step
   weapons = flights.map((f) => f.boomerang);

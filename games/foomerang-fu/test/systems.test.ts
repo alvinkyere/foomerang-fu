@@ -788,7 +788,7 @@ describe('the real arena in play', () => {
 describe('more of the combat sandbox against the arena systems', () => {
   const gated = arenaOf({ gates: [GATE] });
 
-  it('a RETURNING boomerang is bound by a closed gate (it goes round, never through) and still gets home', () => {
+  it('a RETURNING boomerang is bound by a closed gate: never through it; the gate knocks it down on its own side (the reference video)', () => {
     let s = place(duel(gated), 'a', 800, 450);
     s = stepFu(withTime(s, 7), NONE, DT).state;
     s = patchBoomerang(s, 'a', {
@@ -804,7 +804,8 @@ describe('more of the combat sandbox against the arena systems', () => {
         crossed = true;
     }
     expect(crossed).toBe(false);
-    expect(boom(s, 'a').state).toBe('HELD');
+    expect(boom(s, 'a').state).toBe('GROUNDED');
+    expect(boom(s, 'a').position.x).toBeLessThan(GATE.rect.x);
   });
 
   it('a DEFLECTED boomerang stops at a closed gate and turns back (and passes an open one)', () => {

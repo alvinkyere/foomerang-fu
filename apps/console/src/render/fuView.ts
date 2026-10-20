@@ -2,6 +2,7 @@ import {
   isFatigued,
   roundLabel,
   systemsView,
+  type Boomerang,
   type FuArena,
   type FuEvent,
   type FuState,
@@ -52,6 +53,12 @@ export function buildFuView(
   const positionOf = (id: string): { x: number; y: number } =>
     state.world.bodies.find((b) => b.id === id)?.position ?? { x: 0, y: 0 };
 
+  // being called home: lying there with the hold started, or on its way (rules state: recall > 0, or RECALLING)
+  const called = (b: Boomerang): boolean =>
+    b.state === 'RECALLING' || (b.state === 'GROUNDED' && b.recall > 0);
+  const callers = new Set(
+    [...state.boomerangs, ...state.extraBoomerangs].filter(called).map((b) => b.ownerId),
+  );
   const circles = state.world.bodies.map((body): CircleView => {
     const player = state.players.find((p) => p.id === body.id);
     const boomerang = state.boomerangs.find((b) => b.ownerId === body.id);
@@ -68,6 +75,7 @@ export function buildFuView(
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),
       armed: !dead && boomerang?.state === 'HELD',
+      ...(!dead && callers.has(body.id) ? { calling: true as const } : {}),
       powers: player === undefined ? [] : player.inventory, // what they own, oldest first (the dead keep theirs)
       ...(!dead && player?.dash.phase === 'DASHING'
         ? { dashing: { direction: player.dash.direction } }
@@ -110,6 +118,7 @@ export function buildFuView(
               id: n === 1 ? b.ownerId : `${b.ownerId}#${n}`,
               blast: b.blast,
               ownerId: b.ownerId,
+              ...(called(b) ? { called: true as const } : {}),
               x: b.position.x,
               y: b.position.y,
               radius: state.config.boomerangRadius,

@@ -259,10 +259,14 @@ export class CpuController {
       if (out.dash === true) this.#lastDash = this.#tick;
     }
     const dir = aimOverride ?? this.#move;
-    // its boomerang dropped (it lies on the ground, or is being pulled home): hold THROW and pull it home, as a player can
-    const away = [...state.boomerangs, ...state.extraBoomerangs].some(
-      (b) => b.ownerId === this.#id && (b.state === 'GROUNDED' || b.state === 'RECALLING'),
-    );
+    // its boomerang dropped (it lies on the ground, or is being pulled home): hold THROW and pull it home, as a player can.
+    // Calling means standing still (the calling pose), so not while it is dodging something.
+    const dodging = this.#dodge !== undefined && this.#tick < this.#dodge.until;
+    const away =
+      !dodging &&
+      [...state.boomerangs, ...state.extraBoomerangs].some(
+        (b) => b.ownerId === this.#id && (b.state === 'GROUNDED' || b.state === 'RECALLING'),
+      );
     const input: { move: Vec2; throw?: true; throwHeld?: true; slash?: true; dash?: true } = {
       move: dir,
       ...out,

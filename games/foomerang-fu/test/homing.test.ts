@@ -19,14 +19,12 @@ import { distanceToSolid } from '../src/rules/arena';
 vi.setConfig({ testTimeout: 60_000 });
 
 // ------------------------------------------------------------------------------------------
-// A RETURNING boomerang is bound by solid geometry exactly like a THROWN one. It keeps homing on
-// its owner with LOCAL steering: when its heading is blocked it slides along the wall (a committed
-// hand, flipped once if it is wedged in a concave corner), and a time-boxed failsafe recalls it if
-// wall-following never gets it home. No pathfinding, no teleporting through geometry.
+// The way home, as the reference video shows it (owner, 2026-10-19; 0:39.1): a RETURNING boomerang homes on its
+// thrower, and if anything is in its way (a wall, the arena's edge) it bounces off and DROPS on its own side, sliding
+// to a stop. It never finds its own way round and never passes through geometry. Its thrower picks it up or calls it.
 // ------------------------------------------------------------------------------------------
 
 const C = DEFAULT_FU_CONFIG;
-const R = C.playerRadius;
 const RB = C.boomerangRadius;
 const NONE: FuInputs = new Map();
 type Press = { move?: { x: number; y: number }; throw?: boolean; slash?: boolean };
@@ -135,306 +133,91 @@ function fly(
 const SLAB: Rect = { x: 700, y: 300, width: 100, height: 300 };
 const ONE_WALL = arenaWith([SLAB]);
 
-describe('a returning boomerang cannot pass through a wall', () => {
-  it('owner and boomerang on opposite sides of a wall: it goes round it, never into it, and is caught', () => {
-    const f = fly(returning(ONE_WALL, [500, 450], [1000, 450]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.events.map((e) => e.type)).toContain('CAUGHT');
-    // it really did go around: some point of the path is above or below the whole slab
-    expect(
-      f.path.some((p) => p.y < SLAB.y - RB + EPS || p.y > SLAB.y + SLAB.height + RB - EPS),
-    ).toBe(true);
-    // and it never crossed the slab's own x-range at a y inside it
-    expect(
-      f.path.every(
-        (p) =>
-          !(
-            p.x > SLAB.x &&
-            p.x < SLAB.x + SLAB.width &&
-            p.y > SLAB.y &&
-            p.y < SLAB.y + SLAB.height
-          ),
-      ),
-    ).toBe(true);
+describe('something in the way home: it bounces off and drops on its own side', () => {
+  it('owner beyond a wall: it flies at it, bounces off (a RICOCHET), drops, and never gets home on its own', () => {
+    const f = fly(returning(ONE_WALL, [1100, 450], [400, 450]), 600);
+    expect(f.caughtAfter).toBeUndefined();
+    expect(boom(f.state).state).toBe('GROUNDED');
+    expect(f.events.filter((e) => e.type === 'RICOCHET')).toHaveLength(1);
+    expect(f.events.filter((e) => e.type === 'DROPPED')).toHaveLength(1);
+    expect(boom(f.state).position.x).toBeLessThan(SLAB.x - RB + EPS); // on its own side
+    expect(f.worstPenetration).toBeLessThanOrEqual(EPS);
   });
 
-  it('head-on at the exact middle of a wall is deterministic (it picks a side by a fixed rule and keeps it)', () => {
-    const one = fly(returning(ONE_WALL, [500, 450], [1000, 450]), 400);
-    const two = fly(returning(ONE_WALL, [500, 450], [1000, 450]), 400);
+  it('it slides back the way it bounced and comes to rest there', () => {
+    const f = fly(returning(ONE_WALL, [1100, 450], [400, 450]), 600);
+    const rest = boom(f.state).position;
+    expect(rest.x).toBeLessThan(SLAB.x - 300); // slid well back from the wall
+    expect(boom(f.state).velocity).toEqual({ x: 0, y: 0 });
+    expect(boom(fly(f.state, 120).state).position).toEqual(rest);
+  });
+
+  it('the same situation drops it on the same step, in the same place', () => {
+    const one = fly(returning(ONE_WALL, [1100, 450], [400, 450]), 200);
+    const two = fly(returning(ONE_WALL, [1100, 450], [400, 450]), 200);
     expect(two.path).toEqual(one.path);
-    // it commits to one side: it does not oscillate across the middle line
-    const ys = one.path.map((p) => p.y);
-    const wentUp = ys.some((y) => y < 450 - 100);
-    const wentDown = ys.some((y) => y > 450 + 100);
-    expect(wentUp !== wentDown).toBe(true);
-    expect(wentDown).toBe(true); // an exact tie takes the fixed hand: down, here
   });
 
   it('an owner who runs behind cover after throwing cannot be reached through it', () => {
-    // Alice throws right along the open lane above the slab, then runs down behind it.
-    const arena = arenaWith([{ x: 500, y: 300, width: 100, height: 300 }]);
-    let s = createFuMatch([{ id: 'a', slot: 0 }], { arena });
-    s = place(s, 'a', 300, 200);
-    s = { ...s, players: s.players.map((p) => ({ ...p, facing: { x: 1, y: 0 } })) };
-    s = stepFu(s, input({ a: { throw: true } }), DT).state;
-    let worst = 0;
-    let caught = false;
-    for (let i = 0; i < 300 && !caught; i += 1) {
-      const turning = boom(s).state === 'RETURNING';
-      // once it is on its way back, the owner ducks behind the slab
-      s = stepFu(s, input({ a: { move: turning ? { x: 0.3, y: 1 } : { x: 0, y: 0 } } }), DT).state;
-      for (const w of arena.walls ?? []) worst = Math.max(worst, RB - gap(boom(s).position, w));
-      caught = boom(s).state === 'HELD' && i > 5;
-    }
-    expect(worst).toBeLessThan(EPS);
-    expect(caught).toBe(true);
-    expect(player(s, 'a').alive).toBe(true); // never its owner's killer
+    const start = returning(ONE_WALL, [500, 450], [200, 450]);
+    const f = fly(start, 300, DT, (i) => (i < 120 ? input({ a: { move: { x: 1, y: 0 } } }) : NONE));
+    expect(f.worstPenetration).toBeLessThanOrEqual(EPS);
+    for (const p of f.path) expect(inWall(p, ONE_WALL.walls ?? [])).toBe(false);
   });
 
-  it('it stays flush with a wall it is sliding along, not hovering away from it', () => {
-    const f = fly(returning(ONE_WALL, [500, 450], [1000, 450]), 400);
-    const sliding = f.path.filter((p) => Math.abs(gap(p, SLAB) - RB) < 1e-6);
-    expect(sliding.length).toBeGreaterThan(5);
-  });
-});
-
-describe('corners', () => {
-  it('rounds a convex corner: slides along one face, wraps the corner and carries on', () => {
-    // owner below-left of the slab's bottom-left... boomerang right of it, level with the top
-    const f = fly(returning(ONE_WALL, [600, 700], [900, 350]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-  });
-
-  it('a concave corner it is driven into: it backs out the other way (hand flipped once) and gets home', () => {
-    // An L: a tall wall (x 700–760, y 200–600) with a floor (x 700–1000, y 540–600) at its foot.
-    const arena = arenaWith([
-      { x: 700, y: 200, width: 60, height: 400 },
-      { x: 700, y: 540, width: 300, height: 60 },
-    ]);
-    // The boomerang is in the inside corner; the owner is beyond the tall wall and below the floor level,
-    // so the first slide runs straight into the corner.
-    const f = fly(returning(arena, [500, 700], [780, 520]), 600);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.events.map((e) => e.type)).not.toContain('RECALLED');
-  });
-
-  it('wedged against the arena edge on its first hand, it flips once and gets home (instead of waiting for the failsafe)', () => {
-    // A wall that starts at the left edge; the boomerang sits on top of it close to that edge, and the owner is
-    // below and slightly further left: the first hand says "slide left", which runs out of arena.
-    const edge = arenaWith([{ x: 0, y: 500, width: 400, height: 100 }]);
-    const f = fly(returning(edge, [36, 700], [60, 486]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.events.map((e) => e.type)).not.toContain('RECALLED');
-    expect((f.caughtAfter ?? 0) * DT).toBeLessThan(C.returnWallSeconds / 2);
-  });
-
-  it('the other concave case: owner up and left, the slide goes the free way at once', () => {
-    const arena = arenaWith([
-      { x: 700, y: 200, width: 60, height: 400 },
-      { x: 700, y: 540, width: 300, height: 60 },
-    ]);
-    const f = fly(returning(arena, [500, 300], [780, 520]), 600);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-  });
-});
-
-describe('corridors and chokepoints', () => {
-  const corridor = arenaWith([
-    { x: 700, y: 200, width: 60, height: 400 },
-    { x: 860, y: 200, width: 60, height: 400 }, // 100 wide between them, 400 long
-  ]);
-
-  it('inside a corridor with the owner at the far end: straight along it', () => {
-    const f = fly(returning(corridor, [810, 700], [810, 300]), 200);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.path.every((p) => Math.abs(p.x - 810) < 1e-6)).toBe(true); // dead straight, no wobble
-  });
-
-  it('inside a corridor with the owner beside it, beyond a wall: it follows the corridor out and round', () => {
-    const f = fly(returning(corridor, [1100, 400], [810, 400]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.path.some((p) => p.y < 200 || p.y > 600)).toBe(true); // it left by an end
-  });
-
-  it('through a chokepoint the width of one body: a boomerang is far narrower, so it passes', () => {
-    const gate = arenaWith([
-      { x: 700, y: 0, width: 100, height: 400 },
-      { x: 700, y: 520, width: 100, height: 380 }, // 120 gap at y 400–520
-    ]);
-    const f = fly(returning(gate, [400, 460], [1100, 460]), 200);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.path.every((p) => Math.abs(p.y - 460) < 1e-6)).toBe(true); // straight through the gap
-  });
-
-  it('when the gap is not on its straight line it slides to it, through it, and home', () => {
-    const gate = arenaWith([
-      { x: 700, y: 0, width: 100, height: 400 },
-      { x: 700, y: 520, width: 100, height: 380 },
-    ]);
-    const f = fly(returning(gate, [400, 100], [1100, 100]), 400);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-  });
-});
-
-describe('sequential contacts, long steps, thin walls', () => {
-  it('several walls in a row (the primitive arena, across the middle) are rounded one after another', () => {
-    const f = fly(returning(createArenaFor(), [110, 450], [1490, 450]), 600);
-    expect(f.worstPenetration).toBeLessThan(EPS);
-    expect(f.caughtAfter).toBeDefined();
-    expect(f.events.map((e) => e.type)).not.toContain('RECALLED');
-  });
-
-  it.each([DT, 2 * DT, 3 * DT, MAX_STEP_SECONDS])(
-    'no penetration and no tunnelling at any accepted dt (dt = %s), even through the thinnest wall',
-    (dt) => {
-      const thin = arenaWith([{ x: 700, y: 200, width: R, height: 500 }]);
-      for (const startX of [752, 760, 790, 820, 900, 1100]) {
-        const f = fly(returning(thin, [500, 450], [startX, 450]), 300, dt);
-        expect(f.worstPenetration, `start ${startX}`).toBeLessThan(EPS);
-        expect(f.caughtAfter, `start ${startX}`).toBeDefined();
-        expect(f.path.every((p) => !(p.x > 700 && p.x < 700 + R && p.y > 200 && p.y < 700))).toBe(
-          true,
-        );
-      }
-    },
-  );
-
-  it('a boomerang in contact with the wall that the owner has just stepped behind is not caught through it', () => {
-    const thin = arenaWith([{ x: 700, y: 200, width: R, height: 500 }]);
-    // owner pressed against the wall's far face; boomerang pressed against the near face
-    const s = returning(thin, [700 + R + R, 450], [700 - RB, 450]);
-    const r = stepFu(s, NONE, DT);
-    expect(boom(r.state).state).toBe('RETURNING');
-    expect(r.events.map((e) => e.type)).not.toContain('CAUGHT');
-  });
-});
-
-function createArenaFor(): FuArena {
-  return PRIMITIVE_ARENA;
-}
-
-describe('a returning boomerang is still a weapon, and still comes home', () => {
-  it('kills a player standing in its way around the wall (lethality is unchanged)', () => {
-    // head-on, it takes the fixed side (down); a victim stands on the lane it must use
-    const s0 = returning(ONE_WALL, [500, 450], [1000, 450], 2);
-    const s1 = place(s0, 'b', 750, 650); // it hugs the slab's right face, then runs along its underside
-    const f = fly(s1, 100); // (the round ends on the kill, and resets after 2.5 s: look at what happened, not at the end)
-    expect(f.events.some((e) => e.type === 'HIT' && e.victimId === 'b' && e.byId === 'a')).toBe(
-      true,
-    );
-  });
-
-  it('never kills its owner while going round', () => {
-    const f = fly(returning(ONE_WALL, [500, 450], [1000, 450]), 400);
-    expect(player(f.state, 'a').alive).toBe(true);
-  });
-
-  it('every boomerang, from anywhere in the primitive arena, to every spawn point, gets home on its own (no failsafe)', () => {
-    const walls = PRIMITIVE_ARENA.walls ?? [];
-    let flights = 0;
-    let slowest = 0;
-    for (let x = 60; x < 1600; x += 110) {
-      for (let y = 60; y < 900; y += 110) {
-        const from = { x, y };
-        if (walls.some((w) => gap(from, w) < RB + 1)) continue;
-        for (const owner of PRIMITIVE_ARENA.spawns ?? []) {
-          const f = fly(returning(PRIMITIVE_ARENA, [owner.x, owner.y], [x, y]), 400);
-          flights += 1;
-          expect(f.worstPenetration, `from ${x},${y} to ${owner.x},${owner.y}`).toBeLessThan(EPS);
-          expect(f.caughtAfter, `from ${x},${y} to ${owner.x},${owner.y}`).toBeDefined();
-          expect(f.events.map((e) => e.type)).not.toContain('RECALLED');
-          slowest = Math.max(slowest, f.caughtAfter ?? 0);
-        }
-      }
-    }
-    expect(flights).toBeGreaterThan(500);
-    expect(slowest * DT).toBeLessThan(C.returnWallSeconds); // nowhere near the failsafe
-  });
-
-  it('the same, at the longest accepted step', () => {
-    const walls = PRIMITIVE_ARENA.walls ?? [];
-    for (let x = 60; x < 1600; x += 220) {
-      for (let y = 60; y < 900; y += 220) {
-        if (walls.some((w) => gap({ x, y }, w) < RB + 1)) continue;
-        for (const owner of PRIMITIVE_ARENA.spawns ?? []) {
-          const f = fly(
-            returning(PRIMITIVE_ARENA, [owner.x, owner.y], [x, y]),
-            100,
-            MAX_STEP_SECONDS,
-          );
-          expect(f.worstPenetration).toBeLessThan(EPS);
-          expect(f.caughtAfter, `from ${x},${y} to ${owner.x},${owner.y}`).toBeDefined();
-        }
-      }
-    }
-  });
-});
-
-describe('when local steering cannot make progress', () => {
-  /** A sealed room (a box with 120×120 inside) with the owner in it: no route exists at all. */
-  const sealed = arenaWith([
-    { x: 700, y: 300, width: 200, height: 40 },
-    { x: 700, y: 460, width: 200, height: 40 },
-    { x: 700, y: 340, width: 40, height: 120 },
-    { x: 860, y: 340, width: 40, height: 120 },
-  ]);
-
-  it('it wall-follows for the configured time, never entering any wall, and then drops — its trip has failed (owner, 2026-10-19)', () => {
-    // (it used to be put back in the owner's hand; now it lands, and its thrower walks to it or holds THROW to pull it home)
-    let s = returning(sealed, [800, 400], [400, 400]);
-    let droppedAt: number | undefined;
-    const events: FuEvent[] = [];
-    for (let i = 1; i <= 400 && droppedAt === undefined; i += 1) {
-      const r = stepFu(s, NONE, DT);
-      s = r.state;
-      events.push(...r.events);
-      expect(inWall(boom(s).position, sealed.walls ?? []), `step ${i}`).toBe(false);
-      if (boom(s).state === 'GROUNDED') droppedAt = i;
-    }
-    expect(droppedAt).toBeDefined();
-    const types = events.map((e) => e.type);
-    expect(types).toContain('DROPPED');
-    expect(types).not.toContain('CAUGHT');
-    // it took (about) the configured time of wall-following, no sooner
-    expect((droppedAt ?? 0) * DT).toBeGreaterThanOrEqual(C.returnWallSeconds - DT);
-    expect((droppedAt ?? 0) * DT).toBeLessThanOrEqual(C.returnWallSeconds + 2 * DT + 0.5);
-  });
-
-  it('the failsafe is deterministic: the same situation drops it on the same step, in the same place', () => {
-    const run = () => {
-      let s = returning(sealed, [800, 400], [400, 400]);
-      for (let i = 1; i <= 400; i += 1) {
-        s = stepFu(s, NONE, DT).state;
-        if (boom(s).state === 'GROUNDED') return { i, at: boom(s).position };
-      }
-      return undefined;
+  it('the arena edge stops it too: it never leaves the arena', () => {
+    const s = returning(arenaWith([]), [800, 450], [200, 450]);
+    // pointing it away from home at the edge: the turn back takes it into the edge first
+    const away = {
+      ...s,
+      boomerangs: s.boomerangs.map((b) =>
+        b.ownerId === 'a' ? { ...b, position: { x: 30, y: 450 }, direction: { x: -1, y: 0 } } : b,
+      ),
     };
-    expect(run()).toEqual(run());
-    expect(run()).toBeDefined();
-  });
-
-  it('the failsafe clock only runs while the boomerang is actually wall-following', () => {
-    // an open arena: a long chase after a fleeing owner never counts as "stuck"
-    let s = returning(arenaWith([]), [100, 450], [1500, 450]);
-    for (let i = 0; i < 200 && boom(s).state === 'RETURNING'; i += 1) {
-      s = stepFu(s, input({ a: { move: { x: -1, y: 0 } } }), DT).state;
+    const f = fly(away, 200);
+    for (const p of f.path) {
+      expect(p.x).toBeGreaterThanOrEqual(RB - EPS);
+      expect(p.x).toBeLessThanOrEqual(1600 - RB + EPS);
     }
-    expect(boom(s).state).toBe('HELD');
+  });
+});
+
+describe('no penetration, no tunnelling, at any accepted dt', () => {
+  const THIN: Rect = { x: 780, y: 0, width: 40, height: 900 }; // the thinnest an arena allows (a player radius, 36)
+  for (const dt of [DT, 2 * DT, 0.05, MAX_STEP_SECONDS]) {
+    it(`dt = ${dt}: a returning boomerang meets the thinnest wall and stays on its side`, () => {
+      const f = fly(returning(arenaWith([THIN]), [1300, 450], [300, 450]), Math.ceil(4 / dt), dt);
+      expect(f.caughtAfter).toBeUndefined();
+      for (const p of f.path) expect(p.x).toBeLessThan(THIN.x - RB + EPS);
+      expect(f.worstPenetration).toBeLessThanOrEqual(EPS);
+    });
+  }
+});
+
+describe('a returning boomerang is still a weapon, and comes home when nothing is in the way', () => {
+  it('kills a player standing in its way home', () => {
+    let s = returning(arenaWith([]), [1300, 450], [300, 450], 2);
+    s = place(s, 'b', 700, 450);
+    const f = fly(s, 120);
+    expect(player(f.state, 'b').alive).toBe(false);
   });
 
-  it('a configuration without a positive wall-following limit is refused', () => {
-    expect(() => createFuMatch([{ id: 'a', slot: 0 }], { returnWallSeconds: 0 })).toThrow(
-      RangeError,
-    );
+  it('never kills its owner', () => {
+    const f = fly(returning(arenaWith([]), [1300, 450], [300, 450]), 200);
+    expect(player(f.state, 'a').alive).toBe(true);
+    expect(f.caughtAfter).toBeDefined();
+  });
+
+  it('with a clear way, from anywhere in the open arena, it gets home on its own', () => {
+    for (const from of [
+      [100, 100],
+      [1500, 800],
+      [800, 60],
+      [60, 840],
+    ] as [number, number][]) {
+      const f = fly(returning(arenaWith([]), [800, 450], from), 600);
+      expect(f.caughtAfter, `from ${from.join(',')}`).toBeDefined();
+    }
   });
 });
 
@@ -455,7 +238,7 @@ describe('determinism', () => {
       { arena: PRIMITIVE_ARENA },
     );
 
-  it('byte-identical replay with returning boomerangs bending round walls', () => {
+  it('byte-identical replay with boomerangs coming home and dropping against walls', () => {
     const run = () => {
       let s = fresh();
       const events: FuEvent[] = [];
@@ -470,7 +253,9 @@ describe('determinism', () => {
     const two = run();
     expect(JSON.stringify(two.s)).toBe(JSON.stringify(one.s));
     expect(two.events).toEqual(one.events);
-    expect(one.events.filter((e) => e.type === 'CAUGHT').length).toBeGreaterThan(5);
+    expect(
+      one.events.filter((e) => e.type === 'CAUGHT' || e.type === 'DROPPED').length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it('fuzz: in a real six-player game no boomerang, in ANY state, is ever inside a wall', () => {
@@ -498,7 +283,7 @@ describe('determinism', () => {
       );
       s = stepFu(s, frame, i % 5 === 0 ? 3 * DT : DT).state;
       for (const b of s.boomerangs) {
-        if (b.state === 'RETURNING') returningSeen += 1;
+        if (b.state === 'RETURNING' || b.state === 'GROUNDED') returningSeen += 1;
         if (b.state !== 'HELD') {
           for (const w of walls)
             expect(gap(b.position, w), `step ${i}`).toBeGreaterThanOrEqual(RB - EPS);

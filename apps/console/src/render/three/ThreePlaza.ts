@@ -12,6 +12,7 @@ import {
   type ReconstructedMap,
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
+import { CALL_AURA, auraPulse } from '../callAura';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
 import { DeathRemains, type Victim } from './deathRemains';
@@ -92,6 +93,9 @@ function arrowTexture(): THREE.Texture {
 
 class Character {
   readonly sprite: THREE.Sprite;
+  /** Calling a boomerang home: the same flashing aura on each hand (owner, 2026-10-19; render/callAura.ts). */
+  readonly #hands: THREE.Mesh[];
+  #callingAt: number | undefined;
   readonly #ring: THREE.Mesh;
   readonly #shadow: THREE.Mesh;
   readonly #texture: THREE.Texture;
@@ -154,7 +158,22 @@ class Character {
     this.#arrow.center.set(0.5, 0.5);
     this.#arrow.renderOrder = 10;
     this.#arrow.visible = false;
-    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow);
+    this.#hands = [0, 1].map(() => {
+      const hand = new THREE.Mesh(
+        new THREE.RingGeometry(0.72, 1, 32),
+        new THREE.MeshBasicMaterial({
+          color: CALL_AURA.colour,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          depthTest: false,
+        }),
+      );
+      hand.renderOrder = CHARACTER_RENDER_ORDER + 1;
+      hand.visible = false;
+      return hand;
+    });
+    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow, ...this.#hands);
     this.#aim = new AimLine(scene);
   }
 
@@ -173,7 +192,8 @@ class Character {
         ? (Math.hypot(c.x - this.#last.x, c.y - this.#last.y) / (now - this.#last.t)) * 1000
         : 0;
     this.#last = { x: c.x, y: c.y, t: now };
-    const f = c.dashing?.direction ?? c.facing;
+    // calling a boomerang home it stands facing the camera (the banana at 0:18.5), whatever way it faced
+    const f = c.calling === true ? { x: 0, y: 1 } : (c.dashing?.direction ?? c.facing);
     if (f !== undefined && Math.hypot(f.x, f.y) > 1e-6) this.#heading = headingFrame(f.x, f.y);
     const airborne = c.dashing !== undefined || c.dead;
     this.#texture.offset.set(this.#heading / 16, airborne ? 0 : 0.5);
@@ -213,6 +233,38 @@ class Character {
     else this.#aim.hide();
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
+    this.#handAura(c, cam, at, h, now);
+  }
+
+  /** The aura on both hands while calling: at the body's sides, about a third of its height up, facing the camera. */
+  #handAura(
+    c: CircleView,
+    cam: THREE.PerspectiveCamera,
+    feet: THREE.Vector3,
+    h: number,
+    now: number,
+  ): void {
+    if (c.calling !== true || c.dead) {
+      this.#callingAt = undefined;
+      for (const hand of this.#hands) hand.visible = false;
+      return;
+    }
+    this.#callingAt ??= now;
+    const lit = auraPulse((now - this.#callingAt) / 1000);
+    const body = h * BODY_OF_CELL;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    this.#hands.forEach((hand, k) => {
+      const side = k === 0 ? -1 : 1;
+      hand.position
+        .copy(feet)
+        .addScaledVector(right, side * body * 0.62)
+        .addScaledVector(up, body * 0.36);
+      hand.quaternion.copy(cam.quaternion);
+      hand.scale.setScalar(body * 0.2);
+      hand.visible = lit > 0;
+      (hand.material as THREE.MeshBasicMaterial).opacity = 0.9 * lit;
+    });
   }
 
   /**
@@ -257,7 +309,7 @@ class Character {
   }
 
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.sprite, this.#ring, this.#shadow, this.#arrow);
+    scene.remove(this.sprite, this.#ring, this.#shadow, this.#arrow, ...this.#hands);
     this.#aim.destroy(scene);
     this.#texture.dispose();
   }
@@ -277,6 +329,10 @@ class Boomerang {
   #groundedAt: number | undefined;
   /** How high its middle lies when it lies flat on the ground. */
   readonly #rest: number;
+  /** Being called home: the video's flashing ring round it (render/callAura.ts). */
+  readonly #aura: THREE.Mesh;
+  #called = false;
+  #calledAt: number | undefined;
 
   /** `colour`: the thrower's character colour (owner, 2026-10-19): the boomerang is it, its edge a darker shade of it. */
   constructor(scene: THREE.Scene, colour: string, size: number) {
@@ -304,7 +360,19 @@ class Boomerang {
         depthWrite: false,
       }),
     );
-    scene.add(this.group, this.#shadow);
+    // its length is about 2.24 × size (the outer edge's span), the aura 1.5 lengths across
+    const auraR = (CALL_AURA.ringOfBoomerang * 2.24 * size) / 2;
+    this.#aura = new THREE.Mesh(
+      new THREE.RingGeometry(auraR * 0.86, auraR, 40).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: CALL_AURA.colour,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      }),
+    );
+    this.#aura.visible = false;
+    scene.add(this.group, this.#shadow, this.#aura);
     this.#trail = new Trail(scene, size * 1.6, body);
     this.#rest = size * 0.35;
   }
@@ -314,6 +382,7 @@ class Boomerang {
     const p = space.toScene(view.x, view.y, BOOMERANG_HEIGHT);
     this.#at = { x: p.x, z: p.z, flight: p.y };
     this.#state = view.state;
+    this.#called = view.called === true;
     this.group.position.set(p.x, p.y, p.z);
     this.#shadow.position.set(p.x + 0.2, 0.05, p.z + 0.1);
     this.#spent = view.spent;
@@ -343,6 +412,16 @@ class Boomerang {
         z + shake * Math.cos(time / 23),
       );
     }
+    if (this.#called) {
+      this.#calledAt ??= time;
+      const lit = auraPulse((time - this.#calledAt) / 1000);
+      this.#aura.visible = lit > 0;
+      (this.#aura.material as THREE.MeshBasicMaterial).opacity = 0.9 * lit;
+      this.#aura.position.copy(this.group.position);
+    } else {
+      this.#calledAt = undefined;
+      this.#aura.visible = false;
+    }
     if (this.#charged) this.#trail.add(this.group.position, time);
     this.#trail.update(time);
     if (!this.#spent) {
@@ -355,7 +434,7 @@ class Boomerang {
   }
 
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.group, this.#shadow);
+    scene.remove(this.group, this.#shadow, this.#aura);
     this.#trail.destroy(scene);
   }
 }

@@ -18,6 +18,8 @@ export interface CircleView {
   readonly number: number;
   /** The character they chose in character select (absent: their seat's own). */
   readonly character?: PackCharacter;
+  /** Calling a dropped boomerang home (THROW held): standing still in the calling pose, the aura on their hands. */
+  readonly calling?: true;
   readonly color: string;
   readonly shape: SlotStyle['shape'];
   readonly status: CircleStatus;
@@ -61,6 +63,8 @@ export interface BoomerangView {
   readonly color: string;
   /** GROUNDED: lying (or sliding) on the ground; RECALLING: being pulled home by its thrower holding THROW. */
   readonly state: 'THROWN' | 'RETURNING' | 'DEFLECTED' | 'GROUNDED' | 'RECALLING';
+  /** Being called home: its thrower is holding THROW for it (lying there, about to lift, or on its way). The video's aura. */
+  readonly called?: true;
   /** How charged its throw was, 0 (a tap) to 1 (a full charge: the pink trail). */
   readonly power: number;
   /** The round is over: this projectile is no longer live and should not be drawn as if it were. */

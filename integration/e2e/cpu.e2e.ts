@@ -49,8 +49,11 @@ test('Foomerang Fu: one real controller plays a mixed match against a Medium and
       { timeout: 30_000 },
     )
     .toBeGreaterThan(0);
+  // (the first action can come within a second; give the CPUs time to have decided a hundred times)
+  await expect
+    .poll(async () => (await host.fu()).cpuDecisionMs.decisions, { timeout: 10_000 })
+    .toBeGreaterThan(100);
   const fu = await host.fu();
-  expect(fu.cpuDecisionMs.decisions).toBeGreaterThan(100);
   expect(fu.cpuDecisionMs.meanMs).toBeLessThan(2);
   // Everything is drawn: three circles, one per participant, with the CPUs named.
   expect((await host.snapshot()).drawn).toHaveLength(3);

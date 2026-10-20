@@ -68,12 +68,6 @@ export interface FuConfig {
   readonly deflectRange: number;
   /** Slice 3: how many times one throw can be deflected before it is lethal as normal (0 turns deflection off). */
   readonly maxDeflections: number;
-  /**
-   * Failsafe for a boomerang coming home round geometry: if it has spent this long sliding along walls
-   * without arriving, it is recalled to its owner's hand (nothing is teleported through a wall; it simply
-   * ends). It never counts in open ground, so it cannot affect open-arena play.
-   */
-  readonly returnWallSeconds: number;
   /** Slice 4 (an unvalidated hypothesis): how fast a dash moves, world units per second. */
   readonly dashSpeed: number;
   /** Slice 4: how long a dash lasts, seconds. Its distance is `dashSpeed × dashSeconds`. */
@@ -92,6 +86,8 @@ export interface FuConfig {
   readonly caffeinatedDashFactor: number;
   /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video at 10:17.4: 197 px ≈ 4.7 widths of the donut beside it; our characters are drawn ≈ 46 u wide, so ≈ 215 u; the owner: what is drawn is what kills). */
   readonly blastRadius: number;
+  /** What seeds where everyone starts from round 2 (spawnPlan.ts). Absent: `seed`, the match's. */
+  readonly spawnSeed?: number;
   /** From round 2, everyone starts at least this far from everyone else (owner, 2026-10-19: "a fair distance"), world units. */
   readonly spawnSeparation: number;
   /** ...and at least this far from every place they have started this match ("never at the same place"), world units. */
@@ -134,17 +130,17 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   playerSpeed: 360, // the reference video, measured (art/physics_reference); was 420 (Slice 1 baseline)
   boomerangRadius: 14,
   throwSpeed: 900,
-  throwRange: 520,
+  throwRange: 810, // the reference video: a quick throw flies ~0.9 s out (0:36.9, 0:36.87), at 900 u/s
   returnSpeed: 1000,
   fullChargeSeconds: 0.6,
   chargedThrowSpeed: 2450,
   chargedThrowRange: 1000,
-  throwCurvature: 1 / 300,
-  returnTurnRadius: 150,
+  throwCurvature: 0, // the reference video: out in a straight line (the curve is the turn home)
+  returnTurnRadius: 70, // the reference video: a tight hook at the end of the range (0:37.9)
   returnTurnGrowth: 20,
   maxRicochets: 3,
-  groundFriction: 2500,
-  recallDelaySeconds: 0.25,
+  groundFriction: 900, // the reference video: a dropped one slides to a stop in ~1.1 s from flight speed (0:39.1–40.2)
+  recallDelaySeconds: 0.2, // the reference video: the banana stands still at 0:18.5, the boomerang lifts at 0:18.7
   recallAcceleration: 4500,
   recallSpeed: 1800,
   slashReach: 130,
@@ -154,7 +150,6 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   slashMoveFactor: 0.6,
   deflectRange: 300,
   maxDeflections: 3,
-  returnWallSeconds: 3,
   dashSpeed: 1100,
   dashSeconds: 0.16,
   dashFreeCount: 8,
@@ -234,7 +229,6 @@ export function assertValidConfig(config: FuConfig): void {
     ['slashRecoverySeconds', config.slashRecoverySeconds],
     ['slashMoveFactor', config.slashMoveFactor],
     ['deflectRange', config.deflectRange],
-    ['returnWallSeconds', config.returnWallSeconds],
     ['dashSpeed', config.dashSpeed],
     ['dashSeconds', config.dashSeconds],
     ['fatigueRecoverySeconds', config.fatigueRecoverySeconds],
@@ -267,6 +261,8 @@ export function assertValidConfig(config: FuConfig): void {
     throw new RangeError('twinSpreadRadians must be between 0 and 45 degrees');
   }
   if (!Number.isInteger(config.seed)) throw new RangeError('seed must be an integer');
+  if (config.spawnSeed !== undefined && !Number.isInteger(config.spawnSeed))
+    throw new RangeError('spawnSeed must be an integer');
   for (const key of ['targetKills', 'regulationRounds'] as const) {
     const value = config[key];
     if (value !== undefined && (!Number.isInteger(value) || value < 1))

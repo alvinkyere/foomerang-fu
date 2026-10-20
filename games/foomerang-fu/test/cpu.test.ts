@@ -15,7 +15,7 @@ import {
 } from '../src';
 import { circleHitsWalls, wallsOf } from '../src/rules/arena';
 import { playMatch, type Participant } from './support/cpuMatch';
-import { at, face, own, patchPlayer, place, player, STRAIGHT } from './support/fixtures';
+import { at, boom, face, own, patchPlayer, place, player, STRAIGHT } from './support/fixtures';
 
 // CPU players are tested as BEHAVIOUR: deterministic scenarios and properties over many seeds, through
 // the real rules. A CPU is a player whose controller happens to be software, so everything here is also
@@ -29,7 +29,8 @@ const count = (events: readonly FuEvent[], type: string) =>
 
 describe('a CPU is a player: the architecture', () => {
   it('everything a CPU produces is an ordinary input: a thumb direction and the three buttons, nothing else', () => {
-    const allowed = new Set(['move', 'throw', 'slash', 'dash']);
+    // (throwHeld is THROW held down: how a player charges, or calls a dropped boomerang home)
+    const allowed = new Set(['move', 'throw', 'throwHeld', 'slash', 'dash']);
     const seen = { move: 0, throw: 0, slash: 0, dash: 0 };
     for (const d of DIFFICULTIES) {
       const r = playMatch({
@@ -274,7 +275,7 @@ describe('perception and reaction: it sees a delayed world, never the present or
         ],
         seed: matchSeed,
         steps: 60 * 60,
-        config: { seed: awardSeed },
+        config: { seed: awardSeed, spawnSeed: 1 }, // (the seed also places round 2's spawns: hold those fixed)
         powerups: true,
         keepInputs: true,
         onStep: (_s, events, tick) => {
@@ -526,7 +527,10 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
     let deflects = 0;
     let survived = 0;
     for (let seed = 1; seed <= 40; seed += 1) {
-      const r = playMatch({
+      // judged on the throw coming at it: alive when that boomerang turns home (since 2026-10-19 a throw flies 810 u and
+      // turns home right beside it, which is a different test: walking into a returning boomerang)
+      let aliveAtTurn: boolean | undefined;
+      playMatch({
         participants: [
           { id: 'a', cpu: 'HARD' },
           { id: 'b', human: still },
@@ -553,18 +557,20 @@ describe('defence: timed SLASH deflection, dodging, and failing', () => {
                 : {
                     ...x,
                     state: 'THROWN' as const,
-                    position: { x: 1100, y: 450 },
+                    position: { x: 1400, y: 450 }, // 800 u away: time to see it (Hard sees ~0.4 s late)
                     direction: { x: -1, y: 0 },
                     travelled: 0,
                   },
             ),
           };
         },
-        onStep: (_s, ev) => {
+        onStep: (s, ev) => {
           deflects += ev.filter((e) => e.type === 'DEFLECTED' && e.byId === 'a').length;
+          if (aliveAtTurn === undefined && boom(s, 'b').state !== 'THROWN')
+            aliveAtTurn = player(s, 'a').alive;
         },
       });
-      if (player(r.state, 'a').alive) survived += 1;
+      if (aliveAtTurn === true) survived += 1;
     }
     expect(deflects).toBe(0);
     expect(survived).toBeGreaterThan(8); // Hard dodges (70%) but not always

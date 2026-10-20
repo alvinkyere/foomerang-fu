@@ -22,8 +22,8 @@ describe('tuned to the reference video', () => {
     expect(C.dashSpeed * C.dashSeconds).toBeLessThan(190);
   });
 
-  it('a quick throw curves clockwise on an arc of about 300 u (circle fits to 10 plaza tracks: 140-460, centre 270-390)', () => {
-    expect(C.throwCurvature).toBeCloseTo(1 / 300, 12);
+  it('a quick throw flies out straight (0:36.9, 0:36.87: the pink and the brown throws); the curve fitted earlier was the turn home', () => {
+    expect(C.throwCurvature).toBe(0);
   });
 
   it('the plain throw’s speeds already matched (740-1,090 u/s out, fast home): unchanged', () => {

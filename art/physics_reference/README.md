@@ -188,3 +188,43 @@ our 72 u collision circle. On our plaza, characters are drawn ≈ 46 u wide: the
 - the market camera is ≈ 1.27× closer than the plaza's, so 197 px ≈ 155 plaza px ≈ 215 u.
 
 `blastRadius` is now 215 (it was 170 before the video work).
+
+## The boomerang's flight, studied throw by throw (2026-10-20; applied)
+
+The owner: "the trajectory makes no sense, study exactly from the video". The clip is 0:36.8–0:43.6 (`stab.py 36.8 43.6 t368`,
+read on 50 px gridded crops). The pink donut and the brown mug each throw. Lengths are in the donut's width (≈ 27 px there,
+≈ 46 u as our characters are drawn, ±30%). Times are exact.
+
+1. **Out: a straight line.** The pink throw goes straight north through the banana (a kill, 37.33) and bounces off the
+   top-right platform's diagonal edge to the west. The brown throw goes straight up-right, bounces off the bamboo planter,
+   then off the left wall. Neither curves on the way out. The arc fitted earlier to the plaza tracks (≈ 300 u) was the turn
+   home. Applied: `throwCurvature` 0.
+2. **How far out:** both quick throws fly out for **≈ 0.9 s** (pink 36.93 → 37.87, brown 36.87 → ~37.8) before turning, at
+   the quick-throw speed already measured on the plaza (900 u/s). Applied: `throwRange` 810 (was 520).
+3. **The turn home: a tight hook.** The pink one reverses within ≈ 0.2 s (37.87–38.07), a radius of ≈ 60–75 px of path at
+   ≈ 760 px/s. Scaled to our 1,000 u/s return, that's ≈ 70 u. Applied: `returnTurnRadius` 70 (was 150). It then homes on the
+   thrower on a gentle curve, killing the eggplant on the way (38.13, DOUBLE KILL).
+4. **Something in the way home knocks it down.** The pink one hits the L block at 39.13, reflects west, keeps nearly its
+   speed for ~0.4 s, slows, and lies still by ~40.2: ≈ 410 px in ≈ 1.1 s. One constant friction fits: d = v₀T/2 gives v₀ ≈
+   745 px/s, its flight speed. Then it **lies there** until called at ~42.6, 2.4 s later.
+   - Applied: a homeward impact bounces it off and drops it (GROUNDED, sliding the way it bounced); it doesn't follow walls
+     home any more.
+   - Friction: `groundFriction` = returnSpeed / 1.1 s ≈ 900 u/s² (was 2,500).
+   - Out of bounces on the way out (the owner: "bounces against a lot of objects"), the next impact knocks it down the same
+     way.
+5. **Calling it home** (the tutorial, 0:17.6–0:19.2). The banana walks toward its boomerang until ~18.4, then **stands still,
+   facing the camera, both hands out to the sides** (18.53–18.93). The boomerang lifts at 18.70 and flies home.
+   - Applied: `recallDelaySeconds` 0.2 (stood at ~18.5, lifted at 18.7).
+   - A caller holding THROW stands still. The video shows the banana standing; this is the closest rule.
+   - The boomerang's aura: a pale cyan-white ring ≈ 1.5 boomerang lengths across, flashing (lit 17.90–18.13, dark
+     18.20–18.27, lit 18.33–18.60): `render/callAura.ts`, lit 0.3 s and dark 0.15 s. It leaves a ripple on the water as it
+     lifts.
+   - The hands' aura is too small to see at 640 × 360. It follows the owner ("the same aura is on the hand"), using the
+     boomerang's ring.
+
+**Not reproduced:**
+
+- **The pose itself.** Every licensed character is one static mesh, with no armature and no separate hands, so an arms-out
+  pose needs new modelling and rigging, then a re-bake of the sprites. For now the caller faces the camera and stands still,
+  with the hand auras at its sides.
+- **The 0.4 s at near flight speed before the slide slows.** One constant friction is applied instead.

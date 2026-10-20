@@ -19,7 +19,7 @@ import { spawnPosition } from './spawn';
  *   - at least `spawnFreshDistance` from every place they have started this match (never the same place),
  *   - at least `spawnMoveDistance` from where they started last round (never near it twice in a row),
  *   - at least `spawnSeparation` from everyone else this round (a fair distance),
- * the most spread-out of a handful of seeded tries. Pure and deterministic: the seed is the match's (`config.seed`) and the
+ * the most spread-out of a handful of seeded tries. Pure and deterministic: the seed is the match's (`config.spawnSeed`, else `config.seed`) and the
  * round's number, and the earlier rounds are replayed from it, so nothing about it needs to live in the state.
  */
 
@@ -128,7 +128,7 @@ function planRound(
   history: readonly Plan[],
 ): Plan {
   const floor = floorOf(config.arena, config.playerRadius);
-  const random = randomFor(config.seed, round, ids);
+  const random = randomFor(config.spawnSeed ?? config.seed, round, ids);
   const allowed = (id: string, p: Vec2, picked: ReadonlyMap<string, Vec2>): boolean => {
     for (const h of history) {
       const before = h.get(id);
@@ -203,7 +203,7 @@ export function spawnsForRound(
   round: number,
 ): Plan {
   const ids = specs.map((s) => s.id);
-  const key = `${config.seed}|${config.playerRadius}|${config.spawnSeparation}|${config.spawnFreshDistance}|${config.spawnMoveDistance}|${specs.map((s) => `${s.id}@${s.slot}`).join(',')}`;
+  const key = `${config.spawnSeed ?? config.seed}|${config.playerRadius}|${config.spawnSeparation}|${config.spawnFreshDistance}|${config.spawnMoveDistance}|${specs.map((s) => `${s.id}@${s.slot}`).join(',')}`;
   const byKey = PLANS.get(config.arena) ?? new Map<string, Plan[]>();
   PLANS.set(config.arena, byKey);
   const plans = byKey.get(key) ?? [];

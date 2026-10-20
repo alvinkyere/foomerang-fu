@@ -341,9 +341,10 @@ describe('players are solid against walls', () => {
   });
 });
 
-describe('a thrown boomerang that may not bounce stops at a wall and turns back', () => {
-  // (a throw bounces off walls up to maxRicochets times, ricochet.test.ts; the impact after its last allowed bounce stops it
-  // and sends it home: these tests allow none, so the first impact is that one)
+describe('a thrown boomerang that may not bounce is knocked down by the wall', () => {
+  // (a throw bounces off walls up to maxRicochets times, ricochet.test.ts; the impact after its last allowed bounce knocks it
+  // down: it drops, sliding off the way it bounced (the reference video, flight.test.ts). These tests allow none, so the first
+  // impact is that one)
   /** Alice at x=400 facing right, the slab ahead at x = 700. */
   const aimed = () =>
     face(
@@ -353,25 +354,26 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
       0,
     );
 
-  it('THROWN → RETURNING on impact, stopped flush against the wall, not inside it', () => {
+  it('THROWN → GROUNDED on impact, flush against the wall, not inside it, sliding off straight back', () => {
     let s = stepFu(aimed(), input({ a: { throw: true } }), DT).state;
     let hit: FuState | undefined;
     for (let i = 0; i < 60 && hit === undefined; i += 1) {
       s = stepFu(s, NONE, DT).state;
       expect(gap(boom(s, 'a').position, SLAB), `step ${i}`).toBeGreaterThanOrEqual(RB - EPS);
-      if (boom(s, 'a').state === 'RETURNING') hit = s;
+      if (boom(s, 'a').state === 'GROUNDED') hit = s;
     }
     const b = boom(must(hit, 'impact'), 'a');
-    // heading home it keeps a heading (the curve's return, 2026-10-19): off a wall, straight back towards its thrower
+    // bounced: sliding off straight back (head-on), at its flight speed
     expect(b.direction.x).toBeCloseTo(-1, 9);
     expect(b.direction.y).toBeCloseTo(0, 9);
+    expect(b.velocity.x).toBeCloseTo(-C.throwSpeed, 6);
     expect(b.travelled).toBe(0);
     expect(b.position.x).toBeGreaterThan(SLAB.x - RB - 1e-3); // as close as it can get…
     expect(b.position.x).toBeLessThanOrEqual(SLAB.x - RB + EPS); // …without touching
     expect(b.position.y).toBeCloseTo(450, 9);
   });
 
-  it('turns on the very step it meets the wall (it does not sit pushing against it until its range runs out)', () => {
+  it('drops on the very step it meets the wall (it does not sit pushing against it until its range runs out)', () => {
     let s = stepFu(aimed(), input({ a: { throw: true } }), DT).state;
     let previousX = boom(s, 'a').position.x;
     for (let i = 0; i < 60; i += 1) {
@@ -382,7 +384,7 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
         continue;
       }
       // the first step that is no longer THROWN is the impact; it never stopped short and waited
-      expect(b.state).toBe('RETURNING');
+      expect(b.state).toBe('GROUNDED');
       expect(previousX).toBeLessThan(SLAB.x - RB - 1e-3); // it had been flying freely, not already stopped at the wall
       expect(b.position.x).toBeGreaterThan(SLAB.x - RB - 1e-3);
       return;
@@ -390,14 +392,14 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
     throw new Error('never reached the wall');
   });
 
-  it('does not bounce or ricochet: it heads straight home along the way it came, and is caught', () => {
+  it('it slides straight back along the way it came; sliding into its thrower, it is picked up', () => {
     let s = stepFu(aimed(), input({ a: { throw: true } }), DT).state;
     while (boom(s, 'a').state === 'THROWN') s = stepFu(s, NONE, DT).state;
     let last = Math.hypot(
       boom(s, 'a').position.x - pos(s, 'a').x,
       boom(s, 'a').position.y - pos(s, 'a').y,
     );
-    for (let i = 0; i < 60 && boom(s, 'a').state === 'RETURNING'; i += 1) {
+    for (let i = 0; i < 90 && boom(s, 'a').state === 'GROUNDED'; i += 1) {
       s = stepFu(s, NONE, DT).state;
       const b = boom(s, 'a');
       const d = Math.hypot(b.position.x - pos(s, 'a').x, b.position.y - pos(s, 'a').y);
@@ -481,7 +483,7 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
       return boom(s, 'a');
     };
     const grazing = clip(10); // closer than the radius: blocked just before the corner
-    expect(grazing.state).toBe('RETURNING');
+    expect(grazing.state).toBe('GROUNDED');
     expect(grazing.position.y).toBeCloseTo(SLAB.y - Math.sqrt(RB * RB - 100), 1);
     const clear = clip(RB + 1); // farther than the radius: slides past the wall
     expect(clear.position.y).toBeGreaterThan(SLAB.y + SLAB.height);
@@ -495,9 +497,9 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
     expect(player(state, 'b').alive).toBe(true);
   });
 
-  it('a boomerang coming back is bound by walls too (Slice 2 decision, reversed after human play): it never enters one, and goes round', () => {
-    // The first version of this rule let a returning boomerang fly straight home through cover. Playtesting
-    // found that unfair, so it is now constrained exactly like a thrown one; see homing.test.ts for the steering.
+  it('a boomerang coming back is bound by walls too: it never enters one; the wall knocks it down (the reference video)', () => {
+    // The first version of this rule let a returning boomerang fly straight home through cover (Slice 2); playtesting found that
+    // unfair. Since 2026-10-19 (the reference video) a wall in its way home knocks it down on its own side; see homing.test.ts.
     let s = match(['a', 'b'], ONE_WALL, { a: [400, 450], b: [1500, 100] });
     s = patch(s, 'a', {
       state: 'RETURNING',
@@ -509,7 +511,8 @@ describe('a thrown boomerang that may not bounce stops at a wall and turns back'
       s = stepFu(s, NONE, DT).state;
       expect(gap(boom(s, 'a').position, SLAB), `step ${i}`).toBeGreaterThanOrEqual(RB - EPS);
     }
-    expect(boom(s, 'a').state).toBe('HELD'); // and it still got home
+    expect(boom(s, 'a').state).toBe('GROUNDED'); // it lies on its own side
+    expect(boom(s, 'a').position.x).toBeGreaterThan(SLAB.x + SLAB.width);
   });
 });
 

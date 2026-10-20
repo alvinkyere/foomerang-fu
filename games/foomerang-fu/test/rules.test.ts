@@ -18,6 +18,8 @@ import {
 // curve.test.ts): every match here is created with STRAIGHT unless a test says otherwise.
 const createFuMatch: typeof createCurvedMatch = (players, overrides = {}) =>
   createCurvedMatch(players, { ...STRAIGHT, ...overrides });
+/** Steps a quick throw flies out before it turns home (its range at its speed), and a couple more: it is RETURNING by then. */
+const OUT = Math.ceil(DEFAULT_FU_CONFIG.throwRange / (DEFAULT_FU_CONFIG.throwSpeed * DT)) + 2;
 
 // ------------------------------------------------------------------------------------------
 // Helpers. States are plain data, so tests may arrange a situation by copying and patching one.
@@ -400,7 +402,7 @@ describe('travel over fixed timesteps', () => {
 
   it('RETURNING homes in on where its owner is NOW, not where they were', () => {
     let s = stepFu(duel(), input({ a: { throw: true } }), DT).state;
-    s = run(s, 40).state; // out and turning
+    s = run(s, OUT).state; // out and turning
     expect(boom(s, 'a').state).toBe('RETURNING');
     const first = boom(s, 'a').position;
     // The owner runs away vertically; the boomerang's pull must have a vertical component.
@@ -411,7 +413,7 @@ describe('travel over fixed timesteps', () => {
 
   it('returns at returnSpeed × dt', () => {
     let s = stepFu(duel(), input({ a: { throw: true } }), DT).state;
-    s = run(s, 40).state;
+    s = run(s, OUT).state;
     const before = boom(s, 'a').position;
     const after = boom(stepFu(s, NONE, DT).state, 'a').position;
     expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeCloseTo(C.returnSpeed * DT, 9);
@@ -476,7 +478,7 @@ describe('hits and death', () => {
 
   it('a RETURNING boomerang kills too', () => {
     let s = stepFu(duel(), input({ a: { throw: true } }), DT).state;
-    s = run(s, 36).state;
+    s = run(s, OUT).state;
     expect(boom(s, 'a').state).toBe('RETURNING');
     // Bob steps into its way on the return leg.
     s = place(s, 'b', boom(s, 'a').position.x - 30, boom(s, 'a').position.y);
@@ -647,7 +649,7 @@ describe('simultaneous and edge-case hits', () => {
   it('a boomerang that is caught by its owner on the same step it would hit someone still resolves the hit first', () => {
     // Enemy overlapping the point where the owner reacquires: the hit uses the end-of-step positions.
     let s = stepFu(duel(), input({ a: { throw: true } }), DT).state;
-    s = run(s, 36).state; // RETURNING
+    s = run(s, OUT).state; // RETURNING
     expect(boom(s, 'a').state).toBe('RETURNING');
     s = place(s, 'b', boom(s, 'a').position.x - 20, boom(s, 'a').position.y);
     const { state } = stepFu(s, NONE, DT);

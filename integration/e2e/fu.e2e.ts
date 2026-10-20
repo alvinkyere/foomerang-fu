@@ -29,6 +29,22 @@ const SPAWNS: Point[] = [
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
 /**
+ * Brings a boomerang home as a player does (the reference video, 2026-10-20): it comes home by itself unless something knocks
+ * it down on the way; then its thrower holds THROW to call it back.
+ */
+async function bringHome(host: Host, phone: Phone, id: string): Promise<void> {
+  const state = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === id)?.state;
+  const deadline = Date.now() + 15_000;
+  for (;;) {
+    const now = await state();
+    if (now === 'HELD') return;
+    if (Date.now() > deadline) throw new Error(`${id}'s boomerang never came home (${now})`);
+    if (now === 'GROUNDED' || now === 'RECALLING') await phone.holdThrow(1_200);
+    else await sleep(100);
+  }
+}
+
+/**
  * Holds a thumb and keeps re-aiming it at `target` from the player's LIVE position until `done`.
  * Steering by position, not by a fixed push, is what lets a test walk a route through walls.
  */
@@ -143,12 +159,8 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   await expect
     .poll(async () => (await host.snapshot()).drawnBoomerangs?.map((b) => b.id))
     .toEqual([bobId]);
-  // ...and it comes back to Bob's hand.
-  await expect
-    .poll(async () => (await host.fu()).boomerangs.find((b) => b.ownerId === bobId)?.state, {
-      timeout: 8_000,
-    })
-    .toBe('HELD');
+  // ...and it comes back to Bob's hand (he calls it back if something knocked it down on the way)
+  await bringHome(host, bob, bobId);
   expect((await host.fu()).players.every((p) => p.alive)).toBe(true); // nobody was hit
   expect((await host.snapshot()).drawnBoomerangs).toEqual([]);
 
@@ -163,7 +175,7 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   const bobPos = await host.body(bobId);
   expect(Math.abs(aliceNow.y - bobPos.y)).toBeLessThan(5); // the same lane
   expect(bobPos.x - aliceNow.x).toBeLessThan(560); // within throwing reach
-  await alice.holdThrow(800); // a full charge flies straight down the lane (a quick throw curves; owner, 2026-10-19)
+  await alice.holdThrow(800); // a full charge flies fastest and furthest, straight down the lane
   await expect.poll(async () => (await host.fu()).phase, { timeout: 8_000 }).toBe('ROUND_OVER');
   fu = await host.fu();
   expect(fu.winnerId).toBe(aliceId);
@@ -305,12 +317,8 @@ test('Foomerang Fu: the rendered THROW button throws and never slashes; the rend
   expect(threw.boomerang).toContain('THROWN'); // the boomerang left her hand
   expect(threw.slash).toEqual(['READY']); // and she never swung
 
-  // Wait for the boomerang to come home, then press the button labelled SLASH.
-  await expect
-    .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state, {
-      timeout: 8_000,
-    })
-    .toBe('HELD');
+  // Get the boomerang home (calling it if it dropped), then press the button labelled SLASH.
+  await bringHome(host, alice, aliceId);
   const afterSlash = observe(host, aliceId, 700);
   await alice.tapSlash();
   const swung = await afterSlash;
@@ -333,12 +341,8 @@ test('Foomerang Fu: SLASH is unavailable while the boomerang is away, and works 
   await alice.tapSlash();
   await sleep(250);
   expect(await slashOf(host, aliceId)).toBe('READY'); // nothing swung, and nothing is saved for later
-  // Home again: now it swings.
-  await expect
-    .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state, {
-      timeout: 8_000,
-    })
-    .toBe('HELD');
+  // Home again (called back if it dropped): now it swings.
+  await bringHome(host, alice, aliceId);
   await alice.tapSlash();
   await expect.poll(async () => slashOf(host, aliceId), { intervals: [10] }).not.toBe('READY');
 });
@@ -380,7 +384,7 @@ test('Foomerang Fu: the arena’s walls are drawn exactly as the rules define th
   expect(snapshot.drawnWalls).toEqual(rules);
 });
 
-test('Foomerang Fu: a wall stops a player walking into it, and stops a thrown boomerang, which turns back', async ({
+test('Foomerang Fu: a wall stops a player walking into it, and a thrown boomerang bounces off it', async ({
   fuHost: host,
   newPhone,
 }) => {
@@ -416,27 +420,26 @@ test('Foomerang Fu: a wall stops a player walking into it, and stops a thrown bo
   const from = await host.body(aliceId);
   await alice.tapThrow();
   let farthest = 0;
-  let turnedAt: { x: number; y: number } | undefined;
+  let cameBack = false;
   const until = Date.now() + 3_000;
-  while (Date.now() < until) {
+  while (Date.now() < until && !cameBack) {
     const b = (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId);
     if (b !== undefined && b.state !== 'HELD') {
       farthest = Math.max(farthest, b.x);
-      if (b.state === 'RETURNING' && turnedAt === undefined) turnedAt = { x: b.x, y: b.y };
+      if (farthest > wallX - 14 - 40 && b.x < farthest - 60) cameBack = true; // flying away from the wall again
     }
-    if (b?.state === 'HELD' && turnedAt !== undefined) break;
     await sleep(8);
   }
   expect(from.x).toBeLessThan(120);
-  expect(turnedAt, 'the boomerang turned back').toBeDefined();
-  // it never got past the wall face (200) less its own radius (14), and turned close to it
+  expect(cameBack, 'the boomerang bounced off the wall').toBe(true);
+  // it never got past the wall face (200) less its own radius (14), and met it close to it
   expect(farthest).toBeLessThanOrEqual(wallX - 14 + 0.01);
   expect(farthest).toBeGreaterThan(wallX - 14 - 40); // …a flight, not a point-blank turn
-  expect((await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state).toBe('HELD'); // and it came home
+  await bringHome(host, alice, aliceId); // and it gets home (called back if it was knocked down)
   expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
 });
 
-test('Foomerang Fu: a returning boomerang cannot pass through cover — even when its owner ducks behind it — and still gets home', async ({
+test('Foomerang Fu: a returning boomerang cannot pass through cover — even when its owner ducks behind it: the cover knocks it down, and called, it comes home', async ({
   fuHost: host,
   newPhone,
 }) => {
@@ -454,34 +457,31 @@ test('Foomerang Fu: a returning boomerang cannot pass through cover — even whe
   // Throw right along the open top lane, then immediately start ducking down the left lane, so that by the
   // time the boomerang turns back Alice is behind the left corridor's wall (x 200–250, y 300–600).
   await aim(alice, SPAWNS[0] as Point, { x: 210, y: 110 });
-  // a full charge flies straight along the lane (a quick throw curves and bounces; owner, 2026-10-19)
+  // a full charge flies fastest and furthest, straight along the lane
   await alice.holdThrow(750);
   const mine = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === aliceId);
   await alice.thumbDown();
   await alice.thumbMove(0, FAR);
   let tightest = Number.POSITIVE_INFINITY;
   let sawReturning = 0;
-  let wallFollowing = 0;
-  let home = false;
+  let dropped = false;
   const until = Date.now() + 8_000;
-  while (Date.now() < until) {
+  while (Date.now() < until && !dropped) {
     const b = await mine();
     if (b === undefined) break;
-    if (b.state !== 'HELD') {
-      tightest = Math.min(tightest, clearance(b));
-      if (b.state === 'RETURNING') sawReturning += 1;
-      if (b.state === 'RETURNING' && b.follow !== 0) wallFollowing += 1;
-    } else if (sawReturning > 0) {
-      home = true;
-      break;
-    }
+    if (b.state !== 'HELD') tightest = Math.min(tightest, clearance(b));
+    if (b.state === 'RETURNING') sawReturning += 1;
+    if (b.state === 'GROUNDED' && sawReturning > 0) dropped = true;
+    if (b.state === 'HELD' && sawReturning > 0) break;
     await sleep(6);
   }
   await alice.thumbUp();
   expect(sawReturning).toBeGreaterThan(5);
-  expect(wallFollowing, 'it really did have to slide along cover').toBeGreaterThan(0);
+  expect(dropped, 'the cover knocked it down').toBe(true);
   expect(tightest).toBeGreaterThanOrEqual(14 - 0.01); // never inside a wall, at any sampled moment
-  expect(home).toBe(true); // and it found its way back to her
+  // called back, it finds its way round to her, never through the wall
+  await alice.holdThrow(4_000);
+  expect((await mine())?.state).toBe('HELD');
   expect((await host.fu()).players.find((p) => p.id === aliceId)?.alive).toBe(true);
 });
 
@@ -493,9 +493,8 @@ test('Foomerang Fu: a real controller deflects an incoming boomerang with a time
   const boomerangOf = async (id: string) =>
     (await host.fu()).boomerangs.find((b) => b.ownerId === id);
 
-  // Bob turns to face down the open bottom lane (left); Alice walks the long way round to 300 short of him. A quick throw curves
-  // clockwise (an arc of radius 1/throwCurvature = 300): to pass through Bob she faces up by half the arc, asin(d / 600).
-  // (300 short: the arc bulges only ~40 above the lane, clear of the bottom gates.)
+  // Bob turns to face down the open bottom lane (left); Alice walks the long way round to 300 short of him and throws straight
+  // at him (a quick throw flies out in a straight line: the reference video, 2026-10-20).
   await bob.thumbDown();
   await bob.thumbMove(-FAR, 0);
   await sleep(90);
@@ -509,9 +508,9 @@ test('Foomerang Fu: a real controller deflects an incoming boomerang with a time
   ]);
   {
     const a = await host.settled(aliceId);
-    const half = Math.asin(Math.min(1, (bobAt.x - a.x) / 600));
+    const d = Math.hypot(bobAt.x - a.x, bobAt.y - a.y);
     await alice.thumbDown();
-    await alice.thumbMove(Math.cos(half) * FAR, -Math.sin(half) * FAR);
+    await alice.thumbMove(((bobAt.x - a.x) / d) * FAR, ((bobAt.y - a.y) / d) * FAR);
     await sleep(60);
     await alice.thumbUp();
     await host.settled(aliceId);
@@ -547,10 +546,11 @@ test('Foomerang Fu: a real controller deflects an incoming boomerang with a time
       seen ??= b;
       if (snapshot.drawnBoomerangs?.some((d) => d.id === aliceId)) drawnWhileDeflected = true;
     }
-    if (seen !== undefined && b?.state === 'HELD') break;
+    if (seen !== undefined && b?.state !== 'DEFLECTED') break;
     await sleep(6);
   }
   await reflexes;
+  await bringHome(host, alice, aliceId); // home by itself, or called back if it was knocked down on the way
 
   expect(slashed, 'Bob’s reflex fired').toBe(true);
   expect(bobDied, 'a correctly timed slash must not be a death').toBe(false);

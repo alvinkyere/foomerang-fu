@@ -1102,6 +1102,28 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.circles.find((c) => c.id === 'a')?.armed).toBe(false);
   });
 
+  it('calling a dropped boomerang home: the thrower is shown calling and the boomerang being called, as long as THROW is held', () => {
+    const { state, entries, slots } = playing();
+    const lying = (patch: object): FuState => ({
+      ...state,
+      boomerangs: state.boomerangs.map((b) =>
+        b.ownerId === 'a'
+          ? { ...b, state: 'GROUNDED' as const, position: { x: 900, y: 300 }, ...patch }
+          : b,
+      ),
+    });
+    const calledOf = (s: FuState) => {
+      const v = buildFuView(s, [], entries, slots);
+      return {
+        calling: v.circles.find((c) => c.id === 'a')?.calling === true,
+        called: v.boomerangs.find((b) => b.ownerId === 'a')?.called === true,
+      };
+    };
+    expect(calledOf(lying({ recall: 0 }))).toEqual({ calling: false, called: false }); // just lying there
+    expect(calledOf(lying({ recall: 0.1 }))).toEqual({ calling: true, called: true }); // held: before it lifts
+    expect(calledOf(lying({ state: 'RECALLING' }))).toEqual({ calling: true, called: true }); // on its way
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

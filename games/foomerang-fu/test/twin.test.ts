@@ -149,7 +149,7 @@ describe('THROW with two: one press, two boomerangs, same step, symmetric spread
 
   it('both come home on their own and are caught — including on the very same step', () => {
     let s = stepFu(twinned(), THROW, DT).state;
-    s = run(s, 90).state;
+    s = run(s, 2 * Math.ceil(C.throwRange / (C.throwSpeed * DT)) + 30).state; // out its range and back
     expect(weaponsOf(s, 'a').every((w) => w.state === 'HELD')).toBe(true);
     let t = twinned();
     const near = { x: 650, y: 450 };
@@ -247,9 +247,10 @@ describe('twin boomerangs in combat', () => {
     s = face(give(s, 'a', 'TWIN_THROW'), 'a', 1, 0);
     s = stepFu(s, THROW, DT).state;
     s = stepFu(s, input({ a: { throw: true, move: { x: 0, y: 1 } } }), DT).state; // second one goes down, the other still goes right
-    s = run(s, 40).state;
-    const own = weaponsOf(s, 'a')[0];
-    expect(own?.state === 'RETURNING' || own?.state === 'HELD').toBe(true);
+    const r = run(s, 40);
+    // both fly at the wall (±13° either side of right) and each bounces off it on its own: two RICOCHETs, both heading back
+    expect(r.events.filter((e) => e.type === 'RICOCHET')).toHaveLength(2);
+    for (const w of weaponsOf(r.state, 'a')) expect(w.direction.x).toBeLessThan(0);
   });
 
   it("a dead owner's boomerangs keep flying, and death does not take the power", () => {

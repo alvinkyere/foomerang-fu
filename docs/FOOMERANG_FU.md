@@ -263,6 +263,18 @@ Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to ba
 > place on open, reachable floor. It is at least `spawnSeparation` (400 u) from everyone else, at least `spawnFreshDistance`
 > (150 u) from every place they have started this match, and at least `spawnMoveDistance` (400 u) from last round's place.
 > It is seeded by the match, so a replay starts everyone in the same places.
+>
+> **2026-10-20: the boomerang's flight, from the video** (art/physics_reference/README.md, "The boomerang's flight").
+> - A throw flies out in a straight line (`throwCurvature` 0) for ~0.9 s (`throwRange` 810), bouncing off what it meets.
+> - At the end of its range it hooks home tightly (`returnTurnRadius` 70) and homes on the thrower.
+> - Anything in its way home knocks it down: it bounces off, drops and slides to a stop in ~1.1 s (`groundFriction` 900). It
+>   does not follow walls home (`returnWallSeconds` is gone). The impact after its last allowed bounce out knocks it down the
+>   same way.
+> - A dropped boomerang lies there until it's picked up or called. A caller (THROW held, nothing in hand) stands still; the
+>   pull starts after 0.2 s.
+> - The TV shows the video's flashing aura round the boomerang and on the caller's hands (`render/callAura.ts`), with the
+>   caller facing the camera.
+> - `spawnSeed` can seed round spawns apart from the Book's seed.
 
 **Slice 5 — Powerups: PASS** on a physical human playtest (the project owner, 2026-10-06), after the lifecycle revision: powerups are **persistent match upgrades**, not round pickups with timers and charges. Frozen as the approved baseline: the mystery blue-book/red-bookmark Powerup Book, scarce spawning, the persistent three-slot FIFO inventory across the nine-round match, persistent PHASE_DASH / CAFFEINATED / EXPLOSIVE_BOOMERANG / TWIN_THROW, a SHIELD that breaks on a lethal hit, and TWIN_THROW launching **two simultaneous angled boomerangs** from one press. The rules below are what is built and tested.
 

@@ -23,8 +23,8 @@ import {
 
 // Ricochets (owner, 2026-10-19; the reference video: a throw bounces off what it meets and flies on, still lethal). A boomerang
 // on its way OUT (thrown or deflected) that meets a wall or the arena's edge is reflected, R = V − 2(V·N)N, and flies on for the
-// rest of its range; after `maxRicochets` bounces in one throw the next impact sends it home as before. On its way home it does
-// not bounce: it follows walls home. Most tests here fly straight (STRAIGHT) to make the geometry exact; one keeps the curve.
+// rest of its range; after `maxRicochets` bounces in one throw the next impact knocks it down (it drops). On its way home an
+// impact knocks it down too (homing.test.ts). Most tests here fly straight (STRAIGHT) to make the geometry exact; one keeps the curve.
 
 const WALL = { x: 800, y: 0, width: 60, height: 900 };
 const ARENA: FuArena = {
@@ -105,7 +105,7 @@ describe('ricochets', () => {
     expect(steps * C.throwSpeed * DT).toBeLessThan(C.throwRange + 40);
   });
 
-  it('after the last allowed bounce, the next impact sends it home', () => {
+  it('after the last allowed bounce, the next impact knocks it down: it bounces off and drops (the reference video)', () => {
     let s = flying(
       match({ ...STRAIGHT, maxRicochets: 1 }),
       'a',
@@ -116,8 +116,11 @@ describe('ricochets', () => {
     s = flying(s, 'a', { x: 700, y: 450 }, { x: 1, y: 0 }, { travelled: 0 });
     s = { ...s, config: { ...s.config, throwRange: 2000 } };
     const r = fly(s, 80);
-    expect(bounces(r.events)).toHaveLength(1);
-    expect(['RETURNING', 'HELD']).toContain(boom(r.s, 'a').state);
+    const hits = bounces(r.events);
+    expect(hits).toHaveLength(2); // the allowed bounce off the wall, then the one off the arena's edge that knocks it down
+    expect((hits[1] as (typeof hits)[number]).position.x).toBeCloseTo(RB, 6);
+    expect(r.events.filter((e) => e.type === 'DROPPED')).toHaveLength(1);
+    expect(['GROUNDED', 'HELD']).toContain(boom(r.s, 'a').state); // lying there (or slid into her and picked up)
   });
 
   it('the arena’s edge bounces it too', () => {
@@ -135,7 +138,7 @@ describe('ricochets', () => {
     expect(boom(r.s, 'a').direction.x).toBeLessThan(0); // came back off the wall
   });
 
-  it('on its way home it does not bounce: it follows the wall', () => {
+  it('on its way home with a clear way it turns from the wall beside it and does not touch it', () => {
     let s = place(match(), 'a', 300, 450);
     s = flying(s, 'a', { x: 760, y: 450 }, { x: 1, y: 0 }, { state: 'RETURNING' });
     const r = fly(s, 40);

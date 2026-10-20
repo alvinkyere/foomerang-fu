@@ -183,7 +183,7 @@ describe('where its flight ends, it goes off', () => {
     expect(player(r.state, 'b').alive).toBe(false);
   });
 
-  it('at the impact that would turn it home, once its bounces are used up', () => {
+  it('at the impact that knocks it down, once its bounces are used up', () => {
     let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA, maxRicochets: 0 });
     s = place(place(place(s, 'a', 100, 850), 'b', 140, 520), 'c', 300, 450); // c is inside the left corridor
     s = armed(s, 'a', { x: 100, y: 450 });
