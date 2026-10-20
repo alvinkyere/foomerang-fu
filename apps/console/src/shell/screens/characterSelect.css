@@ -170,23 +170,22 @@
   width: calc(100% + 0.7rem);
   height: calc(100% + 0.7rem);
   fill: var(--tint);
-  animation: cs-fill 220ms ease-out;
+  /* game-setting.mp4: the fill appears at full size, swells to 109% two frames later and settles in six (30 fps) */
+  animation: cs-pop 200ms linear;
 }
 .cs__portrait,
 .cs__soon--big {
   position: relative;
 }
+/* The character moves as game-setting.mp4 shows (SelectSprite: arrival + idle, pre-rendered with its soft ground shadow) */
 .cs__portrait {
+  display: block;
   width: 12rem;
   height: 12rem;
   object-fit: contain;
-  filter: drop-shadow(0 0.5rem 0.4rem rgb(80 60 40 / 0.18));
-  animation: cs-bob 1.8s ease-in-out infinite;
 }
-.cs__seat[data-ready] .cs__portrait {
-  animation:
-    cs-hop 420ms cubic-bezier(0.3, 1.6, 0.5, 1),
-    cs-bob 1.8s 420ms ease-in-out infinite;
+.cs__sprite {
+  background-repeat: no-repeat;
 }
 .cs__seat.is-away .cs__portrait {
   opacity: 0.45;
@@ -422,14 +421,15 @@
     opacity: 0;
   }
 }
-@keyframes cs-hop {
-  40% {
-    transform: translateY(-1.6rem) scale(1.04, 0.97);
+@keyframes cs-pop {
+  33% {
+    transform: scale(1.094);
   }
-}
-@keyframes cs-bob {
   50% {
-    transform: translateY(-0.35rem);
+    transform: scale(1.062);
+  }
+  67% {
+    transform: scale(1.03);
   }
 }
 @media (prefers-reduced-motion: reduce) {

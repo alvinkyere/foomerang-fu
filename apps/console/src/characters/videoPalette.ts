@@ -149,5 +149,12 @@ export const characterView = (id: SelectCharacter): CharacterView => ({
   color: BADGE[id],
   tint: MEASURED_FILL[id] ?? fillOf(BADGE[id]),
   portrait: isPlayable(id) ? `characters/${id}.webp` : '',
-  ...(isPlayable(id) ? {} : { comingSoon: true as const }),
+  ...(isPlayable(id)
+    ? {
+        motion: {
+          sheet: `characters/select/${id}.webp`,
+          still: `characters/select/${id}-still.webp`,
+        },
+      }
+    : { comingSoon: true as const }),
 });

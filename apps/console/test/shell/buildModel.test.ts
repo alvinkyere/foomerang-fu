@@ -196,6 +196,8 @@ describe('character select (Foomerang Fu’s lobby, game-setting.mp4)', () => {
       name: 'Milk',
       color: '#5597de',
       portrait: 'characters/milk.webp',
+      // game-setting.mp4's circle animation (arrival + idle), pre-rendered, and its first frame alone
+      motion: { sheet: 'characters/select/milk.webp', still: 'characters/select/milk-still.webp' },
     });
     expect(b).toMatchObject({ kind: 'phone', number: 2, ready: false });
     expect(empty).toMatchObject({ kind: 'empty', number: 3, ready: false });

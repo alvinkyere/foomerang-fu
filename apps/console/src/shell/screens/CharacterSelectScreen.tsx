@@ -1,4 +1,6 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { arrivalSide, type ArrivalSide } from '../../characters/selectAnimation';
+import { SelectSprite } from '../components/SelectSprite';
 import { QrCode } from '../../ui/QrCode';
 import { useFocusItem } from '../focus/FocusManager';
 import { FocusScope } from '../focus/FocusManager';
@@ -71,6 +73,8 @@ const SelectGlyph = () => <kbd className="cs__glyph cs__glyph--select">SELECT</k
 export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
   const { select } = props;
   const code = props.roomCode ?? '';
+  const order = select.grid.flat().map((tile) => tile.character.id);
+  const cols = select.grid[0]?.length ?? 1;
   return (
     <FocusScope id="select" initialFocus="begin" remember={false} onBack={props.onBack}>
       <div className="cs" data-testid="character-select">
@@ -102,6 +106,8 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
             <SeatCircle
               key={seat.slot}
               seat={seat}
+              order={order}
+              cols={cols}
               onCpuStep={props.onCpuStep}
               onCpuRemove={props.onCpuRemove}
             />
@@ -169,16 +175,40 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
   );
 }
 
+/** The side a seat's character arrived from: kept per character, worked out when the cursor moves to a new one. */
+function useArrival(
+  id: string | undefined,
+  order: readonly string[],
+  cols: number,
+): ArrivalSide | undefined {
+  const [seen, setSeen] = useState<{ id: string | undefined; side: ArrivalSide | undefined }>({
+    id,
+    side: undefined,
+  });
+  if (seen.id !== id) {
+    const side = id === undefined ? undefined : arrivalSide(order, seen.id, id, cols);
+    setSeen({ id, side });
+    return side;
+  }
+  return seen.side;
+}
+
 function SeatCircle({
   seat,
+  order,
+  cols,
   onCpuStep,
   onCpuRemove,
 }: {
   readonly seat: SelectSeatView;
+  /** The grid's characters in reading order, and its row length: which way a cursor moved. */
+  readonly order: readonly string[];
+  readonly cols: number;
   readonly onCpuStep: (id: string, delta: 1 | -1) => void;
   readonly onCpuRemove: (id: string) => void;
 }) {
   const ch = seat.character;
+  const arrival = useArrival(ch?.id, order, cols);
   const style = {
     '--badge': ch?.color ?? '#c9c4bf',
     '--tint': ch?.tint ?? 'transparent',
@@ -202,14 +232,16 @@ function SeatCircle({
         )}
         {ch?.comingSoon === true ? (
           <ComingSoon big />
-        ) : ch !== undefined ? (
-          <img
-            key={`${ch.id}/${seat.ready}`}
-            className="cs__portrait"
-            src={ch.portrait}
-            alt=""
-            draggable={false}
+        ) : ch?.motion !== undefined ? (
+          <SelectSprite
+            key={ch.id}
+            sheet={ch.motion.sheet}
+            still={ch.motion.still}
+            arrival={arrival}
+            ready={seat.ready}
           />
+        ) : ch !== undefined ? (
+          <img className="cs__portrait" src={ch.portrait} alt="" draggable={false} />
         ) : (
           <span className="cs__joinword">JOIN</span>
         )}
@@ -366,7 +398,12 @@ function Tile({ tile }: { readonly tile: SelectTileView }) {
       {tile.character.comingSoon === true ? (
         <ComingSoon />
       ) : (
-        <img className="cs__thumb" src={tile.character.portrait} alt="" draggable={false} />
+        <img
+          className="cs__thumb"
+          src={tile.character.motion?.still ?? tile.character.portrait}
+          alt=""
+          draggable={false}
+        />
       )}
       {tile.cursors.length > 0 && (
         <span className="cs__tags" aria-hidden="true">

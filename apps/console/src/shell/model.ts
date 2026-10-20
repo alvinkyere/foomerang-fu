@@ -30,6 +30,8 @@ export interface CharacterView {
   /** Its colour, softened: a READY circle and tile are filled with it. */
   readonly tint: string;
   readonly portrait: string;
+  /** Its character-select circle animation (game-setting.mp4): the pre-rendered sheet and its first frame alone. */
+  readonly motion?: { readonly sheet: string; readonly still: string };
   /** No model yet: shown on the grid, never chosen. */
   readonly comingSoon?: true;
 }
