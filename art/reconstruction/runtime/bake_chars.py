@@ -4,6 +4,7 @@ The camera is the map's game camera (maps/<map>.json): characters must be seen i
 Each cell is CELL x CELL px (RGBA); cells.json records, per character, the scale used and the ground-anchor pixel inside a cell.
 Materials follow the reconstruction (matte; Bread crust/crumb gains; Icecream desaturation)."""
 import bpy, json, math, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from char_hands import add_hands
 from mathutils import Vector, Matrix
 args = sys.argv[sys.argv.index('--') + 1:]; OUT = os.path.abspath(args[0]); WIDTH = int(args[1]); CHARS = args[2].split(','); os.makedirs(OUT, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__)); AN = os.path.join(HERE, '..', 'analysis'); LIC = os.path.join(HERE, '..', 'licensed')
@@ -47,8 +48,10 @@ for name in CHARS:
     blend, obj = FILES[name]
     with bpy.data.libraries.load(os.path.join(LIC, name, blend), link=False) as (s1, d1): d1.objects = [obj]
     mesh = d1.objects[0]; bpy.context.collection.objects.link(mesh)
+    body_box = [Vector(c) for c in mesh.bound_box]                         # placed and centred by the body alone, as before hands
+    add_hands(mesh, name, LIC, CSCALE.get(name, 1.0))                                       # Bread, Coffee, Icecream, Carrot (char_hands.py)
     root = bpy.data.objects.new('ROOT', None); bpy.context.collection.objects.link(root); spin = bpy.data.objects.new('SPIN', None); bpy.context.collection.objects.link(spin); spin.parent = root; mesh.parent = spin
-    bpy.context.view_layer.update(); mesh.location.z -= min((mesh.matrix_world @ Vector(c)).z for c in mesh.bound_box)
+    bpy.context.view_layer.update(); mesh.location.z -= min((mesh.matrix_world @ c).z for c in body_box)
     for mt in mesh.data.materials:
         if not (mt and mt.node_tree): continue
         nt = mt.node_tree; bs = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'); bs.inputs['Specular IOR Level'].default_value = 0.0; bs.inputs['Roughness'].default_value = 1.0
@@ -67,7 +70,7 @@ for name in CHARS:
         for j in range(N_YAW):
             yaw = 2 * math.pi * j / N_YAW
             root.location = (G.x, G.y, 0.0); root.rotation_euler = (math.radians(tdeg), 0, 0); root.scale = (k,) * 3; spin.rotation_euler = (0, 0, yaw)
-            bpy.context.view_layer.update(); pts = [mesh.matrix_world @ Vector(c) for c in mesh.bound_box]; ctr = sum(pts, Vector()) / 8
+            bpy.context.view_layer.update(); pts = [mesh.matrix_world @ c for c in body_box]; ctr = sum(pts, Vector()) / 8
             root.location.x += G.x - ctr.x; root.location.y += G.y - ctr.y                      # bbox centre over the anchor ground point
             sc.render.filepath = os.path.join(OUT, f'{name}_{tname}_{j:02d}.png'); bpy.ops.render.render(write_still=True)
 json.dump(meta, open(os.path.join(OUT, 'cells.json'), 'w'), indent=1); print('chars baked', OUT)

@@ -4,6 +4,7 @@ Each portrait is SIZE x SIZE px (RGBA, transparent), the model framed by its bou
 alike. Materials as bake_chars.py (matte; Icecream desaturation). Facing: FRONT_YAW per model (found by test renders), or the
 optional yaw argument for every character (to find a model's front)."""
 import bpy, math, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from char_hands import add_hands
 from mathutils import Vector
 args = sys.argv[sys.argv.index('--') + 1:]; OUT = os.path.abspath(args[0]); SIZE = int(args[1]); CHARS = args[2].split(',')
 YAW_ALL = float(args[3]) if len(args) > 3 else None; os.makedirs(OUT, exist_ok=True)
@@ -28,6 +29,7 @@ for name in CHARS:
     blend, obj = FILES[name]
     with bpy.data.libraries.load(os.path.join(LIC, name, blend), link=False) as (s1, d1): d1.objects = [obj]
     mesh = d1.objects[0]; bpy.context.collection.objects.link(mesh)
+    add_hands(mesh, name, LIC, 1.0)                                       # Bread, Coffee, Icecream, Carrot (char_hands.py)
     spin = bpy.data.objects.new('SPIN', None); bpy.context.collection.objects.link(spin); mesh.parent = spin
     for mt in mesh.data.materials:
         if not (mt and mt.node_tree): continue
