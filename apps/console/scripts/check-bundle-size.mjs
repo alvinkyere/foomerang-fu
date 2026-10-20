@@ -18,7 +18,9 @@ import { gzipSync } from 'node:zlib';
 // Raised on purpose (character select, owner-approved 2026-10-19): Foomerang Fu's lobby is now the video's character select
 // (its screen, per-phone cursors, the picks model), the first thing after PLAY, beside the QR. Measured: initial JS 144.8 ->
 // 147.8 kB gzip. Lazy-loading it was measured too (initial 138.1 kB) but moves the QR library into the lazy total (542.8 kB).
-const BUDGET_GZIP_BYTES = { initialJs: 150_000, initialCss: 10_000, lazyJs: 540_000 };
+// Raised on purpose (owner-approved 2026-10-20): the character-select animation player (initial 150.5 kB measured) and the
+// end-of-match sequence + plaza mesh batching (lazy 544 kB measured).
+const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 550_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

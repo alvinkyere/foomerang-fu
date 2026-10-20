@@ -45,6 +45,8 @@ pnpm dev:demo                       # this computer only
 pnpm dev:demo --host 192.168.1.20   # phones on your Wi-Fi: the address THEY use to reach this computer
 ```
 
+On a TV's browser, open the console on port **5175** instead of 5174: it is a production build (much faster for a TV to load), started by the same command and rebuilt whenever the code changes (reload the TV to see a change).
+
 Open the console URL it prints (the root route is the console home), choose **Foomerang Fu**, press **PLAY**, scan the QR code (or enter the room code at the controller), press **START GAME**, and move your thumb. You choose the address phones use; nothing guesses it. For https and real-device testing see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md); for the design see [docs/CONSOLE.md](docs/CONSOLE.md).
 
 ### Play Foomerang Fu (combat skeleton)

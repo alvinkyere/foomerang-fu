@@ -67,7 +67,15 @@ const pureRules = {
 };
 
 export default tseslint.config(
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/.turbo/**', '**/coverage/**'] },
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/dist-tv/**',
+      '**/.turbo/**',
+      '**/coverage/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strict,
 

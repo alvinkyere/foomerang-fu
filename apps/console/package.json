@@ -8,6 +8,7 @@
     "dev": "vite --host",
     "build": "vite build && node scripts/check-bundle-size.mjs",
     "preview": "vite preview --host",
+    "serve:tv": "node scripts/serve-tv.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },

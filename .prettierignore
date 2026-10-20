@@ -2,6 +2,7 @@ pnpm-lock.yaml
 .turbo
 node_modules
 dist
+dist-tv
 coverage
 docs
 art/reconstruction/analysis

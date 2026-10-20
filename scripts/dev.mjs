@@ -8,6 +8,7 @@
 // Ctrl-C stops everything it started.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
+import { demoServices } from './demoServices.mjs';
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -28,10 +29,11 @@ const tls = cert === undefined ? {} : { FOOMERANG_TLS_CERT: cert, FOOMERANG_TLS_
 const serverUrl = `${scheme}://${host}:3001`;
 const controllerUrl = `${scheme}://${host}:5173`;
 const consoleUrl = `${scheme}://${host}:5174`;
+const tvUrl = `${scheme}://${host}:5175`;
 
 // Refuse to start if a port is taken. Otherwise Vite quietly moves to another port, and the QR code
 // and server address would point at the wrong place (often at an OLD run of this same script).
-const PORTS = [3001, 5173, 5174];
+const PORTS = [3001, 5173, 5174, 5175];
 const taken = [];
 for (const port of PORTS) {
   const free = await new Promise((resolve) => {
@@ -50,19 +52,7 @@ if (taken.length > 0) {
   process.exit(1);
 }
 
-const services = [
-  ['server', ['--filter', '@foomerang/server', 'dev'], { ...tls }],
-  [
-    'controller',
-    ['--filter', '@foomerang/controller', 'dev', '--strictPort'],
-    { ...tls, VITE_SERVER_URL: serverUrl },
-  ],
-  [
-    'console',
-    ['--filter', '@foomerang/console', 'dev', '--strictPort'],
-    { ...tls, FOOMERANG_CONTROLLER_URL: controllerUrl, FOOMERANG_SERVER_URL: serverUrl },
-  ],
-];
+const services = demoServices({ tls, serverUrl, controllerUrl });
 
 // Run children with the SAME pnpm that started this script (it may only be reachable through
 // `corepack pnpm`, not as a bare `pnpm` on PATH).
@@ -119,7 +109,9 @@ process.on('SIGTERM', () => stop());
 console.log(`
   Foomerang is starting.
 
-  On the big screen, open the console:   ${consoleUrl}
+  On this computer, open the console:    ${consoleUrl}
+  On a TV's browser, open instead:       ${tvUrl}   (a production build: it is ready a little later, and
+                                         rebuilds itself when code changes; reload the TV to see it)
   Phones will be sent to:                ${controllerUrl}
   Game server:                           ${serverUrl}
 ${

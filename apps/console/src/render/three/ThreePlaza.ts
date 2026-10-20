@@ -19,6 +19,7 @@ import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
+import { batchPlaza } from './plazaBatch';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
 
@@ -563,6 +564,15 @@ class Plaza {
         o.receiveShadow = true;
       }
     });
+    // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
+    // objects that never move, fade or break into one; crates and pots (they break) and the water stay as they are
+    batchPlaza(gltf, (root) =>
+      FADEABLE.test(root.name)
+        ? 'own'
+        : /^(CRATE|POT)_|^FOUNTAIN_water$/.test(root.name)
+          ? 'leave'
+          : 'shared',
+    );
     for (const root of gltf.children) {
       if (FADEABLE.test(root.name)) {
         const materials: THREE.Material[] = [];
