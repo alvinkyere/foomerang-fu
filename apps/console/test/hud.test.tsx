@@ -6,12 +6,12 @@ import {
   type FuState,
 } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { buildFuView } from '../src/render/fuView';
 import { SLOT_STYLES, SlotAllocator } from '../src/runtime/slots';
 import { FocusManager } from '../src/shell/focus/FocusManager';
-import { ChampionScreen, Meter, ScoreStrip, Standings, scoreToast } from '../src/ui/Hud';
+import { ChampionScreen, Meter, ScoreStrip, scoreToast } from '../src/ui/Hud';
 
 // The race is the rules' fact; the HUD only draws it. These tests read the view the HUD is built from, and the HUD.
 
@@ -164,25 +164,7 @@ describe('the kill meter', () => {
   });
 });
 
-describe('standings and the champion screen', () => {
-  it('between rounds the complete standings are shown big, best first, and a tiebreak is announced', () => {
-    const hud = hudOf(
-      match({
-        phase: 'ROUND_OVER',
-        roundOver: { winnerId: undefined, resetInSeconds: 2 },
-        scores: { a: 14, b: 14, 'cpu:1': 2 },
-      }),
-    );
-    render(<Standings hud={hud} />);
-    expect(screen.getByRole('status').textContent).toMatch(/Tiebreak: Alvin and Bea/);
-    const rows = within(screen.getByLabelText('Standings')).getAllByRole('listitem');
-    expect(rows.map((r) => r.textContent?.match(/[A-Z0-9 ]+/)?.[0]?.trim())).toEqual([
-      expect.stringContaining('ALVIN'),
-      expect.stringContaining('BEA'),
-      expect.stringContaining('CPU'),
-    ]);
-  });
-
+describe('the champion screen', () => {
   it('the champion screen names the champion, shows the final meters, and offers REMATCH or RETURN TO LOBBY', () => {
     const hud = hudOf(
       match({

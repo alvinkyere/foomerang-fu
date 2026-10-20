@@ -62,6 +62,8 @@ export interface ConsoleRuntime {
   frame(nowMs: number): void;
   /** Ask the server to begin the match, unless the chosen mode or the table (participants, humans and CPUs together) cannot start. */
   startMatch(): void;
+  /** CONTINUE on the scoreboard between rounds: the next round begins. */
+  continueRound(): void;
   /** REMATCH: the same participants and CPU difficulties, a brand-new match. */
   rematch(): void;
   /** Leave the finished match: the room goes back to its lobby. */
@@ -258,6 +260,10 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       syncContext(); // the match may have just ended: RESULTS
     },
     startMatch,
+    continueRound: () => {
+      director.continueRound();
+      syncContext(); // back to the game's controls
+    },
     rematch: () => {
       director.rematch(now());
       syncContext();

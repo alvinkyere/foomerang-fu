@@ -105,6 +105,11 @@ export interface FuConfig {
    * the instant that happens. Absent: no victory condition (Slices 1–7: rounds go on forever; kills are still counted).
    */
   readonly targetKills?: number;
+  /**
+   * After a round's end beat (`roundEndSeconds`): AUTO (default) starts the next round at once; ON_CONTINUE keeps the
+   * round over, on the scoreboard, until `continueRound` is called (a player pressed CONTINUE; owner, 2026-10-19).
+   */
+  readonly roundAdvance?: 'AUTO' | 'ON_CONTINUE';
   /** Slice 8: how many rounds are REGULATION (9). Only labels the lobby of rounds: a match that reaches the end of them without a winner simply goes on, as OVERTIME rounds. */
   readonly regulationRounds?: number;
   /** Slice 5: where and when pickups appear. Absent: no powerups (Slices 1–4 exactly). */
@@ -255,6 +260,12 @@ export function assertValidConfig(config: FuConfig): void {
     if (value !== undefined && (!Number.isInteger(value) || value < 1))
       throw new RangeError(`${key} must be a positive integer`);
   }
+  if (
+    config.roundAdvance !== undefined &&
+    config.roundAdvance !== 'AUTO' &&
+    config.roundAdvance !== 'ON_CONTINUE'
+  )
+    throw new RangeError('roundAdvance must be AUTO or ON_CONTINUE');
   if (config.enabledPowers !== undefined && !config.enabledPowers.every(isPowerKind)) {
     throw new RangeError('enabledPowers must be power kinds');
   }

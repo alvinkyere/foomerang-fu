@@ -8,7 +8,8 @@ import { PauseMenu } from '../shell/screens/PauseMenu';
 import '../shell/tokens.css';
 import '../shell/components.css';
 import { DebugOverlay } from './DebugOverlay';
-import { ChampionScreen, ScoreStrip, ScoreToasts, Standings, type Pulse } from './Hud';
+import { ChampionScreen, ScoreStrip, ScoreToasts, type Pulse } from './Hud';
+import { Scoreboard } from './Scoreboard';
 import { addScoreToasts, type ScoreToastState } from './scoreToasts';
 import { useHostState } from './useStore';
 
@@ -152,10 +153,15 @@ export function ArenaScreen({
         <FocusScope id="arena" onBack={() => runtime.pause()}>
           {null}
         </FocusScope>
-        {hud !== undefined && <ScoreStrip hud={hud} pulses={pulses} />}
+        {/* the scoreboard stands alone over the arena, as in the reference */}
+        {hud !== undefined && hud.phase !== 'SCOREBOARD' && (
+          <ScoreStrip hud={hud} pulses={pulses} />
+        )}
         <div ref={containerRef} className="arena" data-testid="arena" />
-        <ScoreToasts toasts={toasts} />
-        {hud?.phase === 'ROUND_OVER' && <Standings hud={hud} />}
+        {hud?.phase !== 'SCOREBOARD' && <ScoreToasts toasts={toasts} />}
+        {hud?.phase === 'SCOREBOARD' && (
+          <Scoreboard hud={hud} onContinue={() => runtime.continueRound()} />
+        )}
         {hud?.phase === 'MATCH_OVER' && (
           <ChampionScreen
             hud={hud}

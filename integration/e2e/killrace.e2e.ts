@@ -28,6 +28,7 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   await host.addCpu('Hard');
   await host.addCpu('Hard');
   await host.start();
+  await host.autoContinue(); // nobody on a phone: the TV presses CONTINUE between rounds
   await host.waitForDrawn(2);
 
   // The race is on screen: a row for each, three holes each (the shortened test match), the round named.
@@ -92,6 +93,7 @@ test('a person who joins while the match is running connects and waits; the rema
   await host.addCpu('Hard');
   await host.addCpu('Hard');
   await host.start();
+  await host.autoContinue(); // nobody on a phone: the TV presses CONTINUE between rounds
   await host.waitForDrawn(2);
 
   const late = await newPhone();

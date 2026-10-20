@@ -97,6 +97,7 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins and gets READ
   await expect(page.getByTestId('bots')).toHaveText('2 BOTS');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('arena')).toBeVisible();
+  await host.autoContinue(); // between rounds the TV presses CONTINUE
   await host.waitForDrawn(3);
 
   // The match runs to its end (two kills here) and the champion screen is the arena's own.

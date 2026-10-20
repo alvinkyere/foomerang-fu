@@ -175,6 +175,8 @@ export interface ScoreEntryView {
   /** Holes filled (kills). */
   readonly kills: number;
   readonly cpu: boolean;
+  /** The character they play (character select); absent: their seat's own. */
+  readonly character?: PackCharacter;
 }
 
 /** A kill meter just changed (a rules fact, from a SCORE event): for the brief on-screen feedback. */
@@ -198,7 +200,8 @@ export interface HudView {
   readonly target: number | undefined;
   /** "ROUND 3 / 9", "OVERTIME ROUND 1", "TIEBREAK". */
   readonly roundLabel: string;
-  readonly phase: 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';
+  /** SCOREBOARD: the round's end beat is over and the scoreboard waits for a CONTINUE. */
+  readonly phase: 'PLAYING' | 'ROUND_OVER' | 'SCOREBOARD' | 'MATCH_OVER';
   /** In player order (stable: the same row for the same player all match). */
   readonly entries: readonly ScoreEntryView[];
   /** Set once somebody has won. */

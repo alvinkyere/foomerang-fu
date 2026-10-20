@@ -9,6 +9,12 @@ import type { LatencyStats } from './inputBuffer';
 import type { TimingMetrics } from './frameStepper';
 import type { SlotAllocator } from './slots';
 
+/**
+ * Where a match is: PLAYING (between rounds included), ROUND_OVER (a round's end beat), SCOREBOARD (the end beat is over and
+ * the next round waits for a CONTINUE), MATCH_OVER.
+ */
+export type MatchPhase = 'PLAYING' | 'ROUND_OVER' | 'SCOREBOARD' | 'MATCH_OVER';
+
 export interface RuntimeMetrics extends TimingMetrics {
   readonly staleNeutralizations: number;
   /** Host receive → first simulation step that used it. One clock; not network latency. */
@@ -46,7 +52,9 @@ export interface MatchRuntime {
   /** Forget every held thumb and every action not yet used (a pause begins): nothing is carried across it. */
   neutralizeInput?(): void;
   /** Where the match is, for the games that have rounds and results (the host uses it to tell controllers what their buttons mean). */
-  matchPhase?(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined;
+  matchPhase?(): MatchPhase | undefined;
+  /** CONTINUE on the scoreboard: the next round begins (a no-op anywhere else, and for games without rounds). */
+  continueRound?(): void;
   /** The vibrations each phone should feel now (a game with a border: the time a player has spent outside it). */
   rumbles?(nowMs: number): readonly PlannedRumble[];
   metrics(): RuntimeMetrics;

@@ -1,5 +1,5 @@
-import { isPlayable, type SelectCharacter } from '../../runtime/characterSelect';
-import type { CharacterView } from '../model';
+import { isPlayable, type SelectCharacter } from '../runtime/characterSelect';
+import type { CharacterView } from '../shell/model';
 
 const NAMES: Readonly<Record<SelectCharacter, string>> = {
   avocado: 'Avocado',
@@ -45,8 +45,8 @@ const MEASURED_FILL: Partial<Record<SelectCharacter, string>> = {
   watermelon: '#ffc2c4',
 };
 
-/** The video's READY-fill rule: the badge's hue, saturation at most 0.25 (a near-white keeps its own), value 0.99. */
-const fillOf = (hex: string): string => {
+/** Hex ↔ HSV (h in [0, 6), s and v in [0, 1]). */
+const toHsv = (hex: string): [number, number, number] => {
   const n = Number.parseInt(hex.slice(1), 16);
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255) as [
     number,
@@ -57,17 +57,61 @@ const fillOf = (hex: string): string => {
   const d = max - Math.min(r, g, b);
   const h =
     d === 0 ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  const s = Math.min(0.25, (max === 0 ? 0 : d / max) / 2);
-  const v = 0.99;
+  return [h, max === 0 ? 0 : d / max, max];
+};
+const fromHsv = (h: number, s: number, v: number): string => {
   const k = (m: number): number => (m + h) % 6;
   const ch = (m: number): number => v - v * s * Math.max(0, Math.min(k(m), 4 - k(m), 1));
   return `#${[ch(5), ch(3), ch(1)]
     .map((c) =>
-      Math.round(c * 255)
+      Math.round(Math.min(1, Math.max(0, c)) * 255)
         .toString(16)
         .padStart(2, '0'),
     )
     .join('')}`;
+};
+
+/** The video's READY-fill rule: the badge's hue, saturation at most 0.25 (a near-white keeps its own), value 0.99. */
+const fillOf = (hex: string): string => {
+  const [h, s] = toHsv(hex);
+  return fromHsv(h, Math.min(0.25, s / 2), 0.99);
+};
+
+export interface ScoreboardColours {
+  /** The player's band. */
+  readonly band: string;
+  /** A kill: a filled dot. */
+  readonly filled: string;
+  /** A kill still to make: an empty dot. */
+  readonly empty: string;
+}
+
+/**
+ * The scoreboard between rounds ("ff scoreboard.jpg"): measured for the six characters that image shows (medians over each
+ * band and its first and last dot), and for the rest the rule those six follow from the character's video badge: band =
+ * the badge's hue, saturation ×0.85, value ×0.72; filled = saturation ×0.75, value ×1.07; empty = the band's hue, saturation
+ * ×1.25, value ×0.77 of the band.
+ */
+const MEASURED_SCOREBOARD: Partial<Record<SelectCharacter, ScoreboardColours>> = {
+  bacon: { band: '#815f54', filled: '#e7947a', empty: '#5c382a' },
+  banana: { band: '#a6973c', filled: '#e9d767', empty: '#807114' },
+  bread: { band: '#a6905f', filled: '#e9d3a2', empty: '#806a39' },
+  carrot: { band: '#9b6948', filled: '#efaa89', empty: '#764423' },
+  coffee: { band: '#9b9b92', filled: '#fbfffe', empty: '#6b6c64' },
+  icecream: { band: '#4e9179', filled: '#6bebbd', empty: '#266d4f' },
+};
+
+export const scoreboardColours = (id: SelectCharacter): ScoreboardColours => {
+  const measured = MEASURED_SCOREBOARD[id];
+  if (measured !== undefined) return measured;
+  const [h, s, v] = toHsv(BADGE[id]);
+  const bandS = s * 0.85;
+  const bandV = v * 0.72;
+  return {
+    band: fromHsv(h, bandS, bandV),
+    filled: fromHsv(h, s * 0.75, Math.min(1, v * 1.07)),
+    empty: fromHsv(h, Math.min(1, bandS * 1.25), bandV * 0.77),
+  };
 };
 
 export const characterView = (id: SelectCharacter): CharacterView => ({

@@ -196,7 +196,6 @@ button:focus-visible {
 }
 
 .score-strip ul,
-.standings ul,
 .champion ul {
   list-style: none;
   margin: 0;
@@ -210,7 +209,6 @@ button:focus-visible {
 }
 
 .score-strip li,
-.standings li,
 .champion li {
   display: flex;
   align-items: center;
@@ -279,7 +277,6 @@ button:focus-visible {
   color: var(--color-danger);
 }
 
-.standings,
 .champion {
   position: fixed;
   inset: 12% 14%;
@@ -294,7 +291,6 @@ button:focus-visible {
   font-size: 1.1rem;
 }
 
-.standings ul,
 .champion ul {
   display: flex;
   flex-direction: column;

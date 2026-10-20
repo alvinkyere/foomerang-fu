@@ -634,7 +634,7 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       return { runtime, now: 0 };
     }
 
-    it('a thrown boomerang kills, the round ends, and a new round starts after the interval', () => {
+    it('a thrown boomerang kills, the round ends, the scoreboard waits, and CONTINUE starts the next round', () => {
       const { runtime } = fight();
       // slot 0 is at the top centre, slot 3 at the bottom centre; a throws straight down the middle: a full charge (a quick
       // throw curves; owner, 2026-10-19), held for 0.7 s and let go
@@ -645,9 +645,17 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       expect(alive(runtime, 'b')).toBe(false);
       expect(s(runtime).phase).toBe('ROUND_OVER');
       expect(s(runtime).roundOver?.winnerId).toBe('a');
+      expect(runtime.matchPhase()).toBe('ROUND_OVER'); // the end beat
       now = run(runtime, now, 200);
+      // the scoreboard (owner, 2026-10-19): it waits, however long, until somebody continues
+      expect(runtime.matchPhase()).toBe('SCOREBOARD');
+      now = run(runtime, now, 600);
+      expect(s(runtime).round).toBe(1);
+      runtime.continueRound();
+      now = run(runtime, now, 1);
       expect(s(runtime).round).toBe(2);
       expect(s(runtime).phase).toBe('PLAYING');
+      expect(runtime.matchPhase()).toBe('PLAYING');
       expect(alive(runtime, 'b')).toBe(true);
       expect(now).toBeGreaterThan(0);
     });

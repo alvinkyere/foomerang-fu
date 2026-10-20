@@ -267,6 +267,26 @@ export class Host {
     return game;
   }
 
+  /** The scoreboard's CONTINUE (between rounds, Foomerang Fu). */
+  get continueButton(): Locator {
+    return this.page.getByRole('button', { name: 'CONTINUE', exact: true });
+  }
+
+  /**
+   * For matches that run over many rounds: whenever the scoreboard waits between rounds, press CONTINUE — with this phone's
+   * SELECT, as its player would, or (no phone: CPU-only matches) on the TV. Runs while Playwright waits on the page.
+   */
+  async autoContinue(phone?: Phone): Promise<void> {
+    await this.page.addLocatorHandler(
+      this.continueButton,
+      async () => {
+        if (phone === undefined) await this.continueButton.click();
+        else await phone.tap('SELECT');
+      },
+      { noWaitAfter: true },
+    );
+  }
+
   /** Starts the match. Foomerang Fu: every phone in the room first gets READY on its character (see readyEveryone). */
   async start(): Promise<void> {
     await this.readyEveryone();

@@ -3,7 +3,7 @@ import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
 import { GameRuntime } from './gameRuntime';
 import { LazyFuRuntime, warmUpFu } from './lazyFuRuntime';
-import type { MatchPlayer, MatchRuntime } from './matchRuntime';
+import type { MatchPhase, MatchPlayer, MatchRuntime } from './matchRuntime';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
@@ -256,8 +256,13 @@ export class MatchDirector {
   }
 
   /** Where the running match is (undefined when none is running, or the game has no such notion). */
-  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
+  matchPhase(): MatchPhase | undefined {
     return this.#inMatch ? this.runtime.matchPhase?.() : undefined;
+  }
+
+  /** CONTINUE on the scoreboard: the next round begins. */
+  continueRound(): void {
+    if (this.#inMatch && !this.paused) this.runtime.continueRound?.();
   }
 
   onMovement(playerId: string, x: number, y: number, nowMs: number): void {

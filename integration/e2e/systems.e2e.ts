@@ -225,7 +225,9 @@ test('Arena systems: the lethal FLOOR is telegraphed SAFE → WARNING → ACTIVE
   expect(fu.phase).toBe('ROUND_OVER');
   expect(fu.winnerId).toBe(bobId);
 
-  // and the next round starts with the clock at zero and the floor SAFE again
+  // the scoreboard waits; Alice's SELECT presses CONTINUE: the next round, the clock at zero, the floor SAFE again
+  await expect(host.continueButton).toBeVisible({ timeout: 10_000 });
+  await alice.tap('SELECT');
   await expect.poll(async () => (await host.fu()).round, { timeout: 10_000 }).toBe(2);
   const next = await host.fu();
   expect(next.roundTime).toBeLessThan(2);

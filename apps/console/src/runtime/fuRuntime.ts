@@ -3,6 +3,7 @@ import { RumblePlanner, type PlannedRumble } from './rumblePlanner';
 import {
   CpuController,
   FREE_FOR_ALL,
+  continueRound,
   MARKET_PLAZA_ARENA,
   FU_BUTTONS,
   PRIMITIVE_ARENA,
@@ -32,7 +33,7 @@ import { FrameStepper } from './frameStepper';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
 import type { PowerupMode } from './powerupMode';
 import { InputBuffer } from './inputBuffer';
-import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
+import type { MatchPhase, MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { SlotAllocator } from './slots';
 
 /** Which generic platform action each of Fu's buttons arrives as: the game's own table, which the server advertises too. */
@@ -161,6 +162,7 @@ export class FuRuntime implements MatchRuntime {
         arena: this.#arena,
         ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
         ...FREE_FOR_ALL,
+        roundAdvance: 'ON_CONTINUE', // the scoreboard waits for CONTINUE between rounds (owner, 2026-10-19)
         ...(this.#targetKills === undefined ? {} : { targetKills: this.#targetKills }),
         // first to 14 kills wins at once; nine rounds are regulation, then overtime; what players own lasts until the match ends
         ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }),
@@ -209,8 +211,19 @@ export class FuRuntime implements MatchRuntime {
     this.#pendingDashes.clear();
   }
 
-  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
-    return this.state?.phase;
+  matchPhase(): MatchPhase | undefined {
+    const state = this.state;
+    if (state === undefined) return undefined;
+    return state.phase === 'ROUND_OVER' && state.roundOver?.awaitingContinue === true
+      ? 'SCOREBOARD'
+      : state.phase;
+  }
+
+  continueRound(): void {
+    if (this.state === undefined) return;
+    const result = continueRound(this.state);
+    this.state = result.state;
+    this.#events.push(...result.events);
   }
 
   setActivity(isActive: (playerId: string) => boolean): void {

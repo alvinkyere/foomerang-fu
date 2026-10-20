@@ -10,6 +10,7 @@ test('only the market plaza, every match: start, rematch, and a new match from t
   await host.addCpu('Hard');
   await host.addCpu('Hard');
   await host.start();
+  await host.autoContinue(); // CPU-only: the TV presses CONTINUE between rounds
   await host.waitForDrawn(2);
 
   const onThePlaza = async () => {

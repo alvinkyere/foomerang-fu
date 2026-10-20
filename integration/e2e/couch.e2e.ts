@@ -81,6 +81,7 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await expect(host.startButton).not.toHaveAttribute('aria-disabled', 'true');
   await alice.tap('SELECT');
   await host.waitForDrawn(2);
+  await host.autoContinue(alice); // between rounds her SELECT presses CONTINUE on the scoreboard
 
   // GAMEPLAY: the game's own controls, plus the phone's PAUSE.
   await expect(pad.getByRole('group', { name: /move/i })).toBeVisible();

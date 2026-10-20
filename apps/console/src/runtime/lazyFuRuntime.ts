@@ -3,7 +3,7 @@ import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
 import type { ArenaView } from '../render/viewModel';
 import type { FuRuntime } from './fuRuntime';
-import type { MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
+import type { MatchPhase, MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { PlannedRumble } from './rumblePlanner';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
@@ -141,7 +141,11 @@ export class LazyFuRuntime implements MatchRuntime {
     return this.#real?.rumbles(nowMs) ?? [];
   }
 
-  matchPhase(): 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER' | undefined {
+  continueRound(): void {
+    this.#real?.continueRound();
+  }
+
+  matchPhase(): MatchPhase | undefined {
     return this.#real?.matchPhase() ?? (this.#real === undefined ? undefined : 'PLAYING');
   }
 

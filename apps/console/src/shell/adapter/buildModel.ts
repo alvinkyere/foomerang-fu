@@ -15,7 +15,7 @@ import {
   type ShellModel,
   type ShellRoom,
 } from '../model';
-import { characterView } from './characters';
+import { characterView } from '../../characters/videoPalette';
 import { addressAdvice, failureView } from './copy';
 
 export type StartBlock = 'MODE_UNAVAILABLE' | 'TOO_FEW' | 'TOO_MANY' | 'NOT_READY' | undefined;

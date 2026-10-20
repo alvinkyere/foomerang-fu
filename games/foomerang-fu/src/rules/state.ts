@@ -49,6 +49,8 @@ export interface FuRoundOver {
   /** The survivor, or undefined for a draw (everyone died in the same step). */
   readonly winnerId: string | undefined;
   readonly resetInSeconds: number;
+  /** The end beat is over and the scoreboard is up: the next round waits for `continueRound` (config `roundAdvance`). Absent: false. */
+  readonly awaitingContinue?: boolean;
 }
 
 /** Slice 8: the match is decided; nothing happens after this (no step changes anything, no kill is processed). */

@@ -173,7 +173,14 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   // Death is a rules fact; the dead player is still drawn (as a dimmed, crossed-out circle).
   expect((await host.snapshot()).drawn?.map((d) => d.id).sort()).toEqual([aliceId, bobId].sort());
 
-  // --- the next round starts by itself, from the same fresh start ------------------------------
+  // --- the scoreboard waits; a phone's SELECT presses CONTINUE: the next round, from the same fresh start
+  await expect(host.continueButton).toBeVisible({ timeout: 10_000 });
+  await expect(
+    host.page.getByRole('listitem', { name: /^Alice: 1 of 14 kills, leading$/ }),
+  ).toBeVisible();
+  await host.page.waitForTimeout(1_500);
+  expect((await host.fu()).round).toBe(1); // it waits
+  await bob.tap('SELECT');
   await expect.poll(async () => (await host.fu()).round, { timeout: 10_000 }).toBe(2);
   fu = await host.fu();
   expect(fu.phase).toBe('PLAYING');
@@ -258,7 +265,9 @@ test('Foomerang Fu: one player kills another with SLASH, which uses the weapon i
   expect(fu.boomerangs.map((x) => x.state)).toEqual(['HELD', 'HELD']); // nothing was thrown
   expect((await host.snapshot()).diagnostics.actionsReceived - before).toBe(2); // pressed + released
 
-  // The next round starts from the same fresh start, with the swing reset.
+  // The scoreboard waits; Alice's SELECT presses CONTINUE: the next round, from the same fresh start, swing reset.
+  await expect(host.continueButton).toBeVisible({ timeout: 10_000 });
+  await alice.tap('SELECT');
   await expect.poll(async () => (await host.fu()).round, { timeout: 10_000 }).toBe(2);
   expect((await host.fu()).players.map((p) => p.slash)).toEqual(['READY', 'READY']);
 });

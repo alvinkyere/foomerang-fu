@@ -184,6 +184,8 @@ export type FuEvent =
   /** Slice 8: these players filled their meters on the same step: a tiebreak round between only them begins. */
   | { readonly type: 'TIEBREAK_START'; readonly playerIds: readonly string[] }
   | { readonly type: 'ROUND_OVER'; readonly winnerId: string | undefined }
+  /** The end beat is over: the scoreboard is up and the next round waits for a CONTINUE (`roundAdvance: ON_CONTINUE`). */
+  | { readonly type: 'SCOREBOARD' }
   | { readonly type: 'ROUND_START'; readonly round: number };
 
 export interface FuStepResult {
@@ -364,65 +366,99 @@ function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuS
   const over = state.roundOver;
   const remaining = (over?.resetInSeconds ?? 0) - dt;
   const elapsed = state.elapsed + dt;
+  // On the scoreboard: time passes, nothing else happens, until somebody continues.
+  if (over?.awaitingContinue === true) {
+    return { state: Object.freeze({ ...state, elapsed, world }), events: [] };
+  }
   if (remaining <= EPSILON) {
-    const specs = state.players.map((p) => ({ id: p.id, slot: p.slot }));
-    // Whoever holds a full meter at the end of a round (only possible after a tie, or after a tiebreak in which the others
-    // lost holes): one of them has won; several play a tiebreak between only them.
     const target = state.config.targetKills;
     const full =
       target === undefined ? [] : state.players.filter((p) => (state.scores[p.id] ?? 0) >= target);
-    if (full.length === 1) {
-      const winnerId = (full[0] as FuPlayer).id;
+    if (full.length !== 1 && state.config.roundAdvance === 'ON_CONTINUE') {
       return {
         state: Object.freeze({
           ...state,
           elapsed,
           world,
-          phase: 'MATCH_OVER' as const,
-          roundOver: undefined,
-          matchOver: Object.freeze({ winnerId }),
+          roundOver: Object.freeze({
+            winnerId: over?.winnerId,
+            resetInSeconds: 0,
+            awaitingContinue: true,
+          }),
         }),
-        events: [{ type: 'MATCH_WON', winnerId, kills: state.scores[winnerId] ?? 0 }],
+        events: [{ type: 'SCOREBOARD' }],
       };
     }
-    // What each player owns (and the match's count of Books taken) and every kill count carry into the next round.
-    const carried = new Map(state.players.map((p) => [p.id, p.inventory]));
-    if (full.length > 1) {
-      const playerIds = full.map((p) => p.id);
-      const next = startRound(
-        specs,
-        state.config,
-        state.round + 1,
-        elapsed,
-        carried,
-        state.awards,
-        {
-          scores: state.scores,
-          playing: playerIds,
-        },
-      );
-      return {
-        state: next,
-        events: [
-          { type: 'TIEBREAK_START', playerIds },
-          { type: 'ROUND_START', round: next.round },
-        ],
-      };
-    }
-    const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards, {
-      scores: state.scores,
-    });
-    return { state: next, events: [{ type: 'ROUND_START', round: next.round }] };
+    return nextRound({ ...state, world }, elapsed);
   }
   return {
     state: Object.freeze({
       ...state,
       elapsed,
       world,
-      roundOver: Object.freeze({ winnerId: over?.winnerId, resetInSeconds: remaining }),
+      roundOver: Object.freeze({
+        winnerId: over?.winnerId,
+        resetInSeconds: remaining,
+        awaitingContinue: false,
+      }),
     }),
     events: [],
   };
+}
+
+/**
+ * CONTINUE on the scoreboard (`roundAdvance: ON_CONTINUE`): the next round (or the tiebreak) begins. Anything else (play,
+ * the end beat, a decided match) is left exactly as it was.
+ */
+export function continueRound(state: FuState): FuStepResult {
+  if (state.phase !== 'ROUND_OVER' || state.roundOver?.awaitingContinue !== true)
+    return { state, events: [] };
+  return nextRound(state, state.elapsed);
+}
+
+/** The end of a round: the match (one full meter), a tiebreak (several), or the next round. */
+function nextRound(state: FuState, elapsed: number): FuStepResult {
+  const world = state.world;
+  const specs = state.players.map((p) => ({ id: p.id, slot: p.slot }));
+  // Whoever holds a full meter at the end of a round (only possible after a tie, or after a tiebreak in which the others
+  // lost holes): one of them has won; several play a tiebreak between only them.
+  const target = state.config.targetKills;
+  const full =
+    target === undefined ? [] : state.players.filter((p) => (state.scores[p.id] ?? 0) >= target);
+  if (full.length === 1) {
+    const winnerId = (full[0] as FuPlayer).id;
+    return {
+      state: Object.freeze({
+        ...state,
+        elapsed,
+        world,
+        phase: 'MATCH_OVER' as const,
+        roundOver: undefined,
+        matchOver: Object.freeze({ winnerId }),
+      }),
+      events: [{ type: 'MATCH_WON', winnerId, kills: state.scores[winnerId] ?? 0 }],
+    };
+  }
+  // What each player owns (and the match's count of Books taken) and every kill count carry into the next round.
+  const carried = new Map(state.players.map((p) => [p.id, p.inventory]));
+  if (full.length > 1) {
+    const playerIds = full.map((p) => p.id);
+    const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards, {
+      scores: state.scores,
+      playing: playerIds,
+    });
+    return {
+      state: next,
+      events: [
+        { type: 'TIEBREAK_START', playerIds },
+        { type: 'ROUND_START', round: next.round },
+      ],
+    };
+  }
+  const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards, {
+    scores: state.scores,
+  });
+  return { state: next, events: [{ type: 'ROUND_START', round: next.round }] };
 }
 
 interface Flight {
@@ -1746,7 +1782,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       awards,
       phase: matchWonBy !== undefined ? 'MATCH_OVER' : roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds
-        ? Object.freeze({ winnerId, resetInSeconds: config.roundEndSeconds })
+        ? Object.freeze({
+            winnerId,
+            resetInSeconds: config.roundEndSeconds,
+            awaitingContinue: false,
+          })
         : undefined,
       scores: scored.scores,
       matchOver: matchWonBy === undefined ? undefined : Object.freeze({ winnerId: matchWonBy }),

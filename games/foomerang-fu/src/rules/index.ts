@@ -67,7 +67,7 @@ export type {
 export { applyDeaths, fullMeters } from './scoring';
 export type { Death, DeathCause, ScoreChange, ScoreReason, ScoreResult } from './scoring';
 
-export { stepFu } from './step';
+export { continueRound, stepFu } from './step';
 export type { FuEvent, FuInputs, FuPlayerInput, FuStepResult } from './step';
 
 export {

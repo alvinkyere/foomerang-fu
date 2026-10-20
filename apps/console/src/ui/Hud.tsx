@@ -111,40 +111,6 @@ export function ScoreToasts({ toasts }: { readonly toasts: readonly ScoreEventVi
 
 const byKills = (a: ScoreEntryView, b: ScoreEntryView): number => b.kills - a.kills;
 
-/** Between rounds: the complete standings, large and centred. */
-export function Standings({ hud }: { readonly hud: HudView }) {
-  const { target } = hud;
-  if (target === undefined) return null;
-  return (
-    <section className="standings" aria-label="Standings">
-      <h2>Standings</h2>
-      <p className="muted">
-        {hud.roundLabel} complete — first to {target} kills
-      </p>
-      {hud.tiebreak.length > 1 && (
-        <p className="notice" role="status">
-          Tiebreak:{' '}
-          {hud.tiebreak.map((id) => hud.entries.find((e) => e.id === id)?.label).join(' and ')}{' '}
-          filled their meters together
-        </p>
-      )}
-      <ul>
-        {[...hud.entries].sort(byKills).map((entry) => (
-          <li key={entry.id}>
-            <span className="who">
-              <Identity entry={entry} />
-            </span>
-            <Meter entry={entry} target={target} />
-            <span className="count">
-              {entry.kills} / {target}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 /** The match is won: the champion, the final meters, and what the host may do next. */
 export function ChampionScreen({
   hud,

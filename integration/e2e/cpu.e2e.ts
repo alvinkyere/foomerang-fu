@@ -116,6 +116,7 @@ test('six Hard CPUs on a reconstructed map (the stress case, nobody on a phone):
     const count = Number(process.env['FOOMERANG_E2E_CPUS'] ?? 6);
     for (let i = 0; i < count; i += 1) await host.addCpu('Hard');
     await host.start();
+    await host.autoContinue(); // keep the CPUs playing round after round (the scoreboard waits for CONTINUE)
     await host.waitForDrawn(count);
     // every frame's interval, from the page's own animation frames (for percentiles and the 1% low)
     await host.page.evaluate(() => {

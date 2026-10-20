@@ -280,11 +280,13 @@ export function buildFuView(
         ];
       case 'ROUND_OVER':
         return []; // shown as the banner, which comes from the state
+      case 'SCOREBOARD':
+        return []; // the scoreboard comes from the state (the HUD's phase)
     }
   });
 
   let banner: string | undefined;
-  if (state.phase === 'ROUND_OVER') {
+  if (state.phase === 'ROUND_OVER' && state.roundOver?.awaitingContinue !== true) {
     const winnerId = state.roundOver?.winnerId;
     banner =
       winnerId === undefined
@@ -303,6 +305,7 @@ export function buildFuView(
       color: identity.color,
       kills: state.scores[id] ?? 0,
       cpu: isCpuId(id),
+      ...(characters.has(id) ? { character: characters.get(id) as PackCharacter } : {}),
     };
   };
   const label = roundLabel(state);
@@ -332,7 +335,10 @@ export function buildFuView(
           : label.of === undefined
             ? `ROUND ${label.round}`
             : `ROUND ${label.round} / ${label.of}`,
-    phase: state.phase,
+    phase:
+      state.phase === 'ROUND_OVER' && state.roundOver?.awaitingContinue === true
+        ? 'SCOREBOARD'
+        : state.phase,
     entries: state.players.map((p) => entryOf(p.id)),
     champion: state.matchOver === undefined ? undefined : entryOf(state.matchOver.winnerId),
     tiebreak:

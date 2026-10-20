@@ -18,6 +18,9 @@ describe('deriveContext: the host decides what the phones’ controls mean', () 
   it('is PAUSED when the host opened the pause menu', () => {
     expect(deriveContext({ ...base, manualPaused: true })).toBe('PAUSED');
   });
+  it('is RESULTS while the scoreboard waits between rounds (the phones press CONTINUE with SELECT)', () => {
+    expect(deriveContext({ ...base, matchPhase: 'SCOREBOARD' })).toBe('RESULTS');
+  });
   it('is RESULTS once the match is over', () => {
     expect(deriveContext({ ...base, matchPhase: 'MATCH_OVER' })).toBe('RESULTS');
   });
