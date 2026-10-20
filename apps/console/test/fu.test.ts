@@ -1124,6 +1124,28 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(calledOf(lying({ state: 'RECALLING' }))).toEqual({ calling: true, called: true }); // on its way
   });
 
+  it('a Book taken says who took it (actor), so the TV can hold the power’s badge over them', () => {
+    const { state, entries, slots } = playing();
+    const view = buildFuView(
+      state,
+      [
+        {
+          type: 'PICKED_UP',
+          playerId: 'b',
+          kind: 'SHIELD',
+          pickupId: 1,
+          position: { x: 500, y: 400 },
+        },
+      ],
+      entries,
+      slots,
+    );
+    expect(view.events.find((e) => e.type === 'PICKUP')).toMatchObject({
+      actor: 'b',
+      kind: 'SHIELD',
+    });
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

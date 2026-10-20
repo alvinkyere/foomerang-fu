@@ -216,6 +216,7 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
         type: 'PICKUP',
         x: 7,
         y: 8,
+        actor: 'b', // who took it: the TV holds the power's badge over them
         color: SLOT_STYLES[1]?.color,
         kind: 'EXPLOSIVE_BOOMERANG',
         who: 'David',

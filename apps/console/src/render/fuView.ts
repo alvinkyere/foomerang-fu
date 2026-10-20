@@ -174,6 +174,7 @@ export function buildFuView(
           {
             type: 'PICKUP',
             ...event.position,
+            actor: event.playerId,
             color: styleOf(event.playerId, slots).color,
             kind: event.kind,
             who: identityOf(event.playerId, roster, slots).label,

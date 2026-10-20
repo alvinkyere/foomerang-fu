@@ -228,3 +228,24 @@ read on 50 px gridded crops). The pink donut and the brown mug each throw. Lengt
   pose needs new modelling and rigging, then a re-bake of the sprites. For now the caller faces the camera and stands still,
   with the hand auras at its sides.
 - **The 0.4 s at near flight speed before the slide slows.** One constant friction is applied instead.
+
+## The power Book and its badge (2026-10-20; applied)
+
+**The Book on the ground** (4:10.4, 10:15.0): a bright cyan book standing on end, glowing, with a white "?" on its cover and a
+red gem on its top. It is about half a character wide and nearly a character tall (8 × 23 px against a 17 × 27 px character at
+4:10). Drawn on the plaza at 23 × 52 u, with a faint cyan glow on the ground.
+
+**Taking it** (4:11.0–4:12.9, 10:15.0):
+
+- A bar in the power's colour shows the power's name in white bold capitals: EXPLOSIVE BOOMERANG on red (sampled ≈ `#cf2427`),
+  SHIELD on blue (≈ `#6397e9`).
+- Above the bar, a disc of the same colour carries the power's white icon: a burst for Explosive, a shield for Shield.
+- It stays over the player's head for ≈ 1.9 s (detected 4:11.24–4:12.91, and visible from 4:11.0), and shards in the power's
+  colour burst round them.
+- Applied: `render/powerBadge.ts` and `render/three/pickupBadges.ts`.
+
+**Not from the video yet, flagged:**
+
+- **The font.** The lettering is a heavy rounded sans; the exact face can't be identified at 640 × 360, and none is bundled.
+  The system's rounded font is used (`ui-rounded`, i.e. SF Pro Rounded on a Mac).
+- **Caffeinated's and Twin's badge colours and icons.** The video hasn't been studied for them yet; they keep their old colours.

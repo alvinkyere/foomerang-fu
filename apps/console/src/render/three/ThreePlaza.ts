@@ -15,6 +15,8 @@ import { AimLine, Trail } from './chargeVisuals';
 import { CALL_AURA, auraPulse } from '../callAura';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
+import { PickupBadges } from './pickupBadges';
+import { POWER_BADGE } from '../powerBadge';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { PlazaProps } from './plazaProps';
@@ -479,6 +481,7 @@ class Plaza {
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
   readonly #blasts: Blasts;
+  #badges: PickupBadges | undefined;
   readonly #resize: ResizeObserver;
 
   constructor(
@@ -592,6 +595,7 @@ class Plaza {
     });
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
     container.appendChild(this.#banner);
+    this.#badges = new PickupBadges(container, this.renderer.domElement);
     this.#resize = new ResizeObserver(() => this.#fit());
     this.#resize.observe(container);
     this.#fit();
@@ -769,19 +773,14 @@ class Plaza {
     for (const p of view.pickups) {
       lying.add(p.id);
       if (!this.#books.has(p.id)) {
-        const book = new THREE.Group();
-        const cover = new THREE.Mesh(
-          new THREE.BoxGeometry(1.1, 0.35, 1.4),
-          new THREE.MeshStandardMaterial({ color: 0x2a6fdb, roughness: 0.5 }),
+        // the reference video's Book (4:10, 10:15): bright cyan, standing on end, a white "?" on its cover, a red gem on top;
+        // about half a character wide and nearly as tall (our characters are drawn ~46 u wide, ~62 u tall)
+        const book = bookModel(
+          this.#space.length(23),
+          this.#space.length(52),
+          this.#space.length(9),
         );
-        const pages = new THREE.Mesh(
-          new THREE.BoxGeometry(1.0, 0.25, 1.3),
-          new THREE.MeshStandardMaterial({ color: 0xfaf5e8 }),
-        );
-        pages.position.x = 0.06;
-        cover.castShadow = true;
-        book.add(cover, pages);
-        const at = this.#space.toScene(p.x, p.y, 16);
+        const at = this.#space.toScene(p.x, p.y, 0);
         book.position.set(at.x, at.y, at.z);
         book.userData = { x: p.x, y: p.y };
         this.scene.add(book);
@@ -866,6 +865,18 @@ class Plaza {
         }),
       );
       add(arc, 180, 0.1);
+    } else if (e.type === 'PICKUP' && e.actor !== undefined && e.kind !== undefined) {
+      this.#badges?.show(e.actor, e.kind, now);
+      const shade = color(POWER_BADGE[e.kind].colour);
+      for (let k = 0; k < 12; k += 1) {
+        const a = (k / 12) * Math.PI * 2;
+        const shard = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.5, 0.5),
+          new THREE.MeshBasicMaterial({ color: shade, transparent: true }),
+        );
+        shard.userData['dir'] = new THREE.Vector3(Math.cos(a), 0.4, Math.sin(a));
+        add(shard, 450, 0);
+      }
     } else if (e.type === 'SPAWNED' || e.type === 'PICKUP') {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(1.2, 1.6, 48).rotateX(-Math.PI / 2),
@@ -934,6 +945,12 @@ class Plaza {
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#props.frame(time);
     this.#remains.frame(time);
+    this.#badges?.frame(time, this.camera, (id) => {
+      const ch = this.#characters.get(id);
+      if (ch === undefined) return undefined;
+      // above the character's head: the top of its body
+      return ch.sprite.position.clone().add(new THREE.Vector3(0, ch.sprite.scale.y * 0.42, 0));
+    });
     this.#blasts.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
@@ -1047,4 +1064,53 @@ export async function createThreePlaza(
     driveClock: () => plaza.drive(),
     destroy: () => plaza.destroy(),
   };
+}
+
+/** The reference video's power Book: a glowing cyan book standing on end, a white "?" on its cover, a red gem on its top. */
+function bookModel(width: number, height: number, depth: number): THREE.Group {
+  const book = new THREE.Group();
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  const g = canvas.getContext('2d');
+  if (g !== null) {
+    g.fillStyle = '#3fe6f2';
+    g.fillRect(0, 0, 64, 128);
+    g.fillStyle = '#ffffff';
+    g.font = '900 96px ui-rounded, system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('?', 32, 72);
+  }
+  const front = new THREE.CanvasTexture(canvas);
+  const cyan = new THREE.MeshBasicMaterial({ color: '#3fe6f2' });
+  const cover = new THREE.MeshBasicMaterial({ map: front });
+  // faces: +x, -x, +y, -y, +z (towards the camera), -z
+  const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), [
+    cyan,
+    cyan,
+    cyan,
+    cyan,
+    cover,
+    cyan,
+  ]);
+  body.position.y = height / 2;
+  body.castShadow = true;
+  const gem = new THREE.Mesh(
+    new THREE.SphereGeometry(width * 0.16, 12, 8),
+    new THREE.MeshBasicMaterial({ color: '#e0283a' }),
+  );
+  gem.position.set(width * 0.25, height + width * 0.08, 0);
+  const glow = new THREE.Mesh(
+    new THREE.CircleGeometry(width * 1.1, 24).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      color: '#7ff4ff',
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    }),
+  );
+  glow.position.y = 0.06;
+  book.add(body, gem, glow);
+  return book;
 }
