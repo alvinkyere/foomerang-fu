@@ -147,3 +147,73 @@
     animation: none !important;
   }
 }
+
+/* ---- the trophy heading every scoreboard, between two lines (the reference footage: #de9948 on #b8bdba lines) ------- */
+.sb__head {
+  position: absolute;
+  top: calc(50% - 28.125 * var(--u) + 3.4 * var(--u));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: calc(1.2 * var(--u));
+  margin: 0;
+  transform: translateX(-50%);
+}
+.sb__head::before,
+.sb__head::after {
+  width: calc(6.5 * var(--u));
+  height: calc(0.3 * var(--u));
+  border-radius: calc(0.2 * var(--u));
+  background: #b8bdba;
+  content: '';
+}
+.sb__trophy {
+  width: calc(3.6 * var(--u));
+  height: calc(3.6 * var(--u));
+  fill: #de9948;
+}
+.sb__trophy-eye {
+  fill: #5a3412;
+}
+
+/* ---- the final scoreboard (end of the match): the winner's band pops, everyone else's fades ----------------------- */
+.sb[data-final] {
+  background: transparent;
+  animation: none;
+}
+.sb__band[data-winner] {
+  transform-origin: right center;
+  animation: sb-winner 320ms 1000ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.sb__band[data-winner] .sb__dot[data-filled]:last-child,
+.sb__band[data-winner] .sb__dot[data-filled]:has(+ .sb__dot:not([data-filled])) {
+  animation: sb-lastdot 360ms 500ms cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.sb__band[data-faded] {
+  animation: sb-faded 300ms 1000ms ease-out both;
+}
+@keyframes sb-winner {
+  to {
+    filter: brightness(1.22);
+    transform: translateX(calc(-2.4 * var(--u))) scale(1.08);
+  }
+}
+@keyframes sb-faded {
+  to {
+    opacity: 0.55;
+  }
+}
+@keyframes sb-lastdot {
+  0% {
+    box-shadow: 0 0 0 0 #fff;
+    transform: scale(0);
+  }
+  60% {
+    box-shadow: 0 0 0 calc(0.9 * var(--u)) rgb(255 255 255 / 0.5);
+    transform: scale(1.5);
+  }
+  100% {
+    box-shadow: 0 0 0 calc(1.4 * var(--u)) rgb(255 255 255 / 0);
+    transform: scale(1);
+  }
+}

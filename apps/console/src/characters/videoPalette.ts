@@ -123,11 +123,16 @@ export const characterName = (id: SelectCharacter): string => NAMES[id];
  * the rest by the rule those follow from the video badge: the badge's hue, saturation ×0.92, value 0.98.
  */
 const MEASURED_RESULTS: Partial<Record<SelectCharacter, string>> = {
+  // from the image
   bread: '#f6c76a',
   donut: '#f684af',
   milk: '#77bafc',
   sushi: '#d5f5ea',
   watermelon: '#e63954',
+  // from the reference footage's Coffee win (12:49.0): its pills
+  banana: '#cdb647',
+  coffee: '#d6d6ce',
+  eggplant: '#a892ee',
 };
 export const resultsColour = (id: SelectCharacter): string => {
   const measured = MEASURED_RESULTS[id];
@@ -138,7 +143,8 @@ export const resultsColour = (id: SelectCharacter): string => {
 
 /** The winner's panel on the results: their results colour darkened as the image darkens the watermelon's. */
 export const resultsPanel = (id: SelectCharacter): string => {
-  if (id === 'watermelon') return '#a0263b'; // measured
+  if (id === 'watermelon') return '#a0263b'; // measured (the image)
+  if (id === 'coffee') return '#abaeb1'; // measured (the footage)
   const [h, s, v] = toHsv(resultsColour(id));
   return fromHsv(h, Math.min(1, s * 1.05), v * 0.63);
 };

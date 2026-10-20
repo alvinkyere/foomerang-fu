@@ -108,6 +108,8 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await expect(champion).toBeVisible({ timeout: 150_000 });
   await expect(pad.getByText('RESULTS')).toBeVisible();
   await expect(tv.getByRole('button', { name: 'Rematch' })).toBeFocused();
+  // the results play in (as in the reference footage): REMATCH works once it has slid in
+  await expect(tv.getByRole('button', { name: 'Rematch' })).toBeEnabled({ timeout: 15_000 });
 
   // REMATCH from the phone: a brand-new match, back to the game's controls.
   await alice.tap('SELECT');

@@ -1,0 +1,59 @@
+/* The end of a match (timings: matchEndTiming.ts; colours: the reference footage's Coffee win). The iris (#364453) closes
+   on the winner; the final scoreboard stands on the dark (#273039); then the arena returns behind it, dimmed (#424c57 in
+   the footage over its grass). */
+
+.me {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.me > * {
+  pointer-events: auto;
+}
+.me[data-backdrop='dark'] {
+  background: #273039;
+  animation: me-fade 200ms ease-out;
+}
+.me[data-backdrop='arena'] {
+  background: rgb(30 40 50 / 0.62);
+  transition: background 500ms ease-out;
+}
+.me__iris {
+  position: fixed;
+  top: var(--y);
+  left: var(--x);
+  /* from just past the farthest corner (the screen's diagonal, wherever the winner stands) down to nothing */
+  width: 232vmax;
+  height: 232vmax;
+  border-radius: 50%;
+  box-shadow: 0 0 0 300vmax #364453;
+  transform: translate(-50%, -50%);
+  animation: me-iris var(--iris) cubic-bezier(0.45, 0, 1, 1) forwards;
+}
+.me__board[data-leaving] {
+  animation: me-out 400ms ease-in forwards;
+}
+
+@keyframes me-iris {
+  to {
+    width: 0;
+    height: 0;
+  }
+}
+@keyframes me-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes me-out {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .me,
+  .me * {
+    animation-duration: 1ms !important;
+  }
+}

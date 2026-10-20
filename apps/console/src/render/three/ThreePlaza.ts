@@ -1059,6 +1059,20 @@ class Plaza {
       y: b.userData['y'] as number,
     }));
   }
+  /** Where a player's body (half its height up) is on screen, as fractions of the viewport. */
+  screenOf(id: string): { readonly x: number; readonly y: number } | undefined {
+    const c = this.#view?.circles.find((q) => q.id === id);
+    if (c === undefined || typeof window === 'undefined') return undefined;
+    const at = this.#space.toScene(c.x, c.y, 30);
+    const p = new THREE.Vector3(at.x, at.y, at.z).project(this.camera);
+    const box = this.renderer.domElement.getBoundingClientRect();
+    if (box.width === 0 || window.innerWidth === 0) return undefined;
+    return {
+      x: (box.left + ((p.x + 1) / 2) * box.width) / window.innerWidth,
+      y: (box.top + ((1 - p.y) / 2) * box.height) / window.innerHeight,
+    };
+  }
+
   drawnCharacters(): Readonly<Record<string, string>> {
     return Object.fromEntries(this.#kinds);
   }
@@ -1127,6 +1141,7 @@ export async function createThreePlaza(
     drawnPickups: () => plaza.drawnPickups(),
     drawnProps: () => plaza.drawnProps(),
     drawnCharacters: () => plaza.drawnCharacters(),
+    screenOf: (id) => plaza.screenOf(id),
     drawnWalls: () => plaza.drawnWalls(),
     drawnSystems: () => undefined,
     driveClock: () => plaza.drive(),

@@ -21,7 +21,9 @@
   left: 0;
   right: 0;
   margin: 0;
-  color: #e33b54;
+  /* the winner's own colour: red for the watermelon (the image), near-white for the coffee (the footage) */
+  color: var(--title, #e33b54);
+  text-shadow: 0 calc(0.25 * var(--u)) 0 rgb(0 0 0 / 0.18);
   font-size: calc(5.6 * var(--u));
   letter-spacing: -0.01em;
   text-align: center;
@@ -174,6 +176,126 @@
     transform: translateY(calc(2 * var(--u)));
   }
 }
+/* ---- choreographed (the end of a match, matchEndTiming.ts): the title pops in at the centre and rises; then the columns,
+   one by one in seat order, each circle popping in (the winner's panel growing behind theirs); then the buttons slide in. */
+.rs[data-choreographed] {
+  background: transparent;
+  animation: none;
+}
+.rs[data-choreographed] .rs__title {
+  animation:
+    rs-title-pop 260ms var(--pop) cubic-bezier(0.2, 1.6, 0.4, 1) both,
+    rs-title-up 220ms var(--up) cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes rs-title-pop {
+  from {
+    opacity: 0;
+    transform: translateY(calc(23 * var(--u))) scale(0.4);
+  }
+  to {
+    transform: translateY(calc(23 * var(--u))) scale(1);
+  }
+}
+@keyframes rs-title-up {
+  from {
+    transform: translateY(calc(23 * var(--u)));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.rs[data-choreographed] .rs__column {
+  animation: none;
+}
+.rs[data-choreographed] .rs__circle,
+.rs[data-choreographed] .rs__ribbon,
+.rs[data-choreographed] .rs__crown {
+  animation: rs-pop 260ms var(--at) cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.rs[data-choreographed] .rs__column[data-winner]::before {
+  transform-origin: top center;
+  animation: rs-panel 240ms var(--panel-at) cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+.rs[data-choreographed] .rs__action {
+  animation: rs-slide 250ms var(--buttons) cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.rs[data-choreographed] .rs__action:first-child {
+  animation-delay: calc(var(--buttons) + 270ms);
+}
+@keyframes rs-pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+@keyframes rs-panel {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes rs-slide {
+  from {
+    opacity: 0;
+    transform: translateX(calc(30 * var(--u)));
+  }
+}
+
+/* ---- the characters: the winner celebrates (a hop with squash and stretch, tilting side to side, crowned); everyone
+   else is downcast (a slow sway). The reference footage, 12:48–12:52. */
+.rs__circle img {
+  transform-origin: 50% 90%;
+  animation: rs-sway 2.6s ease-in-out infinite;
+}
+.rs__column[data-winner] .rs__circle img {
+  animation: rs-hop 1.2s ease-in-out infinite;
+}
+.rs__column[data-winner] .rs__headcrown {
+  animation: rs-hop-crown 1.2s ease-in-out infinite;
+}
+@keyframes rs-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg) scaleY(1);
+  }
+  50% {
+    transform: rotate(3deg) scaleY(1.02);
+  }
+}
+@keyframes rs-hop {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0) scale(1.06, 0.94) rotate(0deg);
+  }
+  15%,
+  65% {
+    transform: translateY(-9%) scale(0.95, 1.06);
+  }
+  25% {
+    transform: translateY(-13%) scale(1, 1) rotate(-7deg);
+  }
+  75% {
+    transform: translateY(-13%) scale(1, 1) rotate(7deg);
+  }
+  40%,
+  90% {
+    transform: translateY(0) scale(1.08, 0.92) rotate(0deg);
+  }
+}
+@keyframes rs-hop-crown {
+  0%,
+  50%,
+  100% {
+    transform: translateX(-50%) translateY(6%);
+  }
+  25% {
+    transform: translateX(-50%) translateY(-11%) rotate(-7deg);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-11%) rotate(7deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rs,
   .rs * {

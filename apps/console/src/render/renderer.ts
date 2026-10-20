@@ -25,6 +25,8 @@ export interface ArenaRenderer {
   drawnSystems?(): SystemsViewModel | undefined;
   /** The breakable props drawn broken and how many pieces lie about (the 3D plaza; undefined elsewhere). */
   drawnProps?(): { readonly broken: readonly string[]; readonly pieces: number };
+  /** Where a player is on screen, as fractions of the viewport (0..1): the end of the match closes in on the winner. */
+  screenOf?(id: string): { readonly x: number; readonly y: number } | undefined;
   /** Which character each player is drawn as (the 3D plaza only). */
   drawnCharacters?(): Readonly<Record<string, string>>;
   /** The walls currently on screen (games without geometry return none). */

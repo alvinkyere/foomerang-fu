@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { characterName, resultsColour, resultsPanel } from '../characters/videoPalette';
 import { RECONSTRUCTED_MAPS, characterOf } from '../render/reconstructed/maps';
 import type { HudView, ScoreEntryView } from '../render/viewModel';
 import { FocusScope, useFocusItem } from '../shell/focus/FocusManager';
+import { MATCH_END_TIMING as T } from './matchEndTiming';
 import './results.css';
 
 /**
@@ -15,11 +16,14 @@ export function ResultsScreen({
   waiting,
   onRematch,
   onLobby,
+  choreographed = false,
 }: {
   readonly hud: HudView;
   readonly waiting: readonly string[];
   readonly onRematch: () => void;
   readonly onLobby: () => void;
+  /** Played as the reference footage reveals it (the title, then column by column, then the buttons); else all at once. */
+  readonly choreographed?: boolean;
 }) {
   const { champion } = hud;
   if (champion === undefined) return null;
@@ -31,6 +35,7 @@ export function ResultsScreen({
         waiting={waiting}
         onRematch={onRematch}
         onLobby={onLobby}
+        choreographed={choreographed}
       />
     </FocusScope>
   );
@@ -60,13 +65,26 @@ function Results({
   waiting,
   onRematch,
   onLobby,
+  choreographed,
 }: {
   readonly hud: HudView;
   readonly champion: ScoreEntryView;
   readonly waiting: readonly string[];
   readonly onRematch: () => void;
   readonly onLobby: () => void;
+  readonly choreographed: boolean;
 }) {
+  // While it is being revealed the buttons are not there yet: a press does nothing until they have slid in.
+  const buttonsAt = T.titleMs + hud.entries.length * T.columnMs;
+  const [ready, setReady] = useState(!choreographed);
+  useEffect(() => {
+    if (!choreographed) return undefined;
+    const timer = setTimeout(() => setReady(true), buttonsAt + T.buttonsMs);
+    return () => clearTimeout(timer);
+  }, [choreographed, buttonsAt]);
+  const whenReady = (act: () => void) => () => {
+    if (ready) act();
+  };
   const rematch = useFocusItem<HTMLButtonElement>('rematch');
   const lobby = useFocusItem<HTMLButtonElement>('lobby');
   const places = placings(hud.entries, champion.id);
@@ -77,11 +95,21 @@ function Results({
       className="rs"
       role="dialog"
       aria-label="Match over"
-      style={{ '--n': bySeat.length } as CSSProperties}
+      data-choreographed={choreographed || undefined}
+      style={
+        {
+          '--n': bySeat.length,
+          '--pop': `${T.titlePopMs}ms`,
+          '--up': `${T.titleUpMs}ms`,
+          '--buttons': `${buttonsAt}ms`,
+        } as CSSProperties
+      }
     >
-      <h2 className="rs__title">{characterName(winner).toUpperCase()} WINS!</h2>
+      <h2 className="rs__title" style={{ '--title': resultsColour(winner) } as CSSProperties}>
+        {characterName(winner).toUpperCase()} WINS!
+      </h2>
       <ol className="rs__columns" aria-label="Results">
-        {bySeat.map((entry) => {
+        {bySeat.map((entry, index) => {
           const character = characterOf(SEAT_ROSTER, entry);
           const place = places.get(entry.id) ?? bySeat.length;
           const won = entry.id === champion.id;
@@ -94,6 +122,8 @@ function Results({
                 {
                   '--c': resultsColour(character),
                   '--panel': resultsPanel(character),
+                  '--at': `${T.titleMs + index * T.columnMs}ms`,
+                  '--panel-at': `${T.titleMs + index * T.columnMs + T.panelMs}ms`,
                 } as CSSProperties
               }
               aria-label={`${entry.label}, ${characterName(character)}: ${won ? 'winner' : ORDINAL(place)}, ${entry.kills} kills`}
@@ -119,10 +149,22 @@ function Results({
         <p className="rs__waiting">Waiting for the next match: {waiting.join(', ')}</p>
       )}
       <div className="rs__actions">
-        <button type="button" className="rs__action" onClick={onRematch} {...rematch}>
+        <button
+          type="button"
+          className="rs__action"
+          aria-disabled={!ready || undefined}
+          onClick={whenReady(onRematch)}
+          {...rematch}
+        >
           REMATCH
         </button>
-        <button type="button" className="rs__action" onClick={onLobby} {...lobby}>
+        <button
+          type="button"
+          className="rs__action"
+          aria-disabled={!ready || undefined}
+          onClick={whenReady(onLobby)}
+          {...lobby}
+        >
           BACK TO MENU
         </button>
       </div>

@@ -15,9 +15,9 @@ import { ScoreStrip, ScoreToasts, type Pulse } from './Hud';
  * arena asks for them as soon as it opens, long before the first round can end.
  */
 const loadScoreboard = () => import('./Scoreboard');
-const loadResults = () => import('./Results');
+const loadResults = () => import('./MatchEnd');
 const Scoreboard = lazy(() => loadScoreboard().then((m) => ({ default: m.Scoreboard })));
-const ResultsScreen = lazy(() => loadResults().then((m) => ({ default: m.ResultsScreen })));
+const MatchEnd = lazy(() => loadResults().then((m) => ({ default: m.MatchEnd })));
 import { addScoreToasts, type ScoreToastState } from './scoreToasts';
 import { useHostState } from './useStore';
 
@@ -59,6 +59,8 @@ export function ArenaScreen({
   const toastState = useRef<ScoreToastState>({ toasts: [], serial: 0 });
   const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
   const lastHud = useRef('');
+  /** The renderer of this match, for where a player is on screen (the end of the match closes in on the winner). */
+  const rendererRef = useRef<ArenaRenderer | undefined>(undefined);
   const context = useSyncExternalStore(runtime.subscribeContext, runtime.context);
   // The map of THIS match: a rematch on a rotating console is on another map, so the renderer is swapped.
   const arena = useSyncExternalStore(runtime.subscribeArena, runtime.arena);
@@ -134,6 +136,7 @@ export function ArenaScreen({
           return;
         }
         renderer = loaded;
+        rendererRef.current = loaded;
         onRenderer?.(loaded);
       },
       () => {
@@ -146,6 +149,7 @@ export function ArenaScreen({
       loop.stop();
       renderer?.destroy();
       renderer = undefined;
+      rendererRef.current = undefined;
       onRenderer?.(undefined);
     };
   }, [runtime, arena, loadRenderer, createLoop, now, onRenderer]);
@@ -182,9 +186,10 @@ export function ArenaScreen({
         )}
         {hud?.phase === 'MATCH_OVER' && (
           <Suspense fallback={null}>
-            <ResultsScreen
+            <MatchEnd
               hud={hud}
               waiting={waiting}
+              locate={(id) => rendererRef.current?.screenOf?.(id)}
               onRematch={() => runtime.rematch()}
               onLobby={() => runtime.returnToLobby()}
             />
