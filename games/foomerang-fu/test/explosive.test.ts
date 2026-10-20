@@ -29,7 +29,7 @@ import {
 //   - bounces off walls and the arena's edge like any other, still armed (it does not go off at a wall);
 //   - goes off where its flight out ENDS (its range, or the impact that would turn it home), instead of coming home;
 //   - goes off at once on the first living enemy it touches (owner).
-// The blast: every living non-owner within `blastRadius` (the full drawn ring: ~470 u in the video) with a clear line (walls are
+// The blast: every living non-owner within `blastRadius` (the full drawn ring: ~215 u, the video against our characters as drawn) with a clear line (walls are
 // cover). The owner is immune; deflection does not set it off, and the deflector is immune on that leg. A shield absorbs it.
 // The boomerang is destroyed by its own blast (SPENT) and a new one is in its thrower's hand `explosiveRespawnSeconds`
 // (1.5 s, owner) later.
@@ -56,8 +56,8 @@ const armed = (
 ) => flying(s, owner, from, dir, { blast: true }, which);
 
 describe('the numbers', () => {
-  it('the blast reaches the full drawn ring, ~470 u (the video); a new boomerang is in hand 1.5 s after the blast (owner)', () => {
-    expect(C.blastRadius).toBe(470);
+  it('the blast reaches the full drawn ring, ~215 u (the video, against our characters as drawn); a new boomerang is in hand 1.5 s after the blast (owner)', () => {
+    expect(C.blastRadius).toBe(215);
     expect(C.explosiveRespawnSeconds).toBe(1.5);
   });
 });
@@ -169,7 +169,7 @@ describe('cover: a blast does not go through walls', () => {
 describe('where its flight ends, it goes off', () => {
   it('at the end of its range it explodes there, instead of coming home', () => {
     let s = field();
-    s = place(s, 'b', 700, 560); // ~110 from where it ends
+    s = place(s, 'b', 480, 540); // ~114 from where it ends (410, 450), off its path
     s = armed(s, 'a', { x: 400, y: 450 });
     s = patchBoomerang(s, 'a', { travelled: C.throwRange - 10 });
     const r = run(s, 3);

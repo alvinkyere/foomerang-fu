@@ -179,3 +179,12 @@ The TV draws the sampled timeline (`apps/console/src/render/blastMotion.ts`), wi
 
 **Not modelled:** the boomerang's brief rest before it goes off (≈ 0.2 s at 10:17.2; a slower crawl at 5:20.6). In ours it
 explodes the moment its flight ends.
+
+**Explosive radius, corrected (2026-10-19, owner: "way too big").** The 470 u came from treating a character's drawn width as
+our 72 u collision circle. On our plaza, characters are drawn ≈ 46 u wide: the manifest calibration is 36 u = 26 px at
+1280, and the video's plaza characters are ≈ 33 px wide. Measured against the drawn characters:
+
+- the ring at 10:17.4 is ≈ 4.7 widths of the donut standing beside it (197 px against 42 px), and 4.7 × 46 ≈ 215 u;
+- the market camera is ≈ 1.27× closer than the plaza's, so 197 px ≈ 155 plaza px ≈ 215 u.
+
+`blastRadius` is now 215 (it was 170 before the video work).

@@ -254,7 +254,7 @@ Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to ba
 > **2026-10-19 — EXPLOSIVE_BOOMERANG as the video shows it** (art/physics_reference/README.md; the owner decided what it
 > does not show). An armed boomerang bounces off walls still armed. It goes off where its flight out ends (its range, or the
 > impact that would turn it home), or at once on the first enemy it touches. The blast radius is the full drawn ring,
-> `blastRadius` 470 (was 170). The blast destroys the boomerang: it is `SPENT` (nowhere, harmless, not throwable) and a new
+> `blastRadius` 215 (was 170; 470 for a moment, measured against the wrong character size). The blast destroys the boomerang: it is `SPENT` (nowhere, harmless, not throwable) and a new
 > one is in hand `explosiveRespawnSeconds` (1.5 s) later. The TV draws the video's puff, flash, ring and smoke
 > (`render/blastMotion.ts`). The Explosive row of the table below is Slice 5's history.
 

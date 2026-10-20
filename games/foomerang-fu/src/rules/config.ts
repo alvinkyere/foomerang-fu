@@ -90,7 +90,7 @@ export interface FuConfig {
   readonly caffeinatedMoveFactor: number;
   /** Slice 5: dash speed (so distance) multiplier for a dash that STARTS under CAFFEINATED (multiplies with fatigue). */
   readonly caffeinatedDashFactor: number;
-  /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video: 197 px against a 30 px character at 10:17.4, ≈ 470 u ±30%; the owner: what is drawn is what kills). */
+  /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video at 10:17.4: 197 px ≈ 4.7 widths of the donut beside it; our characters are drawn ≈ 46 u wide, so ≈ 215 u; the owner: what is drawn is what kills). */
   readonly blastRadius: number;
   /** Seconds after an armed boomerang goes off (destroying itself) until a new one is in its thrower's hand (owner, 2026-10-19). */
   readonly explosiveRespawnSeconds: number;
@@ -152,7 +152,7 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   fatiguedDashFactor: 0.7,
   caffeinatedMoveFactor: 1.4,
   caffeinatedDashFactor: 1.3,
-  blastRadius: 470,
+  blastRadius: 215,
   explosiveRespawnSeconds: 1.5,
   seed: 1,
   twinSpreadRadians: (13 * Math.PI) / 180,
