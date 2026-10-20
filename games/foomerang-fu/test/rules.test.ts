@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS as DT } from '@foomerang/game-core';
 import { STRAIGHT } from './support/fixtures';
+import { spawnsForRound } from '../src/rules/spawnPlan';
 import { describe, expect, it } from 'vitest';
 import {
   BOOMERANG_TRANSITIONS,
@@ -715,7 +716,7 @@ describe('rounds', () => {
     expect(result.events).toEqual([{ type: 'ROUND_START', round: 2 }]);
   });
 
-  it('the new round is the same fresh start every time: everyone alive, at spawn, facing in, boomerangs HELD', () => {
+  it('the new round is the same fresh start every time: everyone alive, at their planned place, facing in, boomerangs HELD', () => {
     const initial = createFuMatch([
       { id: 'a', slot: 0 },
       { id: 'b', slot: 3 },
@@ -724,9 +725,26 @@ describe('rounds', () => {
     s = stepFu(s, input({ a: { throw: true } }), DT).state;
     s = run(s, 40 + Math.round(C.roundEndSeconds / DT) + 2).state;
     expect(s.round).toBe(2);
-    expect(s.players).toEqual(initial.players);
-    expect(s.boomerangs).toEqual(initial.boomerangs);
-    expect(s.world.bodies).toEqual(initial.world.bodies);
+    // as fresh as round 1, only at round 2's planned places (owner, 2026-10-19: never the same place twice)
+    const planned = spawnsForRound(s.players, s.config, 2);
+    const centre = { x: s.config.arena.width / 2, y: s.config.arena.height / 2 };
+    const facingIn = (id: string) => {
+      const p = planned.get(id) as { x: number; y: number };
+      const d = Math.hypot(centre.x - p.x, centre.y - p.y);
+      return { x: (centre.x - p.x) / d, y: (centre.y - p.y) / d };
+    };
+    s.players.forEach((p, i) => {
+      const before = initial.players[i] as typeof p;
+      expect({ ...p, facing: before.facing }).toEqual(before);
+      expect(p.facing.x).toBeCloseTo(facingIn(p.id).x, 9);
+      expect(p.facing.y).toBeCloseTo(facingIn(p.id).y, 9);
+    });
+    expect(s.boomerangs).toEqual(
+      initial.boomerangs.map((b) => ({ ...b, position: planned.get(b.ownerId) })),
+    );
+    expect(s.world.bodies).toEqual(
+      initial.world.bodies.map((b) => ({ ...b, position: planned.get(b.id) })),
+    );
     expect(s.phase).toBe('PLAYING');
     expect(s.roundOver).toBeUndefined();
   });

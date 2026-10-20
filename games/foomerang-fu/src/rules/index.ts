@@ -54,6 +54,7 @@ export { isFatigued } from './dash';
 export type { DashState, Fatigue } from './dash';
 
 export { MAX_PLAYERS, createFuMatch, rematchOf, roundLabel, spawnPosition } from './state';
+export { spawnsForRound } from './spawnPlan';
 export type {
   FuMatchOver,
   FuPhase,

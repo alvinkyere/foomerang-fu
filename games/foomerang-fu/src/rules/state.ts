@@ -5,6 +5,7 @@ import { NO_POWERS, type Inventory, type Pickup, type PickupClock } from './powe
 import { SLASH_READY, type SlashState } from './slash';
 import { assertValidConfig, DEFAULT_FU_CONFIG, type FuConfig } from './config';
 import { spawnPosition } from './spawn';
+import { spawnsForRound } from './spawnPlan';
 import { normalized } from './vec';
 
 export { spawnPosition };
@@ -140,7 +141,9 @@ export function startRound(
   } = {},
 ): FuState {
   const centre = { x: config.arena.width / 2, y: config.arena.height / 2 };
-  const spawns = specs.map((spec) => spawnPosition(spec.slot, config.arena));
+  // round 1 at the map's own spawn points; from round 2 a fresh, fair place for everyone (spawnPlan.ts)
+  const planned = spawnsForRound(specs, config, round);
+  const spawns = specs.map((spec) => planned.get(spec.id) as Vec2);
 
   const world = createWorld({
     arena: { width: config.arena.width, height: config.arena.height },

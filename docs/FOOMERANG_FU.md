@@ -257,6 +257,12 @@ Once fatigued, a spammer sustains ≈ 770 u/s (a 70% dash is 770 u/s, back to ba
 > `blastRadius` 215 (was 170; 470 for a moment, measured against the wrong character size). The blast destroys the boomerang: it is `SPENT` (nowhere, harmless, not throwable) and a new
 > one is in hand `explosiveRespawnSeconds` (1.5 s) later. The TV draws the video's puff, flash, ring and smoke
 > (`render/blastMotion.ts`). The Explosive row of the table below is Slice 5's history.
+>
+> **2026-10-19: spawns (owner: "no player should spawn at the same place ever ... a fair distance ... especially in a row").**
+> Round 1 starts at the map's own spawn points. From round 2, `spawnsForRound` (rules/spawnPlan.ts) gives every player a new
+> place on open, reachable floor. It is at least `spawnSeparation` (400 u) from everyone else, at least `spawnFreshDistance`
+> (150 u) from every place they have started this match, and at least `spawnMoveDistance` (400 u) from last round's place.
+> It is seeded by the match, so a replay starts everyone in the same places.
 
 **Slice 5 — Powerups: PASS** on a physical human playtest (the project owner, 2026-10-06), after the lifecycle revision: powerups are **persistent match upgrades**, not round pickups with timers and charges. Frozen as the approved baseline: the mystery blue-book/red-bookmark Powerup Book, scarce spawning, the persistent three-slot FIFO inventory across the nine-round match, persistent PHASE_DASH / CAFFEINATED / EXPLOSIVE_BOOMERANG / TWIN_THROW, a SHIELD that breaks on a lethal hit, and TWIN_THROW launching **two simultaneous angled boomerangs** from one press. The rules below are what is built and tested.
 

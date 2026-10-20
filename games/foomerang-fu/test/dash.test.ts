@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS as DT } from '@foomerang/game-core';
 import { STRAIGHT } from './support/fixtures';
+import { spawnsForRound } from '../src/rules/spawnPlan';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
@@ -821,14 +822,10 @@ describe('DASH and the round', () => {
     for (let i = 0; i < 400 && next.round === 1; i += 1) next = stepFu(next, NONE, DT).state;
     expect(next.round).toBe(2);
     expect(next.players.every((p) => p.alive && p.dash.phase === 'READY')).toBe(true);
+    // at round 2's planned places (owner, 2026-10-19: never the same place twice)
+    const planned = spawnsForRound(next.players, next.config, 2);
     expect(next.players.map((p) => at(next, p.id))).toEqual(
-      createFuMatch(
-        [
-          { id: 'a', slot: 0 },
-          { id: 'b', slot: 3 },
-        ],
-        {},
-      ).world.bodies.map((b) => b.position),
+      next.players.map((p) => planned.get(p.id)),
     );
   });
 

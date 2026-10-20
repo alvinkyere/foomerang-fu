@@ -1,5 +1,6 @@
 import { FIXED_TIMESTEP_SECONDS as DT, MAX_STEP_SECONDS } from '@foomerang/game-core';
 import { STRAIGHT } from './support/fixtures';
+import { spawnsForRound } from '../src/rules/spawnPlan';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_FU_CONFIG,
@@ -748,7 +749,7 @@ describe('the primitive arena', () => {
     expect(pos(s, 'a').y).toBeGreaterThan(200 + R);
   });
 
-  it('every round starts from the arena’s own spawn points, whatever happened in the last one', () => {
+  it('round 1 starts at the arena’s own spawn points; round 2 at the planned fresh places (owner, 2026-10-19), with nobody overlapping', () => {
     let s = createFuMatch(
       ['a', 'b', 'c'].map((id, slot) => ({ id, slot })),
       { arena: A },
@@ -758,7 +759,8 @@ describe('the primitive arena', () => {
     s = { ...s, phase: 'ROUND_OVER', roundOver: { winnerId: 'a', resetInSeconds: DT } };
     s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
-    for (const p of s.players) expect(pos(s, p.id)).toEqual(spawnPosition(p.slot, A));
+    const planned = spawnsForRound(s.players, s.config, 2);
+    for (const p of s.players) expect(pos(s, p.id)).toEqual(planned.get(p.id));
     expect(worstOverlap(s)).toBeLessThan(EPS);
   });
 });

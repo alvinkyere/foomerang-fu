@@ -173,7 +173,7 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   // Death is a rules fact; the dead player is still drawn (as a dimmed, crossed-out circle).
   expect((await host.snapshot()).drawn?.map((d) => d.id).sort()).toEqual([aliceId, bobId].sort());
 
-  // --- the scoreboard waits; a phone's SELECT presses CONTINUE: the next round, from the same fresh start
+  // --- the scoreboard waits; a phone's SELECT presses CONTINUE: the next round, a fresh start in fresh places
   await expect(host.continueButton).toBeVisible({ timeout: 10_000 });
   await expect(
     host.page.getByRole('listitem', { name: /^Alice: 1 of 14 kills, leading$/ }),
@@ -186,8 +186,11 @@ test('Foomerang Fu: two controllers move, throw, hit, finish a round and start t
   expect(fu.phase).toBe('PLAYING');
   expect(fu.players.map((p) => p.alive)).toEqual([true, true]);
   expect(fu.boomerangs.map((b) => b.state)).toEqual(['HELD', 'HELD']);
-  expect(await host.body(aliceId)).toEqual(spawn.a);
-  expect(await host.body(bobId)).toEqual(spawn.b);
+  // a fresh place each, far from where they started round 1 (owner, 2026-10-19: never the same place, especially in a row)
+  const away = (p: { x: number; y: number } | undefined, q: { x: number; y: number }) =>
+    p === undefined ? 0 : Math.hypot(p.x - q.x, p.y - q.y);
+  expect(away(await host.body(aliceId), spawn.a)).toBeGreaterThanOrEqual(400);
+  expect(away(await host.body(bobId), spawn.b)).toBeGreaterThanOrEqual(400);
 
   // --- both can still play round 2: the same controllers, no re-joining ------------------------
   await bob.tapThrow();

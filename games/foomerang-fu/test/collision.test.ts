@@ -4,6 +4,7 @@ import {
   type WorldState,
 } from '@foomerang/game-core';
 import { STRAIGHT } from './support/fixtures';
+import { spawnsForRound } from '../src/rules/spawnPlan';
 import { separateBodies } from '../src/rules/collision';
 import { distanceToSolid } from '../src/rules/arena';
 import { describe, expect, it } from 'vitest';
@@ -426,7 +427,8 @@ describe('spawning', () => {
     s = stepFu(s, NONE, DT).state;
     expect(s.round).toBe(2);
     expect(worstOverlap(s)).toBeLessThan(EPS);
-    for (const p of s.players) expect(pos(s, p.id)).toEqual(spawnPosition(p.slot, C.arena));
+    const planned = spawnsForRound(s.players, s.config, 2); // fresh places from round 2 (owner, 2026-10-19)
+    for (const p of s.players) expect(pos(s, p.id)).toEqual(planned.get(p.id));
   });
 
   it('a configuration whose spawn points would overlap is refused as a programming error', () => {

@@ -92,6 +92,12 @@ export interface FuConfig {
   readonly caffeinatedDashFactor: number;
   /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video at 10:17.4: 197 px ≈ 4.7 widths of the donut beside it; our characters are drawn ≈ 46 u wide, so ≈ 215 u; the owner: what is drawn is what kills). */
   readonly blastRadius: number;
+  /** From round 2, everyone starts at least this far from everyone else (owner, 2026-10-19: "a fair distance"), world units. */
+  readonly spawnSeparation: number;
+  /** ...and at least this far from every place they have started this match ("never at the same place"), world units. */
+  readonly spawnFreshDistance: number;
+  /** ...and at least this far from where they started last round ("especially in a row"), world units. */
+  readonly spawnMoveDistance: number;
   /** Seconds after an armed boomerang goes off (destroying itself) until a new one is in its thrower's hand (owner, 2026-10-19). */
   readonly explosiveRespawnSeconds: number;
   /** Slice 5: TWIN_THROW's spread: one THROW launches two boomerangs at ±this angle (radians) from the facing. */
@@ -159,6 +165,9 @@ export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   caffeinatedDashFactor: 1.3,
   blastRadius: 215,
   explosiveRespawnSeconds: 1.5,
+  spawnSeparation: 400,
+  spawnFreshDistance: 150,
+  spawnMoveDistance: 400,
   seed: 1,
   twinSpreadRadians: (13 * Math.PI) / 180,
   roundEndSeconds: 2.5,
@@ -235,6 +244,9 @@ export function assertValidConfig(config: FuConfig): void {
     ['caffeinatedDashFactor', config.caffeinatedDashFactor],
     ['blastRadius', config.blastRadius],
     ['explosiveRespawnSeconds', config.explosiveRespawnSeconds],
+    ['spawnSeparation', config.spawnSeparation],
+    ['spawnFreshDistance', config.spawnFreshDistance],
+    ['spawnMoveDistance', config.spawnMoveDistance],
     ['roundEndSeconds', config.roundEndSeconds],
     ['outsideLimitSeconds', config.outsideLimitSeconds],
   ];

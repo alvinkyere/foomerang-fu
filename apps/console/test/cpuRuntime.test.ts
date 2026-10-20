@@ -93,12 +93,19 @@ describe('CPUs in a running match: the same legal input path as people', () => {
   it('CPUs act through the ordinary step: they move, throw and fight while a person who sends nothing stands still', async () => {
     const d = await sixAtTheTable();
     const bodies = () => d.runtime.world?.bodies ?? [];
-    const spawn = new Map(bodies().map((p) => [p.id, { ...p.position }]));
-    const farthest = new Map<string, number>(); // rounds reset positions, so track the greatest excursion
+    let spawn = new Map(bodies().map((p) => [p.id, { ...p.position }]));
+    const farthest = new Map<string, number>(); // the greatest excursion from where the round started them
+    const roundOf = () => (d.runtime as unknown as { state?: { round: number } }).state?.round;
+    let round = roundOf();
     let now = 0;
     for (let i = 0; i < 60 * 20; i += 1) {
       now += 1000 / 60;
       d.frame(now);
+      // every round starts everyone at a fresh place (owner, 2026-10-19): measure from that round's start
+      if (roundOf() !== round) {
+        round = roundOf();
+        spawn = new Map(bodies().map((p) => [p.id, { ...p.position }]));
+      }
       for (const p of bodies()) {
         const s = spawn.get(p.id);
         if (s === undefined) continue;
