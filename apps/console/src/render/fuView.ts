@@ -77,6 +77,20 @@ export function buildFuView(
       dimmed: identity.dimmed || dead,
       dead,
       ...(player === undefined ? {} : { facing: player.facing }),
+      ...(player === undefined || player.slash.phase === 'READY'
+        ? {}
+        : {
+            slash: {
+              phase: player.slash.phase,
+              direction: player.slash.direction,
+              progress:
+                1 -
+                player.slash.remaining /
+                  (player.slash.phase === 'ACTIVE'
+                    ? state.config.slashActiveSeconds
+                    : state.config.slashRecoverySeconds),
+            },
+          }),
       armed: !dead && boomerang?.state === 'HELD',
       ...(!dead && callers.has(body.id) ? { calling: true as const } : {}),
       powers: player === undefined ? [] : player.inventory, // what they own, oldest first (the dead keep theirs)

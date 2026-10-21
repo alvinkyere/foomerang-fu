@@ -181,7 +181,8 @@ The TV draws the sampled timeline (`apps/console/src/render/blastMotion.ts`), wi
 explodes the moment its flight ends.
 
 **Explosive radius, corrected (2026-10-19, owner: "way too big").** The 470 u came from treating a character's drawn width as
-our 72 u collision circle. On our plaza, characters are drawn ≈ 46 u wide: the manifest calibration is 36 u = 26 px at
+our 72 u collision circle. On our plaza, characters are drawn ≈ 46 u wide (corrected 2026-10-21: ≈ 76 u, see "How big our
+characters are drawn"): the manifest calibration is 36 u = 26 px at
 1280, and the video's plaza characters are ≈ 33 px wide. Measured against the drawn characters:
 
 - the ring at 10:17.4 is ≈ 4.7 widths of the donut standing beside it (197 px against 42 px), and 4.7 × 46 ≈ 215 u;
@@ -193,7 +194,7 @@ our 72 u collision circle. On our plaza, characters are drawn ≈ 46 u wide: the
 
 The owner: "the trajectory makes no sense, study exactly from the video". The clip is 0:36.8–0:43.6 (`stab.py 36.8 43.6 t368`,
 read on 50 px gridded crops). The pink donut and the brown mug each throw. Lengths are in the donut's width (≈ 27 px there,
-≈ 46 u as our characters are drawn, ±30%). Times are exact.
+≈ 46 u as our characters are drawn, ±30%; corrected 2026-10-21: ≈ 76 u). Times are exact.
 
 1. **Out: a straight line.** The pink throw goes straight north through the banana (a kill, 37.33) and bounces off the
    top-right platform's diagonal edge to the west. The brown throw goes straight up-right, bounces off the bamboo planter,
@@ -424,3 +425,47 @@ Every effect re-read every frame at 2–8× and written down as a timeline the T
   appears and closes in with the glow.
 - **Caffeinated** shows nothing on the body (3:47–3:53, 12:26–12:29): only its badge.
 - **Not reproduced:** the frozen and the burning characters' faces (eyes shut, a grimace): our characters are single baked sprites.
+
+## How big our characters are drawn (2026-10-21; a correction)
+
+Measured in the running game (1600 px): the bread's ring (2 × the 36 u radius = 72 u) is 51 px across and its body 54 px wide
+and 49 px tall; the ice cream's ring 52 px and its body 55 px tall. **Characters are drawn ≈ 70–76 u tall and ≈ 76 u wide.**
+Against the plaza fountain they are the video's size (the donut 45 px against the fountain's 230 px in the video, 0.20; the
+bread 48 px against its 215 px in ours, 0.22).
+
+The "≈ 46 u wide" used above (the explosive's radius, the flight study's yardstick) came from a pixel calibration that does not
+hold; lengths derived from it are ≈ 1.6× too small. Corrected: the boomerang (below) and the hit body (`hitRadius`
+36, was 23; the CPUs re-tuned to keep the video's round lengths). Flagged to the owner: `blastRadius` (≈ 4.7 donut widths would be ≈ 357 u,
+not 215; the owner judged 470 "way too big" by eye).
+
+## The boomerang, held, flying and charged (2026-10-21; applied)
+
+From the store's full-HD screenshots (reference only, not in the repo) and the video:
+
+- **Shape** (the yellow one lying at ss05; `render/boomerangShape.ts`): a fat "<", two thick arms (≈ 0.4 of its length) meeting
+  at a smoothly rounded elbow, opening ≈ 90°, rounded tips, a real thickness. **Size**: half a character's height, ≈ 36 u (the
+  video's flying blur is 0.46 of the donut's width). Ours was a flat 22 u V: the "tiny disc".
+- **Held**: every character holds it in one of its two small rounded-cube hands (ss00, ss01, ss06): by one arm, on edge, in its
+  right hand (screen-left facing us), pointing out from the body, the elbow at the far end. So the hands are now drawn by the
+  game (the bodies re-baked without them: `bake_chars.py` FOO_NO_HANDS, `package_bodies.py`).
+- **Flying**: its shape spinning (the video's 30 fps shows the spin as a blur; two fading copies trail the turn).
+- **Charging** (the donut, 2:00.60–2:01.47, frame by frame; `render/aimLook.ts`): an arrowhead in the thrower's colour lies on
+  the ground ahead of it, pointing where it aims, ≈ half a body width across; it starts at the body and slides out as the charge
+  builds, fast then slower, still from ≈ 0.64 s (a full charge: our 0.6 s, until now unmeasured), ≈ 1.4 body widths out. The
+  boomerang is drawn back behind the body the whole time; a soft glow in its colour builds round it (the banana, ss11).
+
+## Walking, slashing, calling and dashing (2026-10-21; applied)
+
+- **Walking** (`render/walkMotion.ts`; the banana at 0:17.53–17.83, the full-HD shots of the ice cream and the bread): a step every
+  ≈ 0.24 s with a small hop, the body rocking ≈ ±8° to one side then the other and leaning ≈ 12° into its move, the hands swinging
+  in turn. The 640 × 360 footage is too small for more than that (a character is ≈ 30 px tall): read by eye, flagged.
+- **The slash** (`render/slashMotion.ts`; the mug at 0:39.93–40.30, frame by frame): the boomerang hand sweeps from its side across
+  the front to the other side during the swing (≈ 0.12 s, the rules' active time); a white crescent sweeps round the front at its
+  feet with it (≈ a half circle, ≈ a body width out), gone as the swing ends; the hand holds out there, then comes back. Not done:
+  the angry face the mug shows as it strikes (39.90–39.97; the pack has no such face yet).
+- **Calling it home**: two concentric white rings on each hand, ≈ 3 and ≈ 5.4 hand widths across, facing the camera (the burger
+  at ss02); lit as the boomerang's ring is (`render/callAura.ts`).
+- **The trail**: a light band, strongest down its middle and soft at its edges, a little paler than the thrower's colour (ss00,
+  ss11).
+- **Dashing** (`render/three/dashTrail.ts`; ss06, ss01): overlapping see-through squares in a light shade of its colour, turned
+  ≈ 45° and a little unevenly, ≈ 0.6 of its body across, along the way it dashed, fading over ≈ 0.3 s.

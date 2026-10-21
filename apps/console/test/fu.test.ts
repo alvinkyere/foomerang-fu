@@ -1146,6 +1146,29 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     });
   });
 
+  it('a slash in progress: its phase, its direction and how far through that phase it is (the swing is drawn from it)', () => {
+    const { entries, slots } = playing();
+    const base = createFuMatch([
+      { id: 'a', slot: 0 },
+      { id: 'b', slot: 3 },
+    ]);
+    const { slashActiveSeconds: active, slashRecoverySeconds: recovery } = base.config;
+    const swinging = (phase: 'ACTIVE' | 'RECOVERING', remaining: number): FuState => ({
+      ...base,
+      players: base.players.map((p) =>
+        p.id === 'a' ? { ...p, slash: { phase, direction: { x: 1, y: 0 }, remaining } } : p,
+      ),
+    });
+    const at = (s: FuState) => buildFuView(s, [], entries, slots).circles.find((c) => c.id === 'a');
+    expect(at(base)?.slash).toBeUndefined();
+    expect(at(swinging('ACTIVE', active / 4))?.slash).toEqual({
+      phase: 'ACTIVE',
+      direction: { x: 1, y: 0 },
+      progress: 0.75,
+    });
+    expect(at(swinging('RECOVERING', recovery))?.slash?.progress).toBeCloseTo(0, 9);
+  });
+
   it('a round’s intro: how far into it, who lands in what order, READY in its window, then GO once play starts', () => {
     const { entries, slots } = playing();
     const base = createFuMatch(

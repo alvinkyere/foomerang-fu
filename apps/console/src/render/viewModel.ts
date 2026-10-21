@@ -33,6 +33,12 @@ export interface CircleView {
   readonly armed: boolean;
   /** Present only while the player is mid-dash (a rules fact): the way they are going. A streak is the renderer's. */
   readonly dashing?: { readonly direction: Vec2 };
+  /** Swinging its boomerang (the rules' slash): the phase, its direction, and how far through that phase (0–1). */
+  readonly slash?: {
+    readonly phase: 'ACTIVE' | 'RECOVERING';
+    readonly direction: Vec2;
+    readonly progress: number;
+  };
   /** Present (true) only while the player is burning (FIRE_BOOMERANG, a rules fact). */
   readonly burning?: true;
   /** Present (true) only while the player is frozen in ice (ICE_BOOMERANG, a rules fact). */

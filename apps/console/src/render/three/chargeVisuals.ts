@@ -1,12 +1,13 @@
 import * as THREE from 'three';
+import { AIM_LOOK, chevronDistance } from '../aimLook';
 import { BOOMERANG_LOOK, trailOpacity } from '../boomerangLook';
 
 /**
- * A charging player's aim (owner, 2026-10-19): a flat strip on the ground from their feet along where the throw would go, as long
- * as it would fly, in their character's colour, growing stronger as the charge fills. Presentation of rules facts only.
+ * Charging a throw (render/aimLook.ts, the reference video at 2:00.60–2:01.47): an arrowhead in the thrower's colour lying flat
+ * on the ground ahead of it, pointing where it aims, sliding out from its body as the charge builds. Presentation only.
  */
-export class AimLine {
-  readonly mesh: THREE.Mesh;
+export class AimChevron {
+  readonly group = new THREE.Group();
   readonly #material: THREE.MeshBasicMaterial;
 
   constructor(scene: THREE.Scene) {
@@ -15,41 +16,47 @@ export class AimLine {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    // a unit strip lying flat, starting at its origin and pointing along +x
-    this.mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0.5, 0, 0),
-      this.#material,
-    );
-    this.mesh.renderOrder = 1;
-    this.mesh.visible = false;
-    scene.add(this.mesh);
+    // two unit strokes lying flat, meeting at the tip (the origin) and opening back towards -x at a right angle
+    for (const side of [-1, 1]) {
+      const stroke = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(-0.5, 0, 0),
+        this.#material,
+      );
+      stroke.rotation.y = side * (Math.PI / 4);
+      this.group.add(stroke);
+    }
+    this.group.renderOrder = 1;
+    this.group.visible = false;
+    scene.add(this.group);
   }
 
-  /** `from`: the feet (scene); `facing`: the rules' facing (world x, y); `length`, `width`: scene units. */
+  /** `feet`: the body's ground point (scene); `facing`: the rules' facing (world x, y); `unit`: scene units per world unit. */
   show(
-    from: { x: number; z: number },
+    feet: { x: number; z: number },
     facing: { x: number; y: number },
-    length: number,
-    width: number,
     power: number,
     colour: THREE.Color,
+    unit: number,
   ): void {
-    this.mesh.visible = true;
-    this.mesh.position.set(from.x, 0.1, from.z);
+    const l = Math.hypot(facing.x, facing.y) || 1;
+    const d = chevronDistance(power) * unit;
     // world +y is scene +z
-    this.mesh.rotation.set(0, -Math.atan2(facing.y, facing.x), 0);
-    this.mesh.scale.set(length, 1, width);
+    this.group.position.set(feet.x + (facing.x / l) * d, 0.12, feet.z + (facing.y / l) * d);
+    this.group.rotation.set(0, -Math.atan2(facing.y, facing.x), 0);
+    const len = (AIM_LOOK.size / Math.SQRT2) * unit;
+    for (const stroke of this.group.children) stroke.scale.set(len, 1, AIM_LOOK.stroke * unit);
     this.#material.color.copy(colour);
-    this.#material.opacity = 0.3 + 0.4 * power;
+    this.#material.opacity = AIM_LOOK.opacity;
+    this.group.visible = true;
   }
 
   hide(): void {
-    this.mesh.visible = false;
+    this.group.visible = false;
   }
 
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.mesh);
-    this.mesh.geometry.dispose();
+    scene.remove(this.group);
+    for (const c of this.group.children) (c as THREE.Mesh).geometry.dispose();
     this.#material.dispose();
   }
 }
@@ -64,8 +71,9 @@ const TRAIL_POINTS = 64;
 export class Trail {
   readonly mesh: THREE.Mesh;
   readonly #points: { x: number; y: number; z: number; t: number }[] = [];
-  readonly #positions = new Float32Array(TRAIL_POINTS * 2 * 3);
-  readonly #colours = new Float32Array(TRAIL_POINTS * 2 * 4);
+  // three vertices across: one edge, the middle, the other edge (a light band: strongest down its middle, soft at its edges)
+  readonly #positions = new Float32Array(TRAIL_POINTS * 3 * 3);
+  readonly #colours = new Float32Array(TRAIL_POINTS * 3 * 4);
   readonly #colour: THREE.Color;
 
   constructor(
@@ -73,14 +81,17 @@ export class Trail {
     readonly width: number,
     colour: THREE.Color,
   ) {
-    this.#colour = colour.clone();
+    // a light trail (the store's full-HD shots): its colour a little towards white
+    this.#colour = colour.clone().lerp(new THREE.Color(1, 1, 1), 0.2);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(this.#positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(this.#colours, 4));
     const index: number[] = [];
     for (let i = 0; i < TRAIL_POINTS - 1; i += 1) {
-      const a = i * 2;
-      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      const a = i * 3;
+      const b = a + 3;
+      // edge-middle strip, then middle-edge strip
+      index.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1);
     }
     geometry.setIndex(index);
     this.mesh = new THREE.Mesh(
@@ -126,9 +137,10 @@ export class Trail {
       const w = this.width / 2;
       const nx = (-dz / len) * w;
       const nz = (dx / len) * w;
-      this.#positions.set([p.x + nx, p.y, p.z + nz, p.x - nx, p.y, p.z - nz], i * 6);
+      this.#positions.set([p.x + nx, p.y, p.z + nz, p.x, p.y, p.z, p.x - nx, p.y, p.z - nz], i * 9);
       const a = i < pts.length ? trailOpacity((now - p.t) / 1000) : 0;
-      this.#colours.set([r, g, b, a, r, g, b, a], i * 8);
+      // its edges a quarter as strong as its middle: soft, not hard-edged
+      this.#colours.set([r, g, b, a * 0.25, r, g, b, a, r, g, b, a * 0.25], i * 12);
     }
     const geometry = this.mesh.geometry;
     (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;

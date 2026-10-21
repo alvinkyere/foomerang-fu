@@ -21,10 +21,15 @@ import {
   type PackCharacter,
   type ReconstructedMap,
 } from '../reconstructed/maps';
-import { AimLine, Trail } from './chargeVisuals';
+import { AimChevron, Trail } from './chargeVisuals';
 import { Hands } from './hands';
-import { parseHands } from '../characterRig';
-import { BOOMERANG_LOOK, boomerangOutline } from '../boomerangLook';
+import { DashTrail } from './dashTrail';
+import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
+import { windUp } from '../aimLook';
+import { WALK, walkPose, type WalkPose } from '../walkMotion';
+import { SLASH_LOOK, swingAngle, swoosh } from '../slashMotion';
+import { BOOMERANG_LOOK } from '../boomerangLook';
+import { boomerangBody, boomerangGeometry } from './boomerangModel';
 import { CALL_AURA, auraIn, auraLeftBehind } from '../callAura';
 import { landingPose, type LandingPose } from '../roundIntro';
 import { deathOf } from '../deathMotion';
@@ -49,6 +54,8 @@ const CANVAS = { width: 1920, height: 1080 } as const;
 const BOOMERANG_HEIGHT = 24;
 /** A character fills about this much of its atlas cell's height (the rest is room for its pose). */
 const BODY_OF_CELL = 0.32;
+/** The rules' walking speed, world units a second (DEFAULT_FU_CONFIG.playerSpeed): full pace for the walk's motion. */
+const WALK_SPEED = 360;
 /** How far (scene units) the camera may slide sideways to follow a player out onto the sand beyond the dashed lines. */
 const FOLLOW_LIMIT = 14;
 const FADE_OPACITY = 0.35;
@@ -161,7 +168,7 @@ function bubbleTexture(): THREE.Texture | null {
 
 class Character {
   readonly sprite: THREE.Sprite;
-  /** Calling a boomerang home: the same flashing aura on each hand (owner, 2026-10-19; render/callAura.ts). */
+  /** Calling a boomerang home: two concentric rings on each hand (ss02; owner, 2026-10-19; render/callAura.ts). */
   readonly #hands: THREE.Mesh[];
   /** A round's start: the white ring spreading from its feet as it lands (render/roundIntro.ts). */
   readonly #landRing: THREE.Mesh;
@@ -182,8 +189,22 @@ class Character {
   readonly #shadow: THREE.Mesh;
   readonly #texture: THREE.Texture;
   readonly #arrow: THREE.Sprite;
-  readonly #aim: AimLine;
+  readonly #aim: AimChevron;
   #heading = 0;
+  /** Its walk this frame (render/walkMotion.ts), and which way it moves on screen (-1 left … 1 right). */
+  #walk: { pose: WalkPose; pace: number; toward: number } = {
+    pose: { hop: 0, rock: 0, swing: 0 },
+    pace: 0,
+    toward: 0,
+  };
+  #moving = 0;
+  /** Dashing: the see-through squares it leaves along its way (render/three/dashTrail.ts). */
+  readonly #dashTrail: DashTrail;
+  /** Swinging: the white crescent round the front of its feet (render/slashMotion.ts). */
+  readonly #swoosh = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 1, 8),
+    new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false }),
+  );
   /** Its own two hands, drawn by the game (render/three/hands.ts); undefined: they are baked into its sprite. */
   readonly #ownHands: Hands | undefined;
   #deadAt: number | undefined;
@@ -217,6 +238,10 @@ class Character {
     hands?: Hands,
   ) {
     this.#ownHands = hands;
+    this.#dashTrail = new DashTrail(scene, color(colour));
+    this.#swoosh.visible = false;
+    this.#swoosh.renderOrder = 1;
+    scene.add(this.#swoosh);
     this.#texture = atlas.clone();
     this.#texture.repeat.set(1 / 16, 1 / 2);
     this.#texture.needsUpdate = true;
@@ -244,9 +269,11 @@ class Character {
     this.#arrow.center.set(0.5, 0.5);
     this.#arrow.renderOrder = 10;
     this.#arrow.visible = false;
-    this.#hands = [0, 1].map(() => {
+    // two concentric rings on each hand (the burger calling, ss02): inner ≈ 3 hand widths across, outer ≈ 5.4
+    this.#hands = [0, 0, 1, 1].map((_hand, k) => {
+      const outerRing = k % 2 === 1;
       const hand = new THREE.Mesh(
-        new THREE.RingGeometry(0.72, 1, 32),
+        new THREE.RingGeometry(outerRing ? 0.95 : 0.9, 1, 48),
         new THREE.MeshBasicMaterial({
           color: CALL_AURA.colour,
           transparent: true,
@@ -305,7 +332,7 @@ class Character {
       this.#ice,
       ...this.#hands,
     );
-    this.#aim = new AimLine(scene);
+    this.#aim = new AimChevron(scene);
   }
 
   update(
@@ -324,6 +351,11 @@ class Character {
       this.#last !== undefined && now > this.#last.t
         ? (Math.hypot(c.x - this.#last.x, c.y - this.#last.y) / (now - this.#last.t)) * 1000
         : 0;
+    if (this.#last !== undefined && speed > 1) {
+      // which way it moves on screen (world +x is screen right): -1 left … 1 right
+      const dx = c.x - this.#last.x;
+      this.#moving = dx / (Math.hypot(dx, c.y - this.#last.y) || 1);
+    }
     this.#last = { x: c.x, y: c.y, t: now };
     // calling a boomerang home it stands facing the camera (the banana at 0:18.5), whatever way it faced
     const f = c.calling === true ? { x: 0, y: 1 } : (c.dashing?.direction ?? c.facing);
@@ -336,7 +368,11 @@ class Character {
     const at = new THREE.Vector3(g.x, g.y, g.z);
     const distance = at.clone().sub(cam.position).dot(forward);
     const h = characterHeight(config, this.cell, scale, distance);
-    const hop = speed > 40 ? Math.abs(Math.sin(now / 75)) * 7 : 0;
+    // walking (render/walkMotion.ts): a hop and a rock each step, the hands swinging in turn, leaning into the move
+    const pace = c.dead || airborne ? 0 : Math.min(1, speed / WALK_SPEED);
+    const walk = walkPose(now / 1000, pace);
+    const hop = walk.hop * BODY_OF_CELL * this.cell;
+    this.#walk = { pose: walk, pace, toward: this.#moving };
     this.sprite.position.copy(at);
     this.sprite.scale.set(h, h, 1);
     this.sprite.center.set(this.anchor[0] / this.cell, 1 - (this.anchor[1] + hop) / this.cell);
@@ -356,24 +392,78 @@ class Character {
     this.#frozen(c, at, h, now);
     this.#burn(c, at, h, now);
     this.#shield(c, at, h);
-    // charging a throw: the aim line, as long as the throw would fly
+    // charging a throw: the arrowhead ahead of it, sliding out as the charge builds (render/aimLook.ts)
     if (c.aim !== undefined && c.facing !== undefined && !c.dead)
       this.#aim.show(
         { x: g.x, z: g.z },
         c.facing,
-        space.length(c.aim.reach),
-        r * 0.35,
         c.aim.power,
         color(this.colour),
+        space.length(1),
       );
     else this.#aim.hide();
     (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
-    this.#handAura(c, cam, at, h, now);
     this.#land(landing, at, h);
+    // the walk's tilt, about its feet: the rock, and the lean into its move (its screen-right component)
+    const tiltAngle = -(this.#walk.pose.rock + WALK.lean * this.#walk.pace * this.#walk.toward);
+    (this.sprite.material as THREE.SpriteMaterial).rotation += tiltAngle;
     // its hands, where its body's frame has them, rising with its hop (atlas px -> scene: h / cell)
-    const yaw = (this.#heading * Math.PI) / 8;
-    this.#ownHands?.place(at, this.#heading, airborne, (hop * h) / this.cell, a, yaw);
+    this.#ownHands?.place(
+      at,
+      this.#heading,
+      airborne,
+      (hop * h) / this.cell,
+      a,
+      (this.#heading * Math.PI) / 8,
+      this.#handMotion(c, h),
+      c.armed && !c.dead,
+      c.aim !== undefined && !c.dead ? c.aim.power : 0,
+      { axis: cam.getWorldDirection(new THREE.Vector3()).negate(), angle: tiltAngle },
+      this.#swing(c, h, at),
+    );
+    this.#handAura(c, cam, at, h, now);
+    // dashing: its afterimages, at its middle
+    const middle = at.clone().add(new THREE.Vector3(0, 0.45 * h * BODY_OF_CELL, 0));
+    this.#dashTrail.update(c.dashing !== undefined && !c.dead, middle, h * BODY_OF_CELL, cam, now);
+  }
+
+  /**
+   * Swinging (render/slashMotion.ts, the mug at 0:39.93–40.30): its boomerang hand goes from its right side across the front to
+   * the other, ≈ 0.6 of its body's height out and ≈ 0.3 up; the white crescent sweeps round the front at its feet with it.
+   * Returns where the hand is (scene, from its feet), or undefined when it is not swinging.
+   */
+  #swing(c: CircleView, h: number, feet: THREE.Vector3): SceneOffset | undefined {
+    const material = this.#swoosh.material as THREE.MeshBasicMaterial;
+    if (c.slash === undefined || c.dead) {
+      this.#swoosh.visible = false;
+      return undefined;
+    }
+    const body = h * BODY_OF_CELL;
+    // world angles (x right, y towards us); its right side is its facing turned +90°
+    const dir = Math.atan2(c.slash.direction.y, c.slash.direction.x);
+    const a = dir - swingAngle(c.slash.phase, c.slash.progress);
+    const grip = { x: Math.cos(a) * 0.6 * body, y: 0.3 * body, z: Math.sin(a) * 0.6 * body };
+    const sw = swoosh(c.slash.phase, c.slash.progress);
+    this.#swoosh.visible = sw.opacity > 0;
+    if (sw.opacity > 0) {
+      const start = dir + SLASH_LOOK.sweep / 2;
+      // its outer edge ≈ a body width out (≈ 1.15 of its height: 80 u against ≈ 70 u)
+      const outer = body * (SLASH_LOOK.outer / 70);
+      this.#swoosh.geometry.dispose();
+      // (a ring in x/y laid flat: its angle θ lands at world angle -θ)
+      this.#swoosh.geometry = new THREE.RingGeometry(
+        (SLASH_LOOK.inner / SLASH_LOOK.outer) * outer,
+        outer,
+        24,
+        1,
+        -start,
+        sw.length,
+      ).rotateX(-Math.PI / 2);
+      this.#swoosh.position.set(feet.x, 0.12, feet.z);
+      material.opacity = sw.opacity;
+    }
+    return grip;
   }
 
   /** Owning the Shield: a clear bubble round it (the video, 6:54.38). It pops on SHIELD_BLOCKED (#event). */
@@ -384,6 +474,31 @@ class Character {
     const body = h * BODY_OF_CELL;
     this.#bubble.position.set(feet.x, feet.y + SHIELD_LOOK.centre * body, feet.z);
     this.#bubble.scale.setScalar(SHIELD_LOOK.diameter * body);
+  }
+
+  /**
+   * Its hands' motion from where the bake had them (`h`: its cell's height, scene). Charging a throw, its boomerang hand draws
+   * back behind its body and a little up, by up to ≈ 0.45 of its body's height (the donut at 2:00.6–2:01.47: render/aimLook.ts);
+   * walking, its hands swing in turn (render/walkMotion.ts).
+   */
+  #handMotion(c: CircleView, h: number): readonly [SceneOffset, SceneOffset] {
+    const none = { x: 0, y: 0, z: 0 };
+    if (c.facing === undefined || c.dead) return [none, none];
+    const l = Math.hypot(c.facing.x, c.facing.y) || 1;
+    // world +y is scene +z
+    const fx = c.facing.x / l;
+    const fz = c.facing.y / l;
+    const body = h * BODY_OF_CELL;
+    if (c.aim !== undefined) {
+      const k = windUp(c.aim.power) * 0.45 * body;
+      return [{ x: -fx * k, y: 0.3 * k, z: -fz * k }, none];
+    }
+    // walking: the hands swing forward and back in turn, ≈ 0.15 of its body's height each way
+    const s = this.#walk.pose.swing * 0.15 * body;
+    return [
+      { x: fx * s, y: 0, z: fz * s },
+      { x: -fx * s, y: 0, z: -fz * s },
+    ];
   }
 
   /** Burning (FIRE_BOOMERANG): its own colours, with a column of fire balls climbing it (the video, 9:55.9–9:57.6). */
@@ -477,16 +592,22 @@ class Character {
     const body = h * BODY_OF_CELL;
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
-    this.#hands.forEach((hand, k) => {
-      const side = k === 0 ? -1 : 1;
-      hand.position
-        .copy(feet)
-        .addScaledVector(right, side * body * 0.62)
-        .addScaledVector(up, body * 0.36);
-      hand.quaternion.copy(cam.quaternion);
-      hand.scale.setScalar(body * 0.2 * aura.scale);
-      hand.visible = true;
-      (hand.material as THREE.MeshBasicMaterial).opacity = 0.9 * aura.opacity;
+    const own = this.#ownHands;
+    // centred on each hand (its own, drawn by the game; else where the baked ones are), facing the camera
+    const handSize = own?.size ?? body * 0.2;
+    this.#hands.forEach((ring, k) => {
+      const which = k < 2 ? 0 : 1;
+      if (own !== undefined) ring.position.copy(own.positionOf(which));
+      else
+        ring.position
+          .copy(feet)
+          .addScaledVector(right, (which === 0 ? -1 : 1) * body * 0.62)
+          .addScaledVector(up, body * 0.36);
+      ring.quaternion.copy(cam.quaternion);
+      const across = k % 2 === 0 ? 3 : 5.4;
+      ring.scale.setScalar(((handSize * across) / 2) * aura.scale);
+      ring.visible = true;
+      (ring.material as THREE.MeshBasicMaterial).opacity = 0.85 * aura.opacity;
     });
   }
 
@@ -542,6 +663,9 @@ class Character {
     );
     this.#aim.destroy(scene);
     this.#ownHands?.destroy(scene);
+    scene.remove(this.#swoosh);
+    this.#dashTrail.destroy(scene);
+    this.#swoosh.geometry.dispose();
     this.#texture.dispose();
   }
 }
@@ -552,7 +676,7 @@ class Character {
  */
 class Boomerang {
   readonly group = new THREE.Group();
-  /** The V (seen at rest, and turning as it falls) and the disc (seen in flight). */
+  /** Its shape (lying, falling or flying) and, in flight, the fading copies that trail its spin. */
   readonly #still = new THREE.Group();
   readonly #disc = new THREE.Group();
   readonly #shadow: THREE.Mesh;
@@ -578,50 +702,23 @@ class Boomerang {
    * `colour`: the thrower's character colour (owner, 2026-10-19). `unit`: one world unit in scene units (its sizes are the
    * video's, in world units, not its collision radius: that drew it twice too big).
    */
-  constructor(scene: THREE.Scene, colour: string, unit: number) {
+  constructor(scene: THREE.Scene, colour: string, unit: number, gradient: THREE.Texture) {
     const look = BOOMERANG_LOOK;
     const body = color(colour);
-    const rim = body.clone().lerp(new THREE.Color(1, 1, 1), look.rimLighten);
-    // flat, as the video's is: half the V (elbow, round its tip, back) is convex, so a fan fills it; the other half mirrors it
-    const outline = boomerangOutline();
-    const half = outline.slice(0, outline.findIndex((q, i) => i > 0 && q.x === 0) + 1);
-    const vee = (scale: number) => {
-      const points = [...half, ...half.map((q) => ({ x: -q.x, y: q.y }))];
-      const position = points.flatMap((q) => [q.x * scale * unit, q.y * scale * unit, 0]);
-      const index: number[] = [];
-      for (const start of [0, half.length])
-        for (let i = 1; i < half.length - 1; i += 1) index.push(start, start + i, start + i + 1);
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
-      const up = points.flatMap(() => [0, 0, 1]);
-      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(up, 3));
-      geometry.setIndex(index);
-      return geometry;
-    };
-    const thick = 2.5 * unit;
-    const material = (c: THREE.Color) =>
-      new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, side: THREE.DoubleSide });
-    const solid = new THREE.Mesh(vee(1), material(body));
-    // the rim: the same V a little larger, lighter, just under it
-    const edge = new THREE.Mesh(vee(1.12), material(rim));
-    solid.position.z = thick;
-    for (const m of [solid, edge]) {
-      m.castShadow = true;
-      this.#still.add(m);
+    // the store's full-HD shape (render/boomerangShape.ts), shaded as the plaza is: lying, flying and held alike
+    const solid = boomerangBody(unit, body, gradient);
+    this.#still.add(solid);
+    // in flight it spins too fast for the video's 30 frames a second to show its shape (a blur there): two fading copies
+    // trail its turn
+    for (const opacity of [0.35, 0.15]) {
+      const ghost = boomerangBody(unit, body, gradient);
+      ghost.material.opacity = opacity;
+      ghost.material.depthWrite = false;
+      ghost.castShadow = false;
+      this.#disc.add(ghost);
     }
-    // lying in the ground's plane (the shape is drawn in x/y; the ground is x/z)
-    this.#still.rotation.x = -Math.PI / 2;
-    const r = (look.disc.diameter / 2) * unit;
-    const pale = body.clone().lerp(new THREE.Color(1, 1, 1), look.disc.pale);
-    const plain = (c: THREE.Color) => new THREE.MeshBasicMaterial({ color: c });
-    this.#disc.add(
-      new THREE.Mesh(new THREE.CircleGeometry(r * (1 - look.disc.rim), 32), plain(pale)),
-      new THREE.Mesh(new THREE.RingGeometry(r * (1 - look.disc.rim), r, 32), plain(body)),
-      new THREE.Mesh(new THREE.CircleGeometry(r * look.disc.dot, 16), plain(body)),
-    );
-    this.#disc.children.forEach((m, i) => (m.position.z = 0.01 * i));
-    this.#disc.rotation.x = -Math.PI / 2;
     this.group.add(this.#still, this.#disc);
+    const r = (look.span / 2) * unit;
     this.#shadow = new THREE.Mesh(
       new THREE.CircleGeometry(r * 1.05, 24).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({
@@ -647,7 +744,9 @@ class Boomerang {
     this.#left.material = (this.#aura.material as THREE.Material).clone();
     scene.add(this.group, this.#shadow, this.#aura, this.#left);
     this.#trail = new Trail(scene, look.trail.width * unit, body);
-    this.#rest = thick / 2;
+    const shape = boomerangGeometry(unit);
+    shape.computeBoundingBox();
+    this.#rest = shape.boundingBox?.max.y ?? unit;
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
@@ -708,7 +807,8 @@ class Boomerang {
     // in flight it is the disc its spin makes, and it leaves its trail (every throw, quick or charged); lying still, the V
     const flying = this.#state !== 'GROUNDED' && !this.#spent;
     this.#disc.visible = flying;
-    this.#still.visible = !flying;
+    // (its spin turns it backwards in time: the copies sit a little behind where it has just turned from)
+    this.#disc.children.forEach((g, k) => (g.rotation.y = 0.35 * (k + 1)));
     if (flying) this.#trail.add(this.group.position, time);
     this.#trail.update(time);
     if (!this.#spent) {
@@ -762,6 +862,17 @@ class Plaza {
   readonly #kinds = new Map<string, string>();
   /** The characters this map has art for. */
   readonly #hasArt = (kind: PackCharacter): boolean => this.manifest.characters[kind] !== undefined;
+  /** A character's own hands, holding its boomerang in its colour (render/three/hands.ts). */
+  #handsFor(hands: CharacterHands, kind: PackCharacter, scale: number): Hands {
+    const own = new Hands(this.scene, hands, scale, this.#gradient);
+    const unit = this.#space.length(1);
+    own.hold(
+      boomerangBody(unit, color(CHARACTER_COLOURS[kind]), this.#gradient),
+      BOOMERANG_LOOK.span,
+      unit,
+    );
+    return own;
+  }
   readonly #boomerangs = new Map<string, Boomerang>();
   readonly #books = new Map<number, THREE.Group>();
   /** Books just taken, shrinking away (render/pickupMotion.ts): no longer lying there. */
@@ -1059,7 +1170,7 @@ class Plaza {
           meta.cell,
           meta.anchor,
           CHARACTER_COLOURS[kind],
-          hands === undefined ? undefined : new Hands(this.scene, hands, scale, this.#gradient),
+          hands === undefined ? undefined : this.#handsFor(hands, kind, scale),
         );
         this.#characters.set(c.id, ch);
         this.#kinds.set(c.id, kind);
@@ -1092,7 +1203,12 @@ class Plaza {
         // in its thrower's character colour (a yellow banana throws a yellow boomerang)
         const owner = view.circles.find((c) => c.id === b.ownerId);
         const kind = characterOf(this.map.roster, owner ?? { number: 1 }, this.#hasArt);
-        art = new Boomerang(this.scene, CHARACTER_COLOURS[kind], this.#space.length(1));
+        art = new Boomerang(
+          this.scene,
+          CHARACTER_COLOURS[kind],
+          this.#space.length(1),
+          this.#gradient,
+        );
         this.#boomerangs.set(b.id, art);
       }
       art.apply(this.#space, b);
