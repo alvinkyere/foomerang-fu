@@ -10,7 +10,16 @@ export interface PowerBadge {
   readonly name: string;
   readonly colour: string;
   /** The white icon on its disc, as the video shows it; undefined until the video is studied for that power (a plain disc). */
-  readonly icon: 'burst' | 'shield' | 'extra' | 'multi' | 'snowflake' | 'flame' | undefined;
+  readonly icon:
+    | 'burst'
+    | 'shield'
+    | 'extra'
+    | 'multi'
+    | 'snowflake'
+    | 'flame'
+    | 'skull'
+    | 'fastForward'
+    | undefined;
   readonly fromVideo: boolean;
 }
 
@@ -22,7 +31,8 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
     fromVideo: true,
   },
   SHIELD: { name: 'SHIELD', colour: '#6397e9', icon: 'shield', fromVideo: true },
-  CAFFEINATED: { name: 'CAFFEINATED', colour: '#e0a91f', icon: undefined, fromVideo: false },
+  // 3:48.1: a green bar; the icon two arrowheads (fast forward)
+  CAFFEINATED: { name: 'CAFFEINATED', colour: '#5acb86', icon: 'fastForward', fromVideo: true },
   // 7:16.6: a grey bar; the icon an L-shaped boomerang with a small plus
   EXTRA_BOOMERANG: {
     name: 'EXTRA BOOMERANG',
@@ -51,6 +61,13 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
     icon: 'flame',
     fromVideo: true,
   },
+  // 4:37.7: a dark purple bar; the icon a skull
+  BATTLE_ROYALE: {
+    name: 'BATTLE ROYALE',
+    colour: '#433065',
+    icon: 'skull',
+    fromVideo: true,
+  },
 });
 
 /** How long the badge stays over the player (the video: 4:11.0 to 4:12.9). */
@@ -65,6 +82,11 @@ export const BADGE_ICON: Readonly<Record<NonNullable<PowerBadge['icon']>, string
   shield: 'M12 3l7 2.6v5.6c0 4.4-2.9 8-7 9.8-4.1-1.8-7-5.4-7-9.8V5.6z',
   // an L-shaped boomerang with a small plus at its top right
   extra: 'M5 6h4v9h9v4H5zM16 3h2v2h2v2h-2v2h-2V7h-2V5h2z',
+  // a skull
+  skull:
+    'M12 3a8 8 0 0 0-8 8c0 2.4 1 4 2.5 5v3h3v-2h1v2h3v-2h1v2h3v-3c1.5-1 2.5-2.6 2.5-5a8 8 0 0 0-8-8zM8.5 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm7 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
+  // two arrowheads: fast forward
+  fastForward: 'M3 6l8 6-8 6zM12 6l8 6-8 6z',
   // a flame
   flame:
     'M12 2c1 3.5 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.3 2.5-5.3.2 1.8.9 3 2 3.6C10.6 8.4 11.3 5 12 2z',

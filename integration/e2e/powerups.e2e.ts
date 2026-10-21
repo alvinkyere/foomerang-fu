@@ -97,8 +97,10 @@ test('Powerups: a Book is one mystery object — it names nothing before it is t
   expect(first).toMatchObject({ x: 800, y: 295 }); // the first spot
   await goTo(host, alice, aliceId, 'spotNorth', 10);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 5_000 }).toBe(1);
-  // what it awarded is the rules' own seeded choice for the first Book of the match, nobody else's
-  expect(await owned(host, aliceId)).toEqual([chooseAward(POWER_KINDS, 1, 0)]);
+  // what it awarded is the rules' own seeded choice for the first Book of the match, nobody else's (from her pool: every power
+  // but BATTLE_ROYALE, which this arena has no border for)
+  const pool = POWER_KINDS.filter((kind) => kind !== 'BATTLE_ROYALE');
+  expect(await owned(host, aliceId)).toEqual([chooseAward(pool, 1, 0)]);
   await expect
     .poll(async () => (await host.snapshot()).drawnPickups?.some((p) => p.id === String(first.id)))
     .toBe(false);
@@ -189,4 +191,61 @@ test('Powerups: EXTRA_BOOMERANG + EXPLOSIVE_BOOMERANG together — one press thr
     'EXPLOSIVE_BOOMERANG',
     'EXTRA_BOOMERANG',
   ]); // still owned
+});
+
+test('Powerups: ICE_BOOMERANG — a real throw that reaches Bob freezes him where he stands (the video: 1.83 s) instead of killing him; then the ice shatters and he moves again', async ({
+  powerHost,
+  newPhone,
+}) => {
+  const host = await powerHost('ICE_BOOMERANG');
+  const { alice, bob, aliceId, bobId } = await setUp(host, newPhone);
+  await takeABook(host, alice, aliceId);
+  expect(await owned(host, aliceId)).toEqual(['ICE_BOOMERANG']);
+  // Bob walks up to within a short throw of her, then she faces him and throws
+  await bob.thumbDown();
+  try {
+    for (let i = 0; i < 600; i += 1) {
+      const here = await host.body(bobId);
+      const target = await host.body(aliceId);
+      if (dist(here, target) <= 180) break;
+      const d = dist(here, target);
+      await bob.thumbMove(((target.x - here.x) / d) * FAR, ((target.y - here.y) / d) * FAR);
+      await sleep(15);
+    }
+  } finally {
+    await bob.thumbUp();
+  }
+  await host.settled(bobId);
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const a = await host.body(aliceId);
+    const b = await host.body(bobId);
+    await face(alice, b.x - a.x, b.y - a.y);
+    await expect
+      .poll(async () => (await me(host, aliceId))?.charge, { timeout: 2_000 })
+      .toBe('NONE');
+    await alice.tapThrow();
+    const frozen = await expect
+      .poll(async () => (await me(host, bobId))?.frozen ?? 0, { timeout: 1_500 })
+      .toBeGreaterThan(0)
+      .then(() => true)
+      .catch(() => false);
+    if (frozen) break;
+    await expect
+      .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state, {
+        timeout: 8_000,
+      })
+      .toBe('HELD');
+  }
+  expect((await me(host, bobId))?.frozen ?? 0).toBeGreaterThan(0);
+  expect((await me(host, bobId))?.alive).toBe(true); // frozen, not dead
+  // frozen: his thumb moves nothing
+  const at = await host.body(bobId);
+  await bob.thumbDown();
+  await bob.thumbMove(FAR, 0);
+  await sleep(400);
+  await bob.thumbUp();
+  if (((await me(host, bobId))?.frozen ?? 0) > 0) expect(await host.body(bobId)).toEqual(at);
+  // the ice shatters within the measured 1.83 s; he is alive and moves again
+  await expect.poll(async () => (await me(host, bobId))?.frozen ?? 0, { timeout: 3_000 }).toBe(0);
+  expect((await me(host, bobId))?.alive).toBe(true);
 });

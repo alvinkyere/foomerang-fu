@@ -2,6 +2,7 @@ import {
   isFatigued,
   roundLabel,
   systemsView,
+  zoneOf,
   type Boomerang,
   type FuArena,
   type FuEvent,
@@ -21,6 +22,7 @@ import {
   type BoomerangView,
   type CircleView,
   type HudView,
+  type RectView,
   type ScoreEntryView,
   type ScoreEventView,
   type ViewEvent,
@@ -91,7 +93,7 @@ export function buildFuView(
             outside: {
               seconds: player.outsideFor,
               limit: state.config.outsideLimitSeconds,
-              toward: wayIn(body.position, state.config.arena.safeZone),
+              toward: wayIn(body.position, zoneOf(state)),
             },
           }
         : {}),
@@ -402,6 +404,9 @@ export function buildFuView(
     walls: state.config.arena.walls ?? [],
     circles,
     boomerangs,
+    ...(state.closingSince !== undefined && zoneOf(state) !== undefined
+      ? { closing: zoneOf(state) as RectView }
+      : {}),
     pickups: state.pickups.map((p) => ({
       id: p.id,
       x: p.position.x,

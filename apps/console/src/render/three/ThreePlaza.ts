@@ -1,5 +1,6 @@
 import { ICE_LOOK } from '../iceLook';
 import { GroundMarks } from './groundMarks';
+import { ClosingBorder } from './closingBorder';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
@@ -638,6 +639,8 @@ class Plaza {
   readonly #blasts: Blasts;
   /** Fire and ice left on the ground by fire / ice boomerangs and burning players (groundMarks.ts). */
   readonly #marks: GroundMarks;
+  /** BATTLE_ROYALE: the border closing in (closingBorder.ts). */
+  readonly #closing: ClosingBorder;
   #badges: PickupBadges | undefined;
   readonly #resize: ResizeObserver;
 
@@ -746,6 +749,7 @@ class Plaza {
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
     this.#blasts = new Blasts(this.scene);
     this.#marks = new GroundMarks(this.scene);
+    this.#closing = new ClosingBorder(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -965,6 +969,7 @@ class Plaza {
         this.#books.delete(id);
       }
     this.#props.show(view, now);
+    this.#closing.show(view.closing, (x, y) => this.#space.toScene(x, y));
     for (const e of view.events) this.#event(e, now);
     this.#banner.textContent = view.banner ?? '';
     this.#banner.style.display = view.banner === undefined ? 'none' : 'block';

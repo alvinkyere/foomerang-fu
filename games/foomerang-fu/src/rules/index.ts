@@ -74,6 +74,7 @@ export type { FuEvent, FuInputs, FuPlayerInput, FuStepResult } from './step';
 export {
   POWER_COMBINATIONS,
   POWER_KINDS,
+  KEPT_POWER_KINDS,
   NO_POWERS,
   MAX_POWERS,
   SPAWN_RATES,
@@ -192,3 +193,4 @@ export {
   DIAMOND_WALLS_WIDTH,
 } from './diamondWallsArena';
 export type { DiamondWallsWall } from './diamondWallsArena';
+export { BATTLE_ROYALE_SHRINK, zoneAt, zoneOf } from './battleRoyale';

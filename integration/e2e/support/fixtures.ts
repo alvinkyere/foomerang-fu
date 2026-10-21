@@ -62,6 +62,9 @@ export interface Snapshot {
           /** THROW held: NONE, CHARGING or CANCELLED (by a dash). */
           charge: 'NONE' | 'CHARGING' | 'CANCELLED';
           fatigue: { dashes: number; recoverIn: number; fatigued: boolean };
+          /** ICE_BOOMERANG: seconds left frozen (0: not). FIRE_BOOMERANG: seconds until the burn kills (0: not). */
+          frozen: number;
+          burning: number;
         }[];
         /** Books lying in the arena: a Book carries no kind. */
         pickups: { id: number; x: number; y: number }[];

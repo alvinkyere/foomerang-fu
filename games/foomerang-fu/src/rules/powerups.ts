@@ -14,8 +14,14 @@ export const POWER_KINDS = [
   'MULTI_BOOMERANG',
   'ICE_BOOMERANG',
   'FIRE_BOOMERANG',
+  'BATTLE_ROYALE',
 ] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
+
+/** The powers a player OWNS once taken (BATTLE_ROYALE is not kept: taking it closes the border in; battleRoyale.ts). */
+export const KEPT_POWER_KINDS: readonly PowerKind[] = Object.freeze(
+  POWER_KINDS.filter((kind) => kind !== 'BATTLE_ROYALE'),
+);
 
 export const isPowerKind = (value: unknown): value is PowerKind =>
   typeof value === 'string' && (POWER_KINDS as readonly string[]).includes(value);
@@ -152,6 +158,13 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
     'FIRE_BOOMERANG',
     'a contact does both: frozen and burning (the video does not show the pair).',
   ],
+  ['CAFFEINATED', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['EXPLOSIVE_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['SHIELD', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['EXTRA_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['MULTI_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['ICE_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['FIRE_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
 ];
 
 /**
@@ -173,6 +186,8 @@ export const combinationKey = pair;
  */
 export function canCollect(held: readonly PowerKind[], kind: PowerKind, config: FuConfig): boolean {
   if (held.includes(kind)) return false;
+  // BATTLE_ROYALE closes the arena's border in: an arena without one has nothing to close
+  if (kind === 'BATTLE_ROYALE' && config.arena.safeZone === undefined) return false;
   if (!(config.enabledPowers ?? POWER_KINDS).includes(kind)) return false;
   const exclusive = (config.exclusivePairs ?? []).map(([a, b]) => pair(a, b));
   return held.every((other) => {

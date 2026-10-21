@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_POWERS,
   POWER_COMBINATIONS,
+  KEPT_POWER_KINDS,
   POWER_KINDS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
@@ -83,6 +84,7 @@ describe('the powers and their compatibility table', () => {
       'MULTI_BOOMERANG',
       'ICE_BOOMERANG',
       'FIRE_BOOMERANG',
+      'BATTLE_ROYALE',
     ]);
     for (const junk of ['', 'overdrive', 'GUARD', 'OVERDRIVE', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);
@@ -184,7 +186,7 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
   it('is deterministic: the same acquisitions give the same inventory', () => {
     const play = () => {
       let s = lone();
-      for (const kind of POWER_KINDS) s = give(s, 'a', kind);
+      for (const kind of KEPT_POWER_KINDS) s = give(s, 'a', kind);
       return JSON.stringify(inv(s));
     };
     expect(play()).toBe(play());

@@ -28,6 +28,7 @@ import { homeStep } from './homing';
 import { split } from './multi';
 import { ICE_FREEZE_SECONDS } from './ice';
 import { FIRE_BURN_SECONDS } from './fire';
+import { zoneAt } from './battleRoyale';
 import { separateBodies } from './collision';
 import {
   DASH_READY,
@@ -957,6 +958,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const newTwins: Boomerang[] = [];
   const lying: Pickup[] = [];
   let awards = state.awards;
+  let closingSince = state.closingSince;
   for (const pickup of [...state.pickups].sort((a, b) => a.id - b.id)) {
     let best: number | undefined;
     let bestDistance = Number.POSITIVE_INFINITY;
@@ -984,7 +986,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     ) as PowerKind;
     awards += 1;
     took.add(best);
-    const given = awardPower(inventory[best] as Inventory, kind);
+    // BATTLE_ROYALE is not kept: the border starts closing in (once a round)
+    if (kind === 'BATTLE_ROYALE') closingSince ??= state.roundTime;
+    const given =
+      kind === 'BATTLE_ROYALE'
+        ? { inventory: inventory[best] as Inventory, evicted: undefined }
+        : awardPower(inventory[best] as Inventory, kind);
     inventory[best] = given.inventory;
     events.push({
       type: 'PICKED_UP',
@@ -1701,7 +1708,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   });
   // The border: time outside the safe zone, continuous; at the limit the player explodes (no shield can stop it)
-  const zone = config.arena.safeZone;
+  // (Battle Royale: the border as it has closed in by the end of this step)
+  const zone = zoneAt(config.arena.safeZone, closingSince, state.roundTime + dt);
   const outsideFor = players.map((p) =>
     zone === undefined || !p.alive || inRect(positionOf(p.id), zone)
       ? 0
@@ -2002,6 +2010,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       ]),
       pickups: Object.freeze(pickups),
       pickupClock: clock,
+      ...(closingSince !== undefined ? { closingSince } : {}),
       awards,
       phase: matchWonBy !== undefined ? 'MATCH_OVER' : roundEnds ? 'ROUND_OVER' : 'PLAYING',
       roundOver: roundEnds

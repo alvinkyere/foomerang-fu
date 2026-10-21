@@ -310,6 +310,10 @@ the second can go while the first is away. (The old simultaneous ±13° pair is 
   eyes shut; 6:56.38 the block **shatters** into pale shards that lie on the ground, and it dashes off. **Frozen 1.83 s.** An ice
   hit freezes; it does not kill.
 - 6:02.5 an ice throw leaves a **cyan trail on the ground** that is still there 3+ s later.
+- Applied: `games/foomerang-fu/src/rules/ice.ts` (1.83 s; a shield pops with it), the block `apps/console/src/render/iceLook.ts`
+  (block ≈ #cffbfc, ≈ 1.75 body widths × 2.05 body heights; the body blue ≈ #70c6f6; shards on THAWED). **Not shown:** whether a
+  frozen player is killed by a hit (taken as: yes, like anyone); whether a second ice hit lengthens it (taken as: no); whether the
+  ground trail does anything (drawn only). (6:21 "ice block" on a raft is a power Book spawning, not ice.)
 
 ## The boomerang's flight, checked against the video (2026-10-20; nothing changed)
 
@@ -356,7 +360,37 @@ tutorial's PULL BACK (0:17.80–18.90), centred on the boomerang and enlarged.
   lift spreads to 1.3× and fades out over 0.25 s.
 - **The hands:** at 640 × 360 the banana's hands show only as small yellow dots; no ring can be seen on them. The owner's rule
   stands (the same aura on the hands), so they now follow the boomerang's: lit while calling, fading in the same way, no flash.
-- Applied: `games/foomerang-fu/src/rules/ice.ts` (1.83 s; a shield pops with it), the block `apps/console/src/render/iceLook.ts`
-  (block ≈ #cffbfc, ≈ 1.75 body widths × 2.05 body heights; the body blue ≈ #70c6f6; shards on THAWED). **Not shown:** whether a
-  frozen player is killed by a hit (taken as: yes, like anyone); whether a second ice hit lengthens it (taken as: no); whether the
-  ground trail does anything (drawn only). (6:21 "ice block" on a raft is a power Book spawning, not ice.)
+
+## Fire boomerang (2026-10-20; applied)
+
+- 9:55.8 the eggplant, hit, **catches fire**; it runs on, burning, ≈ 1.7 s, leaving fire on the ground; by 9:57.9 it lies
+  charred and still: **the burn kills ≈ 2.1 s after the hit** (`rules/fire.ts`, credited to the thrower).
+- Fire on the ground (a flying fire boomerang's path, and a burning player's): yellow (#f2c312–#fff241), **gone ≈ 1.6 s** after
+  it is laid (pixel count 9:57.6–9:59.4). Drawn: `apps/console/src/render/three/groundMarks.ts`.
+- On foliage (11:56–12:02, a hedge map) the fire spreads through the plants, and an explosive's ring leaves a ring of fire
+  (11:59.7): arena features, not modelled.
+- **Not shown:** whether ground fire sets anyone else alight (it is drawn, not a rule); whether a shield stops it (taken as: like
+  any lethal contact).
+
+## Battle Royale (2026-10-20; applied)
+
+- 4:37.6 the banana takes it: at once a pink-glowing dashed border appears at the arena's edge and **closes in on the middle**,
+  every side (measured against the cross platform's plank width w: 7.6 w across at 4:37.7, 5.2 at 4:40.4, 4.6 at 4:41.8, 4.0 at
+  4:43.2, 3.0 at 4:44.6, 2.55 at 4:46.0: ≈ 0.6 w/s across). With w ≈ 5.3 character widths and a character ≈ 46 u: **≈ 73 u/s a
+  side (±40%)** (`rules/battleRoyale.ts`). A player left outside explodes (4:46.4): our out-of-bounds rule, unchanged.
+- It is **not kept**: nobody shows its skull at a later round's start (11:52.5). Taken again at 10:02.2 and 11:09.
+- **Not shown:** where it stops (taken as: the middle); a second one while it closes (taken as: nothing).
+
+## Caffeinated (2026-10-20)
+
+- The badge (3:48.1, 6:30, 12:26): green #5acb86, two arrowheads. Applied.
+- **Its speed is not measurable here:** the banana (3:49–3:53) is hidden in foliage and its own trail most of the time; the donut
+  (12:26–12:29, stabilised) reads ≈ 5 widths/s, slower than an ordinary walk, so the reading is broken. The multipliers stay
+  (1.4 walk, 1.3 dash), **flagged**.
+
+## Not in the video, or not readable (flagged; not built)
+
+- **Teleport Boomerang:** taken at 9:15 (the eggplant), but never seen used (no jump of the eggplant 9:15–9:46).
+- **Telekinesis:** taken at 9:09 (the eggplant); its throw at 9:11.4 bends, but what moves it (the stick) cannot be seen.
+- **Disguise:** taken at 5:00.0 (the banana) and held at 11:52; no disguise is seen (5:00–5:08 the banana stays a banana).
+- **Bamboozled, Decoy, Dash Through Walls:** not in the video at all.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   POWER_COMBINATIONS,
+  KEPT_POWER_KINDS,
   POWER_KINDS,
   PRIMITIVE_ARENA,
   stepFu,
@@ -30,9 +31,15 @@ import {
 const hits = (events: readonly FuEvent[]) => events.filter((e) => e.type === 'HIT');
 
 const pairs: [PowerKind, PowerKind][] = [];
-for (const a of POWER_KINDS) for (const b of POWER_KINDS) if (a < b) pairs.push([a, b]);
+for (const a of KEPT_POWER_KINDS) for (const b of KEPT_POWER_KINDS) if (a < b) pairs.push([a, b]);
 
 describe('every pair can be owned together, and an exclusive pair cannot', () => {
+  it('every unordered pair of every power is allowed by the table (BATTLE_ROYALE included: it is not kept)', () => {
+    for (const a of POWER_KINDS)
+      for (const b of POWER_KINDS)
+        if (a < b) expect(POWER_COMBINATIONS[`${a}+${b}`]?.allowed).toBe(true);
+  });
+
   it.each(pairs)(
     '%s + %s: allowed by the table, owned together in play, forbiddable by config',
     (a, b) => {
@@ -61,8 +68,8 @@ describe('every pair can be owned together, and an exclusive pair cannot', () =>
 
   it('every power given in turn leaves the LAST three, in order (FIFO)', () => {
     let s = place(place(make(undefined, STRAIGHT), 'a', 600, 450), 'b', 1500, 800);
-    for (const kind of POWER_KINDS) s = give(s, 'a', kind);
-    expect(player(s, 'a').inventory).toEqual(POWER_KINDS.slice(-3));
+    for (const kind of KEPT_POWER_KINDS) s = give(s, 'a', kind);
+    expect(player(s, 'a').inventory).toEqual(KEPT_POWER_KINDS.slice(-3));
   });
 });
 

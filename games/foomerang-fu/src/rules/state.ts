@@ -85,6 +85,8 @@ export interface FuState {
   readonly intro?: number;
   /** Slice 6: per timed gate, whether it has actually SHUT (a gate scheduled to close waits until nothing is in it). */
   readonly gatesShut: readonly boolean[];
+  /** BATTLE_ROYALE: the round time it was taken at; the border has been closing in since (battleRoyale.ts). Absent: it is not. */
+  readonly closingSince?: number;
   /** The ids of the arena's breakables broken this round, in the order they broke (a new round starts with none). */
   readonly broken: readonly string[];
   readonly world: WorldState;

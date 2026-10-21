@@ -235,6 +235,20 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     expect(view.boomerangs.map((b) => b.mark)).toEqual(['fire', 'ice']);
   });
 
+  it('Battle Royale: the closing border reaches the TV only while it closes', () => {
+    const zone = { x: 100, y: 100, width: 1400, height: 700 };
+    const arena = { ...base.config.arena, safeZone: zone };
+    const open: FuState = { ...base, config: { ...base.config, arena } };
+    expect(buildFuView(open, [], entries, slots()).closing).toBeUndefined();
+    const closing: FuState = { ...open, closingSince: 0, roundTime: 1 };
+    expect(buildFuView(closing, [], entries, slots()).closing).toEqual({
+      x: 173,
+      y: 173,
+      width: 1254,
+      height: 554,
+    });
+  });
+
   it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,

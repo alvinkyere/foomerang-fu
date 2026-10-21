@@ -60,8 +60,26 @@ describe('the pickup badge', () => {
     });
   });
 
-  it('the powers the video has not been studied for yet are marked so', () => {
-    expect(POWER_BADGE.CAFFEINATED.fromVideo).toBe(false);
+  it('Battle Royale: dark purple, "BATTLE ROYALE", the skull icon (4:37.7)', () => {
+    expect(POWER_BADGE.BATTLE_ROYALE).toMatchObject({
+      name: 'BATTLE ROYALE',
+      colour: '#433065',
+      icon: 'skull',
+      fromVideo: true,
+    });
+  });
+
+  it('Caffeinated: green, "CAFFEINATED", the fast-forward icon (3:48.1)', () => {
+    expect(POWER_BADGE.CAFFEINATED).toMatchObject({
+      name: 'CAFFEINATED',
+      colour: '#5acb86',
+      icon: 'fastForward',
+      fromVideo: true,
+    });
+  });
+
+  it('every power now has its badge from the video', () => {
+    for (const badge of Object.values(POWER_BADGE)) expect(badge.fromVideo).toBe(true);
   });
 
   it('it stays up ~1.9 s', () => {

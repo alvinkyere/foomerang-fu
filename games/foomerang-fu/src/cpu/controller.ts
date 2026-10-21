@@ -1,3 +1,4 @@
+import { zoneOf } from '../rules/battleRoyale';
 import { FIXED_TIMESTEP_SECONDS as DT, type Vec2 } from '@foomerang/game-core';
 import {
   breakablesOf,
@@ -332,7 +333,7 @@ export class CpuController {
     const onPlatform = view.systems.platforms.some((pl) => inRect(here, pl.rect));
 
     // 0. the border: outside the safe zone a player explodes, so a CPU that finds itself out there heads straight back in
-    const zone = state.config.arena.safeZone;
+    const zone = zoneOf(state); // (Battle Royale: the border as it has closed in)
     this.#zone = zone;
     if (zone !== undefined && !inRect(here, zone)) {
       const margin = state.config.playerRadius + 30;

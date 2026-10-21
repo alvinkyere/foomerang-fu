@@ -29,6 +29,7 @@ const KNOWN: readonly PowerKind[] = [
   'MULTI_BOOMERANG',
   'ICE_BOOMERANG',
   'FIRE_BOOMERANG',
+  'BATTLE_ROYALE',
 ];
 export function parseEnabledParam(search: string): PowerKind[] | undefined {
   const raw = new URLSearchParams(search).get('enable');

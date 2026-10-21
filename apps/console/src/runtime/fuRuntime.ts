@@ -365,6 +365,8 @@ export class FuRuntime implements MatchRuntime {
           recoverIn: p.fatigue.recoverIn,
           fatigued: isFatigued(p.fatigue, state.config),
         },
+        frozen: p.frozen ?? 0, // ICE_BOOMERANG: seconds left frozen (0: not)
+        burning: p.burning?.seconds ?? 0, // FIRE_BOOMERANG: seconds until the burn kills (0: not burning)
       })),
       pickups: state.pickups.map((p) => ({
         id: p.id,
