@@ -469,3 +469,19 @@ From the store's full-HD screenshots (reference only, not in the repo) and the v
   ss11).
 - **Dashing** (`render/three/dashTrail.ts`; ss06, ss01): overlapping see-through squares in a light shade of its colour, turned
   ≈ 45° and a little unevenly, ≈ 0.6 of its body across, along the way it dashed, fading over ≈ 0.3 s.
+
+## The camera (2026-10-21; applied in `apps/console/src/render/cameraFraming.ts`)
+
+The plaza stretch (1:56–2:28.5) is registered to our map frame by frame (`track1.py`), so the video camera's view of the map is
+exact: its zoom and centre every frame.
+
+- **It frames the living players.** With them spread out it shows the whole plaza, its view 1,250–1,500 map px wide (ours shows
+  1,280); its centre drifts with them, ± ≈ 150 px. As players die and the last ones draw together it closes in: 985 px at its
+  narrowest (2:28, and 2:38.5–2:39.25 on the last two), ≈ 1.3× closer than the whole plaza. No cuts, no slow motion: the iris
+  then closes on the winner.
+- **It eases**: a change settles in about a second.
+- **Applied**: every living player kept in view with room round them (≈ a quarter of the screen's width on each side; two
+  players ≈ 400 px apart give the closest view), between the whole plaza and 1.3× closer, eased with a 0.35 s time constant;
+  drawn as a crop of the resting view (a 2D zoom and pan, as the footage's), so the plaza's perspective never changes.
+- **Not reproduced**: views wider than our plaza (the video sometimes shows ≈ 15% more round its edges, beyond the art we
+  have).

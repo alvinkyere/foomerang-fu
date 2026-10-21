@@ -23,6 +23,7 @@ import {
 } from '../reconstructed/maps';
 import { AimChevron, Trail } from './chargeVisuals';
 import { Hands } from './hands';
+import { easeCamera, frameTarget, type CameraFrame } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
@@ -892,6 +893,10 @@ class Plaza {
   #circles: DrawnCircle[] = [];
   #virtual: number | undefined;
   #restX = 0;
+  /** The camera's framing now (render/cameraFraming.ts), when it was last eased, and the resting view it crops. */
+  #camera: CameraFrame = { zoom: 1, u: 0, v: 0 };
+  #framedAt: number | undefined;
+  readonly #restCamera = new THREE.PerspectiveCamera();
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
   readonly #blasts: Blasts;
@@ -932,6 +937,7 @@ class Plaza {
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
     this.#restX = cx;
+    this.#restCamera.copy(this.camera);
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1428,6 +1434,43 @@ class Plaza {
     this.camera.position.x += (this.#restX + wanted - this.camera.position.x) * 0.1;
   }
 
+  /**
+   * The camera's framing (render/cameraFraming.ts, the reference video's camera on the plaza): every living player in view with
+   * room round them, closing in as they draw together (never wider than the whole plaza, never closer than ≈ 1.3×), eased.
+   * Applied as a crop of the resting view (a 2D zoom and pan, as the footage's is): the plaza's perspective never changes.
+   */
+  #frameCamera(time: number): void {
+    const dt = this.#framedAt === undefined ? 0 : Math.min(0.1, (time - this.#framedAt) / 1000);
+    this.#framedAt = time;
+    // where the resting camera (no crop) shows each living player's middle
+    const rest = this.#restCamera;
+    rest.position.copy(this.camera.position);
+    rest.quaternion.copy(this.camera.quaternion);
+    rest.aspect = this.camera.aspect;
+    rest.updateProjectionMatrix();
+    rest.updateMatrixWorld();
+    const points: { u: number; v: number }[] = [];
+    for (const [id, ch] of this.#characters) {
+      const c = this.#view?.circles.find((q) => q.id === id);
+      if (c === undefined || c.dead) continue;
+      const p = ch.sprite.position.clone();
+      p.y += ch.sprite.scale.y * 0.16; // its middle: about half its body up
+      p.project(rest);
+      points.push({ u: p.x, v: p.y });
+    }
+    this.#camera = easeCamera(this.#camera, frameTarget(points), dt);
+    const { zoom, u, v } = this.#camera;
+    if (zoom <= 1.0001 && Math.abs(u) < 1e-4 && Math.abs(v) < 1e-4) {
+      if (this.camera.view !== null) this.camera.clearViewOffset();
+      return;
+    }
+    const W = 1000 * this.camera.aspect;
+    const H = 1000;
+    const w = W / zoom;
+    const h = H / zoom;
+    this.camera.setViewOffset(W, H, ((u + 1) / 2) * W - w / 2, ((1 - v) / 2) * H - h / 2, w, h);
+  }
+
   /** Fire and ice boomerangs in flight, and burning players, leave fire or ice on the ground behind them (groundMarks.ts). */
   #leaveMarks(time: number): void {
     const view = this.#view;
@@ -1450,6 +1493,7 @@ class Plaza {
   #frame(t: number): void {
     const time = this.#virtual ?? t;
     this.#follow();
+    this.#frameCamera(time);
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#leaveMarks(time);
