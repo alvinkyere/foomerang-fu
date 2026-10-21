@@ -6,6 +6,10 @@ Materials follow the reconstruction (matte; Bread crust/crumb gains; Icecream de
 import bpy, json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from char_hands import add_hands
 from mathutils import Vector, Matrix
+import bmesh
+from select_rig import _islands, _separate
+NO_HANDS = os.environ.get('FOO_NO_HANDS') == '1'
+LOOK = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'select_look.json')))
 args = sys.argv[sys.argv.index('--') + 1:]; OUT = os.path.abspath(args[0]); WIDTH = int(args[1]); CHARS = args[2].split(','); os.makedirs(OUT, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__)); AN = os.path.join(HERE, '..', 'analysis'); LIC = os.path.join(HERE, '..', 'licensed')
 SCALE_PX = WIDTH / 640; HEIGHT = round(360 * SCALE_PX); CELL = int(64 * SCALE_PX); N_YAW = 16; TILTS = {'stand': -20.0, 'air': -70.0}
@@ -52,6 +56,20 @@ for name in CHARS:
     add_hands(mesh, name, LIC, CSCALE.get(name, 1.0))                                       # Bread, Coffee, Icecream, Carrot (char_hands.py)
     root = bpy.data.objects.new('ROOT', None); bpy.context.collection.objects.link(root); spin = bpy.data.objects.new('SPIN', None); bpy.context.collection.objects.link(spin); spin.parent = root; mesh.parent = spin
     bpy.context.view_layer.update(); mesh.location.z -= min((mesh.matrix_world @ c).z for c in body_box)
+    hands = []
+    if NO_HANDS:
+        # the game draws the two side hands itself, so they can hold, swing and walk: they come off the body (kept out of the
+        # render) and their place in every frame is recorded, as the pack (and this atlas) has them: in play the video and the
+        # store's full-HD shots show them close to the body at the pack's size (the select screen's larger fit is for its close-up)
+        bpy.context.view_layer.update(); mw = mesh.matrix_world.copy()
+        bm = bmesh.new(); bm.from_mesh(mesh.data); bm.verts.ensure_lookup_table()
+        stubs = [sum(((mw @ bm.verts[i].co) for i in g), Vector()) / len(g) for g in _islands(bm) if len(g) in (98, 218)]
+        bm.free(); stubs.sort(key=lambda c: -c.z)
+        assert len(stubs) >= 2, f'{name}: expected two hands, found {len(stubs)} stub parts'
+        for c in sorted(stubs[:2], key=lambda c: c.x):
+            hand = _separate(mesh, c); hand.parent = spin; hand.matrix_parent_inverse = spin.matrix_world.inverted()
+            hand.hide_render = True; hands.append(hand)
+        bpy.context.view_layer.update()
     for mt in mesh.data.materials:
         if not (mt and mt.node_tree): continue
         nt = mt.node_tree; bs = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'); bs.inputs['Specular IOR Level'].default_value = 0.0; bs.inputs['Roughness'].default_value = 1.0
@@ -66,11 +84,25 @@ for name in CHARS:
         if name == 'icecream':
             hs = nt.nodes.new('ShaderNodeHueSaturation'); hs.inputs['Saturation'].default_value = 0.79; hs.inputs['Value'].default_value = 0.96; nt.links.new(lk.from_socket, hs.inputs['Color']); nt.links.new(hs.outputs['Color'], bs.inputs['Base Color'])
     k = CSCALE.get(name, 1.0) * KSCALE; meta['chars'][name] = dict(scale=k)
+    if NO_HANDS:
+        look = LOOK['chars'].get(name, {})
+        meta['chars'][name]['hands'] = dict(colour=look.get('hand_colour'), frames={})
     for tname, tdeg in TILTS.items():
         for j in range(N_YAW):
             yaw = 2 * math.pi * j / N_YAW
             root.location = (G.x, G.y, 0.0); root.rotation_euler = (math.radians(tdeg), 0, 0); root.scale = (k,) * 3; spin.rotation_euler = (0, 0, yaw)
             bpy.context.view_layer.update(); pts = [mesh.matrix_world @ c for c in body_box]; ctr = sum(pts, Vector()) / 8
             root.location.x += G.x - ctr.x; root.location.y += G.y - ctr.y                      # bbox centre over the anchor ground point
+            if NO_HANDS:
+                # where each hand is in this frame: from the ground point under the body, in body heights (Blender axes:
+                # x right, y away from the camera, z up); and how big a hand is, in body heights
+                bpy.context.view_layer.update()
+                zs = [(mesh.matrix_world @ c).z for c in body_box]; H = max(zs) - min(zs) if tname == 'stand' else None
+                if tname == 'stand' and j == 0:
+                    corners = [hands[0].matrix_world @ Vector(c) for c in hands[0].bound_box]
+                    meta['chars'][name]['hands']['height'] = H
+                    meta['chars'][name]['hands']['size'] = round(max(max(p[a] for p in corners) - min(p[a] for p in corners) for a in range(3)) / H, 4)
+                Hs = meta['chars'][name]['hands']['height']
+                meta['chars'][name]['hands']['frames'][f'{tname}_{j:02d}'] = [[round((hd.matrix_world.translation[a] - G[a]) / Hs, 4) for a in range(3)] for hd in hands]
             sc.render.filepath = os.path.join(OUT, f'{name}_{tname}_{j:02d}.png'); bpy.ops.render.render(write_still=True)
 json.dump(meta, open(os.path.join(OUT, 'cells.json'), 'w'), indent=1); print('chars baked', OUT)

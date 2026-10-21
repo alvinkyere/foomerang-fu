@@ -15,6 +15,8 @@ import {
   type ReconstructedMap,
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
+import { Hands } from './hands';
+import { parseHands } from '../characterRig';
 import { BOOMERANG_LOOK, boomerangOutline } from '../boomerangLook';
 import { CALL_AURA, auraIn, auraLeftBehind } from '../callAura';
 import { landingPose, type LandingPose } from '../roundIntro';
@@ -51,7 +53,18 @@ interface Manifest {
   readonly camera: unknown;
   readonly characterScale?: number;
   readonly characters: Readonly<
-    Record<string, { file: string; cell: number; anchor: [number, number]; frames: number }>
+    Record<
+      string,
+      {
+        file: string;
+        cell: number;
+        anchor: [number, number];
+        frames: number;
+        /** The same atlas without its two side hands, which the game draws (render/characterRig.ts). */
+        body?: string;
+        hands?: unknown;
+      }
+    >
   >;
 }
 
@@ -114,6 +127,8 @@ class Character {
   readonly #arrow: THREE.Sprite;
   readonly #aim: AimLine;
   #heading = 0;
+  /** Its own two hands, drawn by the game (render/three/hands.ts); undefined: they are baked into its sprite. */
+  readonly #ownHands: Hands | undefined;
   #deadAt: number | undefined;
   #last: { x: number; y: number; t: number } | undefined;
   logical = { x: 0, y: 0 };
@@ -142,7 +157,9 @@ class Character {
     readonly anchor: readonly [number, number],
     /** This character's own colour (its aim line; its boomerang and trail are drawn in it too). */
     readonly colour: string,
+    hands?: Hands,
   ) {
+    this.#ownHands = hands;
     this.#texture = atlas.clone();
     this.#texture.repeat.set(1 / 16, 1 / 2);
     this.#texture.needsUpdate = true;
@@ -280,6 +297,9 @@ class Character {
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
     this.#handAura(c, cam, at, h, now);
     this.#land(landing, at, h);
+    // its hands, where its body's frame has them, rising with its hop (atlas px -> scene: h / cell)
+    const yaw = (this.#heading * Math.PI) / 8;
+    this.#ownHands?.place(at, this.#heading, airborne, (hop * h) / this.cell, a, yaw);
   }
 
   /** Burning (FIRE_BOOMERANG): it flickers in the fire's yellows and oranges (the video, 9:55.9–9:57.8). */
@@ -413,6 +433,7 @@ class Character {
       ...this.#hands,
     );
     this.#aim.destroy(scene);
+    this.#ownHands?.destroy(scene);
     this.#texture.dispose();
   }
 }
@@ -630,6 +651,8 @@ class Plaza {
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
   readonly #banner: HTMLDivElement;
   readonly #atlases = new Map<string, THREE.Texture>();
+  /** The plaza's toon shading, for what the game draws itself (the characters' hands). */
+  readonly #gradient = toonGradient();
   #view: ArenaView | undefined;
   #circles: DrawnCircle[] = [];
   #virtual: number | undefined;
@@ -705,7 +728,7 @@ class Plaza {
     // our vector floor (art/reconstruction/environ2/blender/floor_vector.py): one crisp flat-coloured ground, top-down
     for (const o of [...gltf.children]) if (/^(FLOOR|RUG)/.test(o.name)) o.removeFromParent();
     this.scene.add(plazaFloor(floor.texture, floor.extent));
-    const gradient = toonGradient();
+    const gradient = this.#gradient;
     gltf.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;
       const m = o.material as THREE.MeshStandardMaterial;
@@ -903,7 +926,15 @@ class Plaza {
         const meta = this.manifest.characters[kind];
         const atlas = this.#atlases.get(kind);
         if (meta === undefined || atlas === undefined) continue;
-        ch = new Character(this.scene, atlas, meta.cell, meta.anchor, CHARACTER_COLOURS[kind]);
+        const hands = parseHands(meta.hands);
+        ch = new Character(
+          this.scene,
+          atlas,
+          meta.cell,
+          meta.anchor,
+          CHARACTER_COLOURS[kind],
+          hands === undefined ? undefined : new Hands(this.scene, hands, scale, this.#gradient),
+        );
         this.#characters.set(c.id, ch);
         this.#kinds.set(c.id, kind);
       }
@@ -1261,9 +1292,11 @@ export async function createThreePlaza(
   const atlases = new Map<string, THREE.Texture>();
   await Promise.all(
     Object.entries(manifest.characters).map(async ([kind, c]) => {
-      if (!/^[A-Za-z0-9_-]{1,64}\.(webp|png)$/.test(c.file))
+      // with hands of its own (drawn by the game) its body comes from the hands-off atlas
+      const file = c.body !== undefined && parseHands(c.hands) !== undefined ? c.body : c.file;
+      if (!/^[A-Za-z0-9_-]{1,64}\.(webp|png)$/.test(file))
         throw new Error('plaza manifest: bad character file');
-      const t = await loader.loadAsync(`${at}${c.file}`);
+      const t = await loader.loadAsync(`${at}${file}`);
       t.colorSpace = THREE.SRGBColorSpace;
       t.magFilter = THREE.LinearFilter;
       atlases.set(kind, t);
