@@ -483,11 +483,43 @@ exact: its zoom and centre every frame.
   narrowest (2:28, and 2:38.5–2:39.25 on the last two), ≈ 1.3× closer than the whole plaza. No cuts, no slow motion: the iris
   then closes on the winner.
 - **It eases**: a change settles in about a second.
+- **Its usual view is wider than environ2's frame** (owner, 2026-10-21: "15% zoom out is the original normal view"): 1,389 px at
+  the median (≈ 0.92×), centred at (681, 392) of the map's (640, 360); its widest 1,502 px (≈ 0.85×). Over the whole stretch
+  its views cover map px −201…1,544 across and −79…992 down.
 - **Applied**: every living player kept in view with room round them (≈ a quarter of the screen's width on each side; two
-  players ≈ 400 px apart give the closest view), between the whole plaza and 1.3× closer, eased with a 0.35 s time constant;
-  drawn as a crop of the resting view (a 2D zoom and pan, as the footage's), so the plaza's perspective never changes.
-- **Not reproduced**: views wider than our plaza (the video sometimes shows ≈ 15% more round its edges, beyond the art we
-  have).
+  players ≈ 400 px apart give the closest view), between 0.85× and 1.3×, eased with a 0.35 s time constant; between rounds the
+  median view; never beyond the union of the video's views. Drawn as a crop of the resting view (a 2D zoom and pan, as the
+  footage's), so the plaza's perspective never changes.
+
+## The outskirts (2026-10-21; applied: `outskirts.py`, floor.webp)
+
+Wider than environ2's frame, the video shows what lies round the plaza: the paths running on (south, east, west), grass, the
+east trees' long violet shadows and their dark canopies, the yellow tree past the north-east stall, the red foliage along the
+south, the sign ("JA… PR…") past the west path, fence posts. `outskirts.py` takes the per-pixel median of every registered plaza
+frame (the players walk away, the ground stays) and lays it on the floor plane through environ2's camera: the floor now runs
+Y 35–105 (was 50–99). Our camera only ever crops that one view, so what stands up out there is drawn on the ground exactly where
+the video shows it; the 3D plaza is clipped at environ2's frame (ThreePlaza, `outskirtsClip`) so the two never overlap (the round
+tree, which stands across the frame's edge, is not clipped).
+
+- **environ2's light falls off towards its edges** (0.61–0.70 of the video's at its corners): fitted against the video (log
+  ratio, quartic, robust) and taken out of our floor, so ours and the video's meet without a seam.
+- **Never seen** (≈ 39% of the floor's rectangle, mostly far outside any view): grass, the video's own median grass colour.
+  Our camera keeps to the box round the video's views, whose far corners the video never filled, so at its widest, near a
+  corner, a little of that plain grass can show.
+- Moving things out there (the trees' sway) are still: the video's median is one picture.
+
+## The water (2026-10-21; applied: `water_field.py`, `render/waterLook.ts`, `render/three/waterShader.ts`)
+
+Not a flat disc. Traced along three radii of the registered footage (2:10–2:20) and in the store's HD shot of this plaza:
+
+- **A pale glow hugs every edge**, the basin's wall and the shell island alike (≈ 0.3 units wide), as in environ2 (water
+  `#78d2e7`, its light `#a9e6ec`).
+- **Thin light foam lines** (≈ 0.08 units thick) follow each edge at a distance, the island's shell outline included, and
+  **drift slowly away from it** (≈ 1–1.2 map px a second: 0.06 units), fading by ≈ 0.75 units; about one at a time off each
+  edge (≈ 0.5 units off the wall in the HD shot); broken into pieces.
+- **Applied**: `water_field.py` bakes each water spot's distance to its nearest edge from the plaza's own meshes (water disc
+  minus the dish, bowl and tab, seen from above) and a tiling noise; the shader draws the glow, and foam lines at equal
+  distances moving outward, broken where the noise is low.
 
 ## The effects are the video's own, cut out frame by frame (2026-10-21; applied)
 

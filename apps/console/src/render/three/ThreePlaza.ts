@@ -22,7 +22,7 @@ import {
 } from '../reconstructed/maps';
 import { AimChevron, Trail } from './chargeVisuals';
 import { Hands } from './hands';
-import { easeCamera, frameTarget, type CameraFrame } from '../cameraFraming';
+import { CAMERA_FRAMING, easeCamera, frameTarget, type CameraFrame } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
@@ -38,6 +38,7 @@ import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
+import { waterMaterial } from './waterShader';
 import { batchPlaza } from './plazaBatch';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
@@ -61,6 +62,8 @@ const FOLLOW_LIMIT = 14;
 const FADE_OPACITY = 0.35;
 /** Top-level objects that may turn see-through when they hide a player. */
 const FADEABLE = /^(stall_|TREE|BUNTING|BANNER|SIGN)/;
+/** The water's field as water_field.py bakes it: over the water's box widened 3%, distances up to 2 units. */
+const WATER_FIELD = { margin: 1.03, far: 2 } as const;
 
 interface Manifest {
   readonly map: string;
@@ -925,6 +928,7 @@ class Plaza {
   readonly #bursts: Burst[] = [];
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
+  readonly #waterField: THREE.Texture | null;
   readonly #banner: HTMLDivElement;
   readonly #atlases = new Map<string, THREE.Texture>();
   /** The plaza's toon shading, for what the game draws itself (the characters' hands). */
@@ -934,7 +938,7 @@ class Plaza {
   #virtual: number | undefined;
   #restX = 0;
   /** The camera's framing now (render/cameraFraming.ts), when it was last eased, and the resting view it crops. */
-  #camera: CameraFrame = { zoom: 1, u: 0, v: 0 };
+  #camera: CameraFrame = CAMERA_FRAMING.rest;
   #framedAt: number | undefined;
   readonly #restCamera = new THREE.PerspectiveCamera();
   readonly #props: PlazaProps;
@@ -955,8 +959,13 @@ class Plaza {
     readonly characterScale: number,
     gltf: THREE.Group,
     atlases: Map<string, THREE.Texture>,
-    floor: { texture: THREE.Texture; extent: { x0: number; x1: number; y0: number; y1: number } },
+    floor: {
+      texture: THREE.Texture;
+      extent: { x0: number; x1: number; y0: number; y1: number };
+      water: THREE.Texture | null;
+    },
   ) {
+    this.#waterField = floor.water;
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -978,6 +987,18 @@ class Plaza {
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
     this.#restX = cx;
     this.#restCamera.copy(this.camera);
+    // the outskirts are the reference video's own ground, painted round environ2's frame (art/physics_reference/outskirts.py):
+    // the 3D plaza is cut at that frame, so beyond it the video's picture of what stands there shows, and the two never overlap
+    this.renderer.localClippingEnabled = true;
+    this.camera.updateMatrixWorld();
+    const outskirtsClip = new THREE.Frustum()
+      .setFromProjectionMatrix(
+        new THREE.Matrix4().multiplyMatrices(
+          this.camera.projectionMatrix,
+          this.camera.matrixWorldInverse,
+        ),
+      )
+      .planes.slice(0, 4);
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1036,6 +1057,13 @@ class Plaza {
           ? 'leave'
           : 'shared',
     );
+    // (not the round tree: it stands across the frame's edge, whole, as the video's does)
+    for (const root of gltf.children)
+      if (!root.name.startsWith('TREE29'))
+        root.traverse((o) => {
+          if (o instanceof THREE.Mesh)
+            for (const m of [o.material].flat()) m.clippingPlanes = outskirtsClip;
+        });
     for (const root of gltf.children) {
       if (FADEABLE.test(root.name)) {
         const materials: THREE.Material[] = [];
@@ -1134,61 +1162,21 @@ class Plaza {
         });
       }
     }
-    // water: drifting rings and glints painted on a transparent disc just above the water
+    // water: the video's, its glow along every edge and its foam drifting off them (waterShader.ts), when its field is in
     const water = gltf.getObjectByName('FOUNTAIN_water');
-    if (water instanceof THREE.Mesh) {
-      // the water's own material (Blender's gradient does not survive the export): clear turquoise, glossy
-      water.material = new THREE.MeshStandardMaterial({
-        color: 0x3fb7d6,
-        roughness: 0.12,
-        metalness: 0,
-        emissive: 0x0b4f63,
-        emissiveIntensity: 0.35,
-      });
-      water.receiveShadow = true;
-      water.castShadow = false;
+    if (water instanceof THREE.Mesh && this.#waterField !== null) {
       box.setFromObject(water);
       const c = box.getCenter(new THREE.Vector3());
-      const radius = (box.max.x - box.min.x) / 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 256;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-        for (let r = 70; r < 128; r += 18) {
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(128, 128, r, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        for (let i = 0; i < 26; i += 1) {
-          const a = (i * 2.4) % (Math.PI * 2);
-          const r = 72 + ((i * 37) % 52);
-          ctx.fillRect(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 7, 2);
-        }
-      }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      const ripples = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * 0.98, 64).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({
-          map: tex,
-          transparent: true,
-          depthWrite: false,
-          opacity: 0.8,
-        }),
+      const material = waterMaterial(
+        this.#waterField,
+        { x: c.x, z: c.z, half: ((box.max.x - box.min.x) / 2) * WATER_FIELD.margin },
+        WATER_FIELD.far,
       );
-      ripples.position.set(c.x, box.max.y + 0.04, c.z);
-      this.scene.add(ripples);
+      water.material = material;
       this.#moving.push({
-        object: ripples,
+        object: water,
         motion: (t) => {
-          const s = 1 + 0.06 * ((t % 2000) / 2000);
-          ripples.scale.set(s, 1, s);
-          ripples.rotation.y = (t / 9000) * Math.PI * 2;
-          (ripples.material as THREE.MeshBasicMaterial).opacity =
-            0.55 + 0.25 * Math.sin((t / 2000) * Math.PI);
+          (material.uniforms['time'] as { value: number }).value = t / 1000;
         },
       });
     }
@@ -1492,7 +1480,7 @@ class Plaza {
 
   /**
    * The camera's framing (render/cameraFraming.ts, the reference video's camera on the plaza): every living player in view with
-   * room round them, closing in as they draw together (never wider than the whole plaza, never closer than ≈ 1.3×), eased.
+   * room round them, closing in as they draw together (between ≈ 0.85× and ≈ 1.3× environ2's frame), eased.
    * Applied as a crop of the resting view (a 2D zoom and pan, as the footage's is): the plaza's perspective never changes.
    */
   #frameCamera(time: number): void {
@@ -1516,10 +1504,6 @@ class Plaza {
     }
     this.#camera = easeCamera(this.#camera, frameTarget(points), dt);
     const { zoom, u, v } = this.#camera;
-    if (zoom <= 1.0001 && Math.abs(u) < 1e-4 && Math.abs(v) < 1e-4) {
-      if (this.camera.view !== null) this.camera.clearViewOffset();
-      return;
-    }
     const W = 1000 * this.camera.aspect;
     const H = 1000;
     const w = W / zoom;
@@ -1709,9 +1693,16 @@ export async function createThreePlaza(
   const floorTexture = await loader.loadAsync(`${at}floor.webp`);
   floorTexture.colorSpace = THREE.SRGBColorSpace;
   floorTexture.anisotropy = 8;
+  // the water's field (art/physics_reference/water_field.py); without it the water is plain
+  const water = await loader.loadAsync(`${at}water.png`).catch(() => null);
+  if (water !== null) {
+    water.flipY = false;
+    water.wrapS = water.wrapT = THREE.RepeatWrapping;
+  }
   const plaza = new Plaza(container, map, config, manifest, characterScale, gltf.scene, atlases, {
     texture: floorTexture,
     extent,
+    water,
   });
   // the video's own effects (art/physics_reference/vfx_extract.py), loaded behind the plaza: until they are in, or if one is
   // missing, the drawn stand-ins play instead
