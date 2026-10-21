@@ -310,3 +310,53 @@ the second can go while the first is away. (The old simultaneous ±13° pair is 
   eyes shut; 6:56.38 the block **shatters** into pale shards that lie on the ground, and it dashes off. **Frozen 1.83 s.** An ice
   hit freezes; it does not kill.
 - 6:02.5 an ice throw leaves a **cyan trail on the ground** that is still there 3+ s later.
+
+## The boomerang's flight, checked against the video (2026-10-20; nothing changed)
+
+The owner asked for the trajectory to be checked. Tracked frame by frame: the pink throw at 0:36.9–39.7 (stabilised), and every
+pink boomerang on the plaza at 1:56–2:28.5 (registered, so in exact world units).
+
+- **The shape matches.** Straight out for ≈ 0.94 s; bounces off what it meets; a tight hook (≈ 90° in 0.1 s, ≈ 15 rad/s, against
+  our 14.3); then a curve home, killing on the way (the DOUBLE KILL at 38.13).
+- **The speeds match.** On the plaza: charged ≈ 2,200–2,500 u/s (ours 2,450), quick ≈ 800–1,200 (ours 900), home ≈ 740–1,220
+  (ours 1,000).
+- The 0:37 clip's return looks slower (≈ 0.45× its way out), but that footage has a moving camera and no exact scale; the plaza's
+  registered numbers are used.
+- **New evidence (not applied):** a charged throw slows after a bounce and passing through foliage (2:23.4: 2,293 → 1,925 →
+  1,126 u/s). The open question about it stays open until more throws are measured.
+
+## The boomerang's look (2026-10-20; applied in `apps/console/src/render/boomerangLook.ts`)
+
+- **At rest** (the pink one lying at 0:40.2–42.6): a flat V, arms opening at ≈ 105° and ≈ 0.35 of its span thick, ≈ 22 u tip to
+  tip (13 × 9 px against the 27 px donut), solid in its thrower's colour with a lighter rim. Ours was a curved crescent with a
+  darker rim, drawn ≈ 44 u long (from its collision radius): twice the size.
+- **In flight** (0:36.9–37.1): it spins too fast to see: a pale disc ≈ 21 u across (12.5 px) with a rim and a dot in its
+  thrower's colour.
+- **Its trail** follows every throw, quick or charged (the pink and the brown at 0:36.9 are both quick): a band ≈ 0.8 of the disc
+  wide and the same width all along, part see-through, fading evenly. Read at three points of the pink one, it is gone 0.65–0.95
+  s after the boomerang passed: 0.85 s is used. Ours was only behind a charged throw, narrowed to a point, and lasted 0.3 s.
+
+## The calling aura, frame by frame (2026-10-20; applied in `apps/console/src/render/callAura.ts`)
+
+The owner: the aura on the boomerang and the hands while calling it home must be exactly the video's. Read on every frame of the
+tutorial's PULL BACK (0:17.80–18.90), centred on the boomerang and enlarged.
+
+| frames        | the ring round the boomerang                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| 17.90–17.93   | fades in over two frames, a little larger at first                                               |
+| 17.97–18.13   | lit: a thin pale cyan-white outline, ≈ 19 px across against the boomerang's 13 px (1.5 lengths)  |
+| 18.17–18.30   | gone, from one frame to the next                                                                 |
+| 18.33–18.37   | fades in again, a little larger at first                                                         |
+| 18.40–18.90   | lit without a break (past half a second), through the lift and round the boomerang flying home   |
+| 18.67–≈ 18.92 | as it lifts, the ring it lay in stays where it was and comes apart (white arcs), gone by ≈ 18.92 |
+
+- **It does not flash.** The earlier reading (lit 0.3 s, dark 0.15 s, over and over) took the gap at 18.17–18.30 for a flash; the
+  second lit stretch lasts over 0.5 s. The ring is there while THROW is held for the boomerang (the rules' recall), and the gap is
+  where the hold was let go. Applied: lit while called, fading in over 2 frames from 1.12× its size; the ring left behind on the
+  lift spreads to 1.3× and fades out over 0.25 s.
+- **The hands:** at 640 × 360 the banana's hands show only as small yellow dots; no ring can be seen on them. The owner's rule
+  stands (the same aura on the hands), so they now follow the boomerang's: lit while calling, fading in the same way, no flash.
+- Applied: `games/foomerang-fu/src/rules/ice.ts` (1.83 s; a shield pops with it), the block `apps/console/src/render/iceLook.ts`
+  (block ≈ #cffbfc, ≈ 1.75 body widths × 2.05 body heights; the body blue ≈ #70c6f6; shards on THAWED). **Not shown:** whether a
+  frozen player is killed by a hit (taken as: yes, like anyone); whether a second ice hit lengthens it (taken as: no); whether the
+  ground trail does anything (drawn only). (6:21 "ice block" on a raft is a power Book spawning, not ice.)

@@ -14,7 +14,8 @@ import {
   type ReconstructedMap,
 } from '../reconstructed/maps';
 import { AimLine, Trail } from './chargeVisuals';
-import { CALL_AURA, auraPulse } from '../callAura';
+import { BOOMERANG_LOOK, boomerangOutline } from '../boomerangLook';
+import { CALL_AURA, auraIn, auraLeftBehind } from '../callAura';
 import { landingPose, type LandingPose } from '../roundIntro';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
@@ -342,7 +343,8 @@ class Character {
       return;
     }
     this.#callingAt ??= now;
-    const lit = auraPulse((now - this.#callingAt) / 1000);
+    // as the boomerang's: fading in from a little larger, then lit for as long as the call lasts (render/callAura.ts)
+    const aura = auraIn((now - this.#callingAt) / 1000);
     const body = h * BODY_OF_CELL;
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
@@ -353,9 +355,9 @@ class Character {
         .addScaledVector(right, side * body * 0.62)
         .addScaledVector(up, body * 0.36);
       hand.quaternion.copy(cam.quaternion);
-      hand.scale.setScalar(body * 0.2);
-      hand.visible = lit > 0;
-      (hand.material as THREE.MeshBasicMaterial).opacity = 0.9 * lit;
+      hand.scale.setScalar(body * 0.2 * aura.scale);
+      hand.visible = true;
+      (hand.material as THREE.MeshBasicMaterial).opacity = 0.9 * aura.opacity;
     });
   }
 
@@ -414,14 +416,19 @@ class Character {
   }
 }
 
-/** The boomerang: a brown crescent with the owner's colour on its rim, spinning above its shadow. */
+/**
+ * The boomerang as the reference video draws it (render/boomerangLook.ts): lying still, a flat V in its thrower's colour with
+ * a lighter rim; in flight, the pale disc its spin makes, with a rim and a dot in that colour; behind every throw, its trail.
+ */
 class Boomerang {
   readonly group = new THREE.Group();
+  /** The V (seen at rest, and turning as it falls) and the disc (seen in flight). */
+  readonly #still = new THREE.Group();
+  readonly #disc = new THREE.Group();
   readonly #shadow: THREE.Mesh;
   logical = { x: 0, y: 0 };
   #spentAt: number | undefined;
   #spent = false;
-  #charged = false;
   readonly #trail: Trail;
   #state: BoomerangView['state'] = 'THROWN';
   #at = { x: 0, z: 0, flight: 0 };
@@ -430,28 +437,63 @@ class Boomerang {
   readonly #rest: number;
   /** Being called home: the video's flashing ring round it (render/callAura.ts). */
   readonly #aura: THREE.Mesh;
+  /** The ring it lay in, left behind when it lifts (render/callAura.ts). */
+  readonly #left: THREE.Mesh;
+  #leftAt: number | undefined;
+  #lastState: BoomerangView['state'] | undefined;
   #called = false;
   #calledAt: number | undefined;
 
-  /** `colour`: the thrower's character colour (owner, 2026-10-19): the boomerang is it, its edge a darker shade of it. */
-  constructor(scene: THREE.Scene, colour: string, size: number) {
-    const arc = Math.PI * 0.76;
+  /**
+   * `colour`: the thrower's character colour (owner, 2026-10-19). `unit`: one world unit in scene units (its sizes are the
+   * video's, in world units, not its collision radius: that drew it twice too big).
+   */
+  constructor(scene: THREE.Scene, colour: string, unit: number) {
+    const look = BOOMERANG_LOOK;
     const body = color(colour);
-    const wood = new THREE.Mesh(
-      new THREE.TorusGeometry(size, size * 0.32, 8, 24, arc),
-      new THREE.MeshStandardMaterial({ color: body, roughness: 0.6 }),
-    );
-    const edge = new THREE.Mesh(
-      new THREE.TorusGeometry(size * 1.12, size * 0.14, 6, 24, arc),
-      new THREE.MeshStandardMaterial({ color: body.clone().multiplyScalar(0.6), roughness: 0.5 }),
-    );
-    for (const m of [wood, edge]) {
-      m.rotation.x = -Math.PI / 2;
+    const rim = body.clone().lerp(new THREE.Color(1, 1, 1), look.rimLighten);
+    // flat, as the video's is: half the V (elbow, round its tip, back) is convex, so a fan fills it; the other half mirrors it
+    const outline = boomerangOutline();
+    const half = outline.slice(0, outline.findIndex((q, i) => i > 0 && q.x === 0) + 1);
+    const vee = (scale: number) => {
+      const points = [...half, ...half.map((q) => ({ x: -q.x, y: q.y }))];
+      const position = points.flatMap((q) => [q.x * scale * unit, q.y * scale * unit, 0]);
+      const index: number[] = [];
+      for (const start of [0, half.length])
+        for (let i = 1; i < half.length - 1; i += 1) index.push(start, start + i, start + i + 1);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+      const up = points.flatMap(() => [0, 0, 1]);
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(up, 3));
+      geometry.setIndex(index);
+      return geometry;
+    };
+    const thick = 2.5 * unit;
+    const material = (c: THREE.Color) =>
+      new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, side: THREE.DoubleSide });
+    const solid = new THREE.Mesh(vee(1), material(body));
+    // the rim: the same V a little larger, lighter, just under it
+    const edge = new THREE.Mesh(vee(1.12), material(rim));
+    solid.position.z = thick;
+    for (const m of [solid, edge]) {
       m.castShadow = true;
-      this.group.add(m);
+      this.#still.add(m);
     }
+    // lying in the ground's plane (the shape is drawn in x/y; the ground is x/z)
+    this.#still.rotation.x = -Math.PI / 2;
+    const r = (look.disc.diameter / 2) * unit;
+    const pale = body.clone().lerp(new THREE.Color(1, 1, 1), look.disc.pale);
+    const plain = (c: THREE.Color) => new THREE.MeshBasicMaterial({ color: c });
+    this.#disc.add(
+      new THREE.Mesh(new THREE.CircleGeometry(r * (1 - look.disc.rim), 32), plain(pale)),
+      new THREE.Mesh(new THREE.RingGeometry(r * (1 - look.disc.rim), r, 32), plain(body)),
+      new THREE.Mesh(new THREE.CircleGeometry(r * look.disc.dot, 16), plain(body)),
+    );
+    this.#disc.children.forEach((m, i) => (m.position.z = 0.01 * i));
+    this.#disc.rotation.x = -Math.PI / 2;
+    this.group.add(this.#still, this.#disc);
     this.#shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(size * 1.1, 24).rotateX(-Math.PI / 2),
+      new THREE.CircleGeometry(r * 1.05, 24).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({
         color: 0x33402a,
         transparent: true,
@@ -459,8 +501,8 @@ class Boomerang {
         depthWrite: false,
       }),
     );
-    // its length is about 2.24 × size (the outer edge's span), the aura 1.5 lengths across
-    const auraR = (CALL_AURA.ringOfBoomerang * 2.24 * size) / 2;
+    // the aura: 1.5 of its length across (render/callAura.ts)
+    const auraR = (CALL_AURA.ringOfBoomerang * look.span * unit) / 2;
     this.#aura = new THREE.Mesh(
       new THREE.RingGeometry(auraR * 0.86, auraR, 40).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({
@@ -471,9 +513,11 @@ class Boomerang {
       }),
     );
     this.#aura.visible = false;
-    scene.add(this.group, this.#shadow, this.#aura);
-    this.#trail = new Trail(scene, size * 1.6, body);
-    this.#rest = size * 0.35;
+    this.#left = this.#aura.clone();
+    this.#left.material = (this.#aura.material as THREE.Material).clone();
+    scene.add(this.group, this.#shadow, this.#aura, this.#left);
+    this.#trail = new Trail(scene, look.trail.width * unit, body);
+    this.#rest = thick / 2;
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
@@ -485,16 +529,25 @@ class Boomerang {
     this.group.position.set(p.x, p.y, p.z);
     this.#shadow.position.set(p.x + 0.2, 0.05, p.z + 0.1);
     this.#spent = view.spent;
-    // a fully charged throw leaves the pink trail (until it is caught or deflected: its power drops)
-    const charged = view.power >= 1 && !view.spent;
-    if (!charged && this.#charged) this.#trail.clear();
-    this.#charged = charged;
   }
 
   spin(time: number): void {
     // dropped (owner, 2026-10-19): it falls from its flight height under gravity (about 0.3 s), lands flat and lies still;
     // pulled home it flies at its height again, shaking until it arrives
     const { x, z, flight } = this.#at;
+    // lifting out of where it lay to fly home: the ring it lay in stays there and comes apart (render/callAura.ts)
+    if (this.#lastState === 'GROUNDED' && this.#state === 'RECALLING' && this.#aura.visible) {
+      this.#leftAt = time;
+      this.#left.position.copy(this.#aura.position);
+    }
+    this.#lastState = this.#state;
+    if (this.#leftAt !== undefined) {
+      const left = auraLeftBehind((time - this.#leftAt) / 1000);
+      this.#left.visible = left.opacity > 0;
+      (this.#left.material as THREE.MeshBasicMaterial).opacity = 0.9 * left.opacity;
+      this.#left.scale.setScalar(left.scale);
+      if (left.opacity <= 0) this.#leftAt = undefined;
+    } else this.#left.visible = false;
     if (this.#state === 'GROUNDED') {
       this.#groundedAt ??= time;
       const t = (time - this.#groundedAt) / 1000;
@@ -513,15 +566,20 @@ class Boomerang {
     }
     if (this.#called) {
       this.#calledAt ??= time;
-      const lit = auraPulse((time - this.#calledAt) / 1000);
-      this.#aura.visible = lit > 0;
-      (this.#aura.material as THREE.MeshBasicMaterial).opacity = 0.9 * lit;
+      const aura = auraIn((time - this.#calledAt) / 1000);
+      this.#aura.visible = true;
+      (this.#aura.material as THREE.MeshBasicMaterial).opacity = 0.9 * aura.opacity;
+      this.#aura.scale.setScalar(aura.scale);
       this.#aura.position.copy(this.group.position);
     } else {
       this.#calledAt = undefined;
       this.#aura.visible = false;
     }
-    if (this.#charged) this.#trail.add(this.group.position, time);
+    // in flight it is the disc its spin makes, and it leaves its trail (every throw, quick or charged); lying still, the V
+    const flying = this.#state !== 'GROUNDED' && !this.#spent;
+    this.#disc.visible = flying;
+    this.#still.visible = !flying;
+    if (flying) this.#trail.add(this.group.position, time);
     this.#trail.update(time);
     if (!this.#spent) {
       if (this.#state !== 'GROUNDED') this.group.rotation.y = -time / 40;
@@ -533,7 +591,7 @@ class Boomerang {
   }
 
   destroy(scene: THREE.Scene): void {
-    scene.remove(this.group, this.#shadow, this.#aura);
+    scene.remove(this.group, this.#shadow, this.#aura, this.#left);
     this.#trail.destroy(scene);
   }
 }
@@ -873,11 +931,7 @@ class Plaza {
         // in its thrower's character colour (a yellow banana throws a yellow boomerang)
         const owner = view.circles.find((c) => c.id === b.ownerId);
         const kind = characterOf(this.map.roster, owner ?? { number: 1 }, this.#hasArt);
-        art = new Boomerang(
-          this.scene,
-          CHARACTER_COLOURS[kind],
-          this.#space.length(b.radius) * 1.4,
-        );
+        art = new Boomerang(this.scene, CHARACTER_COLOURS[kind], this.#space.length(1));
         this.#boomerangs.set(b.id, art);
       }
       art.apply(this.#space, b);
