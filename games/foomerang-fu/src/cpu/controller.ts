@@ -32,6 +32,9 @@ import { Rng } from './rng';
 
 const MAX_HISTORY = 80;
 
+/** A second boomerang may follow the first this soon (ticks): with two, the video's players throw them in quick succession. */
+const FOLLOW_UP_TICKS = 30;
+
 interface FoeView {
   readonly id: string;
   readonly position: Vec2;
@@ -177,6 +180,8 @@ export class CpuController {
   #lastDash = -9999;
   #pendingSlash: { at: number; aim: Vec2 } | undefined;
   #dodge: { until: number; dir: Vec2 } | undefined;
+  /** Which way it drifts while it holds its distance (+1 / −1); it changes its mind now and then. */
+  #side = 1;
   readonly #decided = new Set<string>();
   readonly #grudge = new Map<string, number>();
   #field: { key: string; at: number; data: Int16Array } | undefined;
@@ -403,7 +408,8 @@ export class CpuController {
       if (
         throwReady &&
         d <= (config.throwRange + 40) * p.throwReach &&
-        this.#tick - this.#lastThrow >= p.throwGap &&
+        // the gap paces its throws; a follow-up while one is already out (EXTRA_BOOMERANG) goes after a short beat
+        this.#tick - this.#lastThrow >= (heldCount < mine.length ? FOLLOW_UP_TICKS : p.throwGap) &&
         !this.#rng.chance(p.throwHold) // it does not always take the shot it has
       ) {
         const shot = this.#aim(state, view, here, foe);
@@ -432,8 +438,32 @@ export class CpuController {
         this.#maybeDash(out, state, view, here, book, me, dashAllowed, fatigued);
         return;
       }
-      const stand =
-        throwReady && !hunted && !bold ? config.throwRange * 0.55 : config.slashReach * 0.6;
+      const keepAway = throwReady && !hunted && !bold;
+      const stand = keepAway ? config.throwRange * p.standOff : config.slashReach * 0.6;
+      // too near with a boomerang in hand: back off to its throwing distance, as the video's players keep theirs
+      // away from everyone too near at once (backing off from one must not walk it into another); sandwiched, it drifts
+      const push = view.foes
+        .filter((f) => dist(here, f.position) < stand * 0.8)
+        .reduce(
+          (sum, f) => {
+            const u = norm(sub(here, f.position));
+            return { x: sum.x + u.x, y: sum.y + u.y };
+          },
+          { x: 0, y: 0 },
+        );
+      const away = Math.hypot(push.x, push.y) > 0.5 ? norm(push) : undefined;
+      if (
+        keepAway &&
+        los &&
+        d < stand * 0.8 &&
+        away !== undefined &&
+        !this.#walksIntoDanger(away, here, view)
+      ) {
+        const before = this.#move;
+        this.#move = away;
+        this.#settle(before, view, here);
+        return;
+      }
       if (d > stand || !los) {
         const before = this.#move;
         this.#goTo(foe.position, state, view, here);
@@ -443,8 +473,19 @@ export class CpuController {
         if (!loaded)
           this.#maybeDash(out, state, view, here, foe.position, me, dashAllowed, fatigued);
       } else {
-        this.#move = { x: 0, y: 0 };
-        this.#intent = undefined;
+        // at its distance it keeps moving, sideways to the line between them (a still target is an easy one)
+        const before = this.#move;
+        if (this.#rng.chance(0.15)) this.#side = -this.#side;
+        const across = norm(sub(foe.position, here));
+        const drift = (side: number): Vec2 => ({ x: -across.y * side, y: across.x * side });
+        // never drifting into a floor it knows to be deadly: the other way, or not at all; between two, it holds still
+        if (this.#walksIntoDanger(drift(this.#side), here, view)) this.#side = -this.#side;
+        const near = view.foes.filter((f) => dist(here, f.position) < stand).length;
+        this.#move =
+          near > 1 || this.#walksIntoDanger(drift(this.#side), here, view)
+            ? { x: 0, y: 0 }
+            : drift(this.#side);
+        this.#settle(before, view, here);
       }
       return;
     }

@@ -196,6 +196,8 @@ describe('a CPU is a player: the architecture', () => {
       'aimLapse',
       'returnAwareness',
       'dashGap',
+      // pacing to the reference video (2026-10-20): where it stands to throw is a decision, not a physics knob
+      'standOff',
     ].sort();
     for (const d of DIFFICULTIES) expect(Object.keys(PROFILES[d]).sort()).toEqual(allowedKeys);
     expect(DIFFICULTIES).toEqual(['EASY', 'MEDIUM', 'HARD']);
@@ -675,7 +677,7 @@ describe('powerups: the same Books, the same builds', () => {
     console.warn(`BOOKS taken in 6 matches of 80 s: ${JSON.stringify(took)}\n`);
     expect(took.HARD + took.MEDIUM).toBeGreaterThan(0);
     expect(took.HARD).toBeGreaterThanOrEqual(took.EASY);
-  });
+  }, 15_000); // 18 matches of 80 s: at the reference video's pace (2026-10-20) more players are alive for longer
 
   it('builds persist through round resets for CPUs exactly as for humans, over a nine-round match; a rematch clears them', () => {
     let previous: Record<string, readonly string[]> | undefined;

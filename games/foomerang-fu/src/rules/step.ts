@@ -1061,6 +1061,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
 
   // 4. Flight ---------------------------------------------------------------------------------
   const reach = config.playerRadius + config.boomerangRadius;
+  // ...but it kills only on the body as drawn (`hitRadius`; the owner: what is drawn is what kills)
+  const hitReach = (config.hitRadius ?? config.playerRadius) + config.boomerangRadius;
   const flights: Flight[] = weapons.map((b, k) => {
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
     if (thrownNow.has(k)) return { boomerang: b, lethalAt: b.position, caught: false };
@@ -1525,7 +1527,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     players.forEach((victim, v) => {
       if (v === a || !victim.alive || immuneTo(victim)) return;
       const start = startPosition.get(victim.id) ?? positionOf(victim.id);
-      if (approachAlong(flights[k]?.path ?? [from, at], start, positionOf(victim.id)) < reach)
+      if (approachAlong(flights[k]?.path ?? [from, at], start, positionOf(victim.id)) < hitReach)
         touched.push(v);
     });
     // an armed boomerang goes off at its first contact with a player, or where its flight out ended (walls only bounce it)

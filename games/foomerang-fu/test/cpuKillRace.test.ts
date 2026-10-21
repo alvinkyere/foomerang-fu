@@ -75,7 +75,7 @@ describe('CPUs in the kill race', () => {
   it('a whole match replays to the identical result from the same seed (events, scores and winner)', () => {
     expect(JSON.stringify(full(11))).toBe(JSON.stringify(full(11)));
     expect(JSON.stringify(full(11).state)).not.toBe(JSON.stringify(full(12).state));
-  });
+  }, 30_000); // four whole matches, played at the reference video's pace (2026-10-20: rounds ≈ 20 s, not ≈ 5)
 
   it('after the match is won the CPUs do nothing and nothing changes; a rematch starts clean with the same participants', () => {
     const r = full(4);

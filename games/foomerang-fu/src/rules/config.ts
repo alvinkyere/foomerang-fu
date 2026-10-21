@@ -18,6 +18,11 @@ import { assertValidSystems, hazardsOf, inRect } from './systems';
 export interface FuConfig {
   readonly arena: FuArena;
   readonly playerRadius: number;
+  /**
+   * The body a boomerang can kill: the character as drawn (the owner: what is drawn is what kills). `playerRadius` stays the
+   * collision body (walls, shoves). Absent: `playerRadius`.
+   */
+  readonly hitRadius?: number;
   /** World units per second at full thumb deflection. */
   readonly playerSpeed: number;
   /** Radial dead zone; omitted = game-core's default. */
@@ -130,6 +135,7 @@ export interface FuConfig {
 export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   arena: Object.freeze({ width: 1600, height: 900 }),
   playerRadius: 36,
+  hitRadius: 23, // characters are drawn ≈ 46 u wide (art/physics_reference/README.md); was the collision body's 36
   playerSpeed: 360, // the reference video, measured (art/physics_reference); was 420 (Slice 1 baseline)
   boomerangRadius: 14,
   throwSpeed: 900,
@@ -213,6 +219,7 @@ export function assertValidConfig(config: FuConfig): void {
     ['arena.width', arena.width],
     ['arena.height', arena.height],
     ['playerRadius', config.playerRadius],
+    ['hitRadius', config.hitRadius ?? config.playerRadius],
     ['playerSpeed', config.playerSpeed],
     ['boomerangRadius', config.boomerangRadius],
     ['throwSpeed', config.throwSpeed],

@@ -64,6 +64,11 @@ export interface Profile {
   readonly returnAwareness: number;
   /** The least time between two of its own dashes (ticks): DASH is not its way of walking. */
   readonly dashGap: number;
+  /**
+   * How far from its target it keeps while it holds a boomerang, as a fraction of the throw range: the reference video's
+   * players throw from ≈ 500–800 u and keep moving, so most throws can be seen coming. Nearer than this it backs off.
+   */
+  readonly standOff: number;
 }
 
 const make = (profile: Profile): Profile => Object.freeze(profile);
@@ -74,7 +79,7 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
   EASY: make({
     reactionTicks: [33, 51], // 550–850 ms
     decisionTicks: 18,
-    aimError: 0.3,
+    aimError: 0.55,
     aimLapse: 0.25,
     lead: 0,
     horizon: 0.3,
@@ -93,8 +98,8 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     pressure: false,
     cover: false,
     throwReach: 0.6,
-    throwHold: 0.35,
-    throwGap: 60,
+    throwHold: 0.91,
+    throwGap: 240,
     dashMisuse: 0.03,
     slashEager: 0.4,
     usePlatforms: false,
@@ -102,11 +107,12 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     hesitate: 0.4,
     hesitateTicks: [20, 48],
     routeNoise: 0.5,
+    standOff: 0.6,
   }),
   MEDIUM: make({
     reactionTicks: [18, 27], // 300–450 ms
     decisionTicks: 14,
-    aimError: 0.2,
+    aimError: 0.4,
     aimLapse: 0.15,
     lead: 0.35,
     horizon: 0.5,
@@ -125,8 +131,8 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     pressure: false,
     cover: true,
     throwReach: 0.75,
-    throwHold: 0.2,
-    throwGap: 36,
+    throwHold: 0.885,
+    throwGap: 180,
     dashMisuse: 0,
     slashEager: 0.7,
     usePlatforms: false,
@@ -134,11 +140,12 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     hesitate: 0.18,
     hesitateTicks: [12, 28],
     routeNoise: 0.35,
+    standOff: 0.75,
   }),
   HARD: make({
     reactionTicks: [11, 17], // 180–280 ms
     decisionTicks: 8,
-    aimError: 0.08,
+    aimError: 0.12,
     aimLapse: 0.06,
     lead: 0.8,
     horizon: 0.8,
@@ -154,11 +161,11 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     bookInterest: 1,
     bookRange: 1200,
     retarget: 45,
-    pressure: true,
+    pressure: false,
     cover: true,
     throwReach: 0.9,
-    throwHold: 0.08,
-    throwGap: 20,
+    throwHold: 0.86,
+    throwGap: 150,
     dashMisuse: 0,
     slashEager: 0.9,
     usePlatforms: true,
@@ -166,5 +173,6 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     hesitate: 0.07,
     hesitateTicks: [8, 18],
     routeNoise: 0.12,
+    standOff: 0.7,
   }),
 });
