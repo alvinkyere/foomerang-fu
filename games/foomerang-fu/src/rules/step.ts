@@ -1709,7 +1709,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
   // The border: time outside the safe zone, continuous; at the limit the player explodes (no shield can stop it)
   // (Battle Royale: the border as it has closed in by the end of this step)
-  const zone = zoneAt(config.arena.safeZone, closingSince, state.roundTime + dt);
+  const zone = zoneAt(config.arena, closingSince, state.roundTime + dt);
   const outsideFor = players.map((p) =>
     zone === undefined || !p.alive || inRect(positionOf(p.id), zone)
       ? 0

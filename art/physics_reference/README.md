@@ -380,7 +380,10 @@ tutorial's PULL BACK (0:17.80–18.90), centred on the boomerang and enlarged.
   4:43.2, 3.0 at 4:44.6, 2.55 at 4:46.0: ≈ 0.6 w/s across). With w ≈ 5.3 character widths and ours drawn ≈ 76 u wide: **≈ 121 u/s a
   side (±40%)** (`rules/battleRoyale.ts`). A player left outside explodes (4:46.4): our out-of-bounds rule, unchanged.
 - It is **not kept**: nobody shows its skull at a later round's start (11:52.5). Taken again at 10:02.2 and 11:09.
-- **Not shown:** where it stops (taken as: the middle); a second one while it closes (taken as: nothing).
+- **Not shown:** where it stops (both rounds end first). **The owner's rule (2026-10-21):** it never closes completely: it stops at a
+  box 6 character widths (456 u) square, centred on ground people can stand on — the nearest to the middle of the boxes that are
+  at least 80% free floor (`finalBox`); on our plaza, beside the fountain (centre ≈ 1417, 722), not on it. A second one while it
+  closes changes nothing.
 
 ## Caffeinated (2026-10-20)
 
