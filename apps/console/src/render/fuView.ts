@@ -116,7 +116,13 @@ export function buildFuView(
         ? []
         : [
             {
-              id: n === 1 ? b.ownerId : `${b.ownerId}#${n}`,
+              // (a piece of a split keeps one name while it flies, whichever of its fan are gone)
+              id:
+                b.pieceOf !== undefined
+                  ? `${b.ownerId}#${b.pieceOf + 1}.${b.pieceSlot ?? 0}`
+                  : n === 1
+                    ? b.ownerId
+                    : `${b.ownerId}#${n}`,
               blast: b.blast,
               ownerId: b.ownerId,
               ...(called(b) ? { called: true as const } : {}),
@@ -295,6 +301,8 @@ export function buildFuView(
         return []; // the scoreboard comes from the state (the HUD's phase)
       case 'GO':
         return []; // GO is the banner, which comes from the state
+      case 'SPLIT':
+        return []; // the video shows nothing at a split but the pieces themselves (drawn from the state)
     }
   });
 

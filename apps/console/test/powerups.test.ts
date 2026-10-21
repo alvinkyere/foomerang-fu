@@ -167,6 +167,30 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     expect(view.boomerangs[1]).toMatchObject({ x: 400, y: 300 });
   });
 
+  it('draws the pieces of a Multi split, each under a name that holds while its fan thins out; the split one is not drawn', () => {
+    const [mine, theirs] = base.boomerangs as [
+      (typeof base.boomerangs)[number],
+      (typeof base.boomerangs)[number],
+    ];
+    const piece = (slot: number) => ({
+      ...mine,
+      state: 'THROWN' as const,
+      direction: { x: 1, y: 0 },
+      pieceOf: 0,
+      pieceSlot: slot,
+    });
+    const s: FuState = {
+      ...base,
+      boomerangs: [{ ...mine, state: 'SPENT' as const, splitInto: true }, theirs],
+      extraBoomerangs: [piece(1), piece(4)],
+    };
+    const view = buildFuView(s, [], entries, slots());
+    expect(view.boomerangs.filter((b) => b.ownerId === 'a').map((b) => b.id)).toEqual([
+      'a#1.1',
+      'a#1.4',
+    ]);
+  });
+
   it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,

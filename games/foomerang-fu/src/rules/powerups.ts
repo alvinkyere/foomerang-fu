@@ -11,6 +11,7 @@ export const POWER_KINDS = [
   'EXPLOSIVE_BOOMERANG',
   'SHIELD',
   'EXTRA_BOOMERANG',
+  'MULTI_BOOMERANG',
 ] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
@@ -110,6 +111,18 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
     'every boomerang thrown, of either of the pair, is armed (each can detonate once per throw).',
   ],
   ['SHIELD', 'EXTRA_BOOMERANG', 'independent.'],
+  ['CAFFEINATED', 'MULTI_BOOMERANG', 'independent: the pieces fly at normal speed.'],
+  [
+    'EXPLOSIVE_BOOMERANG',
+    'MULTI_BOOMERANG',
+    'the throw splits instead of going off; every piece is armed and goes off where its own flight ends or on an enemy.',
+  ],
+  [
+    'SHIELD',
+    'MULTI_BOOMERANG',
+    'independent: a shield absorbs one piece like any other lethal contact.',
+  ],
+  ['EXTRA_BOOMERANG', 'MULTI_BOOMERANG', 'each boomerang thrown splits on its own.'],
 ];
 
 /**

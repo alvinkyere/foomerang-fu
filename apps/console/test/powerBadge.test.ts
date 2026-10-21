@@ -33,6 +33,15 @@ describe('the pickup badge', () => {
     });
   });
 
+  it('Multi: yellow, "MULTI BOOMERANG", the ring-of-arrows icon (4:04.6)', () => {
+    expect(POWER_BADGE.MULTI_BOOMERANG).toMatchObject({
+      name: 'MULTI BOOMERANG',
+      colour: '#d4c227',
+      icon: 'multi',
+      fromVideo: true,
+    });
+  });
+
   it('the powers the video has not been studied for yet are marked so', () => {
     expect(POWER_BADGE.CAFFEINATED.fromVideo).toBe(false);
   });

@@ -276,3 +276,37 @@ Read at 0.1 s steps (and every frame for the donut's landing) at 0:30.6–0:34.8
 - the landing order (the video's matches seat order as far as can be told).
 
 **Not reproduced:** the iris (the circular reveal at 30.96–31.4).
+
+## The powers in the video (2026-10-20 survey)
+
+Every power the video shows, found from its badges (frames every 1.5 s, then zoomed): MULTI BOOMERANG (4:04.6, 6:43, 10:40),
+EXPLOSIVE BOOMERANG (4:11, 10:58), CAFFEINATED (3:47.4, 6:30, 12:27), BATTLE ROYALE (4:37.7, 11:09), DISGUISE (5:00.1, 10:25),
+EXTRA BOOMERANG (5:52, 7:16.6, 11:31), ICE BOOMERANG (5:57.1), FIRE BOOMERANG (6:51, 9:57), SHIELD (8:51, 10:15), TELEKINESIS
+(9:09.1), TELEPORT BOOMERANG (9:15.1). **Not in the video:** Bamboozled, Decoy, Dash Through Walls.
+
+Badge bar colours, sampled on the bar beside the lettering: MULTI `#d4c227`, CAFFEINATED `#5acb86`, FIRE `#e29854`,
+BATTLE ROYALE `#433065`, DISGUISE `#7470d8`, EXTRA `#9d9a9b`, ICE `#92d8fd`, TELEKINESIS `#c349d7`, TELEPORT `#d73576`
+(Explosive `#cf2427` and Shield `#6397e9` as before).
+
+## Extra boomerang (2026-10-20; applied)
+
+7:16.6 the eggplant takes it; 7:18.95 it throws one, and 7:19.15, the first still out, a second. One press throws one boomerang;
+the second can go while the first is away. (The old simultaneous ±13° pair is not in the video and is gone.)
+
+## Multi boomerang (2026-10-20; applied)
+
+- **One boomerang leaves the hand.** 10:41.9 the eggplant's throws leave singly.
+- **It splits where its flight out ends, or on an enemy.** 5:51.61 the coffee's boomerang flies out alone; 5:51.71 it has burst
+  into a star of **six**, 44° ± 5° apart (≈ 220° across, fanned about its heading; read on a 3× crop at 5:51.78–5:51.98).
+  6:50.6 the eggplant's (ice) throw bursts into five or six about 40° apart. 10:43.4 another, with fire trails.
+- The pieces fly out at about throw speed and curl home; they carry the throw's other powers (ice trails 6:50.7, fire 10:43.5).
+- Applied: `games/foomerang-fu/src/rules/multi.ts` (6 pieces, 44°). **Not shown, chosen:** the thrower's own boomerang is out of
+  play while its pieces fly and is back in hand once the last is caught or gone (the video shows one in hand again by the next
+  throw, not how).
+
+## Ice boomerang (2026-10-20)
+
+- 6:54.55 the eggplant, hit (its shield popped at 6:54.52), is **encased in a pale-cyan ice block** standing where it was, still,
+  eyes shut; 6:56.38 the block **shatters** into pale shards that lie on the ground, and it dashes off. **Frozen 1.83 s.** An ice
+  hit freezes; it does not kill.
+- 6:02.5 an ice throw leaves a **cyan trail on the ground** that is still there 3+ s later.

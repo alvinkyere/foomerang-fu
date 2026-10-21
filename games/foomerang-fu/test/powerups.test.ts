@@ -80,6 +80,7 @@ describe('the powers and their compatibility table', () => {
       'EXPLOSIVE_BOOMERANG',
       'SHIELD',
       'EXTRA_BOOMERANG',
+      'MULTI_BOOMERANG',
     ]);
     for (const junk of ['', 'overdrive', 'GUARD', 'OVERDRIVE', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);
@@ -169,7 +170,9 @@ describe('the inventory: at most three, oldest out first (FIFO)', () => {
     let s = own(lone(), 'a', 'CAFFEINATED', 'SHIELD', 'EXPLOSIVE_BOOMERANG');
     s = { ...s, pickups: [{ id: 1, position: at(s, 'a') }] };
     const r = stepFu(s, NONE, DT);
-    expect(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG']).toContain(inv(r.state).at(-1));
+    expect(['EXPLOSIVE_BOOMERANG', 'EXTRA_BOOMERANG', 'MULTI_BOOMERANG']).toContain(
+      inv(r.state).at(-1),
+    );
   });
 
   it('is deterministic: the same acquisitions give the same inventory', () => {

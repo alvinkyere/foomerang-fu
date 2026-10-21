@@ -26,6 +26,7 @@ export const POWER_STYLE: Readonly<
   EXPLOSIVE_BOOMERANG: { color: 0xff5a36, label: 'EXPLOSIVE' },
   SHIELD: { color: 0x4fd8ff, label: 'SHIELD' },
   EXTRA_BOOMERANG: { color: 0x9d9a9b, label: 'EXTRA' },
+  MULTI_BOOMERANG: { color: 0xd4c227, label: 'MULTI' },
 };
 /** What each power is called on screen. (SHIELD is shown as SHIELD: it is a one-hit shield.) */
 export const POWER_NAME: Readonly<Record<PowerKind, string>> = {
@@ -33,6 +34,7 @@ export const POWER_NAME: Readonly<Record<PowerKind, string>> = {
   EXPLOSIVE_BOOMERANG: 'EXPLOSIVE BOOMERANG',
   SHIELD: 'SHIELD',
   EXTRA_BOOMERANG: 'EXTRA BOOMERANG',
+  MULTI_BOOMERANG: 'MULTI BOOMERANG',
 };
 
 /** A powerup's glyph, centred on (0, 0), about `r` across. */
@@ -67,6 +69,9 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
       g.lineBetween(-0.2 * r, 0, -0.9 * r, 0.7 * r);
       g.lineBetween(0.1 * r, -0.7 * r, 0.8 * r, 0);
       g.lineBetween(0.8 * r, 0, 0.1 * r, 0.7 * r);
+      break;
+    case 'MULTI_BOOMERANG': // a ring (the Phaser dev view)
+      g.strokeCircle(0, 0, r * 0.75);
       break;
   }
 }

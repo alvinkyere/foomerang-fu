@@ -25,6 +25,7 @@ import {
 } from './arena';
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
+import { split } from './multi';
 import { separateBodies } from './collision';
 import {
   DASH_READY,
@@ -142,6 +143,8 @@ export type FuEvent =
       readonly radius: number;
       readonly victims: readonly string[];
     }
+  /** MULTI_BOOMERANG: `ownerId`'s throw split into pieces at `position` (multi.ts). */
+  | { readonly type: 'SPLIT'; readonly ownerId: string; readonly position: Vec2 }
   /** Slice 5: a SHIELD absorbed `byId`'s lethal contact and is spent. */
   | {
       readonly type: 'SHIELD_BLOCKED';
@@ -1054,6 +1057,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         direction,
         travelled: 0,
         blast: arm,
+        split: has(index, 'MULTI_BOOMERANG'), // (the reference video: it splits at its first enemy or where its flight out ends)
         power,
       });
     });
@@ -1066,6 +1070,22 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const flights: Flight[] = weapons.map((b, k) => {
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
     if (thrownNow.has(k)) return { boomerang: b, lethalAt: b.position, caught: false };
+    if (b.state === 'SPENT' && b.splitInto === true) {
+      // split (MULTI_BOOMERANG): back in its thrower's hand once the last of its pieces is gone
+      const of = k < count ? 0 : 1;
+      const out = weapons.some((p) => p.ownerId === b.ownerId && p.pieceOf === of);
+      return {
+        boomerang: out
+          ? b
+          : transition(b, 'HELD', {
+              ...IN_HAND,
+              splitInto: false,
+              position: positionOf(b.ownerId),
+            }),
+        lethalAt: undefined,
+        caught: false,
+      };
+    }
     if (b.state === 'SPENT') {
       // destroyed by its own blast: nowhere, harmless; a new one is in its thrower's hand when the time is up
       const respawn = b.respawn - dt;
@@ -1386,7 +1406,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const owner = ownerIdx[k] as number;
     events.push({ type: 'CAUGHT', playerId: (players[owner] as FuPlayer).id });
     // home again: whatever armed this throw is spent; the NEXT throw is armed afresh while BLAST is owned
-    weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false });
+    weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false, split: false });
   });
 
   // 4a. Breakables ------------------------------------------------------------------------------
@@ -1500,6 +1520,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // rest kill. An armed boomerang's first contact, or the end of its flight out, is an explosion instead: everyone
   // (not its owner, not whoever just deflected it) within `blastRadius` with a clear line is a victim.
   const contacts: Contact[][] = players.map(() => []);
+  const newPieces: Boomerang[] = []; // MULTI_BOOMERANG: the pieces of this step's splits
   const blastRadiusSquared = config.blastRadius * config.blastRadius;
   weapons.forEach((w, k) => {
     const at = lethalAt[k];
@@ -1533,6 +1554,25 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     // an armed boomerang goes off at its first contact with a player, or where its flight out ended (walls only bounce it)
     const ended = flights[k]?.ended;
     const blastAt = touched.length === 0 ? (ended ?? at) : at;
+    if (w.split === true && (touched.length > 0 || ended !== undefined)) {
+      // MULTI_BOOMERANG: it splits there instead (multi.ts); whoever it touched is hit by it, and every piece carries its powers
+      for (const v of touched)
+        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG', credit });
+      const heading =
+        w.direction.x === 0 && w.direction.y === 0
+          ? (flownFrom[k] as Boomerang).direction
+          : w.direction;
+      newPieces.push(...split(w, blastAt, normalized(heading), k < count ? 0 : 1));
+      weapons[k] = transition(w, 'SPENT', {
+        ...IN_HAND,
+        position: blastAt,
+        blast: false,
+        split: false,
+        splitInto: true,
+      });
+      events.push({ type: 'SPLIT', ownerId: w.ownerId, position: blastAt });
+      return;
+    }
     if (w.blast && (touched.length > 0 || ended !== undefined)) {
       const hit = new Set(touched);
       players.forEach((victim, v) => {
@@ -1810,11 +1850,17 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       players: Object.freeze(finalPlayers),
       boomerangs: Object.freeze(weapons.slice(0, count)),
       // A twin belongs to an owner of EXTRA_BOOMERANG: when they lose the power (FIFO) their second boomerang goes too.
-      extraBoomerangs: Object.freeze(
-        weapons
+      // A piece of a split (MULTI_BOOMERANG) is gone once caught, dropped or spent; this step's new pieces join the list.
+      extraBoomerangs: Object.freeze([
+        ...weapons
           .slice(count)
-          .filter((b) => has(ownerOf.get(b.ownerId) as number, 'EXTRA_BOOMERANG')),
-      ),
+          .filter((b) =>
+            b.pieceOf !== undefined
+              ? b.state !== 'HELD' && b.state !== 'GROUNDED' && b.state !== 'SPENT'
+              : has(ownerOf.get(b.ownerId) as number, 'EXTRA_BOOMERANG'),
+          ),
+        ...newPieces,
+      ]),
       pickups: Object.freeze(pickups),
       pickupClock: clock,
       awards,

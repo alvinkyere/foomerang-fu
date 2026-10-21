@@ -115,6 +115,14 @@ export interface Boomerang {
   readonly recall: number;
   /** SPENT: seconds until a new one is in its thrower's hand. 0 otherwise. */
   readonly respawn: number;
+  /** MULTI_BOOMERANG: this throw splits into pieces at its first enemy contact or where its flight out ends (multi.ts). */
+  readonly split?: boolean;
+  /** SPENT because it split: back in its thrower's hand once the last of its pieces is gone (not on a respawn clock). */
+  readonly splitInto?: boolean;
+  /** A piece of a split (multi.ts): which of its thrower's boomerangs it came from (0 their own, 1 the extra). Gone when caught. */
+  readonly pieceOf?: number;
+  /** A piece's place in its fan, 0 … MULTI_PIECES − 1 (a stable name for it while it flies). */
+  readonly pieceSlot?: number;
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */
