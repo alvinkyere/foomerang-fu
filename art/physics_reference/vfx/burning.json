@@ -1,0 +1,26 @@
+{
+  "source": "9:55.95-9:56.45, the eggplant burning as it runs (a loop of the flames on its body)",
+  "from": 595.95,
+  "to": 596.45,
+  "at": [109, 231],
+  "half": 20,
+  "charPx": 15,
+  "plate": [595.5, 595.7],
+  "track": {
+    "h": [122, 152],
+    "s": [80, 255],
+    "v": [60, 255],
+    "radius": 12
+  },
+  "keep": [
+    {
+      "h": [5, 36],
+      "s": [110, 255],
+      "v": [160, 255],
+      "radius": 19,
+      "above": 6
+    }
+  ],
+  "name": "burning",
+  "loop": true
+}

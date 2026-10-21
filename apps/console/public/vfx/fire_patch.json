@@ -1,0 +1,12 @@
+{
+  "name": "fire_patch",
+  "source": "10:00.25-10:01.98, one patch of the fire a fire boomerang leaves on the ground (faded over its last 8 frames: the spot is lit again later)",
+  "fps": 30,
+  "frames": 53,
+  "cols": 8,
+  "rows": 7,
+  "widths": 0.9333333333333333,
+  "ground": true,
+  "tintable": false,
+  "loop": false
+}

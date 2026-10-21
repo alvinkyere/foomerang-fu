@@ -1,0 +1,12 @@
+{
+  "name": "thaw",
+  "source": "6:56.38-6:57.22, the eggplant's ice breaks",
+  "fps": 30,
+  "frames": 26,
+  "cols": 6,
+  "rows": 5,
+  "widths": 4.0,
+  "ground": false,
+  "tintable": false,
+  "loop": false
+}

@@ -1,0 +1,12 @@
+{
+  "name": "pickup",
+  "source": "4:04.01-4:04.48, the mug takes the Multi Book",
+  "fps": 30,
+  "frames": 15,
+  "cols": 4,
+  "rows": 4,
+  "widths": 4.533333333333333,
+  "ground": false,
+  "tintable": true,
+  "loop": false
+}

@@ -1,0 +1,27 @@
+{
+  "source": "10:00.25-10:01.98, one patch of the fire a fire boomerang leaves on the ground (faded over its last 8 frames: the spot is lit again later)",
+  "from": 600.25,
+  "to": 601.98,
+  "at": [345, 129],
+  "half": 7,
+  "charPx": 15,
+  "plate": [600.0, 600.12],
+  "keep": [
+    {
+      "h": [0, 36],
+      "s": [90, 255],
+      "v": [140, 255],
+      "radius": 7
+    },
+    {
+      "h": [0, 179],
+      "s": [20, 160],
+      "v": [30, 115],
+      "radius": 7,
+      "from": 0.9
+    }
+  ],
+  "ground": true,
+  "name": "fire_patch",
+  "fadeLast": 8
+}

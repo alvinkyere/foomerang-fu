@@ -1,0 +1,26 @@
+{
+  "source": "9:57.62-9:58.30, the eggplant dies of its burns: the last flames and the smoke",
+  "from": 597.62,
+  "to": 598.3,
+  "at": [139, 180],
+  "half": 28,
+  "charPx": 15,
+  "plate": [598.6, 598.8],
+  "keep": [
+    {
+      "h": [0, 32],
+      "s": [100, 255],
+      "v": [150, 255],
+      "radius": 15
+    },
+    {
+      "h": [0, 179],
+      "s": [0, 140],
+      "v": [35, 115],
+      "radius": 24,
+      "above": 6
+    }
+  ],
+  "open": 3,
+  "name": "burnt"
+}

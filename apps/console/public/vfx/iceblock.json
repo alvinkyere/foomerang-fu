@@ -1,0 +1,12 @@
+{
+  "name": "iceblock",
+  "source": "6:55.40, the standing ice block (one frame: the block while frozen)",
+  "fps": 30,
+  "frames": 1,
+  "cols": 1,
+  "rows": 1,
+  "widths": 3.2,
+  "ground": false,
+  "tintable": false,
+  "loop": false
+}

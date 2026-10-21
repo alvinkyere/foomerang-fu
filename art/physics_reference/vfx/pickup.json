@@ -1,0 +1,28 @@
+{
+  "name": "pickup",
+  "source": "4:04.01-4:04.48, the mug takes the Multi Book",
+  "from": 244.01,
+  "to": 244.48,
+  "at": [214, 169],
+  "half": 34,
+  "charPx": 15,
+  "plate": [243.55, 243.75],
+  "keep": [
+    {
+      "h": [20, 38],
+      "s": [80, 255],
+      "v": [140, 255],
+      "below": -3
+    },
+    {
+      "h": [0, 179],
+      "s": [0, 70],
+      "v": [215, 255],
+      "radius": 10,
+      "to": 0.05,
+      "below": -3
+    }
+  ],
+  "ground": false,
+  "tintable": true
+}

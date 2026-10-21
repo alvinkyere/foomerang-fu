@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GROUND_MOTION, markAt, type MarkKind } from '../groundMarkMotion';
+import { flipbookFrame, type FlipbookMeta } from './flipbooks';
 
 export type { MarkKind } from '../groundMarkMotion';
 
@@ -36,7 +37,12 @@ class Layer {
   readonly mesh: THREE.InstancedMesh;
   readonly marks: Mark[] = [];
   readonly #alpha: THREE.InstancedBufferAttribute;
+  readonly #frame: THREE.InstancedBufferAttribute;
+  /** The video's own patch of it, played on every blob (flipbooks.ts), once loaded. */
+  flipbook: FlipbookMeta | undefined;
   readonly #m = new THREE.Matrix4();
+  readonly #grid = { value: new THREE.Vector2(1, 1) };
+  readonly #material: THREE.MeshBasicMaterial;
   readonly #c = new THREE.Color();
 
   constructor(
@@ -47,14 +53,25 @@ class Layer {
     const geometry = new THREE.CircleGeometry(0.5, 12).rotateX(-Math.PI / 2);
     this.#alpha = new THREE.InstancedBufferAttribute(new Float32Array(GROUND_MARK.capacity), 1);
     geometry.setAttribute('instanceAlpha', this.#alpha);
+    this.#frame = new THREE.InstancedBufferAttribute(new Float32Array(GROUND_MARK.capacity), 1);
+    geometry.setAttribute('instanceFrame', this.#frame);
     const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
     material.onBeforeCompile = (shader) => {
+      shader.uniforms['grid'] = this.#grid;
       shader.vertexShader = shader.vertexShader
         .replace(
           '#include <common>',
-          'attribute float instanceAlpha;\nvarying float vAlpha;\n#include <common>',
+          'attribute float instanceAlpha;\nattribute float instanceFrame;\nuniform vec2 grid;\nvarying float vAlpha;\n#include <common>',
         )
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = instanceAlpha;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = instanceAlpha;')
+        .replace(
+          '#include <uv_vertex>',
+          `#include <uv_vertex>
+          #ifdef USE_MAP
+            vMapUv = vec2((mod(instanceFrame, grid.x) + vMapUv.x) / grid.x,
+                          1.0 - (floor(instanceFrame / grid.x) + 1.0 - vMapUv.y) / grid.y);
+          #endif`,
+        );
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', 'varying float vAlpha;\n#include <common>')
         .replace(
@@ -62,6 +79,7 @@ class Layer {
           '#include <opaque_fragment>\ngl_FragColor.a *= vAlpha;',
         );
     };
+    this.#material = material;
     this.mesh = new THREE.InstancedMesh(geometry, material, GROUND_MARK.capacity);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(
       new Float32Array(GROUND_MARK.capacity * 3),
@@ -71,6 +89,18 @@ class Layer {
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 1;
     scene.add(this.mesh);
+  }
+
+  /** From now on every blob plays the video's own patch (`texture`: its atlas). */
+  useFlipbook(texture: THREE.Texture, meta: FlipbookMeta): void {
+    const t = texture.clone();
+    t.repeat.set(1, 1);
+    t.offset.set(0, 0);
+    t.needsUpdate = true;
+    this.#material.map = t;
+    this.#material.needsUpdate = true;
+    this.#grid.value.set(meta.cols, meta.rows);
+    this.flipbook = meta;
   }
 
   add(mark: Mark): void {
@@ -83,6 +113,24 @@ class Layer {
     let n = 0;
     const keep: Mark[] = [];
     for (const m of this.marks) {
+      const fb = this.flipbook;
+      if (fb !== undefined) {
+        const k = flipbookFrame(fb, (now - m.born) / 1000);
+        if (k === undefined) continue;
+        keep.push(m);
+        const sz = fb.widths * m.w;
+        // (each patch turned its own way, so a trail does not repeat)
+        this.#m
+          .makeRotationY(m.seed * Math.PI * 2)
+          .scale(new THREE.Vector3(sz, 1, sz))
+          .setPosition(m.x, this.y, m.z);
+        this.mesh.setMatrixAt(n, this.#m);
+        this.mesh.setColorAt(n, this.#c.set('#ffffff'));
+        this.#alpha.setX(n, 1);
+        this.#frame.setX(n, k);
+        n += 1;
+        continue;
+      }
       const look = markAt(this.kind, (now - m.born) / 1000, m.seed);
       if (look === undefined) continue;
       keep.push(m);
@@ -99,6 +147,7 @@ class Layer {
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor !== null) this.mesh.instanceColor.needsUpdate = true;
     this.#alpha.needsUpdate = true;
+    this.#frame.needsUpdate = true;
   }
 }
 
@@ -116,7 +165,9 @@ export class GroundMarks {
    * read as the video's band (ice) or cluster (fire), at least every `everyMs`. `w`: one character width in scene units. */
   drop(source: string, kind: MarkKind, x: number, z: number, w: number, now: number): void {
     const motion = GROUND_MOTION[kind];
-    const step = motion.size * motion.spacing * w;
+    // (the video's own patch is ≈ 0.9 W across: a stamp every third of one keeps the trail as solid as the video's)
+    const fb = this.#layers[kind].flipbook;
+    const step = fb !== undefined ? fb.widths * w * 0.33 : motion.size * motion.spacing * w;
     const last = this.#last.get(source);
     if (last === undefined || now - last.t > 250) {
       this.#one(kind, x, z, w, now);
@@ -151,6 +202,11 @@ export class GroundMarks {
       seed,
       w,
     });
+  }
+
+  /** The fire (or ice) blobs play the video's own patch from now on. */
+  useFlipbook(kind: MarkKind, texture: THREE.Texture, meta: FlipbookMeta): void {
+    this.#layers[kind].useFlipbook(texture, meta);
   }
 
   update(now: number): void {

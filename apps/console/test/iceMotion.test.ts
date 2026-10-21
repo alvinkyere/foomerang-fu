@@ -52,18 +52,3 @@ describe('thawing', () => {
     }
   });
 });
-
-describe('the ice breaking on the TV', () => {
-  it('a puff and chunks, gone by 0.84 s', async () => {
-    const THREE = await import('three');
-    const { IceShatters } = await import('../src/render/three/iceShatter');
-    const scene = new THREE.Scene();
-    const ice = new IceShatters(scene);
-    ice.shatter(0, 0, 4, 0);
-    ice.frame(50);
-    expect(ice.count).toBe(1);
-    ice.frame(840);
-    expect(ice.count).toBe(0);
-    expect(scene.children).toHaveLength(0);
-  });
-});

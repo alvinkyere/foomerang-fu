@@ -1,11 +1,10 @@
 import { ICE_LOOK } from '../iceLook';
 import { GroundMarks } from './groundMarks';
 import { ClosingBorder } from './closingBorder';
-import { IceShatters } from './iceShatter';
 import { blockScale, freezeBody, thawBody } from '../iceMotion';
 import { FIRE_MOTION, flameBall } from '../fireMotion';
-import { SHIELD_LOOK, fragmentAngle } from '../shieldLook';
-import { PickupBursts } from './pickupBurst';
+import { SHIELD_LOOK } from '../shieldLook';
+import { Flipbooks, type Played } from './flipbooks';
 import { bookScale } from '../pickupMotion';
 import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import * as THREE from 'three';
@@ -183,6 +182,12 @@ class Character {
   #burningAt: number | undefined;
   /** It was burning when last drawn (a death now is a death by fire). */
   wasBurning = false;
+  /** The video's own effects (flipbooks.ts) and one character width in scene units, once the plaza has them. */
+  effects: { readonly flipbooks: Flipbooks; readonly w: number } | undefined;
+  /** The video's flames on it while it burns (a loop that follows it). */
+  #burningLoop: Played | undefined;
+  /** The ice block is the video's own (iceblock.webp) once it is loaded. */
+  #iceFromVideo = false;
   /** SHIELD: the bubble round it while it owns the Shield (render/shieldLook.ts). */
   readonly #bubble: THREE.Sprite;
   #callingAt: number | undefined;
@@ -213,7 +218,10 @@ class Character {
   logical = { x: 0, y: 0 };
 
   /** What its remains are made from, as it is now (its feet, its sprite and the frame it shows). */
-  victim(id: string, death: ReturnType<typeof deathOf> & { readonly burnt?: boolean }): Victim {
+  victim(
+    id: string,
+    death: ReturnType<typeof deathOf> & { readonly burnt?: boolean; readonly videoSmoke?: boolean },
+  ): Victim {
     const h = this.sprite.scale.y;
     return {
       id,
@@ -510,6 +518,20 @@ class Character {
     else this.#burningAt = undefined;
     const body = h * BODY_OF_CELL;
     const w = body; // the characters are about as wide as tall
+    // the video's own flames (9:55.95–9:56.45, cut out following the burning eggplant), looping on its body
+    const fx = this.effects;
+    if (fx !== undefined && fx.flipbooks.has('burning')) {
+      for (const m of this.#flames) m.visible = false;
+      if (!on) {
+        if (this.#burningLoop !== undefined) fx.flipbooks.stop(this.#burningLoop);
+        this.#burningLoop = undefined;
+        return;
+      }
+      const at = new THREE.Vector3(feet.x, feet.y + 0.5 * body, feet.z);
+      this.#burningLoop ??= fx.flipbooks.play('burning', at, fx.w, now);
+      this.#burningLoop?.object.position.copy(at);
+      return;
+    }
     this.#flames.forEach((m, i) => {
       m.visible = on;
       if (!on) return;
@@ -545,7 +567,24 @@ class Character {
     this.#ice.visible = k > 0;
     const body = h * BODY_OF_CELL;
     this.#ice.position.copy(feet);
-    this.#ice.scale.set(body * ICE_LOOK.blockWidth * k, body * ICE_LOOK.blockHeight * k, 1);
+    const fx = this.effects;
+    if (!this.#iceFromVideo && fx !== undefined) {
+      // the video's own block (6:55.40, cut by its outline, the eggplant inpainted out), standing on the feet
+      const still = fx.flipbooks.still('iceblock');
+      if (still !== undefined) {
+        const ice = this.#ice.material as THREE.SpriteMaterial;
+        ice.map = still;
+        ice.color.set('#ffffff');
+        ice.opacity = ICE_CUT.opacity;
+        ice.needsUpdate = true;
+        this.#ice.center.set(0.5, ICE_CUT.feetInCell);
+        this.#iceFromVideo = true;
+      }
+    }
+    if (this.#iceFromVideo && fx !== undefined) {
+      const size = (fx.flipbooks.meta('iceblock')?.widths ?? 3.2) * fx.w * k;
+      this.#ice.scale.set(size, size, 1);
+    } else this.#ice.scale.set(body * ICE_LOOK.blockWidth * k, body * ICE_LOOK.blockHeight * k, 1);
   }
 
   /** A round's start (the reference video, 0:31.4–0:32.8): not there before its jump, two somersaults in the air, a crouch
@@ -827,14 +866,16 @@ class Boomerang {
   }
 }
 
-/** A Multi throw's split, as the reference video draws it (5:51.61, read at 8×; art/physics_reference/README.md). */
-const SPLIT_LOOK = Object.freeze({
-  flash: '#e7928f',
-  heart: '#fff2c0',
-  /** One frame. */
-  flashMs: 50,
-  puff: '#ffffff',
-  puffMs: 120,
+/** Where the video's blast was cut (art/physics_reference/vfx/blast.json): the core's crop centre against the ring's centre
+ * (video px), the video's foreshortening of the ground, and its yardstick (the donut beside it, px). */
+const BLAST_CUT = Object.freeze({ coreOffset: [9, -3] as const, aspect: 0.86, charPx: 21 });
+/** The video's ice block (art/physics_reference/vfx/iceblock.json): its middle is 1.33 widths above the feet. */
+const ICE_CUT = Object.freeze({
+  centreUp: 20 / 15,
+  /** The block's bottom edge in its cut (0 bottom, 1 top): 4 px of 48 up. */
+  feetInCell: 4 / 48,
+  /** The character shows through it as the eggplant does (6:55.40). */
+  opacity: 0.82,
 });
 
 /** A short effect: something that grows and fades, then removes itself. */
@@ -878,10 +919,9 @@ class Plaza {
   readonly #books = new Map<number, THREE.Group>();
   /** Books just taken, shrinking away (render/pickupMotion.ts): no longer lying there. */
   readonly #takenBooks: { readonly book: THREE.Group; readonly at: number }[] = [];
-  /** The burst where a Book is taken (pickupBurst.ts). */
-  readonly #pickupBursts: PickupBursts;
-  /** Where ice broke: the frost puff and the chunks (iceShatter.ts). */
-  readonly #iceShatters: IceShatters;
+  /** The reference video's own effects, cut out of it frame by frame (flipbooks.ts; public/vfx/). */
+  readonly flipbooks: Flipbooks;
+  #fireFromVideo = false;
   readonly #bursts: Burst[] = [];
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
@@ -1014,8 +1054,7 @@ class Plaza {
     this.#blasts = new Blasts(this.scene);
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
-    this.#pickupBursts = new PickupBursts(this.scene);
-    this.#iceShatters = new IceShatters(this.scene);
+    this.flipbooks = new Flipbooks(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -1270,7 +1309,18 @@ class Plaza {
       if (ch !== undefined && circle !== undefined) {
         const kind = characterOf(this.map.roster, circle, this.#hasArt);
         // burning when it died: it falls whole onto its side and smokes (the video, 9:57.62–9:58.3)
-        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning });
+        const videoSmoke = ch.wasBurning && this.flipbooks.has('burnt');
+        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning, videoSmoke });
+        if (videoSmoke) {
+          // the video's own last flames and smoke off the burnt body (9:57.62–9:58.30)
+          const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+          this.flipbooks.play(
+            'burnt',
+            victim.at.clone().add(new THREE.Vector3(0, 0.5 * victim.bodyHeight, 0)),
+            w,
+            now,
+          );
+        }
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
           const f = this.#space.toScene(e.from.x, e.from.y);
@@ -1294,7 +1344,29 @@ class Plaza {
       add(spark, 220, 1.6);
     } else if (e.type === 'BLASTED') {
       // the reference video's blast: puff, flash, the ring out to the radius that kills, smoke (render/blastMotion.ts)
-      if (e.radius !== undefined) {
+      const ring = this.flipbooks.meta('blast_ring');
+      const core = this.flipbooks.meta('blast');
+      if (e.radius !== undefined && ring?.ringRadius !== undefined && core !== undefined) {
+        // the video's own blast, cut out of it (10:17.43–10:18.17): its ring on the ground, sized so that it ends exactly at
+        // the radius that kills, and its fireball, puffs and smoke at the same scale, where they were against the ring
+        const centre = this.#space.toScene(e.x, e.y);
+        const ringSize = this.#space.length(e.radius) / ring.ringRadius;
+        const perPx = ringSize / (ring.widths * BLAST_CUT.charPx);
+        this.flipbooks.play('blast_ring', new THREE.Vector3(centre.x, 0, centre.z), 1, now, {
+          size: ringSize,
+        });
+        this.flipbooks.play(
+          'blast',
+          new THREE.Vector3(
+            centre.x - BLAST_CUT.coreOffset[0] * perPx,
+            centre.y,
+            centre.z - (BLAST_CUT.coreOffset[1] * perPx) / BLAST_CUT.aspect,
+          ),
+          1,
+          now,
+          { size: core.widths * BLAST_CUT.charPx * perPx },
+        );
+      } else if (e.radius !== undefined) {
         const ground = this.#space.toScene(e.x, e.y, 2);
         this.#blasts.burst(
           new THREE.Vector3(ground.x, ground.y, ground.z),
@@ -1325,54 +1397,38 @@ class Plaza {
       add(arc, 180, 0.1);
     } else if (e.type === 'PICKUP' && e.actor !== undefined && e.kind !== undefined) {
       this.#badges?.show(e.actor, e.kind, now);
-      // the video's burst at the Book: a flash, streaks, then confetti in the power's colour (pickupBurst.ts)
+      // the video's own burst (4:04.01–4:04.48), in this power's colour, about a third of a body up where the Book was
       const ground = this.#space.toScene(e.x, e.y);
-      this.#pickupBursts.burst(
-        ground.x,
-        ground.z,
-        POWER_BADGE[e.kind].colour,
-        this.#space.length(DRAWN_CHARACTER_WIDTH),
+      const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+      this.flipbooks.play(
+        'pickup',
+        new THREE.Vector3(ground.x, ground.y + 0.4 * w, ground.z),
+        w,
         now,
+        {
+          tint: POWER_BADGE[e.kind].colour,
+        },
       );
     } else if (e.type === 'SHIELD_BLOCKED') {
-      // the bubble pops (the video, 8:54.19–8:54.25): about ten pink fragments fly out ≈ 0.6 W and are gone in 0.1 s
+      // the video's own pop (8:54.19–8:54.26), half a body up round the player
       const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
-      for (let k = 0; k < SHIELD_LOOK.fragments; k += 1) {
-        const a = fragmentAngle(k);
-        const bit = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.16 * w, 0.07 * w),
-          new THREE.MeshBasicMaterial({
-            color: SHIELD_LOOK.fragment,
-            transparent: true,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-          }),
-        );
-        bit.position.y = 0.5 * w;
-        bit.rotation.set(-Math.PI / 4, 0, a);
-        // (#frame moves a burst 0.12 scene units a frame along its dir: 0.6 W over the pop's ~6 frames)
-        bit.userData['dir'] = new THREE.Vector3(Math.cos(a), Math.sin(a) * 0.6, 0).multiplyScalar(
-          (SHIELD_LOOK.fragmentTravel * w) / 6 / 0.12,
-        );
-        add(bit, SHIELD_LOOK.popMs, 0);
-      }
+      const at = this.#space.toScene(e.x, e.y);
+      this.flipbooks.play('shield_pop', new THREE.Vector3(at.x, at.y + 0.5 * w, at.z), w, now);
     } else if (e.type === 'SPLIT') {
-      // a Multi throw splits (the video, 5:51.61–5:51.65): one frame of a pink-red disc with a pale heart, ≈ 0.7 W across,
-      // then the pieces come out of a small white puff
+      // the video's own flash where a Multi throw splits (5:51.61)
       const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
-      const disc = (r: number, colour: string) =>
-        new THREE.Mesh(
-          new THREE.CircleGeometry(r, 20).rotateX(-Math.PI / 2),
-          new THREE.MeshBasicMaterial({ color: colour, transparent: true, depthWrite: false }),
-        );
-      const flash = disc(0.35 * w, SPLIT_LOOK.flash);
-      flash.add(disc(0.14 * w, SPLIT_LOOK.heart).translateY(0.01));
-      add(flash, SPLIT_LOOK.flashMs, 0);
-      add(disc(0.3 * w, SPLIT_LOOK.puff), SPLIT_LOOK.puffMs, 0.4);
+      const at = this.#space.toScene(e.x, e.y, 30);
+      this.flipbooks.play('split', new THREE.Vector3(at.x, at.y, at.z), w, now);
     } else if (e.type === 'THAWED') {
-      // the ice breaks: a frost puff, and chunks lying where the block stood (the video, 6:56.38–6:57.22; iceShatter.ts)
-      const ground = this.#space.toScene(e.x, e.y);
-      this.#iceShatters.shatter(ground.x, ground.z, this.#space.length(DRAWN_CHARACTER_WIDTH), now);
+      // the video's own ice breaking (6:56.38–6:57.22), where the block stood
+      const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+      const at = this.#space.toScene(e.x, e.y);
+      this.flipbooks.play(
+        'thaw',
+        new THREE.Vector3(at.x, at.y + ICE_CUT.centreUp * w, at.z),
+        w,
+        now,
+      );
     } else if (e.type === 'SPAWNED' || e.type === 'PICKUP') {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(1.2, 1.6, 48).rotateX(-Math.PI / 2),
@@ -1499,8 +1555,19 @@ class Plaza {
     this.#leaveMarks(time);
     this.#props.frame(time);
     this.#remains.frame(time);
-    this.#pickupBursts.frame(time);
-    this.#iceShatters.frame(time);
+    const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+    for (const ch of this.#characters.values())
+      if (ch.effects === undefined) ch.effects = { flipbooks: this.flipbooks, w };
+    if (!this.#fireFromVideo) {
+      const atlas = this.flipbooks.atlas('fire_patch');
+      const meta = this.flipbooks.meta('fire_patch');
+      if (atlas !== undefined && meta !== undefined) {
+        // the fire a fire boomerang (or a burning player) leaves: the video's own patch of it, all its life (10:00.25–10:01.98)
+        this.#marks.useFlipbook('fire', atlas, meta);
+        this.#fireFromVideo = true;
+      }
+    }
+    this.flipbooks.frame(time);
     for (let i = this.#takenBooks.length - 1; i >= 0; i -= 1) {
       const { book, at } = this.#takenBooks[i] as { book: THREE.Group; at: number };
       const k = bookScale((time - at) / 1000);
@@ -1590,6 +1657,20 @@ class Plaza {
   }
 }
 
+/** The flipbooks cut from the reference video (public/vfx/<name>.png + .json). */
+const VFX_FLIPBOOKS = [
+  'pickup',
+  'blast',
+  'blast_ring',
+  'shield_pop',
+  'split',
+  'iceblock',
+  'thaw',
+  'burning',
+  'burnt',
+  'fire_patch',
+] as const;
+
 /** Creates the 3D plaza inside `container` and resolves once its models and characters are loaded and a frame is drawn. */
 export async function createThreePlaza(
   container: HTMLElement,
@@ -1632,6 +1713,9 @@ export async function createThreePlaza(
     texture: floorTexture,
     extent,
   });
+  // the video's own effects (art/physics_reference/vfx_extract.py), loaded behind the plaza: until they are in, or if one is
+  // missing, the drawn stand-ins play instead
+  void plaza.flipbooks.load(`${import.meta.env.BASE_URL}vfx`, VFX_FLIPBOOKS);
   return {
     render: (view) => plaza.show(view),
     drawn: () => plaza.drawn(),

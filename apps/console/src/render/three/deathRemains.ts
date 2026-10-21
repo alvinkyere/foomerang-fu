@@ -36,6 +36,8 @@ export interface Victim {
   readonly spills: Liquid | undefined;
   /** It died burning (FIRE_BOOMERANG): it falls whole onto its side and smokes instead (render/fireMotion.ts). */
   readonly burnt?: boolean;
+  /** The video's own last flames and smoke play over it (flipbooks.ts): no drawn ones then. */
+  readonly videoSmoke?: boolean;
 }
 
 interface Part {
@@ -67,7 +69,8 @@ export class DeathRemains {
     const parts: Part[] = [];
     if (v.burnt === true) {
       parts.push(this.#burnt(v));
-      for (let i = 0; i < FIRE_MOTION.death.smokeBalls; i += 1) parts.push(this.#smoke(v, i));
+      if (v.videoSmoke !== true)
+        for (let i = 0; i < FIRE_MOTION.death.smokeBalls; i += 1) parts.push(this.#smoke(v, i));
       this.#parts.set(v.id, { born: now, parts });
       this.frame(now);
       return;
@@ -168,7 +171,7 @@ export class DeathRemains {
       pose: (t) => {
         sprite.position.copy(v.at);
         (sprite.material as THREE.SpriteMaterial).rotation = burntTilt(t);
-        const f = lastFlames(t);
+        const f = v.videoSmoke === true ? undefined : lastFlames(t);
         flame.visible = f !== undefined;
         if (f !== undefined) {
           flame.position.set(v.at.x - 0.25 * H, v.at.y + 0.25 * H, v.at.z);

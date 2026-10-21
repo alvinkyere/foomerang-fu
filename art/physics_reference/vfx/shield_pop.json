@@ -1,0 +1,18 @@
+{
+  "source": "8:54.19-8:54.26, the donut's Shield bubble breaks into pink fragments",
+  "from": 534.19,
+  "to": 534.26,
+  "at": [306, 34],
+  "half": 24,
+  "charPx": 15,
+  "plate": [534.08, 534.11],
+  "keep": [
+    {
+      "h": [135, 179],
+      "s": [70, 255],
+      "v": [140, 255],
+      "radius": 24
+    }
+  ],
+  "name": "shield_pop"
+}

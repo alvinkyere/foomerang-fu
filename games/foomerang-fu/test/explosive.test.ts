@@ -29,7 +29,7 @@ import {
 //   - bounces off walls and the arena's edge like any other, still armed (it does not go off at a wall);
 //   - goes off where its flight out ENDS (its range, or the impact that would turn it home), instead of coming home;
 //   - goes off at once on the first living enemy it touches (owner).
-// The blast: every living non-owner within `blastRadius` (the full drawn ring: ~215 u, the video against our characters as drawn) with a clear line (walls are
+// The blast: every living non-owner within `blastRadius` (the full drawn ring: 347 u, the video against our characters as drawn) with a clear line (walls are
 // cover). The owner is immune; deflection does not set it off, and the deflector is immune on that leg. A shield absorbs it.
 // The boomerang is destroyed by its own blast (SPENT) and a new one is in its thrower's hand `explosiveRespawnSeconds`
 // (1.5 s, owner) later.
@@ -56,8 +56,8 @@ const armed = (
 ) => flying(s, owner, from, dir, { blast: true }, which);
 
 describe('the numbers', () => {
-  it('the blast reaches the full drawn ring, ~215 u (the video, against our characters as drawn); a new boomerang is in hand 1.5 s after the blast (owner)', () => {
-    expect(C.blastRadius).toBe(215);
+  it('the blast reaches the full drawn ring, 347 u (the video: 4.57 widths of the donut beside it; ours drawn 76 u wide); a new boomerang is in hand 1.5 s after the blast (owner)', () => {
+    expect(C.blastRadius).toBe(347);
     expect(C.explosiveRespawnSeconds).toBe(1.5);
   });
 });

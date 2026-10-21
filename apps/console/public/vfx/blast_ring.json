@@ -1,0 +1,13 @@
+{
+  "name": "blast_ring",
+  "source": "10:17.43-10:18.17, an Explosive boomerang goes off (the plaza-like market map)",
+  "fps": 30,
+  "frames": 23,
+  "cols": 5,
+  "rows": 5,
+  "widths": 10.952380952380953,
+  "ground": true,
+  "tintable": false,
+  "loop": false,
+  "ringRadius": 0.4165442299449777
+}

@@ -1,0 +1,31 @@
+{
+  "source": "6:55.40, the standing ice block (one frame: the block while frozen)",
+  "from": 415.4,
+  "to": 415.4,
+  "at": [487, 92],
+  "half": 24,
+  "charPx": 15,
+  "plate": [417.45, 417.6],
+  "keep": [],
+  "name": "iceblock",
+  "threshold": [25, 55],
+  "cut": [472, 72, 502, 112, 5],
+  "except": [
+    {
+      "h": [70, 130],
+      "s": [90, 255],
+      "v": [60, 255]
+    },
+    {
+      "h": [0, 179],
+      "s": [0, 255],
+      "v": [0, 90]
+    },
+    {
+      "h": [35, 70],
+      "s": [60, 255],
+      "v": [60, 255]
+    }
+  ],
+  "inpaint": true
+}

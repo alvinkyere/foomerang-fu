@@ -50,27 +50,3 @@ describe('the burst', () => {
     expect(bookScale(0.15)).toBe(0);
   });
 });
-
-describe('the burst on the TV', () => {
-  it('plays and is gone by 0.45 s', async () => {
-    const THREE = await import('three');
-    const { PickupBursts } = await import('../src/render/three/pickupBurst');
-    const scene = new THREE.Scene();
-    const bursts = new PickupBursts(scene);
-    bursts.burst(0, 0, '#d4c227', 4, 1000);
-    bursts.frame(1040);
-    const visible = () => {
-      let n = 0;
-      scene.traverse((o) => {
-        if (o instanceof THREE.Mesh && o.visible) n += 1;
-      });
-      return n;
-    };
-    expect(visible()).toBe(1 + PICKUP_MOTION.streaks); // the flash and its streaks
-    bursts.frame(1200);
-    expect(visible()).toBe(PICKUP_MOTION.confetti); // the confetti, lying
-    bursts.frame(1460);
-    expect(bursts.count).toBe(0);
-    expect(scene.children).toHaveLength(0);
-  });
-});

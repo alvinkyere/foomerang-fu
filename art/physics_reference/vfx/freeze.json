@@ -1,0 +1,20 @@
+{
+  "source": "6:54.53-6:54.72, the ice block forms round the eggplant",
+  "from": 414.53,
+  "to": 414.72,
+  "at": [482, 85],
+  "half": 26,
+  "charPx": 15,
+  "plate": [417.45, 417.6],
+  "keep": [
+    {
+      "h": [78, 102],
+      "s": [8, 95],
+      "v": [205, 255],
+      "radius": 24
+    }
+  ],
+  "name": "freeze",
+  "threshold": [25, 55],
+  "open": 3
+}

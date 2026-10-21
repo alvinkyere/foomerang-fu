@@ -1,0 +1,12 @@
+{
+  "name": "burning",
+  "source": "9:55.95-9:56.45, the eggplant burning as it runs (a loop of the flames on its body)",
+  "fps": 30,
+  "frames": 16,
+  "cols": 4,
+  "rows": 4,
+  "widths": 2.6666666666666665,
+  "ground": false,
+  "tintable": false,
+  "loop": true
+}

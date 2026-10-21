@@ -488,3 +488,31 @@ exact: its zoom and centre every frame.
   drawn as a crop of the resting view (a 2D zoom and pan, as the footage's), so the plaza's perspective never changes.
 - **Not reproduced**: views wider than our plaza (the video sometimes shows ≈ 15% more round its edges, beyond the art we
   have).
+
+## The effects are the video's own, cut out frame by frame (2026-10-21; applied)
+
+The owner: the video is the owner's own (made for Foomerang Fu), and the effects must be exactly the video's. So they are no
+longer redrawn: `vfx_extract.py` cuts each one out of the video, frame by frame, into a flipbook the TV plays at the video's
+30 fps (`apps/console/public/vfx/`, 564 kB of WebP; `render/three/flipbooks.ts`). For each effect a spec (`vfx/<name>.json`)
+gives when and where it plays, a clean plate (frames of the same spot without it, the camera's pan and zoom undone by chained
+ORB + RANSAC homographies), and which pixels are the effect (colour keys, a radius, an outline). Its alpha is how far a pixel is
+from the plate. Each is drawn at the video's size against our characters (≈ 76 u wide); a character's width in the video is
+measured beside it (`charPx`).
+
+| Flipbook     | From the video                           | Frames | Notes                                                                                                                      |
+| ------------ | ---------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `pickup`     | 4:04.01–4:04.48 (the Multi Book)         | 15     | flash, streaks, confetti; tinted per power (the confetti is the power's colour)                                            |
+| `blast`      | 10:17.43–10:18.17                        | 23     | puff, fireball, puffs, smoke                                                                                               |
+| `blast_ring` | the same                                 | 23     | the ring, part-hidden by a building in that shot: rebuilt whole from its own radial colours                                |
+| `shield_pop` | 8:54.19–8:54.26                          | 3      | the bubble's pink fragments                                                                                                |
+| `split`      | 5:51.61                                  | 1      | the Multi split's flash                                                                                                    |
+| `iceblock`   | 6:55.40                                  | 1      | the ice block, cut by its outline, the eggplant inpainted out; it grows over 0.15 s                                        |
+| `thaw`       | 6:56.38–6:57.22                          | 26     | the block breaking, the chunks lying                                                                                       |
+| `burning`    | 9:55.95–9:56.45 (following the eggplant) | 16     | the flames on a burning body, looped while it burns                                                                        |
+| `burnt`      | 9:57.62–9:58.30                          | 21     | the last flames and the smoke off a body dead of its burns                                                                 |
+| `fire_patch` | 10:00.25–10:01.98                        | 53     | a patch of ground fire, all its life (its last 8 frames faded: the spot is lit again later); stamped along every fire path |
+
+**The blast's kill radius follows the drawn ring** (the owner: what is drawn kills): it ends at 96 px, 4.57 widths of the donut
+beside it, so `blastRadius` is **347 u** (was 215 from the wrong 46 u width). Still drawn, not cut: the ice band on the ground (its
+colours and timing measured), the shield bubble while held, the burnt body falling over (our characters' own art), Battle Royale's
+border.
