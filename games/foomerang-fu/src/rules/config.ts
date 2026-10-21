@@ -135,7 +135,7 @@ export interface FuConfig {
 export const DEFAULT_FU_CONFIG: FuConfig = Object.freeze({
   arena: Object.freeze({ width: 1600, height: 900 }),
   playerRadius: 36,
-  hitRadius: 23, // characters are drawn ≈ 46 u wide (art/physics_reference/README.md); was the collision body's 36
+  hitRadius: 36, // characters are drawn ≈ 76 u wide (art/physics_reference/README.md, "How big our characters are drawn")
   playerSpeed: 360, // the reference video, measured (art/physics_reference); was 420 (Slice 1 baseline)
   boomerangRadius: 14,
   throwSpeed: 900,

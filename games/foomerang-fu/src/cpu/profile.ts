@@ -79,7 +79,7 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
   EASY: make({
     reactionTicks: [33, 51], // 550–850 ms
     decisionTicks: 18,
-    aimError: 0.55,
+    aimError: 0.7,
     aimLapse: 0.25,
     lead: 0,
     horizon: 0.3,
@@ -112,7 +112,7 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
   MEDIUM: make({
     reactionTicks: [18, 27], // 300–450 ms
     decisionTicks: 14,
-    aimError: 0.4,
+    aimError: 0.6,
     aimLapse: 0.15,
     lead: 0.35,
     horizon: 0.5,
@@ -145,7 +145,7 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
   HARD: make({
     reactionTicks: [11, 17], // 180–280 ms
     decisionTicks: 8,
-    aimError: 0.12,
+    aimError: 0.2,
     aimLapse: 0.06,
     lead: 0.8,
     horizon: 0.8,
@@ -164,7 +164,7 @@ export const PROFILES: Readonly<Record<Difficulty, Profile>> = Object.freeze({
     pressure: false,
     cover: true,
     throwReach: 0.9,
-    throwHold: 0.86,
+    throwHold: 0.88,
     throwGap: 150,
     dashMisuse: 0,
     slashEager: 0.9,

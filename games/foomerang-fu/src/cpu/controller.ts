@@ -341,8 +341,8 @@ export class CpuController {
         x: Math.min(Math.max(here.x, zone.x + margin), zone.x + zone.width - margin),
         y: Math.min(Math.max(here.y, zone.y + margin), zone.y + zone.height - margin),
       };
-      const d = Math.hypot(to.x - here.x, to.y - here.y) || 1;
-      this.#move = { x: (to.x - here.x) / d, y: (to.y - here.y) / d };
+      // round what is in the way (a stall in a corner would stop a straight line home until it explodes)
+      this.#goTo(to, state, view, here);
       return;
     }
 

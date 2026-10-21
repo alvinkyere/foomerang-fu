@@ -51,9 +51,10 @@ describe('aim error is part of every difficulty', () => {
     );
     expect(easy).toBeGreaterThan(medium);
     expect(medium).toBeGreaterThan(hard);
-    expect(medium).toBeGreaterThan(0.27); // 0.2 rad, and one throw in seven is badly aimed
+    // (pacing to the reference video, 2026-10-21: its players hit with ≈ 1 throw in 5; Medium 0.6 rad, Hard 0.2)
+    expect(medium).toBeGreaterThan(0.27);
     expect(hard).toBeGreaterThan(0.03);
-    expect(hard).toBeLessThan(0.16); // 0.08 rad, and one throw in sixteen is badly aimed
+    expect(hard).toBeLessThan(0.32); // 0.2 rad, and one throw in sixteen badly aimed (x 2.5): ≈ 0.23
   });
 });
 
