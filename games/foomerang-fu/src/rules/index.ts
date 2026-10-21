@@ -193,4 +193,4 @@ export {
   DIAMOND_WALLS_WIDTH,
 } from './diamondWallsArena';
 export type { DiamondWallsWall } from './diamondWallsArena';
-export { BATTLE_ROYALE_SHRINK, zoneAt, zoneOf } from './battleRoyale';
+export { BATTLE_ROYALE_HOLD, BATTLE_ROYALE_SHRINK, zoneAt, zoneOf } from './battleRoyale';

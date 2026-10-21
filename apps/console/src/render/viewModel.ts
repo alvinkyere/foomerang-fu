@@ -99,6 +99,7 @@ export interface ViewEvent {
     | 'FROZEN'
     | 'THAWED'
     | 'IGNITED'
+    | 'SPLIT'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;
@@ -236,8 +237,8 @@ export interface ArenaView {
   readonly boomerangs: readonly BoomerangView[];
   /** Powerups lying in the arena. */
   readonly pickups: readonly PickupView[];
-  /** BATTLE_ROYALE: the border while it closes in (a rules fact; battleRoyale.ts). Absent: it is not closing. */
-  readonly closing?: RectView;
+  /** BATTLE_ROYALE: the border as it is now, and seconds since it was taken (a rules fact; battleRoyale.ts). Absent: none. */
+  readonly closing?: RectView & { readonly seconds: number };
   /** Gates, platforms and hazards (empty in arenas without them). */
   readonly systems: SystemsViewModel;
   /** The ids of the arena's breakable props broken this round (none at a round's start). */

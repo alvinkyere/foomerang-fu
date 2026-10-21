@@ -322,7 +322,8 @@ export function buildFuView(
           },
         ];
       case 'SPLIT':
-        return []; // the video shows nothing at a split but the pieces themselves (drawn from the state)
+        // the video's flash where a Multi throw splits (5:51.61; ThreePlaza draws it)
+        return [{ type: 'SPLIT', ...event.position, color: styleOf(event.ownerId, slots).color }];
     }
   });
 
@@ -405,7 +406,12 @@ export function buildFuView(
     circles,
     boomerangs,
     ...(state.closingSince !== undefined && zoneOf(state) !== undefined
-      ? { closing: zoneOf(state) as RectView }
+      ? {
+          closing: {
+            ...(zoneOf(state) as RectView),
+            seconds: state.roundTime - state.closingSince,
+          },
+        }
       : {}),
     pickups: state.pickups.map((p) => ({
       id: p.id,

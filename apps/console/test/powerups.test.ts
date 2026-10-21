@@ -240,13 +240,27 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     const arena = { ...base.config.arena, safeZone: zone };
     const open: FuState = { ...base, config: { ...base.config, arena } };
     expect(buildFuView(open, [], entries, slots()).closing).toBeUndefined();
-    const closing: FuState = { ...open, closingSince: 0, roundTime: 1 };
-    expect(buildFuView(closing, [], entries, slots()).closing).toEqual({
-      x: 173,
-      y: 173,
-      width: 1254,
-      height: 554,
+    const closing: FuState = { ...open, closingSince: 0, roundTime: 0.5 };
+    // (the border holds 0.9 s, then closes at 121 u/s a side)
+    const later: FuState = { ...open, closingSince: 0, roundTime: 1.9 };
+    expect(buildFuView(closing, [], entries, slots()).closing).toEqual({ ...zone, seconds: 0.5 }); // still holding
+    expect(buildFuView(later, [], entries, slots()).closing).toEqual({
+      x: 221,
+      y: 221,
+      width: 1158,
+      height: 458,
+      seconds: 1.9,
     });
+  });
+
+  it('a Multi split reaches the TV where it happened (the video flashes there)', () => {
+    const view = buildFuView(
+      base,
+      [{ type: 'SPLIT', ownerId: 'a', position: { x: 300, y: 200 } }],
+      entries,
+      slots(),
+    );
+    expect(view.events).toEqual([expect.objectContaining({ type: 'SPLIT', x: 300, y: 200 })]);
   });
 
   it('hands over the Books lying in the arena with NO hint of what they award', () => {

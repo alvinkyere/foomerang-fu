@@ -13,6 +13,7 @@ import {
   type Half,
   type Liquid,
 } from '../deathMotion';
+import { FIRE_MOTION, burntTilt, lastFlames, smokeBall } from '../fireMotion';
 
 /** What a dying character looks like at the moment it dies (from its sprite). */
 export interface Victim {
@@ -33,6 +34,8 @@ export interface Victim {
   readonly shatters: boolean;
   /** What it spills, if it is liquid (the mug its coffee, the milk its milk). */
   readonly spills: Liquid | undefined;
+  /** It died burning (FIRE_BOOMERANG): it falls whole onto its side and smokes instead (render/fireMotion.ts). */
+  readonly burnt?: boolean;
 }
 
 interface Part {
@@ -62,6 +65,13 @@ export class DeathRemains {
   burst(v: Victim, hit: { x: number; z: number } | undefined, now: number): void {
     this.clear(v.id);
     const parts: Part[] = [];
+    if (v.burnt === true) {
+      parts.push(this.#burnt(v));
+      for (let i = 0; i < FIRE_MOTION.death.smokeBalls; i += 1) parts.push(this.#smoke(v, i));
+      this.#parts.set(v.id, { born: now, parts });
+      this.frame(now);
+      return;
+    }
     if (v.spills !== undefined) {
       const colour = LIQUID[v.spills];
       parts.push(this.#puddle(v, colour));
@@ -128,6 +138,69 @@ export class DeathRemains {
         const p = halfAt(h, t);
         sprite.position.set(v.at.x + p.position.x * W, v.at.y, v.at.z + p.position.z * W);
         (sprite.material as THREE.SpriteMaterial).rotation = p.tilt;
+      },
+    };
+  }
+
+  /** Burnt: the whole body falls onto its side and lies there, its last flames going out (the video, 9:57.62–9:57.8). */
+  #burnt(v: Victim): Part {
+    const texture = v.atlas.clone();
+    texture.repeat.set(1 / 16, 1 / 2);
+    texture.offset.set(v.frame / 16, 0.5);
+    texture.needsUpdate = true;
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: 0.05 }),
+    );
+    sprite.center.set(v.anchor[0] / v.cell, 1 - v.anchor[1] / v.cell);
+    sprite.scale.set(v.spriteHeight, v.spriteHeight, 1);
+    sprite.renderOrder = 2;
+    const flame = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 10, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+    );
+    flame.renderOrder = 3;
+    const group = new THREE.Group();
+    group.add(sprite, flame);
+    this.scene.add(group);
+    const H = v.bodyHeight;
+    return {
+      object: group,
+      pose: (t) => {
+        sprite.position.copy(v.at);
+        (sprite.material as THREE.SpriteMaterial).rotation = burntTilt(t);
+        const f = lastFlames(t);
+        flame.visible = f !== undefined;
+        if (f !== undefined) {
+          flame.position.set(v.at.x - 0.25 * H, v.at.y + 0.25 * H, v.at.z);
+          flame.scale.setScalar(0.4 * H * f.size);
+          (flame.material as THREE.MeshBasicMaterial).color.set(f.colour);
+        }
+      },
+    };
+  }
+
+  /** A smoke ball rising off the burnt body. */
+  #smoke(v: Victim, i: number): Part {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 10, 8),
+      new THREE.MeshBasicMaterial({
+        color: FIRE_MOTION.death.smoke,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    mesh.renderOrder = 3;
+    this.scene.add(mesh);
+    const H = v.bodyHeight;
+    return {
+      object: mesh,
+      pose: (t) => {
+        const s = smokeBall(i, t);
+        mesh.visible = s !== undefined;
+        if (s === undefined) return;
+        mesh.position.set(v.at.x + s.side * H, v.at.y + s.height * H, v.at.z);
+        mesh.scale.setScalar(s.size * H);
+        (mesh.material as THREE.MeshBasicMaterial).opacity = s.opacity;
       },
     };
   }

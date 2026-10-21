@@ -82,7 +82,7 @@ describe('the pickup badge', () => {
     for (const badge of Object.values(POWER_BADGE)) expect(badge.fromVideo).toBe(true);
   });
 
-  it('it stays up ~1.9 s', () => {
-    expect(PICKUP_LABEL_SECONDS).toBeCloseTo(1.9, 6);
+  it('it stays up 2.07 s, take to gone (4:03.98–4:06.07)', () => {
+    expect(PICKUP_LABEL_SECONDS).toBeCloseTo(2.07, 6);
   });
 });

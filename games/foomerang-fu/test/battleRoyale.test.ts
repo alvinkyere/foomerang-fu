@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { stepFu, zoneOf } from '../src/rules';
-import { BATTLE_ROYALE_SHRINK } from '../src/rules/battleRoyale';
+import { BATTLE_ROYALE_HOLD, BATTLE_ROYALE_SHRINK } from '../src/rules/battleRoyale';
 import { C, DT, NONE, at, input, make, place, player, type FuState } from './support/fixtures';
 
 // BATTLE_ROYALE — the reference video (art/physics_reference/README.md, "Battle Royale"): 4:37.6 the banana takes it; at once
@@ -23,17 +23,20 @@ function royale(): FuState {
 
 describe('Battle Royale', () => {
   it('closes in at the measured speed, every side', () => {
-    expect(BATTLE_ROYALE_SHRINK).toBeCloseTo(73, 9);
+    expect(BATTLE_ROYALE_SHRINK).toBeCloseTo(121, 9);
   });
 
-  it('taking it starts the border closing at once; it is not kept in the inventory', () => {
+  it('the border holds 0.9 s (the video: the dashed line appears at 4:37.94), then closes; it is not kept', () => {
+    expect(BATTLE_ROYALE_HOLD).toBeCloseTo(0.9, 9);
     const r = stepFu(royale(), NONE, DT);
     expect(r.events.some((e) => e.type === 'PICKED_UP' && e.kind === 'BATTLE_ROYALE')).toBe(true);
     expect(player(r.state, 'a').inventory).toEqual([]);
     let s = r.state;
-    for (let i = 0; i < 60; i += 1) s = stepFu(s, NONE, DT).state; // one second
+    for (let i = 0; i < 50; i += 1) s = stepFu(s, NONE, DT).state; // still holding
+    expect(zoneOf(s)).toEqual(ZONE);
+    for (let i = 0; i < 64; i += 1) s = stepFu(s, NONE, DT).state; // the hold, then one second of closing
     const z = zoneOf(s) as typeof ZONE;
-    const d = BATTLE_ROYALE_SHRINK * (1 + DT);
+    const d = BATTLE_ROYALE_SHRINK * (1 + 115 * DT - BATTLE_ROYALE_HOLD - 1);
     expect(z.x).toBeCloseTo(ZONE.x + d, 0);
     expect(z.y).toBeCloseTo(ZONE.y + d, 0);
     expect(z.width).toBeCloseTo(ZONE.width - 2 * d, 0);
@@ -73,7 +76,7 @@ describe('Battle Royale', () => {
 
   it('a second Battle Royale while it closes changes nothing', () => {
     let s = stepFu(royale(), NONE, DT).state;
-    for (let i = 0; i < 30; i += 1) s = stepFu(s, NONE, DT).state;
+    for (let i = 0; i < 90; i += 1) s = stepFu(s, NONE, DT).state;
     const before = zoneOf(s);
     s = { ...s, pickups: [{ id: 2, position: at(s, 'a') }] };
     const r = stepFu(s, NONE, DT);

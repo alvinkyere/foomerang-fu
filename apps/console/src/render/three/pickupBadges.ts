@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { PowerKind } from '@foomerang/foomerang-fu';
-import { BADGE_ICON, PICKUP_LABEL_SECONDS, POWER_BADGE } from '../powerBadge';
+import { BADGE_ICON, POWER_BADGE } from '../powerBadge';
+import { PICKUP_MOTION, badgeOpacity } from '../pickupMotion';
 
 interface Shown {
   readonly el: HTMLDivElement;
@@ -11,7 +12,8 @@ interface Shown {
 /**
  * The badge over a player who has just taken a power Book (the reference video, 4:11 and 10:15; render/powerBadge.ts): a disc
  * with the power's white icon above a bar with its name in white capitals, both in the power's colour, held over the player's
- * head for PICKUP_LABEL_SECONDS. Drawn in the page over the canvas, so the lettering stays crisp.
+ * head; it fades in and out as the video's does (render/pickupMotion.ts: it never grows or moves). Drawn in the page over the
+ * canvas, so the lettering stays crisp.
  */
 export class PickupBadges {
   readonly #shown: Shown[] = [];
@@ -36,6 +38,7 @@ export class PickupBadges {
       gap: '4px',
       pointerEvents: 'none',
       zIndex: '3',
+      opacity: '0',
     });
     const disc = document.createElement('div');
     Object.assign(disc.style, {
@@ -67,7 +70,7 @@ export class PickupBadges {
   frame(now: number, camera: THREE.Camera, head: (id: string) => THREE.Vector3 | undefined): void {
     for (const s of [...this.#shown]) {
       const at = head(s.actor);
-      if (now - s.born >= PICKUP_LABEL_SECONDS * 1000 || at === undefined) {
+      if (now - s.born >= PICKUP_MOTION.badgeSeconds * 1000 || at === undefined) {
         this.#remove(s);
         continue;
       }
@@ -76,6 +79,7 @@ export class PickupBadges {
       const y = this.canvas.offsetTop + ((1 - p.y) / 2) * this.canvas.clientHeight;
       s.el.style.left = `${x}px`;
       s.el.style.top = `${y}px`;
+      s.el.style.opacity = String(badgeOpacity((now - s.born) / 1000));
     }
   }
 

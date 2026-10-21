@@ -70,8 +70,8 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
   },
 });
 
-/** How long the badge stays over the player (the video: 4:11.0 to 4:12.9). */
-export const PICKUP_LABEL_SECONDS = 1.9;
+/** How long the badge stays over the player: from the take to gone (re-read every frame at 4:03.98–4:06.07; pickupMotion.ts). */
+export const PICKUP_LABEL_SECONDS = 2.07;
 
 /** The power's icon, white, as an SVG path in a 24 × 24 box. */
 export const BADGE_ICON: Readonly<Record<NonNullable<PowerBadge['icon']>, string>> = Object.freeze({

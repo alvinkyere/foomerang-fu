@@ -374,9 +374,9 @@ tutorial's PULL BACK (0:17.80–18.90), centred on the boomerang and enlarged.
 
 ## Battle Royale (2026-10-20; applied)
 
-- 4:37.6 the banana takes it: at once a pink-glowing dashed border appears at the arena's edge and **closes in on the middle**,
-  every side (measured against the cross platform's plank width w: 7.6 w across at 4:37.7, 5.2 at 4:40.4, 4.6 at 4:41.8, 4.0 at
-  4:43.2, 3.0 at 4:44.6, 2.55 at 4:46.0: ≈ 0.6 w/s across). With w ≈ 5.3 character widths and a character ≈ 46 u: **≈ 73 u/s a
+- 4:37.6 the banana takes it: a pink glow appears at the arena's edge; 0.9 s later the dashed border appears and **closes in on
+  the middle**, every side (measured against the cross platform's plank width w: 7.6 w across at 4:37.7, 5.2 at 4:40.4, 4.6 at 4:41.8, 4.0 at
+  4:43.2, 3.0 at 4:44.6, 2.55 at 4:46.0: ≈ 0.6 w/s across). With w ≈ 5.3 character widths and ours drawn ≈ 76 u wide: **≈ 121 u/s a
   side (±40%)** (`rules/battleRoyale.ts`). A player left outside explodes (4:46.4): our out-of-bounds rule, unchanged.
 - It is **not kept**: nobody shows its skull at a later round's start (11:52.5). Taken again at 10:02.2 and 11:09.
 - **Not shown:** where it stops (taken as: the middle); a second one while it closes (taken as: nothing).
@@ -394,3 +394,33 @@ tutorial's PULL BACK (0:17.80–18.90), centred on the boomerang and enlarged.
 - **Telekinesis:** taken at 9:09 (the eggplant); its throw at 9:11.4 bends, but what moves it (the stick) cannot be seen.
 - **Disguise:** taken at 5:00.0 (the banana) and held at 11:52; no disguise is seen (5:00–5:08 the banana stays a banana).
 - **Bamboozled, Decoy, Dash Through Walls:** not in the video at all.
+
+## The power effects, frame by frame (2026-10-21; applied)
+
+Every effect re-read every frame at 2–8× and written down as a timeline the TV plays (pure modules under
+`apps/console/src/render/`, each with its tests). W = a character's width.
+
+- **Taking a power** (`pickupMotion.ts`, 4:03.98 the Multi take): the badge fades in over 0.03–0.10 s and out over its last
+  0.1 s (2.07 s in all; it never grows or moves); at the Book a white flash (0.35 W) with ~14 streaks in the power's colour
+  (0.03–0.08 s), which become capsules of confetti flying out to 1.0–1.6 W (to 0.17 s) and lying, shrinking, until 0.45 s; the
+  Book shrinks away over 0.15 s. (The confetti is the power's colour: yellow for Multi, red for Explosive at 4:10.9.)
+- **Ice** (`iceMotion.ts`): the hit turns the body dark blue at once; the block grows from round the body to full by 0.15 s while
+  the body brightens to ice-blue (6:54.53–6:54.68). The break (6:56.38): the blue lifts in 0.1 s, a white frost puff
+  (0.7 → 1.1 W, 0.17 s), pale chunks lying in the block's footprint until 0.44 s, gone by 0.84 s.
+- **Ice on the ground** (`groundMarkMotion.ts`): a solid bright-cyan band (#5fd6f4) ≈ 0.3 W wide right under the boomerang's path
+  (6:02.45), solid for ≈ 3 s, then breaking up into pale patches that shrink away, gone by ≈ 4.3 s (±0.5 s: the camera moves).
+- **Fire on the ground**: sparks swell into overlapping yellow puffs (0.3 W, a band ≈ 0.5 W wide) in 0.1 s, burn yellow to
+  0.9 s, orange to 1.3 s, then red or dark smoke, gone by 1.7 s (10:00.16–10:03.0).
+- **Burning** (`fireMotion.ts`, 9:55.9–9:57.6): the body keeps its colours; a column of ~6 fire balls climbs it (0.38 → 0.18 W,
+  yellow → orange, each every 0.3 s). **Dying of it** (9:57.62–9:58.3): the body falls whole onto its side in 0.15 s (not cut in
+  two), its flames go out in 0.15 s, four dark smoke balls rise off it and are gone by 0.55 s.
+- **Shield** (`shieldLook.ts`): a clear bubble ≈ 1.85 W across, half a body up, pale cyan-white rim, pink-lilac on its right with a
+  thin magenta line, a white highlight top left (6:54.38). The pop: gone in a frame, ~10 pink fragments fly 0.6 W in 0.1 s
+  (8:54.19–8:54.25).
+- **Multi split** (5:51.61, 8×): one frame of a pink-red disc (#e7928f, pale heart) ≈ 0.7 W across, then the pieces leave a small
+  white puff.
+- **Battle Royale** (4:36.98–4:39.0): the glow fades in over 0.05–0.2 s at the arena's edge (it tints what it lies on: pink over
+  water, warm yellow over grass); the border **holds 0.9 s** (`BATTLE_ROYALE_HOLD`, in the rules), then the black dashed line
+  appears and closes in with the glow.
+- **Caffeinated** shows nothing on the body (3:47–3:53, 12:26–12:29): only its badge.
+- **Not reproduced:** the frozen and the burning characters' faces (eyes shut, a grimace): our characters are single baked sprites.

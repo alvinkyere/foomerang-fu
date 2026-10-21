@@ -1,6 +1,13 @@
 import { ICE_LOOK } from '../iceLook';
 import { GroundMarks } from './groundMarks';
 import { ClosingBorder } from './closingBorder';
+import { IceShatters } from './iceShatter';
+import { blockScale, freezeBody, thawBody } from '../iceMotion';
+import { FIRE_MOTION, flameBall } from '../fireMotion';
+import { SHIELD_LOOK, fragmentAngle } from '../shieldLook';
+import { PickupBursts } from './pickupBurst';
+import { bookScale } from '../pickupMotion';
+import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
@@ -112,6 +119,46 @@ function arrowTexture(): THREE.Texture {
   return ARROW;
 }
 
+/** The Shield's bubble as a picture (render/shieldLook.ts): nearly clear inside, a pale rim, pink on its right, a highlight. */
+function bubbleTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const n = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = n;
+  canvas.height = n;
+  const g = canvas.getContext('2d');
+  if (g === null) return null;
+  const c = n / 2;
+  const fill = g.createRadialGradient(c, c, n * 0.3, c, c, n * 0.49);
+  fill.addColorStop(0, 'rgba(255,255,255,0.06)');
+  fill.addColorStop(0.75, 'rgba(255,255,255,0.18)');
+  fill.addColorStop(1, 'rgba(255,255,255,0.55)');
+  g.fillStyle = fill;
+  g.beginPath();
+  g.arc(c, c, n * 0.49, 0, Math.PI * 2);
+  g.fill();
+  g.lineWidth = n * 0.025;
+  g.strokeStyle = SHIELD_LOOK.rim;
+  g.stroke();
+  g.strokeStyle = SHIELD_LOOK.rimPink;
+  g.lineWidth = n * 0.05;
+  g.beginPath();
+  g.arc(c, c, n * 0.46, -0.9, 0.9);
+  g.stroke();
+  g.strokeStyle = SHIELD_LOOK.rimLine;
+  g.lineWidth = n * 0.015;
+  g.beginPath();
+  g.arc(c, c, n * 0.485, -0.6, 0.7);
+  g.stroke();
+  g.fillStyle = SHIELD_LOOK.highlight;
+  g.beginPath();
+  g.ellipse(c - n * 0.2, c - n * 0.24, n * 0.07, n * 0.035, -0.7, 0, Math.PI * 2);
+  g.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 class Character {
   readonly sprite: THREE.Sprite;
   /** Calling a boomerang home: the same flashing aura on each hand (owner, 2026-10-19; render/callAura.ts). */
@@ -120,6 +167,16 @@ class Character {
   readonly #landRing: THREE.Mesh;
   /** ICE_BOOMERANG: the block of ice it stands frozen in (render/iceLook.ts). */
   readonly #ice: THREE.Sprite;
+  /** When it froze, and when its ice broke (render/iceMotion.ts). */
+  #frozenAt: number | undefined;
+  #thawedAt: number | undefined;
+  /** FIRE_BOOMERANG: the fire balls climbing it while it burns (render/fireMotion.ts), and when it caught. */
+  readonly #flames: THREE.Mesh[];
+  #burningAt: number | undefined;
+  /** It was burning when last drawn (a death now is a death by fire). */
+  wasBurning = false;
+  /** SHIELD: the bubble round it while it owns the Shield (render/shieldLook.ts). */
+  readonly #bubble: THREE.Sprite;
   #callingAt: number | undefined;
   readonly #ring: THREE.Mesh;
   readonly #shadow: THREE.Mesh;
@@ -134,7 +191,7 @@ class Character {
   logical = { x: 0, y: 0 };
 
   /** What its remains are made from, as it is now (its feet, its sprite and the frame it shows). */
-  victim(id: string, death: ReturnType<typeof deathOf>): Victim {
+  victim(id: string, death: ReturnType<typeof deathOf> & { readonly burnt?: boolean }): Victim {
     const h = this.sprite.scale.y;
     return {
       id,
@@ -223,6 +280,22 @@ class Character {
     this.#ice.center.set(0.5, 0);
     this.#ice.renderOrder = CHARACTER_RENDER_ORDER + 1;
     this.#ice.visible = false;
+    this.#bubble = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: bubbleTexture(), transparent: true, depthWrite: false }),
+    );
+    this.#bubble.renderOrder = CHARACTER_RENDER_ORDER + 1;
+    this.#bubble.visible = false;
+    scene.add(this.#bubble);
+    this.#flames = Array.from({ length: FIRE_MOTION.balls }, () => {
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 10, 8),
+        new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+      );
+      m.renderOrder = CHARACTER_RENDER_ORDER + 1;
+      m.visible = false;
+      scene.add(m);
+      return m;
+    });
     scene.add(
       this.sprite,
       this.#ring,
@@ -280,8 +353,9 @@ class Character {
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
     this.#warn(c, cam, space, h, now);
-    this.#frozen(c, at, h);
-    this.#burn(c, now);
+    this.#frozen(c, at, h, now);
+    this.#burn(c, at, h, now);
+    this.#shield(c, at, h);
     // charging a throw: the aim line, as long as the throw would fly
     if (c.aim !== undefined && c.facing !== undefined && !c.dead)
       this.#aim.show(
@@ -302,26 +376,60 @@ class Character {
     this.#ownHands?.place(at, this.#heading, airborne, (hop * h) / this.cell, a, yaw);
   }
 
-  /** Burning (FIRE_BOOMERANG): it flickers in the fire's yellows and oranges (the video, 9:55.9–9:57.8). */
-  #burn(c: CircleView, now: number): void {
-    if (c.burning !== true || c.dead) return;
-    const flicker = 0.5 + 0.5 * Math.sin(now / 45);
-    (this.sprite.material as THREE.SpriteMaterial).color.setRGB(
-      1,
-      0.72 + 0.2 * flicker,
-      0.35 + 0.15 * flicker,
-    );
+  /** Owning the Shield: a clear bubble round it (the video, 6:54.38). It pops on SHIELD_BLOCKED (#event). */
+  #shield(c: CircleView, feet: THREE.Vector3, h: number): void {
+    const on = !c.dead && c.powers.includes('SHIELD');
+    this.#bubble.visible = on;
+    if (!on) return;
+    const body = h * BODY_OF_CELL;
+    this.#bubble.position.set(feet.x, feet.y + SHIELD_LOOK.centre * body, feet.z);
+    this.#bubble.scale.setScalar(SHIELD_LOOK.diameter * body);
+  }
+
+  /** Burning (FIRE_BOOMERANG): its own colours, with a column of fire balls climbing it (the video, 9:55.9–9:57.6). */
+  #burn(c: CircleView, feet: THREE.Vector3, h: number, now: number): void {
+    const on = c.burning === true && !c.dead;
+    if (!c.dead) this.wasBurning = on;
+    if (on) this.#burningAt ??= now;
+    else this.#burningAt = undefined;
+    const body = h * BODY_OF_CELL;
+    const w = body; // the characters are about as wide as tall
+    this.#flames.forEach((m, i) => {
+      m.visible = on;
+      if (!on) return;
+      const b = flameBall(i, (now - (this.#burningAt as number)) / 1000);
+      m.position.set(feet.x + b.side * w, feet.y + b.height * body, feet.z + 0.05 * w);
+      m.scale.setScalar(b.size * w);
+      (m.material as THREE.MeshBasicMaterial).color.set(b.colour);
+    });
   }
 
   /** Frozen (ICE_BOOMERANG): blue inside a pale block of ice standing on its feet (the video, 6:54.55–6:56.38). */
-  #frozen(c: CircleView, feet: THREE.Vector3, h: number): void {
+  #frozen(c: CircleView, feet: THREE.Vector3, h: number, now: number): void {
     const on = c.frozen === true && !c.dead;
-    this.#ice.visible = on;
-    if (!on) return;
-    (this.sprite.material as THREE.SpriteMaterial).color.set(ICE_LOOK.body);
+    if (on) this.#frozenAt ??= now;
+    else if (this.#frozenAt !== undefined) {
+      this.#frozenAt = undefined;
+      this.#thawedAt = c.dead ? undefined : now;
+    }
+    const material = this.sprite.material as THREE.SpriteMaterial;
+    if (!on) {
+      this.#ice.visible = false;
+      // just thawed: the blue lifts over 0.1 s (iceMotion.ts)
+      const thaw =
+        this.#thawedAt === undefined ? undefined : thawBody((now - this.#thawedAt) / 1000);
+      if (thaw === undefined) this.#thawedAt = undefined;
+      else material.color.set('#ffffff').lerp(new THREE.Color(thaw.colour), thaw.amount);
+      return;
+    }
+    // the cold hits first (dark blue), then the block grows round it and it brightens to ice-blue (6:54.53–6:54.68)
+    const t = (now - (this.#frozenAt as number)) / 1000;
+    material.color.set(freezeBody(t));
+    const k = blockScale(t);
+    this.#ice.visible = k > 0;
     const body = h * BODY_OF_CELL;
     this.#ice.position.copy(feet);
-    this.#ice.scale.set(body * ICE_LOOK.blockWidth, body * ICE_LOOK.blockHeight, 1);
+    this.#ice.scale.set(body * ICE_LOOK.blockWidth * k, body * ICE_LOOK.blockHeight * k, 1);
   }
 
   /** A round's start (the reference video, 0:31.4–0:32.8): not there before its jump, two somersaults in the air, a crouch
@@ -618,6 +726,16 @@ class Boomerang {
   }
 }
 
+/** A Multi throw's split, as the reference video draws it (5:51.61, read at 8×; art/physics_reference/README.md). */
+const SPLIT_LOOK = Object.freeze({
+  flash: '#e7928f',
+  heart: '#fff2c0',
+  /** One frame. */
+  flashMs: 50,
+  puff: '#ffffff',
+  puffMs: 120,
+});
+
 /** A short effect: something that grows and fades, then removes itself. */
 interface Burst {
   readonly object: THREE.Object3D;
@@ -646,6 +764,12 @@ class Plaza {
   readonly #hasArt = (kind: PackCharacter): boolean => this.manifest.characters[kind] !== undefined;
   readonly #boomerangs = new Map<string, Boomerang>();
   readonly #books = new Map<number, THREE.Group>();
+  /** Books just taken, shrinking away (render/pickupMotion.ts): no longer lying there. */
+  readonly #takenBooks: { readonly book: THREE.Group; readonly at: number }[] = [];
+  /** The burst where a Book is taken (pickupBurst.ts). */
+  readonly #pickupBursts: PickupBursts;
+  /** Where ice broke: the frost puff and the chunks (iceShatter.ts). */
+  readonly #iceShatters: IceShatters;
   readonly #bursts: Burst[] = [];
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
@@ -773,6 +897,8 @@ class Plaza {
     this.#blasts = new Blasts(this.scene);
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
+    this.#pickupBursts = new PickupBursts(this.scene);
+    this.#iceShatters = new IceShatters(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -996,7 +1122,8 @@ class Plaza {
     }
     for (const [id, book] of this.#books)
       if (!lying.has(id)) {
-        this.scene.remove(book);
+        // taken: it shrinks away where it stood (the video, 4:04.0–4:04.15)
+        this.#takenBooks.push({ book, at: now });
         this.#books.delete(id);
       }
     this.#props.show(view, now);
@@ -1020,7 +1147,8 @@ class Plaza {
       const circle = this.#view?.circles.find((c) => c.id === e.actor);
       if (ch !== undefined && circle !== undefined) {
         const kind = characterOf(this.map.roster, circle, this.#hasArt);
-        const victim = ch.victim(e.actor, deathOf(kind));
+        // burning when it died: it falls whole onto its side and smokes (the video, 9:57.62–9:58.3)
+        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning });
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
           const f = this.#space.toScene(e.from.x, e.from.y);
@@ -1075,27 +1203,54 @@ class Plaza {
       add(arc, 180, 0.1);
     } else if (e.type === 'PICKUP' && e.actor !== undefined && e.kind !== undefined) {
       this.#badges?.show(e.actor, e.kind, now);
-      const shade = color(POWER_BADGE[e.kind].colour);
-      for (let k = 0; k < 12; k += 1) {
-        const a = (k / 12) * Math.PI * 2;
-        const shard = new THREE.Mesh(
-          new THREE.BoxGeometry(0.5, 0.5, 0.5),
-          new THREE.MeshBasicMaterial({ color: shade, transparent: true }),
+      // the video's burst at the Book: a flash, streaks, then confetti in the power's colour (pickupBurst.ts)
+      const ground = this.#space.toScene(e.x, e.y);
+      this.#pickupBursts.burst(
+        ground.x,
+        ground.z,
+        POWER_BADGE[e.kind].colour,
+        this.#space.length(DRAWN_CHARACTER_WIDTH),
+        now,
+      );
+    } else if (e.type === 'SHIELD_BLOCKED') {
+      // the bubble pops (the video, 8:54.19–8:54.25): about ten pink fragments fly out ≈ 0.6 W and are gone in 0.1 s
+      const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+      for (let k = 0; k < SHIELD_LOOK.fragments; k += 1) {
+        const a = fragmentAngle(k);
+        const bit = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.16 * w, 0.07 * w),
+          new THREE.MeshBasicMaterial({
+            color: SHIELD_LOOK.fragment,
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
         );
-        shard.userData['dir'] = new THREE.Vector3(Math.cos(a), 0.4, Math.sin(a));
-        add(shard, 450, 0);
+        bit.position.y = 0.5 * w;
+        bit.rotation.set(-Math.PI / 4, 0, a);
+        // (#frame moves a burst 0.12 scene units a frame along its dir: 0.6 W over the pop's ~6 frames)
+        bit.userData['dir'] = new THREE.Vector3(Math.cos(a), Math.sin(a) * 0.6, 0).multiplyScalar(
+          (SHIELD_LOOK.fragmentTravel * w) / 6 / 0.12,
+        );
+        add(bit, SHIELD_LOOK.popMs, 0);
       }
+    } else if (e.type === 'SPLIT') {
+      // a Multi throw splits (the video, 5:51.61–5:51.65): one frame of a pink-red disc with a pale heart, ≈ 0.7 W across,
+      // then the pieces come out of a small white puff
+      const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+      const disc = (r: number, colour: string) =>
+        new THREE.Mesh(
+          new THREE.CircleGeometry(r, 20).rotateX(-Math.PI / 2),
+          new THREE.MeshBasicMaterial({ color: colour, transparent: true, depthWrite: false }),
+        );
+      const flash = disc(0.35 * w, SPLIT_LOOK.flash);
+      flash.add(disc(0.14 * w, SPLIT_LOOK.heart).translateY(0.01));
+      add(flash, SPLIT_LOOK.flashMs, 0);
+      add(disc(0.3 * w, SPLIT_LOOK.puff), SPLIT_LOOK.puffMs, 0.4);
     } else if (e.type === 'THAWED') {
-      // the ice shatters into pale shards that fall about its feet (the video, 6:56.38–6:56.75)
-      for (let k = 0; k < ICE_LOOK.shards; k += 1) {
-        const a = (k / ICE_LOOK.shards) * Math.PI * 2;
-        const shard = new THREE.Mesh(
-          new THREE.BoxGeometry(0.9, 0.9, 0.9),
-          new THREE.MeshBasicMaterial({ color: ICE_LOOK.block, transparent: true }),
-        );
-        shard.userData['dir'] = new THREE.Vector3(Math.cos(a), 0.15, Math.sin(a));
-        add(shard, ICE_LOOK.shardMs, 0);
-      }
+      // the ice breaks: a frost puff, and chunks lying where the block stood (the video, 6:56.38–6:57.22; iceShatter.ts)
+      const ground = this.#space.toScene(e.x, e.y);
+      this.#iceShatters.shatter(ground.x, ground.z, this.#space.length(DRAWN_CHARACTER_WIDTH), now);
     } else if (e.type === 'SPAWNED' || e.type === 'PICKUP') {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(1.2, 1.6, 48).rotateX(-Math.PI / 2),
@@ -1161,23 +1316,16 @@ class Plaza {
   #leaveMarks(time: number): void {
     const view = this.#view;
     if (view !== undefined) {
-      const size = this.#space.length(view.boomerangs[0]?.radius ?? 14) * 1.3;
+      const w = this.#space.length(DRAWN_CHARACTER_WIDTH); // one character width (groundMarkMotion.ts sizes are in widths)
       for (const b of view.boomerangs)
         if (b.mark !== undefined && b.state !== 'GROUNDED' && !b.spent) {
           const p = this.#space.toScene(b.x, b.y);
-          this.#marks.drop(b.id, b.mark, p.x, p.z, size, time);
+          this.#marks.drop(b.id, b.mark, p.x, p.z, w, time);
         }
       for (const c of view.circles)
         if (c.burning === true && !c.dead) {
           const p = this.#space.toScene(c.x, c.y);
-          this.#marks.drop(
-            `burn:${c.id}`,
-            'fire',
-            p.x,
-            p.z,
-            this.#space.length(c.radius) * 0.7,
-            time,
-          );
+          this.#marks.drop(`burn:${c.id}`, 'fire', p.x, p.z, w, time);
         }
     }
     this.#marks.update(time);
@@ -1191,6 +1339,16 @@ class Plaza {
     this.#leaveMarks(time);
     this.#props.frame(time);
     this.#remains.frame(time);
+    this.#pickupBursts.frame(time);
+    this.#iceShatters.frame(time);
+    for (let i = this.#takenBooks.length - 1; i >= 0; i -= 1) {
+      const { book, at } = this.#takenBooks[i] as { book: THREE.Group; at: number };
+      const k = bookScale((time - at) / 1000);
+      if (k <= 0) {
+        this.scene.remove(book);
+        this.#takenBooks.splice(i, 1);
+      } else book.scale.setScalar(k);
+    }
     this.#badges?.frame(time, this.camera, (id) => {
       const ch = this.#characters.get(id);
       if (ch === undefined) return undefined;

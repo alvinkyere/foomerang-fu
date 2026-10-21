@@ -20,7 +20,9 @@ import { gzipSync } from 'node:zlib';
 // 147.8 kB gzip. Lazy-loading it was measured too (initial 138.1 kB) but moves the QR library into the lazy total (542.8 kB).
 // Raised on purpose (owner-approved 2026-10-20): the character-select animation player (initial 150.5 kB measured) and the
 // end-of-match sequence + plaza mesh batching (lazy 544 kB measured).
-const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 550_000 };
+// Raised on purpose (owner-approved 2026-10-21): the power effects animated as the reference video does (pickup burst, ice,
+// fire, shield, split, Battle Royale's border; render/*Motion.ts). Measured lazy 549.6 -> 555.3 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 560_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
