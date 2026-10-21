@@ -10,7 +10,7 @@ export interface PowerBadge {
   readonly name: string;
   readonly colour: string;
   /** The white icon on its disc, as the video shows it; undefined until the video is studied for that power (a plain disc). */
-  readonly icon: 'burst' | 'shield' | 'extra' | 'multi' | undefined;
+  readonly icon: 'burst' | 'shield' | 'extra' | 'multi' | 'snowflake' | 'flame' | undefined;
   readonly fromVideo: boolean;
 }
 
@@ -37,6 +37,20 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
     icon: 'multi',
     fromVideo: true,
   },
+  // 5:57.1: a light-blue bar; the icon a snowflake
+  ICE_BOOMERANG: {
+    name: 'ICE BOOMERANG',
+    colour: '#92d8fd',
+    icon: 'snowflake',
+    fromVideo: true,
+  },
+  // 6:51: an orange bar; the icon a flame
+  FIRE_BOOMERANG: {
+    name: 'FIRE BOOMERANG',
+    colour: '#e29854',
+    icon: 'flame',
+    fromVideo: true,
+  },
 });
 
 /** How long the badge stays over the player (the video: 4:11.0 to 4:12.9). */
@@ -51,6 +65,12 @@ export const BADGE_ICON: Readonly<Record<NonNullable<PowerBadge['icon']>, string
   shield: 'M12 3l7 2.6v5.6c0 4.4-2.9 8-7 9.8-4.1-1.8-7-5.4-7-9.8V5.6z',
   // an L-shaped boomerang with a small plus at its top right
   extra: 'M5 6h4v9h9v4H5zM16 3h2v2h2v2h-2v2h-2V7h-2V5h2z',
+  // a flame
+  flame:
+    'M12 2c1 3.5 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.3 2.5-5.3.2 1.8.9 3 2 3.6C10.6 8.4 11.3 5 12 2z',
+  // a six-armed snowflake
+  snowflake:
+    'M11 2h2v4.3l2.2-1.3 1 1.7L13 9v2.3l2-1.2V6.7l2-1.1v3.3l3.7-2.2 1 1.7-3.7 2.2 2.9 1.7-1 1.7-2.9-1.7-2 1.2 2 1.2 2.9-1.7 1 1.7-2.9 1.7 3.7 2.2-1 1.7-3.7-2.2v3.3l-2-1.1v-3.4l-2-1.2V15l3.2 2.3-1 1.7-2.2-1.3V22h-2v-4.3l-2.2 1.3-1-1.7L11 15v-2.3l-2 1.2v3.4l-2 1.1V15l-3.7 2.2-1-1.7L6 13.3 3.1 11.6l1-1.7L7 11.6l2-1.2-2-1.2-2.9 1.7-1-1.7L6 7.5 2.3 5.3l1-1.7L7 5.8V2.5l2 1.1V7l2 1.2V5.9L7.8 3.6l1-1.7L11 3.2z',
   // three curved arrows chasing round a ring
   multi:
     'M12 4a8 8 0 0 1 6.9 4l1.6-.9-.4 4.3-3.9-1.8 1.5-.9A6 6 0 0 0 12 6zM19.1 16a8 8 0 0 1-6.9 4v1.8l-3.5-2.5 3.5-2.5V18a6 6 0 0 0 5.2-3zM4.9 16a8 8 0 0 1 0-8l-1.6-.9 3.9-1.8.4 4.3-1.5-.9a6 6 0 0 0 0 6z',

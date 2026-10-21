@@ -81,6 +81,8 @@ export function buildFuView(
       ...(!dead && player?.dash.phase === 'DASHING'
         ? { dashing: { direction: player.dash.direction } }
         : {}),
+      ...(!dead && (player?.frozen ?? 0) > 0 ? { frozen: true as const } : {}),
+      ...(!dead && player?.burning !== undefined ? { burning: true as const } : {}),
       ...(!dead && player !== undefined && isFatigued(player.fatigue, state.config)
         ? { fatigued: true as const }
         : {}),
@@ -124,6 +126,11 @@ export function buildFuView(
                     ? b.ownerId
                     : `${b.ownerId}#${n}`,
               blast: b.blast,
+              ...(b.fire === true
+                ? { mark: 'fire' as const }
+                : b.ice === true
+                  ? { mark: 'ice' as const }
+                  : {}),
               ownerId: b.ownerId,
               ...(called(b) ? { called: true as const } : {}),
               x: b.position.x,
@@ -301,6 +308,17 @@ export function buildFuView(
         return []; // the scoreboard comes from the state (the HUD's phase)
       case 'GO':
         return []; // GO is the banner, which comes from the state
+      case 'FROZEN':
+      case 'THAWED':
+      case 'IGNITED':
+        return [
+          {
+            type: event.type,
+            ...event.position,
+            color: styleOf(event.playerId, slots).color,
+            actor: event.playerId,
+          },
+        ];
       case 'SPLIT':
         return []; // the video shows nothing at a split but the pieces themselves (drawn from the state)
     }

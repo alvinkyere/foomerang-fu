@@ -33,6 +33,10 @@ export interface CircleView {
   readonly armed: boolean;
   /** Present only while the player is mid-dash (a rules fact): the way they are going. A streak is the renderer's. */
   readonly dashing?: { readonly direction: Vec2 };
+  /** Present (true) only while the player is burning (FIRE_BOOMERANG, a rules fact). */
+  readonly burning?: true;
+  /** Present (true) only while the player is frozen in ice (ICE_BOOMERANG, a rules fact). */
+  readonly frozen?: true;
   /** Present (true) only while the player is FATIGUED (a rules fact): slower walking and weaker dashes. */
   readonly fatigued?: true;
   /** The powerups they hold now (a rules fact), in a fixed order; empty for games without them. */
@@ -56,6 +60,8 @@ export interface BoomerangView {
   readonly id: string;
   /** Armed with EXPLOSIVE_BOOMERANG (a rules fact). */
   readonly blast: boolean;
+  /** FIRE_BOOMERANG / ICE_BOOMERANG (a rules fact): what it leaves on the ground as it flies (presentation). */
+  readonly mark?: 'fire' | 'ice';
   readonly ownerId: string;
   readonly x: number;
   readonly y: number;
@@ -90,6 +96,9 @@ export interface ViewEvent {
     | 'PROP_BROKEN'
     | 'RICOCHET'
     | 'DROPPED'
+    | 'FROZEN'
+    | 'THAWED'
+    | 'IGNITED'
     | 'ROUND_START';
   readonly x: number;
   readonly y: number;

@@ -26,6 +26,8 @@ import {
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
 import { split } from './multi';
+import { ICE_FREEZE_SECONDS } from './ice';
+import { FIRE_BURN_SECONDS } from './fire';
 import { separateBodies } from './collision';
 import {
   DASH_READY,
@@ -143,6 +145,22 @@ export type FuEvent =
       readonly radius: number;
       readonly victims: readonly string[];
     }
+  /** ICE_BOOMERANG: `byId`'s iced boomerang froze `playerId` at `position` (ice.ts). */
+  | {
+      readonly type: 'FROZEN';
+      readonly playerId: string;
+      readonly byId: string;
+      readonly position: Vec2;
+    }
+  /** FIRE_BOOMERANG: `byId`'s fire boomerang set `playerId` alight at `position`; the burn kills them later (fire.ts). */
+  | {
+      readonly type: 'IGNITED';
+      readonly playerId: string;
+      readonly byId: string;
+      readonly position: Vec2;
+    }
+  /** ICE_BOOMERANG: `playerId`'s ice shattered at `position`; they move again. */
+  | { readonly type: 'THAWED'; readonly playerId: string; readonly position: Vec2 }
   /** MULTI_BOOMERANG: `ownerId`'s throw split into pieces at `position` (multi.ts). */
   | { readonly type: 'SPLIT'; readonly ownerId: string; readonly position: Vec2 }
   /** Slice 5: a SHIELD absorbed `byId`'s lethal contact and is spent. */
@@ -503,6 +521,10 @@ interface Contact {
   readonly source: DeathCause;
   /** Slice 8: who is CREDITED (index), or -1 for nobody. The attacker, except for a deflected boomerang (the deflector). */
   readonly credit: number;
+  /** ICE_BOOMERANG: an iced boomerang's contact: it freezes instead of killing. */
+  readonly ice?: boolean;
+  /** FIRE_BOOMERANG: a fire boomerang's contact: it sets alight instead of killing at once. */
+  readonly fire?: boolean;
 }
 
 const CANCELLED: ThrowCharge = Object.freeze({ phase: 'CANCELLED' });
@@ -670,6 +692,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return isObject(raw) ? (raw as FuPlayerInput) : undefined;
   });
   const dashingAtStart = state.players.map((p) => p.alive && p.dash.phase === 'DASHING');
+  // ICE_BOOMERANG: frozen in ice: they stand still and can do nothing (ice.ts)
+  const frozenAtStart = state.players.map((p) => p.alive && (p.frozen ?? 0) > EPSILON);
   // What each player OWNS (oldest first). Changes only by a Book, FIFO eviction or a shield breaking.
   const inventory: Inventory[] = state.players.map((p) => p.inventory);
   const has = (index: number, kind: PowerKind): boolean =>
@@ -697,7 +721,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.
   const moved: FuPlayer[] = state.players.map((player, index) => {
     const move = entries[index]?.move;
-    if (!player.alive || dashingAtStart[index] === true || !isObject(move)) return player;
+    if (
+      !player.alive ||
+      dashingAtStart[index] === true ||
+      frozenAtStart[index] === true ||
+      !isObject(move)
+    )
+      return player;
     const direction = normalized(normalizeMovementInput(move, deadZone));
     if (direction.x === 0 && direction.y === 0) return player; // not a meaningful direction
     return Object.freeze({ ...player, facing: direction });
@@ -721,7 +751,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
   const plans = moved.map((player, index) => {
     const entry = entries[index];
-    const committed = dashingAtStart[index] === true; // mid-dash: no slash, throw or new dash
+    const committed = dashingAtStart[index] === true || frozenAtStart[index] === true; // mid-dash or frozen: no slash, throw or new dash
     const hasFacing = player.facing.x !== 0 || player.facing.y !== 0;
     const held = heldAny[index] === true; // at least one boomerang in hand (enough for a SLASH)
     const throwReady = held; // one in hand is enough: a throw throws one (EXTRA_BOOMERANG's second can go while the first is out)
@@ -803,6 +833,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       !player.alive ||
       (dashes[index] as DashState).phase === 'DASHING' ||
       calling[index] === true ||
+      frozenAtStart[index] === true ||
       !isObject(move)
     )
       return;
@@ -1057,7 +1088,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         direction,
         travelled: 0,
         blast: arm,
-        split: has(index, 'MULTI_BOOMERANG'), // (the reference video: it splits at its first enemy or where its flight out ends)
+        split: has(index, 'MULTI_BOOMERANG'),
+        ice: has(index, 'ICE_BOOMERANG'),
+        fire: has(index, 'FIRE_BOOMERANG'), // (the reference video: it splits at its first enemy or where its flight out ends)
         power,
       });
     });
@@ -1406,7 +1439,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const owner = ownerIdx[k] as number;
     events.push({ type: 'CAUGHT', playerId: (players[owner] as FuPlayer).id });
     // home again: whatever armed this throw is spent; the NEXT throw is armed afresh while BLAST is owned
-    weapons[k] = Object.freeze({ ...(weapons[k] as Boomerang), blast: false, split: false });
+    weapons[k] = Object.freeze({
+      ...(weapons[k] as Boomerang),
+      blast: false,
+      split: false,
+      ice: false,
+      fire: false,
+    });
   });
 
   // 4a. Breakables ------------------------------------------------------------------------------
@@ -1557,7 +1596,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (w.split === true && (touched.length > 0 || ended !== undefined)) {
       // MULTI_BOOMERANG: it splits there instead (multi.ts); whoever it touched is hit by it, and every piece carries its powers
       for (const v of touched)
-        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG', credit });
+        contacts[v]?.push({
+          attacker: a,
+          rank: 0,
+          weapon: k,
+          source: 'BOOMERANG',
+          credit,
+          ...(w.ice === true ? { ice: true } : {}),
+          ...(w.fire === true ? { fire: true } : {}),
+        });
       const heading =
         w.direction.x === 0 && w.direction.y === 0
           ? (flownFrom[k] as Boomerang).direction
@@ -1610,7 +1657,15 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       });
     } else {
       for (const v of touched)
-        contacts[v]?.push({ attacker: a, rank: 0, weapon: k, source: 'BOOMERANG', credit });
+        contacts[v]?.push({
+          attacker: a,
+          rank: 0,
+          weapon: k,
+          source: 'BOOMERANG',
+          credit,
+          ...(w.ice === true ? { ice: true } : {}),
+          ...(w.fire === true ? { fire: true } : {}),
+        });
     }
   });
   const swings: FuPlayer[] = [...players];
@@ -1665,14 +1720,59 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
+  const freezing = new Set<number>(); // ICE_BOOMERANG: frozen by this step's contacts
+  const igniting = new Map<number, NonNullable<FuPlayer['burning']>>(); // FIRE_BOOMERANG: set alight this step
   const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
   const deathOf = new Map<string, Death>(); // victim → how they died and who is credited (Slice 8)
   players.forEach((victim, v) => {
     if (!victim.alive) return;
-    const list = (contacts[v] as Contact[]).sort(
+    const sorted = (contacts[v] as Contact[]).sort(
       (x, y) => x.attacker - y.attacker || x.rank - y.rank || x.weapon - y.weapon,
     );
-    if (list.length === 0) return;
+    // ICE_BOOMERANG: an iced contact freezes instead of killing; a shield they wear pops with it (the video, 6:54.52–6:54.55)
+    const iced = sorted.filter((c) => c.ice === true);
+    const list = sorted.filter((c) => c.ice !== true);
+    if (iced.length > 0 && frozenAtStart[v] !== true && !freezing.has(v)) {
+      const first = iced[0] as Contact;
+      freezing.add(v);
+      events.push({
+        type: 'FROZEN',
+        playerId: victim.id,
+        byId: (players[first.attacker] as FuPlayer).id,
+        position: positionOf(victim.id),
+      });
+      if (has(v, 'SHIELD')) {
+        inventory[v] = removePower(inventory[v] as Inventory, 'SHIELD');
+        events.push({
+          type: 'POWER_LOST',
+          playerId: victim.id,
+          kind: 'SHIELD',
+          reason: 'SHIELD_BROKEN',
+        });
+        events.push({
+          type: 'SHIELD_BLOCKED',
+          playerId: victim.id,
+          byId: (players[first.attacker] as FuPlayer).id,
+          position: positionOf(victim.id),
+        });
+      }
+    }
+    // FIRE_BOOMERANG: a burn that runs out this step kills, credited to whoever set them alight
+    const burn = (state.players[v] as FuPlayer).burning;
+    const burnOut = burn !== undefined && burn.seconds - dt <= EPSILON;
+    const burnDeath = () => {
+      if (burn === undefined) return;
+      killedBy.set(victim.id, burn.byId);
+      deathOf.set(victim.id, {
+        victimId: victim.id,
+        creditedTo: burn.creditedTo,
+        cause: 'BOOMERANG',
+      });
+    };
+    if (list.length === 0) {
+      if (burnOut) burnDeath();
+      return;
+    }
     if (has(v, 'SHIELD') && !exploding.has(v)) {
       // A guard absorbs exactly ONE lethal contact and is spent; the weapon cannot hit them again this leg/swing.
       const first = list.shift() as Contact;
@@ -1708,7 +1808,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         }
       }
     }
-    const [killing] = list;
+    // a fire contact sets alight instead of killing at once (fire.ts); any other lethal contact kills as usual
+    const killing = list.find((c) => c.fire !== true);
+    const firing = list.find((c) => c.fire === true);
+    if (killing === undefined && firing !== undefined && burn === undefined && !igniting.has(v)) {
+      const byId = (players[firing.attacker] as FuPlayer).id;
+      igniting.set(v, {
+        seconds: FIRE_BURN_SECONDS,
+        byId,
+        creditedTo: firing.credit < 0 ? undefined : (players[firing.credit] as FuPlayer).id,
+      });
+      events.push({ type: 'IGNITED', playerId: victim.id, byId, position: positionOf(victim.id) });
+    }
+    if (killing === undefined && burnOut) burnDeath();
     if (killing !== undefined) {
       killedBy.set(
         victim.id,
@@ -1822,20 +1934,47 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       spared.length === base.hazardSpared.length &&
       spared.every((v, k) => v === base.hazardSpared[k]);
     const outside = p.alive ? (outsideFor[index] ?? 0) : 0;
+    // ICE_BOOMERANG: frozen now, or the ice running down; when it is out the block shatters (THAWED). The dead and a round that
+    // is over keep none.
+    const left = freezing.has(index) ? ICE_FREEZE_SECONDS : (p.frozen ?? 0) - dt;
+    const frozen =
+      p.alive && !concluded && (freezing.has(index) || (p.frozen ?? 0) > EPSILON) && left > EPSILON
+        ? left
+        : undefined;
+    if (p.alive && p.frozen !== undefined && frozen === undefined && !concluded)
+      events.push({ type: 'THAWED', playerId: p.id, position: positionOf(p.id) });
     const planned = (plans[index] as { nextCharge: ThrowCharge }).nextCharge;
     const charge = p.alive && !concluded ? planned : NO_CHARGE;
-    return base.inventory === owned &&
+    const burning =
+      !p.alive || concluded
+        ? undefined
+        : (igniting.get(index) ??
+          (p.burning !== undefined && p.burning.seconds - dt > EPSILON
+            ? Object.freeze({ ...p.burning, seconds: p.burning.seconds - dt })
+            : undefined));
+    const unchanged =
+      base.burning === burning &&
+      base.inventory === owned &&
       sparedSame &&
       base.outsideFor === outside &&
-      base.charge === charge
-      ? base
-      : Object.freeze({
-          ...base,
-          inventory: owned,
-          hazardSpared: sparedSame ? base.hazardSpared : Object.freeze(spared),
-          outsideFor: outside,
-          charge,
-        });
+      base.charge === charge &&
+      base.frozen === frozen;
+    if (unchanged) return base;
+    const { frozen: _was, burning: _burnt, ...rest } = base;
+    void _was;
+    void _burnt;
+    return Object.freeze({
+      ...rest,
+      inventory: owned,
+      hazardSpared: sparedSame ? base.hazardSpared : Object.freeze(spared),
+      outsideFor: outside,
+      charge,
+      ...(burning !== undefined ? { burning } : {}),
+      // (frozen mid-dash: the burst ends where they are)
+      ...(frozen !== undefined
+        ? { frozen, ...(freezing.has(index) ? { dash: DASH_READY } : {}) }
+        : {}),
+    });
   });
 
   return {

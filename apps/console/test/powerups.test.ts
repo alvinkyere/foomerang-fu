@@ -191,6 +191,50 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     ]);
   });
 
+  it('a frozen player is drawn frozen, and FROZEN / THAWED reach the TV at the player', () => {
+    const s: FuState = {
+      ...base,
+      players: base.players.map((p) => (p.id === 'a' ? { ...p, frozen: 1.2 } : p)),
+    };
+    const at = s.world.bodies.find((b) => b.id === 'a')?.position ?? { x: 0, y: 0 };
+    const view = buildFuView(
+      s,
+      [
+        { type: 'FROZEN', playerId: 'a', byId: 'b', position: at },
+        { type: 'THAWED', playerId: 'a', position: at },
+      ],
+      entries,
+      slots(),
+    );
+    expect(view.circles.find((c) => c.id === 'a')?.frozen).toBe(true);
+    expect(view.circles.find((c) => c.id === 'b')?.frozen).toBeUndefined();
+    expect(view.events.map((e) => [e.type, e.actor])).toEqual([
+      ['FROZEN', 'a'],
+      ['THAWED', 'a'],
+    ]);
+  });
+
+  it('a burning player is drawn burning; fire and ice boomerangs are marked for what they leave on the ground', () => {
+    const [mine, theirs] = base.boomerangs as [
+      (typeof base.boomerangs)[number],
+      (typeof base.boomerangs)[number],
+    ];
+    const s: FuState = {
+      ...base,
+      players: base.players.map((p) =>
+        p.id === 'a' ? { ...p, burning: { seconds: 1, byId: 'b', creditedTo: 'b' } } : p,
+      ),
+      boomerangs: [
+        { ...mine, state: 'THROWN', direction: { x: 1, y: 0 }, fire: true },
+        { ...theirs, state: 'THROWN', direction: { x: 1, y: 0 }, ice: true },
+      ],
+    };
+    const view = buildFuView(s, [], entries, slots());
+    expect(view.circles.find((c) => c.id === 'a')?.burning).toBe(true);
+    expect(view.circles.find((c) => c.id === 'b')?.burning).toBeUndefined();
+    expect(view.boomerangs.map((b) => b.mark)).toEqual(['fire', 'ice']);
+  });
+
   it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,

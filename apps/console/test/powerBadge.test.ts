@@ -42,6 +42,24 @@ describe('the pickup badge', () => {
     });
   });
 
+  it('Ice: light blue, "ICE BOOMERANG", the snowflake icon (5:57.1)', () => {
+    expect(POWER_BADGE.ICE_BOOMERANG).toMatchObject({
+      name: 'ICE BOOMERANG',
+      colour: '#92d8fd',
+      icon: 'snowflake',
+      fromVideo: true,
+    });
+  });
+
+  it('Fire: orange, "FIRE BOOMERANG", the flame icon (6:51)', () => {
+    expect(POWER_BADGE.FIRE_BOOMERANG).toMatchObject({
+      name: 'FIRE BOOMERANG',
+      colour: '#e29854',
+      icon: 'flame',
+      fromVideo: true,
+    });
+  });
+
   it('the powers the video has not been studied for yet are marked so', () => {
     expect(POWER_BADGE.CAFFEINATED.fromVideo).toBe(false);
   });

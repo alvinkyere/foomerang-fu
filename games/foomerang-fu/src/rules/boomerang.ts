@@ -115,6 +115,10 @@ export interface Boomerang {
   readonly recall: number;
   /** SPENT: seconds until a new one is in its thrower's hand. 0 otherwise. */
   readonly respawn: number;
+  /** FIRE_BOOMERANG: this throw sets whoever it hits burning (fire.ts). Cleared in hand. */
+  readonly fire?: boolean;
+  /** ICE_BOOMERANG: this throw freezes instead of killing (ice.ts). Cleared in hand. */
+  readonly ice?: boolean;
   /** MULTI_BOOMERANG: this throw splits into pieces at its first enemy contact or where its flight out ends (multi.ts). */
   readonly split?: boolean;
   /** SPENT because it split: back in its thrower's hand once the last of its pieces is gone (not on a respawn clock). */

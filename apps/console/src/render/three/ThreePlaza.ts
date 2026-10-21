@@ -1,3 +1,5 @@
+import { ICE_LOOK } from '../iceLook';
+import { GroundMarks } from './groundMarks';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
@@ -101,6 +103,8 @@ class Character {
   readonly #hands: THREE.Mesh[];
   /** A round's start: the white ring spreading from its feet as it lands (render/roundIntro.ts). */
   readonly #landRing: THREE.Mesh;
+  /** ICE_BOOMERANG: the block of ice it stands frozen in (render/iceLook.ts). */
+  readonly #ice: THREE.Sprite;
   #callingAt: number | undefined;
   readonly #ring: THREE.Mesh;
   readonly #shadow: THREE.Mesh;
@@ -189,7 +193,26 @@ class Character {
       }),
     );
     this.#landRing.visible = false;
-    scene.add(this.sprite, this.#ring, this.#shadow, this.#arrow, this.#landRing, ...this.#hands);
+    this.#ice = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        color: ICE_LOOK.block,
+        transparent: true,
+        opacity: ICE_LOOK.blockOpacity,
+        depthWrite: false,
+      }),
+    );
+    this.#ice.center.set(0.5, 0);
+    this.#ice.renderOrder = CHARACTER_RENDER_ORDER + 1;
+    this.#ice.visible = false;
+    scene.add(
+      this.sprite,
+      this.#ring,
+      this.#shadow,
+      this.#arrow,
+      this.#landRing,
+      this.#ice,
+      ...this.#hands,
+    );
     this.#aim = new AimLine(scene);
   }
 
@@ -238,6 +261,8 @@ class Character {
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
     this.#warn(c, cam, space, h, now);
+    this.#frozen(c, at, h);
+    this.#burn(c, now);
     // charging a throw: the aim line, as long as the throw would fly
     if (c.aim !== undefined && c.facing !== undefined && !c.dead)
       this.#aim.show(
@@ -253,6 +278,28 @@ class Character {
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
     this.#handAura(c, cam, at, h, now);
     this.#land(landing, at, h);
+  }
+
+  /** Burning (FIRE_BOOMERANG): it flickers in the fire's yellows and oranges (the video, 9:55.9–9:57.8). */
+  #burn(c: CircleView, now: number): void {
+    if (c.burning !== true || c.dead) return;
+    const flicker = 0.5 + 0.5 * Math.sin(now / 45);
+    (this.sprite.material as THREE.SpriteMaterial).color.setRGB(
+      1,
+      0.72 + 0.2 * flicker,
+      0.35 + 0.15 * flicker,
+    );
+  }
+
+  /** Frozen (ICE_BOOMERANG): blue inside a pale block of ice standing on its feet (the video, 6:54.55–6:56.38). */
+  #frozen(c: CircleView, feet: THREE.Vector3, h: number): void {
+    const on = c.frozen === true && !c.dead;
+    this.#ice.visible = on;
+    if (!on) return;
+    (this.sprite.material as THREE.SpriteMaterial).color.set(ICE_LOOK.body);
+    const body = h * BODY_OF_CELL;
+    this.#ice.position.copy(feet);
+    this.#ice.scale.set(body * ICE_LOOK.blockWidth, body * ICE_LOOK.blockHeight, 1);
   }
 
   /** A round's start (the reference video, 0:31.4–0:32.8): not there before its jump, two somersaults in the air, a crouch
@@ -531,6 +578,8 @@ class Plaza {
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
   readonly #blasts: Blasts;
+  /** Fire and ice left on the ground by fire / ice boomerangs and burning players (groundMarks.ts). */
+  readonly #marks: GroundMarks;
   #badges: PickupBadges | undefined;
   readonly #resize: ResizeObserver;
 
@@ -638,6 +687,7 @@ class Plaza {
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
     this.#blasts = new Blasts(this.scene);
+    this.#marks = new GroundMarks(this.scene);
     this.#animate(gltf);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
@@ -945,6 +995,17 @@ class Plaza {
         shard.userData['dir'] = new THREE.Vector3(Math.cos(a), 0.4, Math.sin(a));
         add(shard, 450, 0);
       }
+    } else if (e.type === 'THAWED') {
+      // the ice shatters into pale shards that fall about its feet (the video, 6:56.38–6:56.75)
+      for (let k = 0; k < ICE_LOOK.shards; k += 1) {
+        const a = (k / ICE_LOOK.shards) * Math.PI * 2;
+        const shard = new THREE.Mesh(
+          new THREE.BoxGeometry(0.9, 0.9, 0.9),
+          new THREE.MeshBasicMaterial({ color: ICE_LOOK.block, transparent: true }),
+        );
+        shard.userData['dir'] = new THREE.Vector3(Math.cos(a), 0.15, Math.sin(a));
+        add(shard, ICE_LOOK.shardMs, 0);
+      }
     } else if (e.type === 'SPAWNED' || e.type === 'PICKUP') {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(1.2, 1.6, 48).rotateX(-Math.PI / 2),
@@ -1006,11 +1067,38 @@ class Plaza {
     this.camera.position.x += (this.#restX + wanted - this.camera.position.x) * 0.1;
   }
 
+  /** Fire and ice boomerangs in flight, and burning players, leave fire or ice on the ground behind them (groundMarks.ts). */
+  #leaveMarks(time: number): void {
+    const view = this.#view;
+    if (view !== undefined) {
+      const size = this.#space.length(view.boomerangs[0]?.radius ?? 14) * 1.3;
+      for (const b of view.boomerangs)
+        if (b.mark !== undefined && b.state !== 'GROUNDED' && !b.spent) {
+          const p = this.#space.toScene(b.x, b.y);
+          this.#marks.drop(b.id, b.mark, p.x, p.z, size, time);
+        }
+      for (const c of view.circles)
+        if (c.burning === true && !c.dead) {
+          const p = this.#space.toScene(c.x, c.y);
+          this.#marks.drop(
+            `burn:${c.id}`,
+            'fire',
+            p.x,
+            p.z,
+            this.#space.length(c.radius) * 0.7,
+            time,
+          );
+        }
+    }
+    this.#marks.update(time);
+  }
+
   #frame(t: number): void {
     const time = this.#virtual ?? t;
     this.#follow();
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
+    this.#leaveMarks(time);
     this.#props.frame(time);
     this.#remains.frame(time);
     this.#badges?.frame(time, this.camera, (id) => {

@@ -42,6 +42,14 @@ export interface FuPlayer {
   readonly outsideFor: number;
   /** How far THROW has been charged (see `ThrowCharge`). */
   readonly charge: ThrowCharge;
+  /** ICE_BOOMERANG: seconds left frozen in ice (ice.ts): they stand still and can do nothing. Absent: not frozen. */
+  readonly frozen?: number;
+  /** FIRE_BOOMERANG: burning (fire.ts): seconds until the burn kills them, who set them alight and who the kill is credited to. */
+  readonly burning?: {
+    readonly seconds: number;
+    readonly byId: string;
+    readonly creditedTo: string | undefined;
+  };
 }
 
 export type FuPhase = 'PLAYING' | 'ROUND_OVER' | 'MATCH_OVER';

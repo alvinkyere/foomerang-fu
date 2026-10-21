@@ -12,6 +12,8 @@ export const POWER_KINDS = [
   'SHIELD',
   'EXTRA_BOOMERANG',
   'MULTI_BOOMERANG',
+  'ICE_BOOMERANG',
+  'FIRE_BOOMERANG',
 ] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
@@ -123,6 +125,33 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
     'independent: a shield absorbs one piece like any other lethal contact.',
   ],
   ['EXTRA_BOOMERANG', 'MULTI_BOOMERANG', 'each boomerang thrown splits on its own.'],
+  ['CAFFEINATED', 'ICE_BOOMERANG', 'independent.'],
+  [
+    'EXPLOSIVE_BOOMERANG',
+    'ICE_BOOMERANG',
+    'a direct contact freezes; the blast where it goes off still kills (the video does not show the pair).',
+  ],
+  [
+    'SHIELD',
+    'ICE_BOOMERANG',
+    'an ice contact on a shielded player pops the shield and freezes them (6:54.52–6:54.55).',
+  ],
+  ['EXTRA_BOOMERANG', 'ICE_BOOMERANG', 'each boomerang thrown is iced.'],
+  ['MULTI_BOOMERANG', 'ICE_BOOMERANG', 'every piece is iced (the video, 6:50.7).'],
+  ['CAFFEINATED', 'FIRE_BOOMERANG', 'independent.'],
+  [
+    'EXPLOSIVE_BOOMERANG',
+    'FIRE_BOOMERANG',
+    'a direct contact sets alight; the blast where it goes off still kills (its ring burns on the ground, 11:59.7).',
+  ],
+  ['SHIELD', 'FIRE_BOOMERANG', 'a shield takes a fire hit like any lethal contact: no burn.'],
+  ['EXTRA_BOOMERANG', 'FIRE_BOOMERANG', 'each boomerang thrown is on fire.'],
+  ['MULTI_BOOMERANG', 'FIRE_BOOMERANG', 'every piece is on fire (the video, 10:43.5).'],
+  [
+    'ICE_BOOMERANG',
+    'FIRE_BOOMERANG',
+    'a contact does both: frozen and burning (the video does not show the pair).',
+  ],
 ];
 
 /**
