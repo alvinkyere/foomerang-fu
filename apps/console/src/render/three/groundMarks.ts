@@ -19,6 +19,10 @@ export const GROUND_MARK = Object.freeze({
     lifeMs: GROUND_MOTION.ice.lifeSeconds * 1000,
     everyMs: GROUND_MOTION.ice.everyMs,
   }),
+  dust: Object.freeze({
+    lifeMs: GROUND_MOTION.dust.lifeSeconds * 1000,
+    everyMs: GROUND_MOTION.dust.everySeconds * 1000,
+  }),
   /** The most blobs of one kind on the ground at once (the oldest go first). */
   capacity: 4096,
 });
@@ -30,6 +34,8 @@ interface Mark {
   readonly seed: number;
   /** One character width, scene units. */
   readonly w: number;
+  /** Its size × its timeline's (a puff of dust's smaller circles). */
+  readonly scale?: number;
 }
 
 /** A blob layer: an instanced flat disc with a per-instance colour and alpha. */
@@ -134,7 +140,7 @@ class Layer {
       const look = markAt(this.kind, (now - m.born) / 1000, m.seed);
       if (look === undefined) continue;
       keep.push(m);
-      const s = Math.max(1e-3, look.size * m.w);
+      const s = Math.max(1e-3, look.size * m.w * (m.scale ?? 1));
       this.#m.makeScale(s, 1, s).setPosition(m.x, this.y, m.z);
       this.mesh.setMatrixAt(n, this.#m);
       this.mesh.setColorAt(n, this.#c.set(look.colour));
@@ -154,16 +160,29 @@ class Layer {
 export class GroundMarks {
   readonly #layers: Readonly<Record<MarkKind, Layer>>;
   readonly #last = new Map<string, { x: number; z: number; t: number }>();
+  /** Each runner's last place, and when it last kicked up dust. */
+  readonly #runners = new Map<string, { x: number; z: number; t: number; puff: number }>();
   #dropped = 0;
 
   constructor(readonly scene: THREE.Scene) {
     // (fire lies over ice)
-    this.#layers = { ice: new Layer(scene, 'ice', 0.07), fire: new Layer(scene, 'fire', 0.09) };
+    this.#layers = {
+      dust: new Layer(scene, 'dust', 0.05),
+      ice: new Layer(scene, 'ice', 0.07),
+      fire: new Layer(scene, 'fire', 0.09),
+    };
   }
 
   /** `source` (a boomerang's or a player's id) is at (x, z) at `now`: blobs along its path since the last one, close enough to
    * read as the video's band (ice) or cluster (fire), at least every `everyMs`. `w`: one character width in scene units. */
-  drop(source: string, kind: MarkKind, x: number, z: number, w: number, now: number): void {
+  drop(
+    source: string,
+    kind: Exclude<MarkKind, 'dust'>,
+    x: number,
+    z: number,
+    w: number,
+    now: number,
+  ): void {
     const motion = GROUND_MOTION[kind];
     // (the video's own patch is ≈ 0.9 W across: a stamp every third of one keeps the trail as solid as the video's)
     const fb = this.#layers[kind].flipbook;
@@ -190,7 +209,36 @@ export class GroundMarks {
     this.#last.set(source, { x, z, t: now });
   }
 
-  #one(kind: MarkKind, x: number, z: number, w: number, born: number): void {
+  /** Player `source` is at (x, z) at `now`: running, it kicks up a puff of dust behind its feet every 0.17 s (groundMarkMotion.ts):
+   * a main circle and two smaller ones beside it, going sooner. */
+  kick(source: string, x: number, z: number, w: number, now: number): void {
+    const last = this.#runners.get(source);
+    const puff = last?.puff ?? -Infinity;
+    this.#runners.set(source, { x, z, t: now, puff });
+    if (last === undefined || now <= last.t) return;
+    const d = Math.hypot(x - last.x, z - last.z);
+    // (running: faster than a character width a second)
+    if (d / w < (now - last.t) / 1000 || now - puff < GROUND_MARK.dust.everyMs) return;
+    this.#runners.set(source, { x, z, t: now, puff: now });
+    const back = { x: (last.x - x) / d, z: (last.z - z) / d };
+    const at = { x: x + back.x * 0.15 * w, z: z + back.z * 0.15 * w };
+    this.#dropped += 1;
+    const turn = this.#dropped * 2.39996;
+    this.#layers.dust.add({ ...at, born: now, seed: 1, w });
+    for (const k of [0, 1]) {
+      const a = turn + k * 2.2;
+      this.#layers.dust.add({
+        x: at.x + Math.cos(a) * 0.22 * w,
+        z: at.z + Math.sin(a) * 0.22 * w,
+        born: now,
+        seed: ((((turn * 0.618 + k * 0.5) % 1) + 1) % 1) * 0.9,
+        w,
+        scale: 0.65,
+      });
+    }
+  }
+
+  #one(kind: Exclude<MarkKind, 'dust'>, x: number, z: number, w: number, born: number): void {
     this.#dropped += 1;
     const seed = (((this.#dropped * 0.6180339887) % 1) + 1) % 1;
     // fire puffs sit a little about the path; ice is a band right along it
@@ -210,19 +258,26 @@ export class GroundMarks {
   }
 
   update(now: number): void {
+    this.#layers.dust.update(now);
     this.#layers.ice.update(now);
     this.#layers.fire.update(now);
   }
 
   /** How many blobs lie on the ground now (for tests and budgets). */
   get count(): number {
-    return this.#layers.ice.marks.length + this.#layers.fire.marks.length;
+    return (
+      this.#layers.dust.marks.length +
+      this.#layers.ice.marks.length +
+      this.#layers.fire.marks.length
+    );
   }
 
   clear(): void {
     this.#layers.ice.marks.length = 0;
     this.#layers.fire.marks.length = 0;
+    this.#layers.dust.marks.length = 0;
     this.#last.clear();
+    this.#runners.clear();
     this.update(0);
   }
 }

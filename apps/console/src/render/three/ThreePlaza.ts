@@ -1528,6 +1528,12 @@ class Plaza {
           const p = this.#space.toScene(c.x, c.y);
           this.#marks.drop(`burn:${c.id}`, 'fire', p.x, p.z, w, time);
         }
+      // running, everyone kicks up dust behind them (render/groundMarkMotion.ts)
+      for (const c of view.circles)
+        if (!c.dead && c.frozen !== true) {
+          const p = this.#space.toScene(c.x, c.y);
+          this.#marks.kick(c.id, p.x, p.z, w, time);
+        }
     }
     this.#marks.update(time);
   }

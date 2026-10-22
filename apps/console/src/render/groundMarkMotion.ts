@@ -12,6 +12,12 @@
  * Ice (6:02.45–6:05.6; 6:53–6:57):
  *   0–3.0 s     a solid bright-cyan band (#5fd6f4) right under the boomerang's path, ≈ 0.3 W wide
  *   3.0–4.3     it breaks up: each patch shrinks and fades on its own, pale (#a9e9f6), until gone (±0.5 s: the video's camera moves)
+ * Dust behind a running player (HQ video, 60 fps: the banana 2:10.85–2:11.70 on sand, the white mug 2:10.3–2:11.35 and the pink
+ * donut 10:26.05–10:26.8 on the pavement):
+ *   a puff every ≈ 0.17 s at its feet: a solid blob of overlapping circles, one yellow on the whole plaza (#eecb6a: on sand and
+ *   pavement, in sun and shadow, whoever runs; the grass islands' dust is green: it is the map's, not the runner's)
+ *   0–0.15 s    it swells, 0.4 → 0.6 W
+ *   0.15–0.70   it shrinks away, its area falling steadily, breaking into smaller circles that go one by one
  */
 export const GROUND_MOTION = Object.freeze({
   fire: Object.freeze({
@@ -44,9 +50,17 @@ export const GROUND_MOTION = Object.freeze({
     /** The band is solid: patches at most this far apart, as a fraction of their size. */
     spacing: 0.35,
   }),
+  dust: Object.freeze({
+    everySeconds: 0.17,
+    lifeSeconds: 0.7,
+    swellSeconds: 0.15,
+    startSize: 0.4,
+    size: 0.6,
+    colour: '#eecb6a',
+  }),
 });
 
-export type MarkKind = 'fire' | 'ice';
+export type MarkKind = 'fire' | 'ice' | 'dust';
 
 export interface MarkLook {
   readonly colour: string;
@@ -113,5 +127,18 @@ export function iceAt(t: number, seed: number): MarkLook | undefined {
   };
 }
 
+/** One circle of a puff of dust `t` seconds after it rose; undefined once gone. A circle's `seed` (0–1) is when it goes: the
+ * last fifth of the puff's life, seed 1 (its main circle) at the very end. */
+export function dustAt(t: number, seed: number): MarkLook | undefined {
+  const d = GROUND_MOTION.dust;
+  const end = d.lifeSeconds * (0.8 + 0.2 * seed);
+  if (t < 0 || t >= end) return undefined;
+  const size =
+    t < d.swellSeconds
+      ? d.startSize + ((d.size - d.startSize) * t) / d.swellSeconds
+      : d.size * Math.sqrt(1 - (t - d.swellSeconds) / (end - d.swellSeconds));
+  return { colour: d.colour, size, opacity: 1 };
+}
+
 export const markAt = (kind: MarkKind, t: number, seed: number): MarkLook | undefined =>
-  kind === 'fire' ? fireAt(t, seed) : iceAt(t, seed);
+  kind === 'fire' ? fireAt(t, seed) : kind === 'ice' ? iceAt(t, seed) : dustAt(t, seed);

@@ -22,7 +22,9 @@ import { gzipSync } from 'node:zlib';
 // end-of-match sequence + plaza mesh batching (lazy 544 kB measured).
 // Raised on purpose (owner-approved 2026-10-21): the power effects animated as the reference video does (pickup burst, ice,
 // fire, shield, split, Battle Royale's border; render/*Motion.ts). Measured lazy 549.6 -> 555.3 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 560_000 };
+// Raised on purpose (owner-approved 2026-10-22): the dust a running player kicks up (render/groundMarkMotion.ts) and the
+// Explosive's tick, with room for the plaza work under way. Measured lazy 560.1 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 565_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

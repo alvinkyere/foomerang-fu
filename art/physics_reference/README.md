@@ -594,3 +594,18 @@ in flight still sets it off at once). While it lies, counting back from the blas
 The gaps between ticks shorten (0.13, 0.13, 0.10 s): the quickening the owner describes. The rules carry the fuse
 (`Boomerang.fuse`, `EXPLOSIVE_FUSE`); the TV reads it from the view and draws the tick (`tickAt`), the flash by tinting the
 boomerang's own body. Checked in game by a 50 fps screencast: bloom, flash, flash, bloom, blast, as above.
+
+## Dust behind a running player (2026-10-22; applied: `render/groundMarkMotion.ts`, `render/three/groundMarks.ts`)
+
+Owner: "there is a dust trail behind the players… make it exactly like in hq". Measured in the HQ video (60 fps; puffs tracked
+with the camera's pan taken out): the banana 2:10.85–2:11.70 on the plaza's sand, the white mug 2:10.3–2:11.35 and the pink donut
+10:26.05–10:26.8 on its cream pavement.
+
+- **When:** a puff about every 0.17 s while a player runs (130.985, 131.15, 131.32, 131.52, 131.68), at its feet, just behind it.
+- **Shape and life:** a solid blob of two or three overlapping circles. It swells for 0.15 s (≈ 0.4 → 0.6 character widths),
+  then shrinks away, its area falling steadily (681 → 36 px² over 0.55 s), breaking into smaller circles that go one by one.
+  All gone 0.7 s after it rose.
+- **Colour: one yellow, #eecb6a, on the whole plaza**, whoever runs: the banana's on sand #eecb6a, the pink donut's on the
+  pavement #efcc6f / #eecd6f, the white mug's on the pavement the same yellow, and the same over sun and shadow. It is not the
+  runner's colour (pink donut, white mug) nor the ground's under it (the pavement is cream); it is the map's: on the grass
+  islands (9:13) the eggplant's dust is green. (The cyan at 8:01 is an ice boomerang's band breaking up, not dust.)

@@ -31,4 +31,15 @@ describe('ground marks', () => {
     const spacing = 0.3 * 0.35; // ice: 0.3 W patches, 0.35 apart
     expect(marks.count).toBeGreaterThanOrEqual(1 + Math.floor(3 / spacing));
   });
+
+  it('a running player kicks up a puff of dust (three circles) every 0.17 s; a player standing still kicks up none', () => {
+    const marks = new GroundMarks(new THREE.Scene());
+    for (let ms = 0; ms <= 340; ms += 17) marks.kick('a', ms * 0.01, 0, 1, ms);
+    expect(marks.count).toBe(2 * 3); // at 17 ms (the first frame it is seen moving) and 187 ms
+    const still = new GroundMarks(new THREE.Scene());
+    for (let ms = 0; ms <= 340; ms += 17) still.kick('a', 0, 0, 1, ms);
+    expect(still.count).toBe(0);
+    marks.update(340 + GROUND_MARK.dust.lifeMs + 1);
+    expect(marks.count).toBe(0);
+  });
 });
