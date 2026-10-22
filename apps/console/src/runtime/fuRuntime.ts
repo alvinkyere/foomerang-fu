@@ -114,7 +114,10 @@ export class FuRuntime implements MatchRuntime {
     targetKills?: number,
     /** Each round's intro, READY … GO (the reference video: 2.84 s; render/roundIntro.ts). Default none. */
     roundIntroSeconds = 0,
+    /** Where each match's seed comes from (`random()` in [0, 1)): what its Books give, where they and everyone appear. */
+    random: () => number = Math.random,
   ) {
+    this.#random = random;
     this.#targetKills = targetKills;
     this.#roundIntroSeconds = roundIntroSeconds;
     if (mode !== 'FREE_FOR_ALL') throw new RangeError(`game mode ${mode} cannot be played yet`);
@@ -127,7 +130,8 @@ export class FuRuntime implements MatchRuntime {
       spots === undefined || powerups === 'off'
         ? undefined
         : powerups === 'fast'
-          ? { ...PRIMITIVE_POWERUPS, spots, firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 }
+          ? // one at a time, as the real schedules: with Books at random spots, a walk to one must not sweep up others
+            { ...PRIMITIVE_POWERUPS, spots, firstSeconds: 1, intervalSeconds: 1, maxOnField: 1 }
           : powerupsFor(
               powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL',
               spots,
@@ -152,6 +156,7 @@ export class FuRuntime implements MatchRuntime {
   /** CPU participants: software controllers that answer through the same `FuPlayerInput` a person's phone produces. */
   #cpus = new Map<string, CpuController>();
   readonly #roundIntroSeconds: number;
+  readonly #random: () => number;
   #cpuDecisions = { count: 0, totalMs: 0, maxMs: 0 };
 
   get world(): WorldState | undefined {
@@ -164,6 +169,8 @@ export class FuRuntime implements MatchRuntime {
       players.map((p) => ({ id: p.playerId, slot: p.slot })),
       {
         arena: this.#arena,
+        // a fresh seed every match (owner, 2026-10-22: Books must not come the same way every time); the rules stay pure
+        seed: Math.floor(this.#random() * 0x7fffffff),
         ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
         ...FREE_FOR_ALL,
         roundAdvance: 'ON_CONTINUE', // the scoreboard waits for CONTINUE between rounds (owner, 2026-10-19)
@@ -374,6 +381,7 @@ export class FuRuntime implements MatchRuntime {
         y: p.position.y,
       })),
       awards: state.awards,
+      seed: state.config.seed, // this match's (fresh every match): what decides each Book's award
       roundTime: state.roundTime,
       systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
       boomerangs: [...state.boomerangs, ...state.extraBoomerangs].map((b) => ({

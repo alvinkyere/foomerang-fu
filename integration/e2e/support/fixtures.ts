@@ -69,6 +69,7 @@ export interface Snapshot {
         /** Books lying in the arena: a Book carries no kind. */
         pickups: { id: number; x: number; y: number }[];
         awards: number;
+        seed: number;
         /** Slice 6: seconds of active play this round, and the arena systems exactly as the rules have them. */
         roundTime: number;
         systems: {

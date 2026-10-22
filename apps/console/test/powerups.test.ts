@@ -54,7 +54,7 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     }
   });
 
-  it('the primitive arena gets pickups on the shipped schedule, fast gets one a second, off gets none', () => {
+  it('the primitive arena gets pickups on the shipped schedule, fast gets one a second (one at a time), off gets none', () => {
     const config = (r: FuRuntime) => r.state?.config.powerups;
     const normal = new FuRuntime();
     normal.start(players, 0);
@@ -68,7 +68,7 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     expect(config(high)).toMatchObject({ firstSeconds: 10, intervalSeconds: 25, maxOnField: 1 });
     const fast = new FuRuntime(PRIMITIVE_ARENA, 'fast');
     fast.start(players, 0);
-    expect(config(fast)).toMatchObject({ firstSeconds: 1, intervalSeconds: 1, maxOnField: 5 });
+    expect(config(fast)).toMatchObject({ firstSeconds: 1, intervalSeconds: 1, maxOnField: 1 });
     expect(config(fast)?.spots).toEqual(PRIMITIVE_POWERUPS.spots);
     const off = new FuRuntime(PRIMITIVE_ARENA, 'off');
     off.start(players, 0);
@@ -88,6 +88,18 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     expect(lazy.state?.config.powerups?.firstSeconds).toBe(1);
   });
 
+  it('every match is seeded afresh, so its Books (where they lie, what they give) are not the same every match (owner, 2026-10-22)', () => {
+    const seedOf = (random?: () => number) => {
+      const r = new FuRuntime(PRIMITIVE_ARENA, 'fast', undefined, undefined, undefined, 0, random);
+      r.start(players, 0);
+      return r.state?.config.seed;
+    };
+    expect(seedOf(() => 0.25)).not.toBe(seedOf(() => 0.75));
+    expect(seedOf(() => 0.25)).toBe(seedOf(() => 0.25)); // the seed is all there is to it: a match replays exactly
+    const real = new Set([1, 2, 3, 4, 5, 6].map(() => seedOf())); // unseeded: the console's own randomness
+    expect(real.size).toBeGreaterThan(4);
+  });
+
   it('pickups really appear on the fast schedule through the real frame loop (and not before)', () => {
     const runtime = new FuRuntime(PRIMITIVE_ARENA, 'fast');
     runtime.start(players, 0);
@@ -97,7 +109,8 @@ describe('?powerups= (a page-address choice, never arbitrary rules)', () => {
     for (let i = 0; i < 40; i += 1) runtime.frame((now += 1000 / 60));
     expect(runtime.state?.pickups.length).toBeGreaterThan(0);
     const debug = runtime.debugState() as { pickups: { x: number; y: number }[] };
-    expect(debug.pickups[0]).toMatchObject({ x: 800, y: 295 });
+    const first = debug.pickups[0];
+    expect(PRIMITIVE_POWERUPS.spots.some((p) => p.x === first?.x && p.y === first?.y)).toBe(true); // one of the spots
     expect(Object.keys(debug.pickups[0] ?? {})).not.toContain('kind'); // a Book says nothing about what it awards
   });
 

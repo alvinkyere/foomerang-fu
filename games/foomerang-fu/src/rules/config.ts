@@ -91,7 +91,8 @@ export interface FuConfig {
   readonly caffeinatedDashFactor: number;
   /** EXPLOSIVE_BOOMERANG's blast radius, centre to body centre, world units: the full drawn ring (the video at 10:17.4, cut out frame by frame: the ring ends at 96 px, 4.57 widths of the donut beside it; ours are drawn ≈ 76 u wide, so 347 u; the owner: what is drawn is what kills). */
   readonly blastRadius: number;
-  /** What seeds where everyone starts from round 2 (spawnPlan.ts). Absent: `seed`, the match's. */
+  /** What seeds where things appear: everyone's start from round 2 (spawnPlan.ts) and each Book's spot (powerups.ts). Absent:
+   * `seed`, the match's. (`seed` alone decides what a Book awards.) */
   readonly spawnSeed?: number;
   /** From round 2, everyone starts at least this far from everyone else (owner, 2026-10-19: "a fair distance"), world units. */
   readonly spawnSeparation: number;

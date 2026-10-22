@@ -215,16 +215,22 @@ export const chooseAward = (
   award: number,
 ): PowerKind | undefined => (pool.length === 0 ? undefined : pool[mix(seed, award) % pool.length]);
 
-/** The first free spot at or after the rotation's choice; undefined when every spot is taken. */
+/**
+ * Where the `spawned`-th Book of `round` appears: a spot picked at random from `seed` (the match's spawn seed; owner,
+ * 2026-10-22: Books must not come in a set order), or the next free one after it; undefined when every spot is taken. Pure:
+ * the same seed, round and count give the same spot, so a replay is exact.
+ */
 export function spawnSpot(
   spawned: number,
   round: number,
   config: PowerupConfig,
   taken: readonly Vec2[],
+  seed: number,
 ): Vec2 | undefined {
   const n = config.spots.length;
+  const start = mix(mix(seed, round), spawned) % n;
   for (let i = 0; i < n; i += 1) {
-    const spot = config.spots[(spawned + round - 1 + i) % n] as Vec2;
+    const spot = config.spots[(start + i) % n] as Vec2;
     if (!taken.some((t) => t.x === spot.x && t.y === spot.y)) return spot;
   }
   return undefined;

@@ -431,7 +431,7 @@ describe('the Book spawn model is scarce', () => {
     expect(next.pickupClock).toEqual({ spawnIn: SCHEDULE.firstSeconds, spawned: 0 });
   });
 
-  it('spawn spots rotate, never two on one spot, and a Book waits when there is nowhere to put it', () => {
+  it('never two Books on one spot, and a Book waits when there is nowhere to put it', () => {
     const wide = {
       ...SCHEDULE,
       spots: SPOTS.slice(0, 2),
@@ -444,6 +444,37 @@ describe('the Book spawn model is scarce', () => {
       s.pickups.length,
     );
     expect(s.pickups.length).toBeLessThanOrEqual(2);
+  });
+
+  it('where each Book appears is random: the match seed picks the spot, not a fixed rotation (owner, 2026-10-22)', () => {
+    const MANY = [0, 1, 2, 3, 4, 5].map((i) => ({ x: 300 + i * 150, y: 300 }));
+    const quick = { ...SCHEDULE, spots: MANY, firstSeconds: 1, intervalSeconds: 1, maxOnField: 1 };
+    /** The spot of each of the first `n` Books, each taken as soon as it appears. */
+    const spotsFor = (seed: number, n = 8): number[] => {
+      let s = parked({ powerups: quick, seed });
+      const out: number[] = [];
+      for (let i = 0; i < 60 * 30 && out.length < n; i += 1) {
+        s = stepFu(s, NONE, DT).state;
+        const b = s.pickups[0];
+        if (b !== undefined) {
+          out.push(MANY.findIndex((m) => m.x === b.position.x));
+          s = { ...s, pickups: [] };
+        }
+      }
+      return out;
+    };
+    const rotation = [0, 1, 2, 3, 4, 5, 0, 1];
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const runs = seeds.map((seed) => spotsFor(seed));
+    // not the old fixed rotation, and different matches put them in different places
+    expect(runs.filter((r) => JSON.stringify(r) === JSON.stringify(rotation)).length).toBeLessThan(
+      2,
+    );
+    expect(new Set(runs.map((r) => JSON.stringify(r))).size).toBeGreaterThanOrEqual(6);
+    // ...yet the same seed always gives the same places (replays stay exact)
+    expect(spotsFor(5)).toEqual(spotsFor(5));
+    // and over many Books every spot gets used
+    expect(new Set(spotsFor(3, 40)).size).toBe(MANY.length);
   });
 
   it('is deterministic: the same match replays to the identical state and events (3,000 steps, 3 players)', () => {

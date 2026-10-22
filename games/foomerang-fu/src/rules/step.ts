@@ -1948,6 +1948,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         state.round,
         schedule,
         pickups.map((p) => p.position),
+        config.spawnSeed ?? config.seed,
       );
       if (spot === undefined)
         clock = Object.freeze({ spawnIn: 0, spawned: clock.spawned }); // wait for a free spot

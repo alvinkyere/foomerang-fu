@@ -94,13 +94,13 @@ test('Powerups: a Book is one mystery object — it names nothing before it is t
   expect(await owned(host, aliceId)).toEqual([]);
 
   const first = lying[0] as { x: number; y: number; id: number };
-  expect(first).toMatchObject({ x: 800, y: 295 }); // the first spot
-  await goTo(host, alice, aliceId, 'spotNorth', 10);
+  // (where it lies is the match's random choice, one of the spots: owner, 2026-10-22)
+  await goTo(host, alice, aliceId, spotName(first), 10);
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 5_000 }).toBe(1);
   // what it awarded is the rules' own seeded choice for the first Book of the match, nobody else's (from her pool: every power
   // but BATTLE_ROYALE, which this arena has no border for)
   const pool = POWER_KINDS.filter((kind) => kind !== 'BATTLE_ROYALE');
-  expect(await owned(host, aliceId)).toEqual([chooseAward(pool, 1, 0)]);
+  expect(await owned(host, aliceId)).toEqual([chooseAward(pool, (await host.fu()).seed, 0)]);
   await expect
     .poll(async () => (await host.snapshot()).drawnPickups?.some((p) => p.id === String(first.id)))
     .toBe(false);
@@ -151,13 +151,11 @@ test('Powerups: EXTRA_BOOMERANG + EXPLOSIVE_BOOMERANG together — one press thr
 }) => {
   const host = await powerHost('EXTRA_BOOMERANG,EXPLOSIVE_BOOMERANG');
   const { alice, aliceId } = await setUp(host, newPhone);
-  await takeABook(host, alice, aliceId);
-  await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 3_000 }).toBe(1);
-  await expect
-    .poll(async () => (await host.fu()).pickups.length, { timeout: 10_000 })
-    .toBeGreaterThan(0);
-  const book = (await host.fu()).pickups[0] as { x: number; y: number };
-  await goTo(host, alice, aliceId, spotName(book), 10);
+  // Books until she owns both (Books lie at random spots now: her way to one may cross another)
+  for (let i = 0; i < 4 && (await owned(host, aliceId)).length < 2; i += 1) {
+    await takeABook(host, alice, aliceId);
+    await sleep(300);
+  }
   await expect.poll(async () => (await owned(host, aliceId)).length, { timeout: 5_000 }).toBe(2);
   expect([...(await owned(host, aliceId))].sort()).toEqual([
     'EXPLOSIVE_BOOMERANG',
@@ -201,6 +199,8 @@ test('Powerups: ICE_BOOMERANG — a real throw that reaches Bob freezes him wher
   const { alice, bob, aliceId, bobId } = await setUp(host, newPhone);
   await takeABook(host, alice, aliceId);
   expect(await owned(host, aliceId)).toEqual(['ICE_BOOMERANG']);
+  // (the Book lay at a random spot: she goes to the north spot, in the open, so Bob can walk straight up to her)
+  await goTo(host, alice, aliceId, 'spotNorth', 10);
   // Bob walks up to within a short throw of her, then she faces him and throws
   await bob.thumbDown();
   try {
@@ -230,11 +230,12 @@ test('Powerups: ICE_BOOMERANG — a real throw that reaches Bob freezes him wher
       .then(() => true)
       .catch(() => false);
     if (frozen) break;
-    await expect
-      .poll(async () => (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state, {
-        timeout: 8_000,
-      })
-      .toBe('HELD');
+    // missed: it comes home, or (stopped by a wall: Books lie at random spots now) lies there, and she holds THROW to call it
+    const state = async () =>
+      (await host.fu()).boomerangs.find((x) => x.ownerId === aliceId)?.state;
+    await expect.poll(state, { timeout: 8_000 }).toMatch(/^(HELD|GROUNDED)$/);
+    for (let i = 0; i < 4 && (await state()) !== 'HELD'; i += 1) await alice.holdThrow(1_500);
+    await expect.poll(state, { timeout: 4_000 }).toBe('HELD');
   }
   expect((await me(host, bobId))?.frozen ?? 0).toBeGreaterThan(0);
   expect((await me(host, bobId))?.alive).toBe(true); // frozen, not dead
