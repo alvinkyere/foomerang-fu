@@ -19,6 +19,7 @@ export interface PowerBadge {
     | 'flame'
     | 'skull'
     | 'fastForward'
+    | 'sparkles'
     | undefined;
   readonly fromVideo: boolean;
 }
@@ -68,6 +69,13 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
     icon: 'skull',
     fromVideo: true,
   },
+  // ff physics hq 2.mp4 11:30.75 (and the first video, 9:15.3): a pink-red bar; the icon two four-pointed sparkles
+  TELEPORT_BOOMERANG: {
+    name: 'TELEPORT BOOMERANG',
+    colour: '#d01e75',
+    icon: 'sparkles',
+    fromVideo: true,
+  },
 });
 
 /** How long the badge stays over the player: from the take to gone (re-read every frame at 4:03.98–4:06.07; pickupMotion.ts). */
@@ -87,6 +95,9 @@ export const BADGE_ICON: Readonly<Record<NonNullable<PowerBadge['icon']>, string
     'M12 3a8 8 0 0 0-8 8c0 2.4 1 4 2.5 5v3h3v-2h1v2h3v-2h1v2h3v-3c1.5-1 2.5-2.6 2.5-5a8 8 0 0 0-8-8zM8.5 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm7 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
   // two arrowheads: fast forward
   fastForward: 'M3 6l8 6-8 6zM12 6l8 6-8 6z',
+  // two four-pointed sparkles: a big one up and right, a small one down and left
+  sparkles:
+    'M15 2c.6 3.7 2.3 5.4 6 6-3.7.6-5.4 2.3-6 6-.6-3.7-2.3-5.4-6-6 3.7-.6 5.4-2.3 6-6zM7 12.5c.4 2.3 1.2 3.1 3.5 3.5-2.3.4-3.1 1.2-3.5 3.5-.4-2.3-1.2-3.1-3.5-3.5 2.3-.4 3.1-1.2 3.5-3.5z',
   // a flame
   flame:
     'M12 2c1 3.5 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.3 2.5-5.3.2 1.8.9 3 2 3.6C10.6 8.4 11.3 5 12 2z',

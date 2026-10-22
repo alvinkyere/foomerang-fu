@@ -287,6 +287,7 @@ export function buildFuView(
             ...event.position,
             color: styleOf(event.victimId, slots).color,
             actor: event.victimId,
+            ...(event.source === 'FALL' ? { fell: true as const } : {}),
             // where the killer stood: the victim comes apart across the line of the hit (none for an environment death)
             ...(event.byId !== event.victimId && state.players.some((p) => p.id === event.byId)
               ? { from: positionOf(event.byId) }
@@ -302,6 +303,9 @@ export function buildFuView(
             ownerId: event.ownerId,
           },
         ];
+      // TELEPORT_BOOMERANG: they simply appear where their boomerang was (the owner, 2026-10-22): no effect of its own
+      case 'TELEPORTED':
+        return [];
       case 'CAUGHT':
         return [
           {

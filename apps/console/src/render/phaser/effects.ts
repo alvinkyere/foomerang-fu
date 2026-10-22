@@ -30,6 +30,7 @@ export const POWER_STYLE: Readonly<
   ICE_BOOMERANG: { color: 0x92d8fd, label: 'ICE' },
   FIRE_BOOMERANG: { color: 0xe29854, label: 'FIRE' },
   BATTLE_ROYALE: { color: 0x433065, label: 'ROYALE' },
+  TELEPORT_BOOMERANG: { color: 0xd01e75, label: 'TELEPORT' },
 };
 /** What each power is called on screen. (SHIELD is shown as SHIELD: it is a one-hit shield.) */
 export const POWER_NAME: Readonly<Record<PowerKind, string>> = {
@@ -41,6 +42,7 @@ export const POWER_NAME: Readonly<Record<PowerKind, string>> = {
   ICE_BOOMERANG: 'ICE BOOMERANG',
   FIRE_BOOMERANG: 'FIRE BOOMERANG',
   BATTLE_ROYALE: 'BATTLE ROYALE',
+  TELEPORT_BOOMERANG: 'TELEPORT BOOMERANG',
 };
 
 /** A powerup's glyph, centred on (0, 0), about `r` across. */
@@ -88,6 +90,10 @@ export function drawGlyph(g: Phaser.GameObjects.Graphics, kind: PowerKind, r: nu
     case 'ICE_BOOMERANG': // a cross (the Phaser dev view)
       g.lineBetween(-0.8 * r, 0, 0.8 * r, 0);
       g.lineBetween(0, -0.8 * r, 0, 0.8 * r);
+      break;
+    case 'TELEPORT_BOOMERANG': // a diamond (the Phaser dev view)
+      g.strokeTriangle(0, -0.8 * r, 0.8 * r, 0, -0.8 * r, 0);
+      g.strokeTriangle(0, 0.8 * r, 0.8 * r, 0, -0.8 * r, 0);
       break;
   }
 }

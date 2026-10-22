@@ -15,6 +15,7 @@ export const POWER_KINDS = [
   'ICE_BOOMERANG',
   'FIRE_BOOMERANG',
   'BATTLE_ROYALE',
+  'TELEPORT_BOOMERANG',
 ] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
@@ -165,6 +166,26 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   ['MULTI_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
   ['ICE_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
   ['FIRE_BOOMERANG', 'BATTLE_ROYALE', 'independent: Battle Royale is not kept.'],
+  ['CAFFEINATED', 'TELEPORT_BOOMERANG', 'independent.'],
+  [
+    'EXPLOSIVE_BOOMERANG',
+    'TELEPORT_BOOMERANG',
+    'she can go to her armed boomerang while it flies (it is caught, unexploded); not to one lying with its fuse lit.',
+  ],
+  ['SHIELD', 'TELEPORT_BOOMERANG', 'independent.'],
+  [
+    'EXTRA_BOOMERANG',
+    'TELEPORT_BOOMERANG',
+    'with one still in hand a press throws it; with both out each press goes to the next.',
+  ],
+  [
+    'MULTI_BOOMERANG',
+    'TELEPORT_BOOMERANG',
+    'each press goes to the next piece, which is caught (the owner, 2026-10-22).',
+  ],
+  ['ICE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
+  ['FIRE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
+  ['BATTLE_ROYALE', 'TELEPORT_BOOMERANG', 'independent: Battle Royale is not kept.'],
 ];
 
 /**

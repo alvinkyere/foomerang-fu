@@ -6,7 +6,7 @@ import {
   type MovementInput,
   type Vec2,
 } from '@foomerang/game-core';
-import { transition, type Boomerang } from './boomerang';
+import { teleportCatch, transition, type Boomerang } from './boomerang';
 import type { FuConfig } from './config';
 import {
   boundsOf,
@@ -179,6 +179,13 @@ export type FuEvent =
   /** Slice 4: a FATIGUED player's recovery completed; full mobility is back and the dash count is reset. */
   | { readonly type: 'RECOVERED'; readonly playerId: string }
   | { readonly type: 'CAUGHT'; readonly playerId: string }
+  /** TELEPORT_BOOMERANG: they went from `from` to their boomerang at `to` (and have it in hand). */
+  | {
+      readonly type: 'TELEPORTED';
+      readonly playerId: string;
+      readonly from: Vec2;
+      readonly to: Vec2;
+    }
   /** Slice 3: an active slash knocked an enemy boomerang off course. `direction` is where it is now flying. */
   | {
       readonly type: 'DEFLECTED';
@@ -684,7 +691,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const standing = breakables.filter((b) => !state.broken.includes(b.id));
   const forBodies = (w: readonly Solid[]): readonly Solid[] =>
     standing.length === 0 ? w : [...w, ...standing];
-  let bodyWalls: readonly Solid[];
+  let bodyWalls: readonly Solid[] = forBodies(walls);
   const deadZone = state.world.movement.deadZone;
   const events: FuEvent[] = [];
   const R = config.playerRadius;
@@ -808,6 +815,37 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
                 })
               : NO_CHARGE;
     return { slashes, throws, dashes, power, nextCharge };
+  });
+
+  // TELEPORT_BOOMERANG (the owner, 2026-10-22): with nothing in hand, a press of THROW takes them to their boomerang that is
+  // out, the first of them (each press the next: MULTI_BOOMERANG's pieces, an EXTRA_BOOMERANG twin), and it is in hand again.
+  // Not to one lying with its fuse lit: that one goes off where it lies. The press is the step THROW goes down (a tap, or the
+  // first step it is held): a press that has already teleported is spent (CANCELLED) until THROW is let go, so it neither
+  // goes twice nor charges the throw of the boomerang it has just brought back.
+  const teleportTo: (number | undefined)[] = moved.map((player, index) => {
+    const committed = dashingAtStart[index] === true || frozenAtStart[index] === true;
+    if (!player.alive || committed || heldAny[index] === true) return undefined;
+    const entry = entries[index];
+    const pressed =
+      entry?.throw === true ||
+      (entry?.throwHeld === true && state.players[index]?.charge.phase !== 'CANCELLED');
+    if (!pressed || !has(index, 'TELEPORT_BOOMERANG')) return undefined;
+    const k = startWeapons.findIndex(
+      (w) =>
+        w.ownerId === player.id &&
+        w.state !== 'HELD' &&
+        w.state !== 'SPENT' &&
+        w.fuse === undefined,
+    );
+    return k < 0 ? undefined : k;
+  });
+  teleportTo.forEach((k, index) => {
+    if (k === undefined) return;
+    const plan = plans[index] as (typeof plans)[number];
+    plans[index] = {
+      ...plan,
+      nextCharge: entries[index]?.throwHeld === true ? CANCELLED : NO_CHARGE,
+    };
   });
 
   // 1c. Movement. Walkers go through game-core; dashers (and overdriven walkers) are carried.
@@ -948,6 +986,28 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       });
     });
   }
+  // the teleports, once everyone has moved: each lands where its boomerang is, pushed clear of walls and the arena's edge
+  if (teleportTo.some((k) => k !== undefined)) {
+    const to = new Map<string, Vec2>();
+    teleportTo.forEach((k, index) => {
+      if (k === undefined) return;
+      const id = (state.players[index] as FuPlayer).id;
+      const p = (startWeapons[k] as Boomerang).position;
+      const body = world.bodies.find((b) => b.id === id);
+      const r = body?.radius ?? R;
+      to.set(id, {
+        x: clamp(p.x, r, world.arena.width - r),
+        y: clamp(p.y, r, world.arena.height - r),
+      });
+    });
+    const before = new Map(world.bodies.map((b) => [b.id, b.position]));
+    world = separateBodies(moveBodies(world, to), (id) => solid.has(id), bodyWalls);
+    for (const [id] of to) {
+      const landed = world.bodies.find((b) => b.id === id)?.position ?? ZERO;
+      events.push({ type: 'TELEPORTED', playerId: id, from: before.get(id) ?? ZERO, to: landed });
+    }
+  }
+  const teleported = new Set(teleportTo.filter((k): k is number => k !== undefined));
   const positionOf = (id: string): Vec2 => {
     const body = world.bodies.find((b) => b.id === id);
     return body === undefined ? ZERO : body.position;
@@ -1113,6 +1173,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const hitReach = (config.hitRadius ?? config.playerRadius) + config.boomerangRadius;
   const flights: Flight[] = weapons.map((b, k) => {
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
+    if (teleported.has(k))
+      // its thrower is here now (TELEPORT_BOOMERANG): in hand again, harmless this step
+      return {
+        boomerang: teleportCatch(b, { ...IN_HAND, position: positionOf(b.ownerId) }),
+        lethalAt: undefined,
+        caught: true,
+      };
     if (thrownNow.has(k)) return { boomerang: b, lethalAt: b.position, caught: false };
     if (b.state === 'SPENT' && b.splitInto === true) {
       // split (MULTI_BOOMERANG): back in its thrower's hand once the last of its pieces is gone

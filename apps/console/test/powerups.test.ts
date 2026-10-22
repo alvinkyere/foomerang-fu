@@ -1,5 +1,6 @@
 import {
   DEFAULT_FU_CONFIG,
+  POWER_KINDS,
   PRIMITIVE_ARENA,
   PRIMITIVE_POWERUPS,
   createFuMatch,
@@ -433,6 +434,8 @@ describe('?enable= (the enabled power pool, for playtesting one power at a time)
     // a retired power (Phase Dash, 2026-10-19) is simply unknown now
     expect(parseEnabledParam('?enable=PHASE_DASH,SHIELD')).toEqual(['SHIELD']);
     expect(parseEnabledParam('?enable=SHIELD,NOPE')).toEqual(['SHIELD']);
+    // every power the rules have can be enabled on its own (a new one must be added to the list)
+    for (const kind of POWER_KINDS) expect(parseEnabledParam(`?enable=${kind}`)).toEqual([kind]);
     for (const junk of ['', '?enable=', '?enable=NOPE', '?enabled=SHIELD']) {
       expect(parseEnabledParam(junk), junk).toBeUndefined();
     }

@@ -132,6 +132,26 @@ export interface Boomerang {
 }
 
 /** Applies a transition, throwing on an impossible one (a bug in the rules, never a game state). */
+/** The states TELEPORT_BOOMERANG's thrower can go to it from: anywhere it is out, except destroyed (SPENT). */
+export const TELEPORT_FROM: readonly BoomerangState[] = Object.freeze([
+  'THROWN',
+  'RETURNING',
+  'DEFLECTED',
+  'GROUNDED',
+  'RECALLING',
+]);
+
+/**
+ * TELEPORT_BOOMERANG (the owner, 2026-10-22): its thrower goes to it and has it in hand again, wherever it is. Kept apart from
+ * the transition tables on purpose: only a teleport takes a boomerang straight from its flight to a hand.
+ */
+export function teleportCatch(boomerang: Boomerang, patch: Partial<Boomerang> = {}): Boomerang {
+  if (!TELEPORT_FROM.includes(boomerang.state)) {
+    throw new Error(`impossible teleport to a boomerang that is ${boomerang.state}`);
+  }
+  return Object.freeze({ ...boomerang, ...patch, state: 'HELD' });
+}
+
 export function transition(
   boomerang: Boomerang,
   to: BoomerangState,

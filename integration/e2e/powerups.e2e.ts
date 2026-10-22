@@ -250,3 +250,24 @@ test('Powerups: ICE_BOOMERANG — a real throw that reaches Bob freezes him wher
   await expect.poll(async () => (await me(host, bobId))?.frozen ?? 0, { timeout: 3_000 }).toBe(0);
   expect((await me(host, bobId))?.alive).toBe(true);
 });
+
+test('Powerups: TELEPORT_BOOMERANG — with her boomerang out, a second press of THROW puts her where it is, and it is in her hand again (the owner, 2026-10-22)', async ({
+  powerHost,
+  newPhone,
+}) => {
+  const host = await powerHost('TELEPORT_BOOMERANG');
+  const { alice, aliceId } = await setUp(host, newPhone);
+  await takeABook(host, alice, aliceId);
+  expect(await owned(host, aliceId)).toEqual(['TELEPORT_BOOMERANG']);
+  await goTo(host, alice, aliceId, 'upperLeft', 14); // the open lane: a long throw to the right
+  await face(alice, 1, 0);
+  const from = await host.body(aliceId);
+  const state = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === aliceId);
+  await alice.tapThrow();
+  await expect.poll(async () => (await state())?.state, { timeout: 2_000 }).not.toBe('HELD');
+  await sleep(250); // let it fly out a way
+  await alice.tapThrow();
+  await expect.poll(async () => (await state())?.state, { timeout: 2_000 }).toBe('HELD');
+  const to = await host.body(aliceId);
+  expect(dist(from, to)).toBeGreaterThan(120); // she went to it: no walk covers that in the time
+});

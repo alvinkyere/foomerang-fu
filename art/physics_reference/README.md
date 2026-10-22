@@ -624,3 +624,18 @@ From the HQ cut, 60 frames a second (9:05.66–9:07.32, the sky-islands round; t
 - **GO's sparks**: 0.134 s after GO appears, eight short white dashes at the eight compass points of an ellipse round it
   (their outer ends 141 px across and 91 px up and down from the middle), each flying 28 px further out, quickest at first,
   as it shrinks from 21 px to nothing in 0.4 s; ≈ 7 px thick, rounded.
+
+## Teleport boomerang (2026-10-22; applied: `rules/step.ts`, `rules/boomerang.ts` `teleportCatch`)
+
+Neither HQ video shows it used: it is taken at 9:15.3 (first video) and 11:30.5 (`ff physics hq 2.mp4`), and the one sudden
+jump near it (11:33.80, the red character from the top raft to the island) is the map's own pair of portals (cyan arcs that
+flash the character's colour as it passes), not the power. Built as the owner describes it (2026-10-22):
+
+- The holder teleports to where their boomerang is, and that is the only way it works. With nothing in hand, pressing THROW
+  takes them to their boomerang that is out (flying out, coming home, deflected, lying on the ground or being called) and it is
+  in their hand again. A boomerang lying with the Explosive's fuse lit goes off where it lies: no teleport to it.
+- With several out (Multi's pieces, an Extra twin) each press goes to the next one, catching it. With one still in hand, a
+  press throws it as usual.
+- They simply appear there (no effect of its own), pushed clear of walls and the arena's edge.
+- The press is the step THROW goes down; held on, it neither teleports again nor charges a throw.
+- The badge as the videos show it: a pink-red bar (#d01e75), two white four-pointed sparkles on its disc.
