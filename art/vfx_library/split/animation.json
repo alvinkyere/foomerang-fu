@@ -1,0 +1,14 @@
+{
+  "name": "split",
+  "fps": 30.0,
+  "frames": 1,
+  "cols": 1,
+  "rows": 1,
+  "widths": 1.3333333333333333,
+  "ground": false,
+  "tintable": false,
+  "loop": false,
+  "size": 20,
+  "palette": ["#ea9e93", "#fbf0d2", "#c2a489", "#df8e88", "#d1ba9f"],
+  "frameFiles": ["frame_000.svg"]
+}

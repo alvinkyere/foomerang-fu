@@ -1,0 +1,23 @@
+{
+  "name": "iceblock",
+  "fps": 30.0,
+  "frames": 1,
+  "cols": 1,
+  "rows": 1,
+  "widths": 3.2,
+  "ground": false,
+  "tintable": false,
+  "loop": false,
+  "size": 48,
+  "palette": [
+    "#c5fdff",
+    "#d8fdfd",
+    "#d5f1ea",
+    "#b1faff",
+    "#d1fdfe",
+    "#ddfaf5",
+    "#e6fdfa",
+    "#dcfcfd"
+  ],
+  "frameFiles": ["frame_000.svg"]
+}

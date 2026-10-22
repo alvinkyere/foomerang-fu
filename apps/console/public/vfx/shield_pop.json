@@ -1,7 +1,6 @@
 {
   "name": "shield_pop",
-  "source": "8:54.19-8:54.26, the donut's Shield bubble breaks into pink fragments",
-  "fps": 30,
+  "fps": 30.0,
   "frames": 3,
   "cols": 2,
   "rows": 2,

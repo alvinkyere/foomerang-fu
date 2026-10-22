@@ -134,6 +134,13 @@ def main(spec_path, out_dir):
             cc[..., 3] = (cc[..., 3].astype(np.float32) * (1 - (q + 1) / (n_f + 1))).astype(np.uint8)
     if 'ring' in spec:
         cells = split_ring(spec, cells, out_dir)
+    # the raw cut (video resolution, RGBA) for vfx_vectorize.py, which traces it into our own vector frames
+    raw = os.environ.get('VFX_RAW')
+    if raw:
+        os.makedirs(raw, exist_ok=True)
+        np.savez_compressed(os.path.join(raw, spec['name'] + '.npz'), cells=np.array(cells), charPx=spec['charPx'],
+                            fps=spec.get('fps', 30), ground=spec.get('ground', False), tintable=spec.get('tintable', False),
+                            loop=spec.get('loop', False))
     if spec.get('tintable', False):
         # the power-coloured parts become white (light kept), so the TV tints them with any power's colour; the white flash
         # stays white either way
@@ -244,6 +251,12 @@ def split_ring(spec, cells, out_dir):
         core[cut, 3] = 0
         cores.append(core)
     ring_spec = dict(spec, name=spec['name'] + '_ring', tintable=False)
+    raw = os.environ.get('VFX_RAW')
+    if raw:
+        os.makedirs(raw, exist_ok=True)
+        np.savez_compressed(os.path.join(raw, ring_spec['name'] + '.npz'), cells=np.array(rings), charPx=spec['charPx'],
+                            fps=spec.get('fps', 30), ground=True, tintable=False, loop=False,
+                            ringRadius=float(max(radii)) / n_out)
     # widths: one ring cell spans n_out video px horizontally; the ring's final radius is max(radii)
     write_atlas(ring_spec, rings, out_dir, widths=n_out / spec['charPx'], ground=True,
                 extra={'ringRadius': float(max(radii)) / n_out})

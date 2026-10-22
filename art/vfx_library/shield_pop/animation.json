@@ -1,0 +1,14 @@
+{
+  "name": "shield_pop",
+  "fps": 30.0,
+  "frames": 3,
+  "cols": 2,
+  "rows": 2,
+  "widths": 3.2,
+  "ground": false,
+  "tintable": false,
+  "loop": false,
+  "size": 48,
+  "palette": ["#fe81b3", "#d176b5", "#f576b8", "#e371ba", "#ff83c6"],
+  "frameFiles": ["frame_000.svg", "frame_001.svg", "frame_002.svg"]
+}

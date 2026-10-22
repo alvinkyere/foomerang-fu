@@ -1,0 +1,30 @@
+{
+  "name": "pickup",
+  "fps": 30.0,
+  "frames": 15,
+  "cols": 4,
+  "rows": 4,
+  "widths": 4.533333333333333,
+  "ground": false,
+  "tintable": true,
+  "loop": false,
+  "size": 68,
+  "palette": ["#e3ee94", "#eef0db", "#e8f467", "#ebf0bb"],
+  "frameFiles": [
+    "frame_000.svg",
+    "frame_001.svg",
+    "frame_002.svg",
+    "frame_003.svg",
+    "frame_004.svg",
+    "frame_005.svg",
+    "frame_006.svg",
+    "frame_007.svg",
+    "frame_008.svg",
+    "frame_009.svg",
+    "frame_010.svg",
+    "frame_011.svg",
+    "frame_012.svg",
+    "frame_013.svg",
+    "frame_014.svg"
+  ]
+}

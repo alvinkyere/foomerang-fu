@@ -548,3 +548,10 @@ measured beside it (`charPx`).
 beside it, so `blastRadius` is **347 u** (was 215 from the wrong 46 u width). Still drawn, not cut: the ice band on the ground (its
 colours and timing measured), the shield bubble while held, the burnt body falling over (our characters' own art), Battle Royale's
 border.
+
+**Then made ours (2026-10-21, the owner: "the animation must be ours, reusable in another game, and not low quality").** The
+cut-out frames are only the reference now: `vfx_vectorize.py` traces each frame into flat-colour vector shapes (the effect's
+own palette, learnt from shape interiors; sub-pixel smooth outlines; each shape's opacity, so fades survive; a hairline bleed so
+neighbours meet without gaps), and `vfx_ring.py` draws the blast ring exactly from its radial profile. The result is our own
+animation library, `art/vfx_library/` (an SVG per frame + `animation.json`; see its README), and the TV plays atlases rendered
+from it at up to 16x the video's resolution (≤ 3072 px a sheet for the blast and its ring, ≤ 2048 for the rest; 1.2 MB of WebP).

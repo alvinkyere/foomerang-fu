@@ -1,7 +1,6 @@
 {
   "name": "split",
-  "source": "5:51.61, a Multi throw splits (one frame)",
-  "fps": 30,
+  "fps": 30.0,
   "frames": 1,
   "cols": 1,
   "rows": 1,

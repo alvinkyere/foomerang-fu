@@ -1,7 +1,6 @@
 {
   "name": "blast",
-  "source": "10:17.43-10:18.17, an Explosive boomerang goes off (the plaza-like market map)",
-  "fps": 30,
+  "fps": 30.0,
   "frames": 23,
   "cols": 5,
   "rows": 5,

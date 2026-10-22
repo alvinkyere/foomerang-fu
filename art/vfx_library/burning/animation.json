@@ -1,0 +1,31 @@
+{
+  "name": "burning",
+  "fps": 30.0,
+  "frames": 16,
+  "cols": 4,
+  "rows": 4,
+  "widths": 2.6666666666666665,
+  "ground": false,
+  "tintable": false,
+  "loop": true,
+  "size": 40,
+  "palette": ["#fce51e", "#f58824", "#f6b627", "#f7cf24", "#fbf722", "#f8a21d"],
+  "frameFiles": [
+    "frame_000.svg",
+    "frame_001.svg",
+    "frame_002.svg",
+    "frame_003.svg",
+    "frame_004.svg",
+    "frame_005.svg",
+    "frame_006.svg",
+    "frame_007.svg",
+    "frame_008.svg",
+    "frame_009.svg",
+    "frame_010.svg",
+    "frame_011.svg",
+    "frame_012.svg",
+    "frame_013.svg",
+    "frame_014.svg",
+    "frame_015.svg"
+  ]
+}
