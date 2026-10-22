@@ -8,6 +8,7 @@ import {
   type Solid,
 } from '@foomerang/foomerang-fu';
 import { describe, expect, it } from 'vitest';
+import { CAMERA_FRAMING } from '../src/render/cameraFraming';
 import { createMapCamera, parseMapCamera } from '../src/render/reconstructed/mapCamera';
 import {
   RECONSTRUCTED_MAPS,
@@ -71,24 +72,37 @@ describe('reconstructed maps', () => {
       const rules = PLAYABLE_ARENAS[map.id].arena;
       const walls = rules.walls ?? [];
       // a map with a border (the plaza) has open sand beyond it that the camera reaches by framing the players: only the
-      // ground inside the border must be on the canvas
-      const xFrom = rules.safeZone?.x ?? 36;
-      const xTo =
-        rules.safeZone === undefined
-          ? map.arena.width - 36
-          : rules.safeZone.x + rules.safeZone.width;
-      for (let x = xFrom; x <= xTo; x += 24)
-        for (let y = 36; y <= map.arena.height - 36; y += 24) {
+      // ground inside the border must be within the camera's reach (the video's views: CAMERA_FRAMING.art, in the resting
+      // view's -1…1); a map without one, inside its own canvas
+      const zone = rules.safeZone ?? {
+        x: 36,
+        y: 36,
+        width: map.arena.width - 72,
+        height: map.arena.height - 72,
+      };
+      const { u0, u1, v0, v1 } = CAMERA_FRAMING.art;
+      for (let x = zone.x; x <= zone.x + zone.width; x += 24)
+        for (
+          let y = Math.max(36, zone.y);
+          y <= Math.min(map.arena.height - 36, zone.y + zone.height);
+          y += 24
+        ) {
           if (insideAWall({ x, y }, 36, walls)) continue;
           const p = camera.project(x, y);
           const where = `${map.id} (${x}, ${y})`;
-          // with a border, the camera's framing reaches beyond the frame (ThreePlaza): the open corner just inside a dashed line,
-          // which only an invisible wall used to cover, may reach a hair past the frame's side (at most 1% of its width)
-          const side = rules.safeZone === undefined ? 0 : camera.canvas.width * 0.01;
-          expect(p.x, where).toBeGreaterThanOrEqual(-side);
-          expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width + side);
-          expect(p.y, where).toBeGreaterThanOrEqual(0);
-          expect(p.y, where).toBeLessThanOrEqual(camera.canvas.height);
+          if (rules.safeZone === undefined) {
+            expect(p.x, where).toBeGreaterThanOrEqual(0);
+            expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width);
+            expect(p.y, where).toBeGreaterThanOrEqual(0);
+            expect(p.y, where).toBeLessThanOrEqual(camera.canvas.height);
+          } else {
+            const u = (p.x / camera.canvas.width) * 2 - 1;
+            const v = 1 - (p.y / camera.canvas.height) * 2;
+            expect(u, where).toBeGreaterThanOrEqual(u0);
+            expect(u, where).toBeLessThanOrEqual(u1);
+            expect(v, where).toBeGreaterThanOrEqual(v0);
+            expect(v, where).toBeLessThanOrEqual(v1);
+          }
         }
       const characters = manifest['characters'] as Record<string, unknown>;
       for (const kind of map.roster) expect(characters[kind]).toBeDefined();

@@ -180,13 +180,24 @@ for d in (0.25, 0.6, 0.95):
     stripes = np.maximum(stripes, mask_of(offset(pave, -d + 0.1)) * (1 - mask_of(offset(pave, -d - 0.1))))
 stripe_col = np.median(ours[(stripes > 0.9) & core], axis=0)
 drawn = drawn * (1 - stripes[..., None]) + stripe_col * stripes[..., None]
+# the border: the rules' dashed rectangle (games/foomerang-fu/src/rules/marketPlazaArena.ts, MARKET_PLAZA_SAFE_ZONE): its sides
+# measured in environ2, its top and bottom in the HQ footage. environ2 shows its sides and, faintly, its top; the rest is drawn
+SAFE = (271, 15, 1939, 1148)                                  # world x0, y0, x1, y1
+to_plan = lambda xw, yw: ((xw / u + w['planOriginX']) * 100, (w['planOriginY'] - yw / u) * 100)
+(SX0, SY1), (SX1, SY0) = to_plan(SAFE[0], SAFE[1]), to_plan(SAFE[2], SAFE[3])   # plan: Y runs north
 dashes = np.zeros((FH, FW), np.float32)
-top, bottom = w['planOriginY'] * 100, (w['planOriginY'] - AR['height'] / u) * 100   # the arena's north and south ends
-for xw in AR['safe_zone']:
-    X = (xw / u + w['planOriginX']) * 100
+top_line = np.zeros((FH, FW), np.float32)
+for X in (SX0, SX1):
     for kk in range(-8, 22):
         y = 53 + 2.4 * kk
-        if bottom <= y and y + 1.2 <= top: dashes = np.maximum(dashes, mask_of([(X - 0.12, y), (X + 0.12, y), (X + 0.12, y + 1.2), (X - 0.12, y + 1.2)]))
+        if SY0 <= y and y + 1.2 <= SY1: dashes = np.maximum(dashes, mask_of([(X - 0.12, y), (X + 0.12, y), (X + 0.12, y + 1.2), (X - 0.12, y + 1.2)]))
+for Y, layer in ((SY0, 'bottom'), (SY1, 'top')):
+    x = SX0
+    while x + 1.2 <= SX1:
+        m = mask_of([(x, Y - 0.12), (x + 1.2, Y - 0.12), (x + 1.2, Y + 0.12), (x, Y + 0.12)])
+        if layer == 'top': top_line = np.maximum(top_line, m)
+        else: dashes = np.maximum(dashes, m)
+        x += 2.4
 dash_col = np.median(ours[(dashes > 0.9) & core], axis=0)
 drawn = drawn * (1 - dashes[..., None]) + dash_col * dashes[..., None]
 
@@ -233,6 +244,7 @@ for X, Y in TREES['leaves_at']:
         a_ = (m.astype(np.float32) / 255)[..., None] * (1 - alpha[y0_:y0_ + 40, x0_:x0_ + 40]) * 0.92
         tile = out[y0_:y0_ + 40, x0_:x0_ + 40]
         out[y0_:y0_ + 40, x0_:x0_ + 40] = tile * (1 - a_) + LEAF * rng.uniform(0.95, 1.08) * a_
+out = out * (1 - top_line[..., None]) + dash_col * top_line[..., None]   # the top line over environ2's faint one
 out = np.clip(out, 0, 255).astype(np.uint8)
 cv2.imwrite(OUT + 'floor.webp', out, [cv2.IMWRITE_WEBP_QUALITY, 92])
 fl.update(y0=Y0, y1=Y1, size=[FW, FH])

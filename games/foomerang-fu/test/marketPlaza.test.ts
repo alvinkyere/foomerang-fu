@@ -24,9 +24,10 @@ const solids = [...walls, ...MARKET_PLAZA_BREAKABLES];
 const ALL = [...MARKET_PLAZA_WALLS, ...MARKET_PLAZA_BREAKABLES];
 
 describe('market_plaza: the arena data', () => {
-  it('is environ2’s plaza plus the outside sand beyond each fence: 2209 × 1108, six spawns, no Slice 6 systems', () => {
-    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([2209, 1108]);
-    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([2209, 1108]);
+  it('is environ2’s plaza plus the open sand beyond the border on each side and south: 2209 × 1418, six spawns, no Slice 6 systems', () => {
+    // south as far beyond the bottom dashed line (1148) as the sides reach beyond theirs (≈ 270)
+    expect([MARKET_PLAZA_WIDTH, MARKET_PLAZA_HEIGHT]).toEqual([2209, 1418]);
+    expect([MARKET_PLAZA_ARENA.width, MARKET_PLAZA_ARENA.height]).toEqual([2209, 1418]);
     expect(MARKET_PLAZA_ARENA.spawns).toHaveLength(6);
     expect(MARKET_PLAZA_ARENA.gates ?? []).toEqual([]);
     expect(MARKET_PLAZA_ARENA.platforms ?? []).toEqual([]);
@@ -121,13 +122,10 @@ describe('market_plaza: the arena data', () => {
     expect(circleHitsWalls({ x: 1104.5, y: 663.5 + 162 + 40 + R }, R, walls)).toBe(false);
   });
 
-  it('its border is the two dashed lines on the sand: the safe zone runs from world x 271 to 1939', () => {
-    expect(MARKET_PLAZA_ARENA.safeZone).toEqual({
-      x: 271,
-      y: 0,
-      width: 1668,
-      height: MARKET_PLAZA_HEIGHT,
-    });
+  it('its border is the dashed rectangle on the sand, as the HQ video shows it: x 271 to 1939, y 15 to 1148', () => {
+    // the side lines measured in environ2; the top one at the purple wall's foot and the bottom one across the south path in
+    // the registered HQ footage (2:05: world y 15.0–15.4 and 1146–1151)
+    expect(MARKET_PLAZA_ARENA.safeZone).toEqual({ x: 271, y: 15, width: 1668, height: 1133 });
   });
 
   it('beyond the dashed lines a player can walk out onto open sand (no wall there), and every spawn is inside them', () => {
@@ -138,10 +136,30 @@ describe('market_plaza: the arena data', () => {
         `east outside at y ${y}`,
       ).toBe(false);
     }
+    // …and past the bottom line, on to the south path and the sand either side of it (owner, 2026-10-22)
+    for (const x of [500, 1104, 1700])
+      expect(circleHitsWalls({ x, y: 1300 }, R, solids), `south outside at x ${x}`).toBe(false);
     for (const p of MARKET_PLAZA_SPAWNS) {
       expect(p.x).toBeGreaterThan(271);
       expect(p.x).toBeLessThan(1939);
+      expect(p.y).toBeGreaterThan(15);
+      expect(p.y).toBeLessThan(1148);
     }
+  });
+
+  it('a player walks south past the bottom dashed line onto the open sand (no edge stops them there any more)', () => {
+    let s = make(['a', 'b'], { arena: MARKET_PLAZA_ARENA, seed: 2 });
+    s = {
+      ...s,
+      world: {
+        ...s.world,
+        bodies: s.world.bodies.map((b) =>
+          b.id === 'a' ? { ...b, position: { x: 1104, y: 1100 } } : b,
+        ),
+      },
+    };
+    for (let t = 0; t < 1; t += DT) s = stepFu(s, input({ a: { move: { x: 0, y: 1 } } }), DT).state;
+    expect(at(s, 'a').y).toBeGreaterThan(1250);
   });
 
   it('every obstacle lies inside the boundary, has a positive size and a unique id; the fountain centre is solid', () => {

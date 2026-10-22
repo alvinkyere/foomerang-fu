@@ -12,12 +12,13 @@ import type { Breakable, FuArena, Rect, Solid } from './arena';
  * Crates and pots BREAK (owner, 2026-10-17): they are MARKET_PLAZA_BREAKABLES, solid until a boomerang, a slash or a blast
  * breaks them. Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
  * thinner than a player radius is widened to one. The world scale (2748 world units per plan unit) and the arena (the plaza
- * between the two side fences plus the outside sand beyond each, from the far wall's base to the bottom of the frame) come from
+ * between the two side fences plus the outside sand beyond each, from the far wall's base to ≈ 270 past the bottom dashed line) come from
  * art/reconstruction/environ2/arena_environ2.py and the image's solved camera.
  */
 
 export const MARKET_PLAZA_WIDTH = 2209;
-export const MARKET_PLAZA_HEIGHT = 1108;
+/** From the far wall's base south to ≈ 270 beyond the bottom dashed line, as far as the sides reach beyond theirs. */
+export const MARKET_PLAZA_HEIGHT = 1418;
 
 export type MarketPlazaWall = Solid & {
   readonly id: string;
@@ -338,14 +339,16 @@ export const MARKET_PLAZA_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 ]);
 
 /**
- * The border: the two dashed lines on the sand (left and right, measured in environ2 at world x 271 and 1939). Players
- * may cross them; one who stays outside for the config's outsideLimitSeconds explodes (owner, 2026-10-17).
+ * The border: the dashed rectangle on the sand. Its sides measured in environ2 (world x 271 and 1939); its top at the purple
+ * wall's foot and its bottom across the south path in the registered HQ footage (2:05: y 15 and 1148). Players may cross
+ * any side (owner, 2026-10-22: the bottom too); one who stays outside for the config's outsideLimitSeconds explodes
+ * (owner, 2026-10-17).
  */
 export const MARKET_PLAZA_SAFE_ZONE: Rect = Object.freeze({
   x: 271,
-  y: 0,
+  y: 15,
   width: 1668,
-  height: MARKET_PLAZA_HEIGHT,
+  height: 1133,
 });
 
 export const MARKET_PLAZA_ARENA: FuArena = Object.freeze({

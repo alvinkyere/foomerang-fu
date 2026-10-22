@@ -203,7 +203,7 @@ import type { Breakable, FuArena, Rect, Solid } from './arena';
  * Crates and pots BREAK (owner, 2026-10-17): they are MARKET_PLAZA_BREAKABLES, solid until a boomerang, a slash or a blast
  * breaks them. Pots, poles and signs are solid by the owner's decision (2026-10-16). Trees, the bunting's rope and the rugs are not. A post
  * thinner than a player radius is widened to one. The world scale (2748 world units per plan unit) and the arena (the plaza
- * between the two side fences plus the outside sand beyond each, from the far wall's base to the bottom of the frame) come from
+ * between the two side fences plus the outside sand beyond each, from the far wall's base to ≈ 270 past the bottom dashed line) come from
  * art/reconstruction/environ2/arena_environ2.py and the image's solved camera.
  */
 
