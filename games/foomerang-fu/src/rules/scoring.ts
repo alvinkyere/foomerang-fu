@@ -9,7 +9,7 @@
  */
 
 /** What killed the player, as the rules resolved it. */
-export type DeathCause = 'SLASH' | 'BOOMERANG' | 'BLAST' | 'HAZARD' | 'OUT_OF_BOUNDS';
+export type DeathCause = 'SLASH' | 'BOOMERANG' | 'BLAST' | 'HAZARD' | 'OUT_OF_BOUNDS' | 'FALL';
 
 export interface Death {
   readonly victimId: string;

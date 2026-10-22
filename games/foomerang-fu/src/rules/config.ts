@@ -1,5 +1,11 @@
 import { FIXED_TIMESTEP_SECONDS } from '@foomerang/game-core';
-import { assertValidSpawns, assertValidWalls, distanceToSolid, type FuArena } from './arena';
+import {
+  assertValidSpawns,
+  assertValidWalls,
+  distanceToSolid,
+  onGround,
+  type FuArena,
+} from './arena';
 import {
   SPAWN_RATES,
   isPowerKind,
@@ -332,6 +338,8 @@ export function assertValidConfig(config: FuConfig): void {
     if (slots.some((slot) => !inRect(spawnPosition(slot, arena), zone)))
       throw new RangeError('every spawn must be inside the safe zone');
   }
+  if (slots.some((slot) => !onGround(spawnPosition(slot, arena), arena)))
+    throw new RangeError('every spawn must be on the ground');
   if (
     config.playerSpeed * config.caffeinatedMoveFactor * FIXED_TIMESTEP_SECONDS >=
     config.playerRadius

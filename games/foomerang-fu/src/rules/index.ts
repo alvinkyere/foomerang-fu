@@ -30,6 +30,17 @@ export {
   SKY_ISLANDS_WALLS,
   SKY_ISLANDS_WIDTH,
 } from './skyIslandsArena';
+export {
+  GONG_ISLANDS_ARENA,
+  GONG_ISLANDS_BOOK_SPOTS,
+  GONG_ISLANDS_BREAKABLES,
+  GONG_ISLANDS_GROUND,
+  GONG_ISLANDS_HEIGHT,
+  GONG_ISLANDS_SPAWNS,
+  GONG_ISLANDS_WALLS,
+  GONG_ISLANDS_WIDTH,
+} from './gongIslandsArena';
+export type { GongIslandsBreakable, GongIslandsWall } from './gongIslandsArena';
 export type { SkyIslandsWall } from './skyIslandsArena';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {

@@ -1,5 +1,12 @@
 import type { Vec2 } from '@foomerang/game-core';
-import { breakablesOf, circleHitsWalls, wallsOf, type FuArena, type Rect } from '../rules/arena';
+import {
+  breakablesOf,
+  circleHitsWalls,
+  onGround,
+  wallsOf,
+  type FuArena,
+  type Rect,
+} from '../rules/arena';
 
 /**
  * The smallest navigation the arenas need: a coarse grid of places a body can stand (clear of every
@@ -31,7 +38,18 @@ export class NavGrid {
           p.y >= radius &&
           p.x <= arena.width - radius &&
           p.y <= arena.height - radius;
-        this.#free[cy * this.cols + cx] = inside && !circleHitsWalls(p, radius, walls) ? 1 : 0;
+        // over ground all round (falling kills): its middle and eight points a body's radius out
+        const grounded =
+          arena.ground === undefined ||
+          [
+            p,
+            ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({
+              x: p.x + Math.cos((k * Math.PI) / 4) * radius,
+              y: p.y + Math.sin((k * Math.PI) / 4) * radius,
+            })),
+          ].every((q) => onGround(q, arena));
+        this.#free[cy * this.cols + cx] =
+          inside && grounded && !circleHitsWalls(p, radius, walls) ? 1 : 0;
       }
     }
   }

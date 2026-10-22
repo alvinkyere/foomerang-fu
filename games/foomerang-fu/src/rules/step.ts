@@ -12,6 +12,7 @@ import {
   boundsOf,
   breakablesOf,
   nearestWallNormal,
+  onGround,
   circleHitsWalls,
   closestPointOn,
   distanceToRect,
@@ -1768,6 +1769,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       credit: -1,
     });
   });
+  // Falling: a living player whose middle has left the ground falls and dies (no shield can stop it; nobody is credited)
+  players.forEach((p, v) => {
+    if (!p.alive || onGround(positionOf(p.id), config.arena)) return;
+    exploding.add(v);
+    (contacts[v] as Contact[]).push({
+      attacker: count,
+      rank: 3,
+      weapon: -1,
+      source: 'FALL',
+      credit: -1,
+    });
+  });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
   const freezing = new Set<number>(); // ICE_BOOMERANG: frozen by this step's contacts
   const igniting = new Map<number, NonNullable<FuPlayer['burning']>>(); // FIRE_BOOMERANG: set alight this step
@@ -1873,7 +1886,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (killing !== undefined) {
       killedBy.set(
         victim.id,
-        killing.source === 'HAZARD' || killing.source === 'OUT_OF_BOUNDS'
+        killing.source === 'HAZARD' ||
+          killing.source === 'OUT_OF_BOUNDS' ||
+          killing.source === 'FALL'
           ? ARENA_ID
           : (players[killing.attacker] as FuPlayer).id,
       );

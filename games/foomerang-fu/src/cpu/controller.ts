@@ -5,6 +5,7 @@ import {
   circleHitsWalls,
   lineClearTo,
   lineIsClear,
+  onGround,
   sweepCircle,
   wallsOf,
   type Rect,
@@ -264,7 +265,28 @@ export class CpuController {
       this.#think(state, observe(past, earlier, this.#id), out);
       if (out.dash === true) this.#lastDash = this.#tick;
     }
-    const dir = aimOverride ?? this.#move;
+    let dir = aimOverride ?? this.#move;
+    // never over an edge (falling kills): a heading or a dash that would carry it off the ground is dropped
+    const arena = state.config.arena;
+    const body = state.world.bodies.find((b) => b.id === this.#id);
+    if (arena.ground !== undefined && body !== undefined) {
+      const here = body.position;
+      const off = (d: Vec2, reach: number): boolean =>
+        !onGround({ x: here.x + d.x * reach, y: here.y + d.y * reach }, arena);
+      const r = state.config.playerRadius;
+      if (
+        aimOverride === undefined &&
+        (dir.x !== 0 || dir.y !== 0) &&
+        (off(dir, r + 6) || off(dir, 2 * r))
+      )
+        dir = { x: 0, y: 0 };
+      const dashReach = state.config.dashSpeed * state.config.dashSeconds + r;
+      if (
+        out.dash === true &&
+        [0.25, 0.5, 0.75, 1].some((k) => off(dir, dashReach * k) || (dir.x === 0 && dir.y === 0))
+      )
+        delete out.dash;
+    }
     // its boomerang dropped (it lies on the ground, or is being pulled home): hold THROW and pull it home, as a player can.
     // Calling means standing still (the calling pose), so not while it is dodging something.
     const dodging = this.#dodge !== undefined && this.#tick < this.#dodge.until;

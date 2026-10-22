@@ -1,5 +1,6 @@
 import type { Vec2 } from '@foomerang/game-core';
 import {
+  onGround,
   distanceToRect,
   distanceToSolid,
   lineClearTo,
@@ -57,6 +58,20 @@ function floorOf(arena: FuArena, radius: number): readonly Vec2[] {
     p.y - margin < zone.y ||
     p.x + margin > zone.x + zone.width ||
     p.y + margin > zone.y + zone.height ||
+    // over ground a body's width all round (where falling kills)
+    (arena.ground !== undefined &&
+      [0, 1, 2, 3, 4, 5, 6, 7, 8].some(
+        (k) =>
+          !onGround(
+            k === 8
+              ? p
+              : {
+                  x: p.x + Math.cos((k * Math.PI) / 4) * 2 * radius,
+                  y: p.y + Math.sin((k * Math.PI) / 4) * 2 * radius,
+                },
+            arena,
+          ),
+      )) ||
     walls.some((w) => distanceToSolid(p, w) <= margin) ||
     props.some((b) => distanceToSolid(p, b) <= margin) ||
     (arena.gates ?? []).some((g) => distanceToRect(p, g.rect) <= margin) ||

@@ -63,9 +63,30 @@ export interface FuArena<W extends Solid = Solid> {
    * `outsideLimitSeconds` explodes. Absent: no border.
    */
   readonly safeZone?: Rect;
+  /**
+   * Where there is ground (the sky islands' tops and bridges: owner, 2026-10-22): polygons of world points. A player whose
+   * middle leaves every one of them falls and dies. Absent: ground everywhere.
+   */
+  readonly ground?: readonly (readonly Vec2[])[];
 }
 
 const NO_WALLS: readonly never[] = Object.freeze([]);
+
+/** Is `p` inside the polygon (even-odd)? */
+export function insidePolygon(p: Vec2, poly: readonly Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const a = poly[i] as Vec2;
+    const b = poly[j] as Vec2;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
+      inside = !inside;
+  }
+  return inside;
+}
+
+/** Is there ground under `p`? (An arena without `ground` is ground everywhere.) */
+export const onGround = (p: Vec2, arena: FuArena): boolean =>
+  arena.ground === undefined || arena.ground.some((poly) => insidePolygon(p, poly));
 export const wallsOf = <W extends Solid>(arena: FuArena<W>): readonly W[] =>
   arena.walls ?? NO_WALLS;
 export const breakablesOf = (arena: FuArena): readonly Breakable[] => arena.breakables ?? NO_WALLS;
