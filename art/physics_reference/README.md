@@ -609,3 +609,18 @@ with the camera's pan taken out): the banana 2:10.85–2:11.70 on the plaza's sa
   pavement #efcc6f / #eecd6f, the white mug's on the pavement the same yellow, and the same over sun and shadow. It is not the
   runner's colour (pink donut, white mug) nor the ground's under it (the pavement is cream); it is the map's: on the grass
   islands (9:13) the eggplant's dust is green. (The cyan at 8:01 is an ice boomerang's band breaking up, not dust.)
+
+## READY and GO (2026-10-22; applied: `ready_go.py`, `render/readyGo.ts`, public/ui/ready.svg, go.svg)
+
+From the HQ cut, 60 frames a second (9:05.66–9:07.32, the sky-islands round; the first round, 0:34–0:36, the same):
+
+- **The words** sit on the screen's middle, READY 424.8 × 106 px and GO 189.7 × 108.7 px at 1080 px of screen height:
+  a heavy rounded sans, white (`#fdfdf9`) with a dark outline (`#393d30`, ≈ 4.5 px), no shadow. They are traced from the
+  video (the median of the frames where each stands still, thresholded, every outline smoothed) into our own SVG letters.
+- **The pop**: on its first frame a word is ≈ half its size, then 0.72, 0.88, 0.98, 1.035, 1.05 (its sixth frame), 1.045,
+  1.026, 1.007, and 1 from its tenth; it stands, and is cut off. GO pops the same way (≈ 104% at its peak).
+- **When**: READY for the 0.983 s up to GO; GO for 0.683 s. (How long after the iris READY comes varies between rounds,
+  1.95 s in the first, 2.58 s on the sky islands; ours keeps GO at 2.84 s and READY the 0.983 s before it.)
+- **GO's sparks**: 0.134 s after GO appears, eight short white dashes at the eight compass points of an ellipse round it
+  (their outer ends 141 px across and 91 px up and down from the middle), each flying 28 px further out, quickest at first,
+  as it shrinks from 21 px to nothing in 0.4 s; ≈ 7 px thick, rounded.

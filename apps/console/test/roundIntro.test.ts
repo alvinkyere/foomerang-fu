@@ -3,7 +3,8 @@ import { ROUND_INTRO, introBanner, landingPose } from '../src/render/roundIntro'
 
 // A round's start as the reference video shows it (0:30.96–0:34.4, from the iris opening): the characters land one by one
 // (the first at 0.82 s, then every ~0.32 s), each after ~0.45 s in the air turning two somersaults, landing in a crouch with a
-// white ring spreading from its feet; READY at 1.84–2.74 s; GO at 2.84 s for ~0.6 s, and play starts at GO.
+// white ring spreading from its feet; GO at 2.84 s, play starting at GO. READY and GO themselves as the HQ video shows them
+// (9:05.66–9:07.32): READY for the 0.983 s up to GO, GO for 0.683 s (render/readyGo.ts draws them).
 
 describe('the round intro', () => {
   it('the measured timeline', () => {
@@ -12,17 +13,19 @@ describe('the round intro', () => {
       firstLanding: 0.82,
       between: 0.32,
       air: 0.45,
-      ready: [1.84, 2.74],
-      goFor: 0.6,
+      ready: [2.84 - 0.983, 2.84],
+      goFor: 0.683,
     });
   });
 
   it('READY, then GO from the moment play starts', () => {
     expect(introBanner(1.0, undefined)).toBeUndefined();
     expect(introBanner(2.0, undefined)).toBe('READY');
-    expect(introBanner(2.8, undefined)).toBeUndefined();
-    expect(introBanner(undefined, 0.2)).toBe('GO');
-    expect(introBanner(undefined, 0.7)).toBeUndefined();
+    expect(introBanner(1.8, undefined)).toBeUndefined();
+    expect(introBanner(2.83, undefined)).toBe('READY'); // right up to GO, no gap
+    expect(introBanner(undefined, 0)).toBe('GO');
+    expect(introBanner(undefined, 0.68)).toBe('GO');
+    expect(introBanner(undefined, 0.69)).toBeUndefined();
   });
 
   it('each character lands in turn: not there before its jump, in the air turning twice, then crouched with the ring', () => {

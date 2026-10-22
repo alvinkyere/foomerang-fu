@@ -39,6 +39,7 @@ import { BOOMERANG_LOOK } from '../boomerangLook';
 import { boomerangBody, boomerangGeometry } from './boomerangModel';
 import { CALL_AURA, auraIn, auraLeftBehind } from '../callAura';
 import { landingPose, type LandingPose } from '../roundIntro';
+import { READY_GO, popScale, sparks } from '../readyGo';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
 import { PickupBadges } from './pickupBadges';
@@ -193,6 +194,81 @@ function softDisc(): THREE.CanvasTexture {
   disc = new THREE.CanvasTexture(canvas);
   disc.colorSpace = THREE.SRGBColorSpace;
   return disc;
+}
+
+/**
+ * READY and GO over the canvas, as the HQ video draws them (render/readyGo.ts): the traced word (public/ui/*.svg) at the
+ * screen's middle and the video's size, popping in, and GO's eight dashes. Sized to the canvas, by its height.
+ */
+function readyGoOverlay(): {
+  root: HTMLDivElement;
+  show: (word: 'READY' | 'GO' | undefined, age: number, canvas: HTMLCanvasElement) => void;
+} {
+  const root = document.createElement('div');
+  Object.assign(root.style, { position: 'absolute', pointerEvents: 'none', display: 'none' });
+  const img = document.createElement('img');
+  img.alt = '';
+  Object.assign(img.style, { position: 'absolute', display: 'block' });
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  Object.assign(svg.style, { position: 'absolute', inset: '0', overflow: 'visible' });
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '100%');
+  const lines = Array.from({ length: 8 }, () => {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('stroke', '#fff');
+    l.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(l);
+    return l;
+  });
+  root.append(img, svg);
+  let shown: string | undefined;
+  return {
+    root,
+    show(word, age, canvas) {
+      if (word === undefined) {
+        root.style.display = 'none';
+        shown = undefined;
+        return;
+      }
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      Object.assign(root.style, {
+        display: 'block',
+        left: `${canvas.offsetLeft}px`,
+        top: `${canvas.offsetTop}px`,
+        width: `${w}px`,
+        height: `${h}px`,
+      });
+      const k = h / READY_GO.screenHeight;
+      const box = word === 'READY' ? READY_GO.ready : READY_GO.go;
+      if (shown !== word) {
+        img.src = `${import.meta.env.BASE_URL}ui/${word.toLowerCase()}.svg`;
+        shown = word;
+      }
+      Object.assign(img.style, {
+        left: `${w / 2 + box.x * k}px`,
+        top: `${h / 2 + box.y * k}px`,
+        width: `${box.width * k}px`,
+        height: `${box.height * k}px`,
+        transformOrigin: `${-box.x * k}px ${-box.y * k}px`,
+        transform: `scale(${popScale(age)})`,
+      });
+      const dashes = word === 'GO' ? sparks(age) : [];
+      lines.forEach((l, i) => {
+        const d = dashes[i];
+        l.style.display = d === undefined ? 'none' : '';
+        if (d === undefined) return;
+        const r = Math.hypot(d.outer.x, d.outer.y);
+        const inner = Math.max(0, r - d.length) / r;
+        l.setAttribute('x1', String(w / 2 + d.outer.x * k));
+        l.setAttribute('y1', String(h / 2 + d.outer.y * k));
+        l.setAttribute('x2', String(w / 2 + d.outer.x * inner * k));
+        l.setAttribute('y2', String(h / 2 + d.outer.y * inner * k));
+        l.setAttribute('stroke-width', String(READY_GO.sparks.width * k));
+      });
+    },
+  };
 }
 
 class Character {
@@ -969,6 +1045,8 @@ class Plaza {
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
   readonly #waterField: THREE.Texture | null;
   readonly #banner: HTMLDivElement;
+  /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
+  readonly #word = readyGoOverlay();
   readonly #atlases = new Map<string, THREE.Texture>();
   /** The plaza's toon shading, for what the game draws itself (the characters' hands). */
   readonly #gradient = toonGradient();
@@ -1125,6 +1203,7 @@ class Plaza {
     });
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
     container.appendChild(this.#banner);
+    container.appendChild(this.#word.root);
     this.#badges = new PickupBadges(container, this.renderer.domElement);
     this.#resize = new ResizeObserver(() => this.#fit());
     this.#resize.observe(container);
@@ -1304,8 +1383,10 @@ class Plaza {
     this.#props.show(view, now);
     this.#closing.show(view.closing, (x, y) => this.#space.toScene(x, y));
     for (const e of view.events) this.#event(e, now);
-    this.#banner.textContent = view.banner ?? '';
-    this.#banner.style.display = view.banner === undefined ? 'none' : 'block';
+    const word = view.banner === 'READY' || view.banner === 'GO' ? view.banner : undefined;
+    this.#word.show(word, view.bannerAge ?? 1, this.renderer.domElement);
+    this.#banner.textContent = word === undefined ? (view.banner ?? '') : '';
+    this.#banner.style.display = view.banner === undefined || word !== undefined ? 'none' : 'block';
   }
 
   #event(e: ViewEvent, now: number): void {
@@ -1694,6 +1775,7 @@ class Plaza {
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.#banner.remove();
+    this.#word.root.remove();
     for (const t of this.#atlases.values()) t.dispose();
   }
 }

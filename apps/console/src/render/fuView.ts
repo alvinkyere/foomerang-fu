@@ -13,7 +13,7 @@ import { PLAYABLE_ARENAS, choiceOf } from '../runtime/arenas';
 import { isCpuId } from '../runtime/cpuRoster';
 import type { ArenaChoice } from '../runtime/powerupMode';
 import type { PackCharacter } from './reconstructed/maps';
-import { introBanner } from './roundIntro';
+import { ROUND_INTRO, introBanner } from './roundIntro';
 import { SLOT_STYLES, type SlotAllocator } from '../runtime/slots';
 import {
   identityOf,
@@ -349,8 +349,12 @@ export function buildFuView(
     state.phase === 'PLAYING' && (state.intro ?? 0) > 0
       ? introTotal - (state.intro ?? 0)
       : undefined;
-  if (state.phase === 'PLAYING' && introTotal > 0)
+  let bannerAge: number | undefined;
+  if (state.phase === 'PLAYING' && introTotal > 0) {
     banner = introBanner(introElapsed, introElapsed === undefined ? state.roundTime : undefined);
+    if (banner === 'READY') bannerAge = (introElapsed ?? 0) - ROUND_INTRO.ready[0];
+    if (banner === 'GO') bannerAge = state.roundTime;
+  }
   if (state.phase === 'ROUND_OVER' && state.roundOver?.awaitingContinue !== true) {
     const winnerId = state.roundOver?.winnerId;
     banner =
@@ -437,6 +441,7 @@ export function buildFuView(
     broken: state.broken,
     events: viewEvents,
     banner,
+    ...(bannerAge === undefined ? {} : { bannerAge }),
     ...(introElapsed === undefined
       ? {}
       : {

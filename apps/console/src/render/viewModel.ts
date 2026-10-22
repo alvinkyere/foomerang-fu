@@ -254,6 +254,8 @@ export interface ArenaView {
   readonly events: readonly ViewEvent[];
   /** Text to show big: while a round is over, and READY / GO at a round's start (render/roundIntro.ts). */
   readonly banner: string | undefined;
+  /** READY / GO: how long it has been up, seconds (its pop and GO's sparks: render/readyGo.ts). */
+  readonly bannerAge?: number;
   /** A round's intro (READY … GO, the rules holding everyone still): seconds into it, and who lands in what order. */
   readonly intro?: { readonly elapsed: number; readonly order: readonly string[] };
   readonly round: number | undefined;

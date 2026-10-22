@@ -1183,13 +1183,17 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(early.intro?.elapsed).toBeCloseTo(1.0, 9);
     expect(early.intro?.order).toEqual(['a', 'b']);
     expect(early.banner).toBeUndefined();
-    expect(buildFuView(at(2.84 - 2.0), [], entries, slots).banner).toBe('READY');
+    const ready = buildFuView(at(2.84 - 2.0), [], entries, slots);
+    expect(ready.banner).toBe('READY');
+    // how long READY has been up (it pops in as the HQ video's does: render/readyGo.ts)
+    expect(ready.bannerAge).toBeCloseTo(2.0 - (2.84 - 0.983), 9);
     const { intro: _intro, ...started } = base;
     void _intro;
     const go: FuState = { ...started, roundTime: 0.2 };
     const after = buildFuView(go, [], entries, slots);
     expect(after.intro).toBeUndefined();
     expect(after.banner).toBe('GO');
+    expect(after.bannerAge).toBeCloseTo(0.2, 9); // GO's age: its pop, then its sparks
     expect(buildFuView({ ...go, roundTime: 1 }, [], entries, slots).banner).toBeUndefined();
   });
 

@@ -21,10 +21,10 @@ export const ROUND_INTRO = Object.freeze({
   /** The white ring from its feet: out to `ringTo` body widths over `ringFor` seconds, fading (32.03–32.4). */
   ringTo: 1.8,
   ringFor: 0.4,
-  /** READY is up from…to (32.80–33.70). */
-  ready: [1.84, 2.74] as const,
-  /** GO shows for this long once play starts (33.80–34.40). */
-  goFor: 0.6,
+  /** READY is up from…to: the 0.983 s up to GO (the HQ video, 9:05.656–9:06.639; render/readyGo.ts draws it). */
+  ready: [2.84 - 0.983, 2.84] as const,
+  /** GO shows for this long once play starts (the HQ video, 9:06.639–9:07.322). */
+  goFor: 0.683,
 });
 
 /** The big word over the arena: READY during the intro's window, GO for a moment once play starts; else nothing. */
