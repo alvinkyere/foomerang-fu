@@ -1,0 +1,20 @@
+{
+  "rig": "market_plaza",
+  "focalPx": 3866.0544780935575,
+  "pitchDeg": 56.17331643398828,
+  "principal": {
+    "x": 960.0,
+    "y": 540.0
+  },
+  "centre": [0.0, 0.0, 1.1],
+  "referenceZoom": 0.9325642983643138,
+  "referenceTime": 544.0,
+  "plan": {
+    "x0": -42,
+    "x1": 47,
+    "y0": 48,
+    "y1": 109,
+    "px_per_unit": 40,
+    "size": [3560, 2440]
+  }
+}
