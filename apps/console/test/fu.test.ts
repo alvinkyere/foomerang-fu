@@ -1197,6 +1197,27 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(buildFuView({ ...go, roundTime: 1 }, [], entries, slots).banner).toBeUndefined();
   });
 
+  it('a fall (the sky islands): the HIT says so, and has no killer to come apart from', () => {
+    const { state, entries, slots } = playing();
+    const view = buildFuView(
+      state,
+      [
+        {
+          type: 'HIT',
+          byId: 'HAZARD',
+          victimId: 'b',
+          position: { x: 30, y: 40 },
+          source: 'FALL',
+          creditedTo: undefined,
+        },
+      ],
+      entries,
+      slots,
+    );
+    expect(view.events[0]).toMatchObject({ type: 'HIT', actor: 'b', fell: true });
+    expect(view.events[0]?.from).toBeUndefined();
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

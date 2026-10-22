@@ -66,6 +66,8 @@ if (!config.ok) {
     // each round opens with the reference video's landings, READY and GO (?intro=off for development and tests)
     roundIntroSeconds:
       new URLSearchParams(window.location.search).get('intro') === 'off' ? 0 : ROUND_INTRO.seconds,
+    // a kill freezes the game, then plays it in slow motion, as the HQ video (?slowmo=off for development and tests)
+    slowMo: new URLSearchParams(window.location.search).get('slowmo') !== 'off',
   });
 
   // A reload reclaims the same room (the arena simulation itself restarts; see docs/CONSOLE.md).

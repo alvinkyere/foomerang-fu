@@ -625,6 +625,18 @@ From the HQ cut, 60 frames a second (9:05.66–9:07.32, the sky-islands round; t
   (their outer ends 141 px across and 91 px up and down from the middle), each flying 28 px further out, quickest at first,
   as it shrinks from 21 px to nothing in 0.4 s; ≈ 7 px thick, rounded.
 
+## Falling and a kill's slow motion (2026-10-22; applied: `render/fallMotion.ts`, `runtime/killSlowMo.ts`)
+
+- **Falling off an island** (the eggplant, HQ 5:03.87; the sushi, HQ 2 7:59.50; camera motion taken out): no remains. The
+  character turns to face the camera, arms out and waving; it rises 0.64 of its width on screen in 0.30 s, easing to a stop,
+  then drops away under gravity (2.54 widths on screen in the next 0.3 s), out of sight below the island ≈ 0.65 s after it
+  went over. The camera looks down at 56.17°: in the world it rises 1.15 widths and falls at ≈ 101 widths/s². A fall has no
+  freeze or slow motion (the frames change evenly).
+- **A kill** (the donut 1:03.85, the coffee mug 2:21.18; read from the camera's pan, which follows the players): the game
+  stops dead for 0.1 s (six identical frames), then runs at ≈ 0.2× (the camera crawls at a fifth of its pace) until 1.1 s
+  after the hit, back to full speed by 1.35 s. No special zoom. The remains' motions were measured in the video's own time,
+  so they stay on the real clock; only the game's clock slows (`?slowmo=off` turns it off).
+
 ## Teleport boomerang (2026-10-22; applied: `rules/step.ts`, `rules/boomerang.ts` `teleportCatch`)
 
 Neither HQ video shows it used: it is taken at 9:15.3 (first video) and 11:30.5 (`ff physics hq 2.mp4`), and the one sudden

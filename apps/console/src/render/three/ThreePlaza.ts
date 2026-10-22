@@ -39,6 +39,7 @@ import { BOOMERANG_LOOK } from '../boomerangLook';
 import { boomerangBody, boomerangGeometry } from './boomerangModel';
 import { CALL_AURA, auraIn, auraLeftBehind } from '../callAura';
 import { landingPose, type LandingPose } from '../roundIntro';
+import { fallPose } from '../fallMotion';
 import { READY_GO, popScale, sparks } from '../readyGo';
 import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
@@ -319,6 +320,13 @@ class Character {
   /** Its own two hands, drawn by the game (render/three/hands.ts); undefined: they are baked into its sprite. */
   readonly #ownHands: Hands | undefined;
   #deadAt: number | undefined;
+  /** It walked off the ground (the sky islands): when it went over (render/fallMotion.ts). */
+  #fellAt: number | undefined;
+
+  /** It has fallen off the ground: instead of coming apart it drops away, waving (render/fallMotion.ts). */
+  fall(now: number): void {
+    this.#fellAt = now;
+  }
   #last: { x: number; y: number; t: number } | undefined;
   logical = { x: 0, y: 0 };
 
@@ -472,7 +480,13 @@ class Character {
     }
     this.#last = { x: c.x, y: c.y, t: now };
     // calling a boomerang home it stands facing the camera (the banana at 0:18.5), whatever way it faced
-    const f = c.calling === true ? { x: 0, y: 1 } : (c.dashing?.direction ?? c.facing);
+    const falling =
+      c.dead && this.#fellAt !== undefined ? fallPose((now - this.#fellAt) / 1000) : undefined;
+    // falling it turns to face the camera (the HQ videos: the eggplant 5:03.87, the sushi 7:59.5)
+    const f =
+      c.calling === true || falling !== undefined
+        ? { x: 0, y: 1 }
+        : (c.dashing?.direction ?? c.facing);
     if (f !== undefined && Math.hypot(f.x, f.y) > 1e-6) this.#heading = headingFrame(f.x, f.y);
     const airborne = c.dashing !== undefined || c.dead;
     this.#texture.offset.set(this.#heading / 16, airborne ? 0 : 0.5);
@@ -487,7 +501,12 @@ class Character {
     const walk = walkPose(now / 1000, pace);
     const hop = walk.hop * BODY_OF_CELL * this.cell;
     this.#walk = { pose: walk, pace, toward: this.#moving };
+    const body = h * BODY_OF_CELL;
     this.sprite.position.copy(at);
+    if (falling !== undefined) {
+      this.sprite.position.y += falling.lift * body;
+      at.y += falling.lift * body;
+    }
     this.sprite.scale.set(h, h, 1);
     this.sprite.center.set(this.anchor[0] / this.cell, 1 - (this.anchor[1] + hop) / this.cell);
     const r = space.length(c.radius);
@@ -497,9 +516,13 @@ class Character {
     this.#shadow.position.set(g.x + 0.15, 0.06, g.z + 0.1);
     this.#shadow.scale.set(r * 0.85, 1, r * 0.55);
     if (c.dead) this.#deadAt ??= now;
-    else this.#deadAt = undefined;
-    // dead, it is gone at once: its remains (halves, or shards and a puddle) take its place (deathRemains.ts)
-    const fade = this.#deadAt === undefined ? 1 : 0;
+    else {
+      this.#deadAt = undefined;
+      this.#fellAt = undefined;
+    }
+    // dead, it is gone at once: its remains (halves, or shards and a puddle) take its place (deathRemains.ts); fallen, it
+    // is seen dropping away until it is out of sight
+    const fade = this.#deadAt === undefined || falling?.visible === true ? 1 : 0;
     const a = (c.dimmed && !c.dead ? 0.5 : 1) * fade;
     (this.sprite.material as THREE.SpriteMaterial).opacity = a;
     this.#warn(c, cam, space, h, now);
@@ -516,7 +539,8 @@ class Character {
         space.length(1),
       );
     else this.#aim.hide();
-    (this.#shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 * a;
+    (this.#shadow.material as THREE.MeshBasicMaterial).opacity =
+      falling !== undefined ? 0 : 0.3 * a;
     (this.#ring.material as THREE.MeshBasicMaterial).opacity = c.dead ? 0 : 0.85 * a;
     this.#land(landing, at, h);
     // the walk's tilt, about its feet: the rock, and the lean into its move (its screen-right component)
@@ -530,7 +554,7 @@ class Character {
       (hop * h) / this.cell,
       a,
       (this.#heading * Math.PI) / 8,
-      this.#handMotion(c, h),
+      falling !== undefined ? this.#flail(falling.arms, body) : this.#handMotion(c, h),
       c.armed && !c.dead,
       c.aim !== undefined && !c.dead ? c.aim.power : 0,
       { axis: cam.getWorldDirection(new THREE.Vector3()).negate(), angle: tiltAngle },
@@ -595,6 +619,16 @@ class Character {
    * back behind its body and a little up, by up to ≈ 0.45 of its body's height (the donut at 2:00.6–2:01.47: render/aimLook.ts);
    * walking, its hands swing in turn (render/walkMotion.ts).
    */
+  /** Falling: its arms out to each side and waving up and down, as the video's (the sushi, 7:59.5–8:00.0). */
+  #flail(arms: number, body: number): readonly [SceneOffset, SceneOffset] {
+    const out = 0.35 * body;
+    const up = (0.35 + 0.25 * arms) * body;
+    return [
+      { x: -out, y: up, z: 0 },
+      { x: out, y: -0.25 * arms * body + 0.35 * body, z: 0 },
+    ];
+  }
+
   #handMotion(c: CircleView, h: number): readonly [SceneOffset, SceneOffset] {
     const none = { x: 0, y: 0, z: 0 };
     if (c.facing === undefined || c.dead) return [none, none];
@@ -1397,7 +1431,10 @@ class Plaza {
       this.scene.add(object);
       this.#bursts.push({ object, born: now, life, grow });
     };
-    if (e.type === 'HIT' && e.actor !== undefined) {
+    if (e.type === 'HIT' && e.actor !== undefined && e.fell === true) {
+      // it walked off the ground: no remains, it drops away whole (render/fallMotion.ts)
+      this.#characters.get(e.actor)?.fall(now);
+    } else if (e.type === 'HIT' && e.actor !== undefined) {
       // the victim comes apart across the line of the hit: halves (or, the mug, shards); the mug and the milk spill
       const ch = this.#characters.get(e.actor);
       const circle = this.#view?.circles.find((c) => c.id === e.actor);

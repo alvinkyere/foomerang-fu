@@ -30,6 +30,8 @@ export interface ConsoleRuntimeOptions {
   readonly targetKills?: number;
   /** Each Foomerang Fu round's intro, READY … GO (the reference video: 2.84 s; the page address's `?intro=off`: none). Default none. */
   readonly roundIntroSeconds?: number;
+  /** A kill freezes and slows the game, as the HQ video (runtime/killSlowMo.ts; the address's `?slowmo=off`: never). Default off. */
+  readonly slowMo?: boolean;
   /** Repeat held sticks on a timer while the phones drive the console (default on; tests turn it off and drive time themselves). */
   readonly inputPump?: boolean;
 }
@@ -103,6 +105,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       mode,
       options.targetKills,
       options.roundIntroSeconds,
+      options.slowMo,
     );
   }, warmUpFor);
   const session = new HostSession({

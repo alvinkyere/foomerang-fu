@@ -45,6 +45,9 @@ interface Part {
   readonly pose: (t: number) => void;
 }
 
+/** Where the cut crosses the body: this fraction of its height up from its feet (the eggplant, HQ 2:03.0). */
+const CUT_HEIGHT = 0.55;
+
 /** The liquids: the coffee in the mug (its darkest large colour) and milk (white). */
 const LIQUID: Readonly<Record<Liquid, number>> = { coffee: 0x5b392a, milk: 0xf6f4ee };
 
@@ -120,27 +123,35 @@ export class DeathRemains {
     return this.#parts.has(id);
   }
 
-  /** One half of the character's own sprite: its left (side −1) or right (+1) half of the frame it showed, sliding on the ground. */
+  /** One piece of the character's own sprite, cut across the body: its top (side +1, flying off) or its bottom (−1, staying). */
   #half(v: Victim, h: Half, side: -1 | 1): Part {
+    // the cut runs across the body, a little above its middle (the eggplant, HQ 2:03.0: the top, its cap with it, flies off
+    // along the hit and comes down; the bottom stays where it stood). Cell fractions from its bottom; the stand row is v 0.5–1.
+    const feet = 1 - v.anchor[1] / v.cell;
+    const cut = feet + CUT_HEIGHT * (v.bodyHeight / v.spriteHeight);
+    const top = side > 0;
     const texture = v.atlas.clone();
-    texture.repeat.set(1 / 32, 1 / 2);
-    texture.offset.set(v.frame / 16 + (side > 0 ? 1 / 32 : 0), 0.5);
+    texture.repeat.set(1 / 16, (top ? 1 - cut : cut) / 2);
+    texture.offset.set(v.frame / 16, 0.5 + (top ? cut / 2 : 0));
     texture.needsUpdate = true;
     const sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: 0.05 }),
     );
-    // the cut runs through the feet: each half turns about its own edge of the cut, at the feet
-    sprite.center.set(side < 0 ? 1 : 0, 1 - v.anchor[1] / v.cell);
-    sprite.scale.set(v.spriteHeight / 2, v.spriteHeight, 1);
+    sprite.center.set(0.5, top ? 0 : feet / cut);
+    sprite.scale.set(v.spriteHeight, v.spriteHeight * (top ? 1 - cut : cut), 1);
     sprite.renderOrder = 2;
     this.scene.add(sprite);
     const W = v.bodyHeight;
+    const above = (cut - feet) * v.spriteHeight; // the cut, above the feet (scene)
     return {
       object: sprite,
       pose: (t) => {
         const p = halfAt(h, t);
-        sprite.position.set(v.at.x + p.position.x * W, v.at.y, v.at.z + p.position.z * W);
-        (sprite.material as THREE.SpriteMaterial).rotation = p.tilt;
+        // the top comes down to the ground as it flies (≈ 0.35 s, its first stretch of the slide); the bottom stays standing
+        const k = Math.min(1, Math.max(0, t) / 0.35);
+        const lift = top ? above * (1 - k * k) : 0;
+        sprite.position.set(v.at.x + p.position.x * W, v.at.y + lift, v.at.z + p.position.z * W);
+        (sprite.material as THREE.SpriteMaterial).rotation = top ? p.tilt : 0;
       },
     };
   }

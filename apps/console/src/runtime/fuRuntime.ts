@@ -33,6 +33,7 @@ import { FrameStepper } from './frameStepper';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
 import type { PowerupMode } from './powerupMode';
 import { InputBuffer } from './inputBuffer';
+import { gameSecondsBetween } from './killSlowMo';
 import type { MatchPhase, MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
 import type { SlotAllocator } from './slots';
 
@@ -116,8 +117,11 @@ export class FuRuntime implements MatchRuntime {
     roundIntroSeconds = 0,
     /** Where each match's seed comes from (`random()` in [0, 1)): what its Books give, where they and everyone appear. */
     random: () => number = Math.random,
+    /** A kill freezes the game and plays it in slow motion (runtime/killSlowMo.ts, the HQ video). Default off. */
+    slowMo = false,
   ) {
     this.#random = random;
+    this.#slowMo = slowMo;
     this.#targetKills = targetKills;
     this.#roundIntroSeconds = roundIntroSeconds;
     if (mode !== 'FREE_FOR_ALL') throw new RangeError(`game mode ${mode} cannot be played yet`);
@@ -138,7 +142,13 @@ export class FuRuntime implements MatchRuntime {
             );
   }
 
+  readonly #slowMo: boolean;
   #stepper = new FrameStepper();
+  /**
+   * The game's own clock: real time, except after a kill, when it freezes and then crawls (runtime/killSlowMo.ts, the HQ
+   * video). The stepper runs on it; the remains and effects stay on the real clock.
+   */
+  #clock = { realMs: 0, gameMs: 0, killMs: undefined as number | undefined };
   #inputs = new InputBuffer();
   #isActive: (playerId: string) => boolean = () => true;
   #playerIds = new Set<string>();
@@ -181,6 +191,7 @@ export class FuRuntime implements MatchRuntime {
       },
     );
     this.#stepper.start(nowMs);
+    this.#clock = { realMs: nowMs, gameMs: nowMs, killMs: undefined };
     this.#inputs = new InputBuffer();
     this.#playerIds = new Set(players.map((p) => p.playerId));
     this.#characters = new Map(
@@ -211,6 +222,7 @@ export class FuRuntime implements MatchRuntime {
   /** After a pause (the host lost its server connection): the match carries on from where it was, not from the time that passed. */
   rebase(nowMs: number): void {
     this.#stepper.rebase(nowMs);
+    this.#clock = { realMs: nowMs, gameMs: nowMs, killMs: undefined };
   }
 
   /** A pause begins: no held thumb and no queued press survives it. */
@@ -280,7 +292,15 @@ export class FuRuntime implements MatchRuntime {
 
   frame(nowMs: number): void {
     if (this.state === undefined) return;
-    const steps = this.#stepper.advance(nowMs);
+    const clock = this.#clock;
+    const real = Math.max(0, nowMs - clock.realMs);
+    clock.gameMs +=
+      clock.killMs === undefined
+        ? real
+        : gameSecondsBetween((clock.realMs - clock.killMs) / 1000, (nowMs - clock.killMs) / 1000) *
+          1000;
+    clock.realMs = nowMs;
+    const steps = this.#stepper.advance(clock.gameMs);
     for (let i = 0; i < steps; i += 1) {
       const thumbs = this.#inputs.frame(nowMs, this.#isActive);
       const inputs = new Map<string, FuPlayerInput>();
@@ -322,6 +342,9 @@ export class FuRuntime implements MatchRuntime {
       const result = stepFu(this.state, inputs, FIXED_TIMESTEP_SECONDS);
       this.state = result.state;
       this.#events.push(...result.events);
+      // a kill (not a fall): the game freezes, then plays in slow motion (the HQ video)
+      if (this.#slowMo && result.events.some((e) => e.type === 'HIT' && e.source !== 'FALL'))
+        clock.killMs = nowMs;
     }
     if (this.#events.length > MAX_PENDING_EVENTS)
       this.#events.splice(0, this.#events.length - MAX_PENDING_EVENTS);
