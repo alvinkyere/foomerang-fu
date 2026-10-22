@@ -1,7 +1,10 @@
 """The plaza's plants as the reference video draws them (2026-10-21, from the high-quality cut, foomerang-fu physics hq.mp4).
 
-Run on the shipped plaza (it edits plaza.glb in place; names, materials and everything else are kept):
-  Blender -b --python plants.py -- apps/console/public/maps/market_plaza/plaza.glb [out.glb]
+Run on the plaza as plaza_lit.py made it, before this script (it adds to it: run on its own output it would add everything
+twice); names, materials and everything else are kept:
+  git show 27a1d7a:apps/console/public/maps/market_plaza/plaza.glb > /tmp/plaza_lit.glb
+  Blender -b --python plants.py -- /tmp/plaza_lit.glb apps/console/public/maps/market_plaza/plaza.glb
+then collision.py (the south-east fence becomes a wall) and outskirts.py (the trees' shadows on the floor).
 
 The hex plants (TREE_25 … TREE_28): a honeycomb of thin orange plates, each at its own height. In the video (2:38.5, the
 camera at its closest) the plates overlap: no gaps, no dark grooves between them; each glows softly lighter at its middle
