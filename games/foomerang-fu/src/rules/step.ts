@@ -674,6 +674,10 @@ const solidNow = (
     : statics;
 
 const EMPTY: readonly string[] = Object.freeze([]);
+/** A boomerang in the air (TELEKINESIS steers one of these). */
+const FLYING: readonly Boomerang['state'][] = Object.freeze(['THROWN', 'RETURNING', 'DEFLECTED']);
+/** TELEKINESIS: how quickly a steered boomerang's velocity follows the thumb (an exponential ease's time constant, s). */
+const TELEKINESIS_EASE_SECONDS = 0.1;
 /** A pickup is taken within this of the body when the config has no schedule of its own (hand-placed pickups). */
 const DEFAULT_PICKUP_RADIUS = 28;
 
@@ -730,6 +734,21 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       ),
   );
 
+  // TELEKINESIS (the owner, 2026-10-22): with their boomerang flying and nothing in hand, holding THROW steers it with the
+  // joystick instead of walking: they stand still, it moves (the first of theirs that is flying).
+  const steerOf: (number | undefined)[] = state.players.map((p, index) => {
+    if (!p.alive || dashingAtStart[index] === true || frozenAtStart[index] === true)
+      return undefined;
+    if (heldAny[index] === true || entries[index]?.throwHeld !== true) return undefined;
+    if (!has(index, 'TELEKINESIS')) return undefined;
+    const k = startWeapons.findIndex((w) => w.ownerId === p.id && FLYING.includes(w.state));
+    return k < 0 ? undefined : k;
+  });
+  const steering = new Map<number, number>(); // boomerang → its steering thrower
+  steerOf.forEach((k, index) => {
+    if (k !== undefined) steering.set(k, index);
+  });
+
   // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.
   const moved: FuPlayer[] = state.players.map((player, index) => {
     const move = entries[index]?.move;
@@ -737,6 +756,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       !player.alive ||
       dashingAtStart[index] === true ||
       frozenAtStart[index] === true ||
+      steerOf[index] !== undefined ||
       !isObject(move)
     )
       return player;
@@ -826,10 +846,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const committed = dashingAtStart[index] === true || frozenAtStart[index] === true;
     if (!player.alive || committed || heldAny[index] === true) return undefined;
     const entry = entries[index];
+    if (!has(index, 'TELEPORT_BOOMERANG')) return undefined;
+    // with TELEKINESIS too, THROW steers it; letting go is what takes them there
+    const steered = startWeapons.findIndex((w) => w.ownerId === player.id && w.steered === true);
+    if (steered >= 0) return entry?.throwHeld === true ? undefined : steered;
     const pressed =
       entry?.throw === true ||
       (entry?.throwHeld === true && state.players[index]?.charge.phase !== 'CANCELLED');
-    if (!pressed || !has(index, 'TELEPORT_BOOMERANG')) return undefined;
+    if (!pressed) return undefined;
+    if (
+      has(index, 'TELEKINESIS') &&
+      startWeapons.some((w) => w.ownerId === player.id && FLYING.includes(w.state))
+    )
+      return undefined;
     const k = startWeapons.findIndex(
       (w) =>
         w.ownerId === player.id &&
@@ -876,6 +905,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       !player.alive ||
       (dashes[index] as DashState).phase === 'DASHING' ||
       calling[index] === true ||
+      steerOf[index] !== undefined ||
       frozenAtStart[index] === true ||
       !isObject(move)
     )
@@ -1171,8 +1201,90 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const reach = config.playerRadius + config.boomerangRadius;
   // ...but it kills only on the body as drawn (`hitRadius`; the owner: what is drawn is what kills)
   const hitReach = (config.hitRadius ?? config.playerRadius) + config.boomerangRadius;
-  const flights: Flight[] = weapons.map((b, k) => {
+  const flights: Flight[] = weapons.map((was, k) => {
+    let b = was;
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
+    const steerer = steering.get(k);
+    if (steerer !== undefined) {
+      // TELEKINESIS: the joystick moves it at throw speed, stopped by walls and the arena's edge, never further from its
+      // thrower than a plain throw reaches; with the stick let go it hangs where it is
+      // (owner, 2026-10-22: "fluid, as I move the steer so should it move"): its velocity eases towards the thumb's (an
+      // analog stick: a half push, half speed) over TELEKINESIS_EASE_SECONDS, so it bends round and glides to a stop instead
+      // of turning corners as the phone's thumb readings arrive; the first step it is steered it carries on its way
+      const stick = entries[steerer]?.move;
+      const v = isObject(stick) ? normalizeMovementInput(stick, deadZone) : ZERO;
+      const wasGoing =
+        b.steered === true
+          ? b.velocity
+          : {
+              x: b.direction.x * config.throwSpeed,
+              y: b.direction.y * config.throwSpeed,
+            };
+      const ease = 1 - Math.exp(-dt / TELEKINESIS_EASE_SECONDS);
+      const velocity = {
+        x: wasGoing.x + (v.x * config.throwSpeed - wasGoing.x) * ease,
+        y: wasGoing.y + (v.y * config.throwSpeed - wasGoing.y) * ease,
+      };
+      const want = {
+        x: b.position.x + velocity.x * dt,
+        y: b.position.y + velocity.y * dt,
+      };
+      const swept = sweepCircle(b.position, want, config.boomerangRadius, walls);
+      let position = swept.blocked ? swept.position : want;
+      const r = config.boomerangRadius;
+      position = {
+        x: clamp(position.x, r, config.arena.width - r),
+        y: clamp(position.y, r, config.arena.height - r),
+      };
+      const home = positionOf(b.ownerId);
+      const far = Math.hypot(position.x - home.x, position.y - home.y);
+      if (far > config.throwRange)
+        position = {
+          x: home.x + ((position.x - home.x) * config.throwRange) / far,
+          y: home.y + ((position.y - home.y) * config.throwRange) / far,
+        };
+      // what it actually did (a wall or the reach may have stopped it) is what it carries into the next step
+      const moved = { x: (position.x - b.position.x) / dt, y: (position.y - b.position.y) / dt };
+      const speed = Math.hypot(moved.x, moved.y);
+      return {
+        boomerang: Object.freeze({
+          ...b,
+          position,
+          velocity: moved,
+          direction: speed > EPSILON ? normalized(moved) : b.direction,
+          steered: true,
+        }),
+        lethalAt: position,
+        caught: false,
+        ...(speed > EPSILON ? { path: [b.position, position] } : {}),
+      };
+    }
+    if (b.steered === true && !FLYING.includes(b.state)) {
+      // no longer in the air (gone off, split, knocked down): nothing left to steer or to let go
+      const { steered: _gone, ...still } = b;
+      void _gone;
+      b = Object.freeze(still);
+    }
+    if (b.steered === true && !teleported.has(k)) {
+      // let go: its flight out ends where it was steered, and it comes home the usual way
+      const { steered: _steered, ...rest } = b;
+      void _steered;
+      return b.state === 'RETURNING'
+        ? { boomerang: Object.freeze(rest), lethalAt: b.position, caught: false }
+        : {
+            boomerang: transition(rest, 'RETURNING', {
+              homing: 0,
+              travelled: 0,
+              follow: 0,
+              wallSeconds: 0,
+              deflectedBy: undefined,
+              absorbed: EMPTY,
+            }),
+            lethalAt: b.position,
+            caught: false,
+            ended: b.position,
+          };
+    }
     if (teleported.has(k))
       // its thrower is here now (TELEPORT_BOOMERANG): in hand again, harmless this step
       return {

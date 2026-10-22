@@ -31,6 +31,7 @@ const KNOWN: readonly PowerKind[] = [
   'FIRE_BOOMERANG',
   'BATTLE_ROYALE',
   'TELEPORT_BOOMERANG',
+  'TELEKINESIS',
 ];
 export function parseEnabledParam(search: string): PowerKind[] | undefined {
   const raw = new URLSearchParams(search).get('enable');

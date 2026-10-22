@@ -492,6 +492,29 @@ export class Phone {
     await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   }
 
+  /**
+   * Two fingers at once (TELEKINESIS): one holds THROW while the thumb drags the joystick `dx, dy` CSS pixels, for `ms`, then
+   * both lift. Every touch event lists every finger still down, as a real screen reports them.
+   */
+  async steerWithThrow(dx: number, dy: number, ms: number): Promise<void> {
+    const stick = await this.zoneCenter();
+    const button = await this.buttonCenter('THROW');
+    const thumb = (x: number, y: number) => ({ x, y, id: 1 });
+    const finger = { x: button.x, y: button.y, id: 2 };
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [finger] });
+    await sleep(50);
+    await this.cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [finger, thumb(stick.x, stick.y)],
+    });
+    await this.cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [finger, thumb(stick.x + dx, stick.y + dy)],
+    });
+    await sleep(ms);
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+
   /** Character select: SELECT readies this player on the character under their cursor. */
   async ready(): Promise<void> {
     await this.tap('SELECT');

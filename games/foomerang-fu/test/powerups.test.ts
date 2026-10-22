@@ -86,6 +86,7 @@ describe('the powers and their compatibility table', () => {
       'FIRE_BOOMERANG',
       'BATTLE_ROYALE',
       'TELEPORT_BOOMERANG',
+      'TELEKINESIS',
     ]);
     for (const junk of ['', 'overdrive', 'GUARD', 'OVERDRIVE', 7, null, undefined, {}])
       expect(isPowerKind(junk)).toBe(false);

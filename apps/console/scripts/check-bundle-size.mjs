@@ -24,7 +24,9 @@ import { gzipSync } from 'node:zlib';
 // fire, shield, split, Battle Royale's border; render/*Motion.ts). Measured lazy 549.6 -> 555.3 kB.
 // Raised on purpose (owner-approved 2026-10-22): the dust a running player kicks up (render/groundMarkMotion.ts) and the
 // Explosive's tick, with room for the plaza work under way. Measured lazy 560.1 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 565_000 };
+// Raised on purpose (owner-approved 2026-10-22): Teleport, Telekinesis and the powers after them, and the kill slow motion.
+// Measured lazy 563.6 kB before Telekinesis.
+const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 575_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

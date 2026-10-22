@@ -117,6 +117,8 @@ export interface Boomerang {
   readonly respawn: number;
   /** FIRE_BOOMERANG: this throw sets whoever it hits burning (fire.ts). Cleared in hand. */
   readonly fire?: boolean;
+  /** TELEKINESIS: its thrower is steering it now (held THROW, the joystick moves it instead of them). */
+  readonly steered?: boolean;
   /** EXPLOSIVE_BOOMERANG: landed where its flight out ended and ticking: seconds until it goes off (explosive.ts). */
   readonly fuse?: number;
   /** ICE_BOOMERANG: this throw freezes instead of killing (ice.ts). Cleared in hand. */

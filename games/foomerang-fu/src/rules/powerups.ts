@@ -16,6 +16,7 @@ export const POWER_KINDS = [
   'FIRE_BOOMERANG',
   'BATTLE_ROYALE',
   'TELEPORT_BOOMERANG',
+  'TELEKINESIS',
 ] as const;
 export type PowerKind = (typeof POWER_KINDS)[number];
 
@@ -186,6 +187,31 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   ['ICE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
   ['FIRE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
   ['BATTLE_ROYALE', 'TELEPORT_BOOMERANG', 'independent: Battle Royale is not kept.'],
+  ['CAFFEINATED', 'TELEKINESIS', 'independent: she stands still while she steers.'],
+  [
+    'EXPLOSIVE_BOOMERANG',
+    'TELEKINESIS',
+    'the armed boomerang is steered; let go, its flight ends there (it lands and ticks) unless it met an enemy first.',
+  ],
+  ['SHIELD', 'TELEKINESIS', 'independent.'],
+  [
+    'EXTRA_BOOMERANG',
+    'TELEKINESIS',
+    'with one still in hand nothing is steered; with both out the first is.',
+  ],
+  [
+    'MULTI_BOOMERANG',
+    'TELEKINESIS',
+    'the throw is steered whole; let go, its flight ends there and it splits.',
+  ],
+  ['ICE_BOOMERANG', 'TELEKINESIS', 'the steered boomerang freezes whoever it meets.'],
+  ['FIRE_BOOMERANG', 'TELEKINESIS', 'the steered boomerang sets alight whoever it meets.'],
+  ['BATTLE_ROYALE', 'TELEKINESIS', 'independent: Battle Royale is not kept.'],
+  [
+    'TELEPORT_BOOMERANG',
+    'TELEKINESIS',
+    'holding THROW steers it; letting go puts her where she steered it, with it in hand.',
+  ],
 ];
 
 /**

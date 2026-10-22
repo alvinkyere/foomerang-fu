@@ -271,3 +271,31 @@ test('Powerups: TELEPORT_BOOMERANG — with her boomerang out, a second press of
   const to = await host.body(aliceId);
   expect(dist(from, to)).toBeGreaterThan(120); // she went to it: no walk covers that in the time
 });
+
+test('Powerups: TELEKINESIS — with her boomerang out, holding THROW and pushing the thumb steers the boomerang, not her; let go, it comes home (the owner, 2026-10-22)', async ({
+  powerHost,
+  newPhone,
+}) => {
+  const host = await powerHost('TELEKINESIS');
+  const { alice, aliceId } = await setUp(host, newPhone);
+  await takeABook(host, alice, aliceId);
+  expect(await owned(host, aliceId)).toEqual(['TELEKINESIS']);
+  await goTo(host, alice, aliceId, 'upperLeft', 14); // the open lane
+  await face(alice, 1, 0);
+  const mine = async () => (await host.fu()).boomerangs.find((b) => b.ownerId === aliceId);
+  await alice.tapThrow();
+  await expect.poll(async () => (await mine())?.state, { timeout: 2_000 }).not.toBe('HELD');
+  await sleep(150);
+  const me = await host.body(aliceId);
+  const was = (await mine()) as { x: number; y: number };
+  await alice.steerWithThrow(0, FAR, 700); // thumb down the screen: the boomerang goes down the arena
+  const now = (await mine()) as { x: number; y: number; state: string };
+  expect(now.y - was.y).toBeGreaterThan(100); // steered down
+  expect(dist(await host.body(aliceId), me)).toBeLessThan(20); // she stood still
+  // let go: it heads home; if a wall blocks its way it drops, and she holds THROW to call it, as with any boomerang
+  await expect
+    .poll(async () => (await mine())?.state, { timeout: 6_000 })
+    .toMatch(/^(HELD|GROUNDED)$/);
+  for (let i = 0; i < 4 && (await mine())?.state !== 'HELD'; i += 1) await alice.holdThrow(1_500);
+  await expect.poll(async () => (await mine())?.state, { timeout: 4_000 }).toBe('HELD');
+});

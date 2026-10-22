@@ -651,3 +651,17 @@ flash the character's colour as it passes), not the power. Built as the owner de
 - They simply appear there (no effect of its own), pushed clear of walls and the arena's edge.
 - The press is the step THROW goes down; held on, it neither teleports again nor charges a throw.
 - The badge as the videos show it: a pink-red bar (#d01e75), two white four-pointed sparkles on its disc.
+
+## Telekinesis (2026-10-22; applied: `rules/step.ts`)
+
+Neither HQ video shows it used: it is taken at 9:10.0 (first video), 13:26.8 and 16:36.3 (`ff physics hq 2.mp4`), and its
+holders never steer a throw on screen (the curving fire trails at 13:32–13:36 in the second video are other players' throws).
+Built as the owner describes it (2026-10-22):
+
+- With their boomerang flying and nothing in hand, holding THROW steers it with the joystick instead of walking: it moves at
+  throw speed the way the thumb points, the holder stands still, and with the stick centred it hangs where it is.
+- It goes no further from them than a plain throw reaches (`throwRange`; the owner's choice), and is stopped by walls and the
+  arena's edge. It is lethal all the while, with whatever else the throw carries (ice, fire, an Explosive's blast).
+- Let go, its flight out ends there (a Multi throw splits, an Explosive lands and ticks) and it comes home the usual way.
+- With TELEPORT_BOOMERANG too: holding THROW steers it, letting go puts the holder where they steered it, with it in hand.
+- The badge as the videos show it: a purple bar (#b250ec), a horseshoe magnet open up and right on its disc.

@@ -20,6 +20,7 @@ export interface PowerBadge {
     | 'skull'
     | 'fastForward'
     | 'sparkles'
+    | 'magnet'
     | undefined;
   readonly fromVideo: boolean;
 }
@@ -76,6 +77,8 @@ export const POWER_BADGE: Readonly<Record<PowerKind, PowerBadge>> = Object.freez
     icon: 'sparkles',
     fromVideo: true,
   },
+  // ff physics hq 2.mp4 13:27.0 (and the first video, 9:10.3): a purple bar; the icon a horseshoe magnet, open up and right
+  TELEKINESIS: { name: 'TELEKINESIS', colour: '#b250ec', icon: 'magnet', fromVideo: true },
 });
 
 /** How long the badge stays over the player: from the take to gone (re-read every frame at 4:03.98–4:06.07; pickupMotion.ts). */
@@ -95,6 +98,9 @@ export const BADGE_ICON: Readonly<Record<NonNullable<PowerBadge['icon']>, string
     'M12 3a8 8 0 0 0-8 8c0 2.4 1 4 2.5 5v3h3v-2h1v2h3v-2h1v2h3v-3c1.5-1 2.5-2.6 2.5-5a8 8 0 0 0-8-8zM8.5 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm7 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
   // two arrowheads: fast forward
   fastForward: 'M3 6l8 6-8 6zM12 6l8 6-8 6z',
+  // a horseshoe magnet, its two poles up and to the right
+  magnet:
+    'M18.42 15.48L15.45 18.45A7.0 7.0 0 0 1 5.55 8.55L8.52 5.58L11.21 8.27L8.24 11.24A3.2 3.2 0 0 0 12.76 15.76L15.73 12.79Z',
   // two four-pointed sparkles: a big one up and right, a small one down and left
   sparkles:
     'M15 2c.6 3.7 2.3 5.4 6 6-3.7.6-5.4 2.3-6 6-.6-3.7-2.3-5.4-6-6 3.7-.6 5.4-2.3 6-6zM7 12.5c.4 2.3 1.2 3.1 3.5 3.5-2.3.4-3.1 1.2-3.5 3.5-.4-2.3-1.2-3.1-3.5-3.5 2.3-.4 3.1-1.2 3.5-3.5z',
