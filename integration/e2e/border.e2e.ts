@@ -4,7 +4,7 @@ import { expect, test } from './support/fixtures';
 
 /**
  * The plaza's border (owner, 2026-10-17), in the real game: a player may walk out past the dashed line onto the sand beyond
- * it (the camera follows), but one who stays out there for 5 seconds explodes. Two phones, the real rules, the 3D plaza.
+ * it (the camera's framing keeps her in view), but one who stays out there for 5 seconds explodes. Two phones, the real rules, the 3D plaza.
  * FOOMERANG_PLAZA_SHOTS=1 writes a screenshot of the player outside next to the reconstruction's runtime shots.
  */
 const SAFE_ZONE_WEST = 271;
@@ -41,7 +41,7 @@ test('the plaza border: a player walks out past the dashed line, stays, and expl
     (await host.snapshot()).game?.players.find((p) => p.id === aliceId)?.alive ?? false;
   expect(await alive(), 'still alive just after stepping out').toBe(true);
 
-  // the camera has followed her out: she is drawn on screen
+  // the camera has framed her out there
   await new Promise((r) => setTimeout(r, 1500));
   if (process.env['FOOMERANG_PLAZA_SHOTS'] === '1') {
     const dir = join(

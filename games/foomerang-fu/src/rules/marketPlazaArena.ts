@@ -119,6 +119,16 @@ export const MARKET_PLAZA_WALLS: readonly MarketPlazaWall[] = Object.freeze([
     angle: 0.0077,
   }),
   Object.freeze({
+    id: 'FENCE_33_fence_se',
+    kind: 'FENCE',
+    shape: 'box',
+    x: 1970.5,
+    y: 832.7,
+    halfWidth: 18,
+    halfHeight: 71.5,
+    angle: -0.0129,
+  }),
+  Object.freeze({
     id: 'BANNER_02_banner_l_pole',
     kind: 'POLE',
     shape: 'disc',

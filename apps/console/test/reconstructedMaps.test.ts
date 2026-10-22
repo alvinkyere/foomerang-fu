@@ -70,7 +70,7 @@ describe('reconstructed maps', () => {
       // perspective view's arena corners may lie off it — environ2's bottom corners do — but only inside solid ground.)
       const rules = PLAYABLE_ARENAS[map.id].arena;
       const walls = rules.walls ?? [];
-      // a map with a border (the plaza) has open sand beyond it that the camera reaches by following the players: only the
+      // a map with a border (the plaza) has open sand beyond it that the camera reaches by framing the players: only the
       // ground inside the border must be on the canvas
       const xFrom = rules.safeZone?.x ?? 36;
       const xTo =
@@ -82,7 +82,7 @@ describe('reconstructed maps', () => {
           if (insideAWall({ x, y }, 36, walls)) continue;
           const p = camera.project(x, y);
           const where = `${map.id} (${x}, ${y})`;
-          // with a border, the camera also slides sideways to follow (ThreePlaza): the open corner just inside a dashed line,
+          // with a border, the camera's framing reaches beyond the frame (ThreePlaza): the open corner just inside a dashed line,
           // which only an invisible wall used to cover, may reach a hair past the frame's side (at most 1% of its width)
           const side = rules.safeZone === undefined ? 0 : camera.canvas.width * 0.01;
           expect(p.x, where).toBeGreaterThanOrEqual(-side);

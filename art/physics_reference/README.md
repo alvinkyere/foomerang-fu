@@ -482,31 +482,52 @@ exact: its zoom and centre every frame.
   1,280); its centre drifts with them, ± ≈ 150 px. As players die and the last ones draw together it closes in: 985 px at its
   narrowest (2:28, and 2:38.5–2:39.25 on the last two), ≈ 1.3× closer than the whole plaza. No cuts, no slow motion: the iris
   then closes on the winner.
-- **It eases**: a change settles in about a second.
+- **It holds still until it has to move** (1,292 px wide for 2 s, 2:22.5–2:24.5, while the players move about), then glides
+  there, a change settling in about a second.
 - **Its usual view is wider than environ2's frame** (owner, 2026-10-21: "15% zoom out is the original normal view"): 1,389 px at
   the median (≈ 0.92×), centred at (681, 392) of the map's (640, 360); its widest 1,502 px (≈ 0.85×). Over the whole stretch
   its views cover map px −201…1,544 across and −79…992 down.
 - **Applied**: every living player kept in view with room round them (≈ a quarter of the screen's width on each side; two
-  players ≈ 400 px apart give the closest view), between 0.85× and 1.3×, eased with a 0.35 s time constant; between rounds the
-  median view; never beyond the union of the video's views. Drawn as a crop of the resting view (a 2D zoom and pan, as the
+  players ≈ 400 px apart give the closest view), between 0.85× and 1.3×; held while everyone stays a quarter of the view
+  inside its edges and no clearly closer view (≥ 10%) fits them; moved on a critically damped spring (≈ 90% in a second, no
+  jerk when it re-aims); between rounds the median view; never beyond the union of the video's views. The old sideways follow
+  is gone: it moved the camera, which moved where the framing saw the players: together they wobbled (owner, 2026-10-21). Drawn as a crop of the resting view (a 2D zoom and pan, as the
   footage's), so the plaza's perspective never changes.
 
-## The outskirts (2026-10-21; applied: `outskirts.py`, floor.webp)
+## The outskirts (2026-10-21, redone the same day; applied: `outskirts.py`, `plants.py`, floor.webp, plaza.glb)
 
-Wider than environ2's frame, the video shows what lies round the plaza: the paths running on (south, east, west), grass, the
-east trees' long violet shadows and their dark canopies, the yellow tree past the north-east stall, the red foliage along the
-south, the sign ("JA… PR…") past the west path, fence posts. `outskirts.py` takes the per-pixel median of every registered plaza
-frame (the players walk away, the ground stays) and lays it on the floor plane through environ2's camera: the floor now runs
-Y 35–105 (was 50–99). Our camera only ever crops that one view, so what stands up out there is drawn on the ground exactly where
-the video shows it; the 3D plaza is clipped at environ2's frame (ThreePlaza, `outskirtsClip`) so the two never overlap (the round
-tree, which stands across the frame's edge, is not clipped).
+The owner, on the first attempt (the video's median painted on the floor): "rubbish ... everything beyond the borders should be
+a rendered object we have ... do not blur anything out". So nothing beyond environ2's frame comes from the video's pixels any
+more; the video (the HQ cut, `foomerang-fu physics hq.mp4`, 1.267 s later than the old one) is only measured.
 
-- **environ2's light falls off towards its edges** (0.61–0.70 of the video's at its corners): fitted against the video (log
-  ratio, quartic, robust) and taken out of our floor, so ours and the video's meet without a seam.
-- **Never seen** (≈ 39% of the floor's rectangle, mostly far outside any view): grass, the video's own median grass colour.
-  Our camera keeps to the box round the video's views, whose far corners the video never filled, so at its widest, near a
-  corner, a little of that plain grass can show.
-- Moving things out there (the trees' sway) are still: the video's median is one picture.
+- **The ground** (`outskirts.py`): our vector floor runs on to Y 35–105 (was 50–99): the pavement's arms east, west and south
+  with their three stripes and slab lines, the dashed border its full length (the arena's), and flat sand and pavement with the
+  video's own gentle light across them (smooth fields fitted to its sunlit sand and pavement, scaled to ours where they meet).
+  environ2's light falls off towards its frame's edges (0.61–0.70 of the video's at its corners): fitted and taken out of ours,
+  so the two meet without a seam (blended over 1 unit).
+- **What stands out there** (`plants.py`, models in plaza.glb), placed where the registered footage shows them: the tall
+  yellow tree past the north-east stall (trunk at plan 35.1, 87.1) and its twin in the north-west, a red one behind it; a wood
+  of red trees to the east, whose canopies the video shows only at its edge and whose shade lies unbroken over the grass east
+  of the fences (its lobed west edge at X ≈ 37); red trees south; a purple stump past the west fence (−38, 76); the south-east
+  fence, mirroring the south-west one (also a wall in the rules: `FENCE_33_fence_se`). The outside trees are `WOOD_*`: nobody
+  walks behind them, so they do not fade and they merge with the rest when drawn.
+- **Their shadows and fallen leaves** are drawn on the floor (`outskirts.py`, from `plants_outside.json`): each puff and trunk
+  cast by our sun; the video's shadowed grass is its sunlit grass × (0.76, 0.83, 0.935); leaves `#ccb366`, ≈ 0.45 units.
+- Not yet: the white cloths hanging north-east of the building, the white pot east (both at the very edge of the video's views).
+
+## The plants and the north building (2026-10-21; applied: `plants.py`)
+
+From the HQ cut at the camera's closest (2:38.5):
+
+- **The hex plants** (TREE_25–28): thin orange plates at their own heights that overlap (no gaps: ours had dark grooves round
+  every plate), each glowing softly lighter at its middle (`#f9a96e`, rim `#eb925e`); thin two-tone stems hanging from the
+  plates' south rims nearly to the ground, tapering to a blunt point (≈ 0.1 units wide), two along the front. All four orange.
+- **The round tree** (TREE29) and its kin outside: a cluster of soft puffs in a narrow range of yellow (`#dca752`–`#eaca66`;
+  red `#e84c44`–`#ee624f`), lit towards the sun; our toon light would shade them far darker than the video, so they are unlit,
+  three tones by how each faces the sun. Purple trunks (`#937a9e`), leaning a little east.
+- **The building** above environ2's frame (we had guessed two beige blocks): purple brick shopfronts (`#9a7fad`) from a dark
+  pilaster to beside the doors, white wall either side, up to 8.0 units; the coral roof band (`#fc825b`) above, unbroken over
+  the white double doors; a dark eave. **The banners** hang from crossbars at 7.36 units (the poles stop at 8.2; ours ran to 14).
 
 ## The water (2026-10-21; applied: `water_field.py`, `render/waterLook.ts`, `render/three/waterShader.ts`)
 

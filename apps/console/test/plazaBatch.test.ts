@@ -106,7 +106,20 @@ describe('batching the plaza', () => {
     const file = readFileSync(join(process.cwd(), 'public/maps/market_plaza/plaza.glb'));
     const bytes = new ArrayBuffer(file.byteLength); // this realm's ArrayBuffer, which the loader recognises
     new Uint8Array(bytes).set(file);
-    const gltf = await new GLTFLoader().parseAsync(bytes, '');
+    // (the plaza carries textures, which Node cannot decode: its loader would wait for them for ever. Batching is about
+    // geometry, so here every image loads at once as a blank stand-in)
+    const load = THREE.ImageLoader.prototype.load;
+    const created = URL.createObjectURL;
+    URL.createObjectURL = () => 'blob:stand-in';
+    THREE.ImageLoader.prototype.load = function (_url, onLoad) {
+      const image = document.createElement('img');
+      queueMicrotask(() => onLoad?.(image));
+      return image;
+    };
+    const gltf = await new GLTFLoader().parseAsync(bytes, '').finally(() => {
+      THREE.ImageLoader.prototype.load = load;
+      URL.createObjectURL = created;
+    });
     const kind = (root: THREE.Object3D): BatchKind =>
       /^(stall_|TREE|BUNTING|BANNER|SIGN)/.test(root.name)
         ? 'own'
@@ -119,5 +132,5 @@ describe('batching the plaza', () => {
     expect(before).toBeGreaterThan(750);
     expect(meshes(gltf.scene).length).toBeLessThan(450);
     expect(triangles(gltf.scene).length).toBe(tris);
-  });
+  }, 30_000); // (it parses and walks the whole 7 MB plaza: ≈ 2 s alone, far longer beside the other suites)
 });

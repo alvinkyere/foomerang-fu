@@ -23,7 +23,13 @@ import {
 } from '../reconstructed/maps';
 import { AimChevron, Trail } from './chargeVisuals';
 import { Hands } from './hands';
-import { CAMERA_FRAMING, easeCamera, frameTarget, type CameraFrame } from '../cameraFraming';
+import {
+  CAMERA_FRAMING,
+  frameTarget,
+  springCamera,
+  type CameraFrame,
+  type CameraMotion,
+} from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
@@ -59,7 +65,6 @@ const BODY_OF_CELL = 0.32;
 /** The rules' walking speed, world units a second (DEFAULT_FU_CONFIG.playerSpeed): full pace for the walk's motion. */
 const WALK_SPEED = 360;
 /** How far (scene units) the camera may slide sideways to follow a player out onto the sand beyond the dashed lines. */
-const FOLLOW_LIMIT = 14;
 const FADE_OPACITY = 0.35;
 /** Top-level objects that may turn see-through when they hide a player. */
 const FADEABLE = /^(stall_|TREE|BUNTING|BANNER|SIGN)/;
@@ -970,9 +975,10 @@ class Plaza {
   #view: ArenaView | undefined;
   #circles: DrawnCircle[] = [];
   #virtual: number | undefined;
-  #restX = 0;
   /** The camera's framing now (render/cameraFraming.ts), when it was last eased, and the resting view it crops. */
-  #camera: CameraFrame = CAMERA_FRAMING.rest;
+  #camera: CameraMotion = { frame: CAMERA_FRAMING.rest, velocity: { zoom: 0, u: 0, v: 0 } };
+  /** Where the framing is headed (held while everyone stays well inside it). */
+  #aim: CameraFrame = CAMERA_FRAMING.rest;
   #framedAt: number | undefined;
   readonly #restCamera = new THREE.PerspectiveCamera();
   readonly #props: PlazaProps;
@@ -1019,20 +1025,7 @@ class Plaza {
     const th = (config.pitchDeg * Math.PI) / 180;
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
-    this.#restX = cx;
     this.#restCamera.copy(this.camera);
-    // the outskirts are the reference video's own ground, painted round environ2's frame (art/physics_reference/outskirts.py):
-    // the 3D plaza is cut at that frame, so beyond it the video's picture of what stands there shows, and the two never overlap
-    this.renderer.localClippingEnabled = true;
-    this.camera.updateMatrixWorld();
-    const outskirtsClip = new THREE.Frustum()
-      .setFromProjectionMatrix(
-        new THREE.Matrix4().multiplyMatrices(
-          this.camera.projectionMatrix,
-          this.camera.matrixWorldInverse,
-        ),
-      )
-      .planes.slice(0, 4);
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1066,7 +1059,13 @@ class Plaza {
     this.scene.add(plazaFloor(floor.texture, floor.extent));
     const gradient = this.#gradient;
     gltf.traverse((o) => {
-      if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;
+      // (unlit stays unlit: the trees' canopies, flat-toned as the video's: art/.../plants.py)
+      if (
+        !(o instanceof THREE.Mesh) ||
+        o.name === 'FOUNTAIN_water' ||
+        o.material instanceof THREE.MeshBasicMaterial
+      )
+        return;
       const m = o.material as THREE.MeshStandardMaterial;
       o.material = new THREE.MeshToonMaterial({
         color: m.color,
@@ -1091,13 +1090,6 @@ class Plaza {
           ? 'leave'
           : 'shared',
     );
-    // (not the round tree: it stands across the frame's edge, whole, as the video's does)
-    for (const root of gltf.children)
-      if (!root.name.startsWith('TREE29'))
-        root.traverse((o) => {
-          if (o instanceof THREE.Mesh)
-            for (const m of [o.material].flat()) m.clippingPlanes = outskirtsClip;
-        });
     for (const root of gltf.children) {
       if (FADEABLE.test(root.name)) {
         const materials: THREE.Material[] = [];
@@ -1487,34 +1479,9 @@ class Plaza {
   }
 
   /**
-   * The camera follows a player who walks out beyond the dashed lines: it slides sideways (never turns or zooms) just far
-   * enough to keep everyone inside the screen's edge margin, and eases back when they return. Presentation only.
-   */
-  #follow(): void {
-    // the camera never turns (yaw and roll are 0), so a point's screen x is (x - camera x) / (depth * tan(half fov)): the slide
-    // each player needs is measured from the RESTING camera, so the camera holds steady while they stay out
-    const forward = new THREE.Vector3();
-    this.camera.getWorldDirection(forward);
-    const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.aspect;
-    const margin = 0.9;
-    let right = 0;
-    let left = 0;
-    for (const [id, ch] of this.#characters) {
-      const c = this.#view?.circles.find((q) => q.id === id);
-      if (c === undefined || c.dead) continue;
-      const p = ch.sprite.position;
-      const half = p.clone().sub(this.camera.position).dot(forward) * tanHalf * margin;
-      right = Math.max(right, p.x - this.#restX - half);
-      left = Math.min(left, p.x - this.#restX + half);
-    }
-    // players beyond both edges at once: the camera splits the difference (nobody far off-screen)
-    const wanted = Math.max(-FOLLOW_LIMIT, Math.min(FOLLOW_LIMIT, right + left));
-    this.camera.position.x += (this.#restX + wanted - this.camera.position.x) * 0.1;
-  }
-
-  /**
    * The camera's framing (render/cameraFraming.ts, the reference video's camera on the plaza): every living player in view with
-   * room round them, closing in as they draw together (between ≈ 0.85× and ≈ 1.3× environ2's frame), eased.
+   * room round them, closing in as they draw together (between ≈ 0.85× and ≈ 1.3× environ2's frame); it holds still until it
+   * has to move, then glides there on a spring. The camera itself never moves (no sideways follow: that fought the framing).
    * Applied as a crop of the resting view (a 2D zoom and pan, as the footage's is): the plaza's perspective never changes.
    */
   #frameCamera(time: number): void {
@@ -1536,8 +1503,9 @@ class Plaza {
       p.project(rest);
       points.push({ u: p.x, v: p.y });
     }
-    this.#camera = easeCamera(this.#camera, frameTarget(points), dt);
-    const { zoom, u, v } = this.#camera;
+    this.#aim = frameTarget(points, this.#aim);
+    this.#camera = springCamera(this.#camera, this.#aim, dt);
+    const { zoom, u, v } = this.#camera.frame;
     const W = 1000 * this.camera.aspect;
     const H = 1000;
     const w = W / zoom;
@@ -1615,7 +1583,6 @@ class Plaza {
 
   #frame(t: number): void {
     const time = this.#virtual ?? t;
-    this.#follow();
     this.#frameCamera(time);
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);

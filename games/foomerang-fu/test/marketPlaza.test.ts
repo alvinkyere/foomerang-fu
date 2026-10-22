@@ -56,6 +56,27 @@ describe('market_plaza: the arena data', () => {
     expect(MARKET_PLAZA_WALLS.filter((w) => w.kind === 'STALL')).toHaveLength(6);
   });
 
+  it('the fences stand in mirrored pairs, two each side, as the video shows them (the south-east one is beyond environ2’s frame)', () => {
+    const fences = MARKET_PLAZA_WALLS.filter((w) => w.kind === 'FENCE');
+    expect(fences.map((f) => f.id).sort()).toEqual([
+      'FENCE_30_fence_w',
+      'FENCE_31_fence_sw',
+      'FENCE_32_fence_e',
+      'FENCE_33_fence_se',
+    ]);
+    const byId = (id: string) => {
+      const f = fences.find((g) => g.id === id);
+      if (f === undefined) throw new Error(`no ${id}`);
+      return f;
+    };
+    const axis = (byId('FENCE_30_fence_w').x + byId('FENCE_32_fence_e').x) / 2;
+    const sw = byId('FENCE_31_fence_sw');
+    const se = byId('FENCE_33_fence_se');
+    expect(se.x).toBeCloseTo(2 * axis - sw.x, 1);
+    expect(se.y).toBeCloseTo(sw.y, 1);
+    expect(circleHitsWalls({ x: se.x, y: se.y }, 1, walls)).toBe(true);
+  });
+
   it('the bottom-left crates and pots are solid only where they stand: the sand round them is open (the owner’s barrier)', () => {
     // the models' centres (plaza.glb): two crates and two pots
     for (const p of [
