@@ -191,6 +191,19 @@ def bridge(key, B):
 for key, B in L['bridges'].items():
     bridge(key, B)
 
+# the objects (objects.py measures them; blender/objects.py builds them)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import objects as obj_models
+OBJ = json.load(open(os.path.join(ROOT, 'art/sky_islands/objects.json')))
+PAL = OBJ['palettes']
+props = bpy.data.objects.new('PROPS', None); sc.collection.objects.link(props)
+tile_images = {k: obj_models.tile_image(k, PAL[k]) for k in ('tile_blue', 'tile_gold')}
+for i, o in enumerate(OBJ['objects']):
+    kind = o['kind']
+    if kind == 'gong': obj_models.gong(o, PAL, MAT, props)
+    elif kind.startswith('tile'): obj_models.tile(o, PAL[kind], MAT, props, i, tile_images[kind])
+    else: getattr(obj_models, kind)(o, PAL, MAT, props, i)
+
 # the camera: the plaza's rig, at the reference view's zoom
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co)
 sc.camera = co

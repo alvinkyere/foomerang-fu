@@ -27,3 +27,17 @@ no video pixels are shipped (the measuring images live in `output/`, git-ignored
 
 Run order (from the repository root): `register.py`, `calibrate.py`, `layout.py`, `tops.py`, then
 `Blender -b --python art/sky_islands/blender/build.py -- <out_dir> [render]`; `npx prettier --write art/sky_islands` after.
+
+## Slice 3: the objects
+
+- `objects.py` → `objects.json`: every object's place, size and palette. Feet read in the opening frame and cast onto the
+  ground; heights solved from where the camera shows each top (a solid's far edge, a canopy's far side); small solids
+  (pots, crates, the aloe) take their close-ups' proportions. Palettes are k-means over each object in its sharpest
+  close-up (9:41.6, 9:15.5, 9:18.3, 9:43.2).
+- `blender/objects.py`, built by `build.py`, flat-shaded in light / mid / dark tones by facing (the light from the upper
+  left, as the video's shadows fall to the lower right): the gong (navy frame, olive-gold beehive bell on cords), five red
+  maples (slate trunks, tiered umbrella caps with ragged fringes, fallen leaves), four hex plants (mint plates on stems,
+  yellow buds), ten pots, two crates, the potted aloe, six bamboo stalks, eleven grass tufts, and the blue and gold spiral
+  tiles on the tall blocks at the north corners (with those blocks, beyond the opening frame).
+- Not yet as the video: the maples' leafy texture on their caps; the bell's vertical stripes; the ferns on some blocks'
+  sides.

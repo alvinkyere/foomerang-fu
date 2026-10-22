@@ -89,5 +89,11 @@ for i in range(1, nlab):
     plan = unproject(quad, H0)
     blocks.append(dict(top=[list(map(float, np.round(p, 2))) for p in plan], height=H0,
                        image=[int(st[i, 0]), int(st[i, 1]), int(st[i, 2]), int(st[i, 3])]))
+# beyond the opening frame's top (seen as the camera moves north, output/plan.png): the tall block at the north-west corner
+# that carries the blue spiral tile, and the great block behind the north bar's east end that carries the gold one
+for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)], 4.0),
+                 ([(8.0, 98.5), (19.0, 98.5), (19.0, 107.0), (8.0, 107.0)], 6.5),
+                 ([(19.5, 94.5), (24.0, 94.5), (24.0, 99.5), (19.5, 99.5)], 4.0)):
+    blocks.append(dict(top=top, height=hgt, image=None))
 json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks), open('art/sky_islands/layout.json', 'w'), indent=1)
 print(len(ISLANDS), 'islands,', len(BRIDGES), 'bridges,', len(blocks), 'blocks; tilted island', tilted)
