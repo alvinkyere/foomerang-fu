@@ -555,3 +555,21 @@ own palette, learnt from shape interiors; sub-pixel smooth outlines; each shape'
 neighbours meet without gaps), and `vfx_ring.py` draws the blast ring exactly from its radial profile. The result is our own
 animation library, `art/vfx_library/` (an SVG per frame + `animation.json`; see its README), and the TV plays atlases rendered
 from it at up to 16x the video's resolution (≤ 3072 px a sheet for the blast and its ring, ≤ 2048 for the rest; 1.2 MB of WebP).
+
+## The Explosive's tick (2026-10-21; applied: `rules/explosive.ts`, `render/explosiveTick.ts`)
+
+Owner: "before the explosive boomerang goes off it blinks a couple of times… like it's ticking, faster until it explodes".
+Measured from the HQ video (`foomerang-fu physics hq.mp4`, 60 fps, the blast at 5:22.47): an Explosive whose flight ends
+without touching anyone **lands and lies there for 0.5 s** (landed 5:21.95), then goes off where it lies (an enemy it touches
+in flight still sets it off at once). While it lies, counting back from the blast:
+
+| seconds left | what shows                                                                      |
+| ------------ | ------------------------------------------------------------------------------- |
+| 0.467–0.417  | a white bloom swallows it (≈ 1.5 character widths), its halo fading out by 0.35 |
+| 0.333–0.267  | the boomerang itself turns pale white (a faint glow round it)                   |
+| 0.200–0.150  | pale white again                                                                |
+| 0.100–0.050  | a white bloom swallows it again, its halo fading until the blast                |
+
+The gaps between ticks shorten (0.13, 0.13, 0.10 s): the quickening the owner describes. The rules carry the fuse
+(`Boomerang.fuse`, `EXPLOSIVE_FUSE`); the TV reads it from the view and draws the tick (`tickAt`), the flash by tinting the
+boomerang's own body. Checked in game by a 50 fps screencast: bloom, flash, flash, bloom, blast, as above.

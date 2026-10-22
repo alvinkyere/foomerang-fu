@@ -7,6 +7,7 @@ import { SHIELD_LOOK } from '../shieldLook';
 import { Flipbooks, type Played } from './flipbooks';
 import { bookScale } from '../pickupMotion';
 import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
+import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
@@ -167,6 +168,26 @@ function bubbleTexture(): THREE.Texture | null {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+let disc: THREE.CanvasTexture | undefined;
+/** A soft white disc (white at the middle, clear at the rim): the Explosive's bloom and flash. Shared. */
+function softDisc(): THREE.CanvasTexture {
+  if (disc !== undefined) return disc;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d');
+  if (g !== null) {
+    const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.45, 'rgba(255,255,255,0.95)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 128, 128);
+  }
+  disc = new THREE.CanvasTexture(canvas);
+  disc.colorSpace = THREE.SRGBColorSpace;
+  return disc;
 }
 
 class Character {
@@ -740,6 +761,8 @@ class Boomerang {
   #lastState: BoomerangView['state'] | undefined;
   #called = false;
   #calledAt: number | undefined;
+  readonly #solid: THREE.Mesh<THREE.BufferGeometry, THREE.MeshToonMaterial>;
+  readonly #colour: THREE.Color;
 
   /**
    * `colour`: the thrower's character colour (owner, 2026-10-19). `unit`: one world unit in scene units (its sizes are the
@@ -751,6 +774,8 @@ class Boomerang {
     // the store's full-HD shape (render/boomerangShape.ts), shaded as the plaza is: lying, flying and held alike
     const solid = boomerangBody(unit, body, gradient);
     this.#still.add(solid);
+    this.#solid = solid;
+    this.#colour = body;
     // in flight it spins too fast for the video's 30 frames a second to show its shape (a blur there): two fading copies
     // trail its turn
     for (const opacity of [0.35, 0.15]) {
@@ -790,6 +815,13 @@ class Boomerang {
     const shape = boomerangGeometry(unit);
     shape.computeBoundingBox();
     this.#rest = shape.boundingBox?.max.y ?? unit;
+  }
+
+  /** An armed Explosive's tick: the boomerang itself turns pale white, as the video's does (render/explosiveTick.ts). */
+  flash(on: boolean): void {
+    const m = this.#solid.material;
+    m.color.copy(on ? new THREE.Color(EXPLOSIVE_TICK.flash) : this.#colour);
+    m.emissive.setScalar(on ? 0.6 : 0);
   }
 
   apply(space: ReturnType<typeof sceneSpace>, view: BoomerangView): void {
@@ -925,6 +957,8 @@ class Plaza {
   /** The reference video's own effects, cut out of it frame by frame (flipbooks.ts; public/vfx/). */
   readonly flipbooks: Flipbooks;
   #fireFromVideo = false;
+  /** Armed Explosives ticking where they landed: their bloom and their flash (render/explosiveTick.ts). */
+  readonly #ticks = new Map<string, { bloom: THREE.Sprite; flash: THREE.Sprite }>();
   readonly #bursts: Burst[] = [];
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
@@ -1530,6 +1564,55 @@ class Plaza {
     this.#marks.update(time);
   }
 
+  /** Every armed Explosive lying with its fuse burning blooms and flashes white, faster as it nears the blast. */
+  #tick(): void {
+    const ticking = new Set<string>();
+    const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
+    for (const b of this.#view?.boomerangs ?? []) {
+      if (b.fuse === undefined) continue;
+      ticking.add(b.id);
+      let t = this.#ticks.get(b.id);
+      if (t === undefined) {
+        const sprite = (colour: THREE.ColorRepresentation): THREE.Sprite => {
+          const s = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              map: softDisc(),
+              color: colour,
+              transparent: true,
+              depthWrite: false,
+              depthTest: false,
+            }),
+          );
+          s.renderOrder = 5;
+          this.scene.add(s);
+          return s;
+        };
+        t = { bloom: sprite(0xffffff), flash: sprite(EXPLOSIVE_TICK.flash) };
+        this.#ticks.set(b.id, t);
+      }
+      const { bloom, flash } = tickAt(b.fuse);
+      const at = this.#space.toScene(b.x, b.y, 8);
+      t.bloom.position.copy(at);
+      t.bloom.scale.setScalar(EXPLOSIVE_TICK.bloomWidths * w);
+      t.bloom.material.opacity = bloom;
+      t.bloom.visible = bloom > 0;
+      // the boomerang itself turns white, a faint glow round it
+      this.#boomerangs.get(b.id)?.flash(flash);
+      t.flash.position.copy(at);
+      t.flash.scale.setScalar(0.8 * w);
+      t.flash.material.opacity = 0.35;
+      t.flash.visible = flash;
+    }
+    for (const [id, t] of this.#ticks)
+      if (!ticking.has(id)) {
+        for (const s of [t.bloom, t.flash]) {
+          this.scene.remove(s);
+          s.material.dispose();
+        }
+        this.#ticks.delete(id);
+      }
+  }
+
   #frame(t: number): void {
     const time = this.#virtual ?? t;
     this.#follow();
@@ -1537,6 +1620,7 @@ class Plaza {
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#leaveMarks(time);
+    this.#tick();
     this.#props.frame(time);
     this.#remains.frame(time);
     const w = this.#space.length(DRAWN_CHARACTER_WIDTH);

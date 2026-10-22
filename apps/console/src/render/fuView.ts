@@ -142,6 +142,7 @@ export function buildFuView(
                     ? b.ownerId
                     : `${b.ownerId}#${n}`,
               blast: b.blast,
+              ...(b.fuse !== undefined ? { fuse: b.fuse } : {}),
               ...(b.fire === true
                 ? { mark: 'fire' as const }
                 : b.ice === true

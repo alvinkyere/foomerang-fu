@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRIMITIVE_ARENA, stepFu } from '../src/rules';
+import { EXPLOSIVE_FUSE, PRIMITIVE_ARENA, stepFu } from '../src/rules';
 import {
   C,
   DT,
@@ -27,7 +27,8 @@ import {
 // EXPLOSIVE_BOOMERANG, as the reference video shows it (5:20 and 10:16; art/physics_reference/README.md) and as the owner
 // decided where it does not (2026-10-19). While owned, every boomerang its owner throws is armed. An armed boomerang
 //   - bounces off walls and the arena's edge like any other, still armed (it does not go off at a wall);
-//   - goes off where its flight out ENDS (its range, or the impact that would turn it home), instead of coming home;
+//   - where its flight out ENDS (its range, or the impact that would turn it home) it does not come home: it lands there and
+//     lies ticking for EXPLOSIVE_FUSE (0.5 s: the video, 5:21.95 landed, 5:22.47 the blast, read at 60 fps), then goes off;
 //   - goes off at once on the first living enemy it touches (owner).
 // The blast: every living non-owner within `blastRadius` (the full drawn ring: 347 u, the video against our characters as drawn) with a clear line (walls are
 // cover). The owner is immune; deflection does not set it off, and the deflector is immune on that leg. A shield absorbs it.
@@ -166,13 +167,25 @@ describe('cover: a blast does not go through walls', () => {
   });
 });
 
-describe('where its flight ends, it goes off', () => {
-  it('at the end of its range it explodes there, instead of coming home', () => {
+const FUSE_STEPS = Math.ceil(EXPLOSIVE_FUSE / DT) + 4;
+
+describe('where its flight ends, it lands, ticks and goes off', () => {
+  it('the fuse is the video’s: half a second', () => {
+    expect(EXPLOSIVE_FUSE).toBeCloseTo(0.5, 9);
+  });
+
+  it('at the end of its range it lands there, lies ticking for the fuse, then explodes where it lies', () => {
     let s = field();
     s = place(s, 'b', 480, 540); // ~114 from where it ends (410, 450), off its path
     s = armed(s, 'a', { x: 400, y: 450 });
     s = patchBoomerang(s, 'a', { travelled: C.throwRange - 10 });
-    const r = run(s, 3);
+    const landed = run(s, 3);
+    expect(blasted(landed.events)).toHaveLength(0); // not yet
+    expect(boom(landed.state, 'a')).toMatchObject({ state: 'GROUNDED', blast: true });
+    expect(boom(landed.state, 'a').fuse).toBeGreaterThan(EXPLOSIVE_FUSE - 3 * DT);
+    expect(player(landed.state, 'b').alive).toBe(true);
+    // the owner cannot pick it up, nor pull it home, while it ticks
+    const r = run(s, FUSE_STEPS);
     const [boomEvent] = blasted(r.events);
     expect(boomEvent).toMatchObject({ type: 'BLASTED', ownerId: 'a', victims: ['b'] });
     if (boomEvent?.type === 'BLASTED') {
@@ -187,7 +200,7 @@ describe('where its flight ends, it goes off', () => {
     let s = make(['a', 'b', 'c'], { ...STRAIGHT, arena: PRIMITIVE_ARENA, maxRicochets: 0 });
     s = place(place(place(s, 'a', 100, 850), 'b', 140, 520), 'c', 300, 450); // c is inside the left corridor
     s = armed(s, 'a', { x: 100, y: 450 });
-    const r = run(s, 12);
+    const r = run(s, 12 + FUSE_STEPS);
     const [boomEvent] = blasted(r.events);
     expect(boomEvent).toMatchObject({ type: 'BLASTED', ownerId: 'a' });
     if (boomEvent?.type === 'BLASTED') {
@@ -207,7 +220,7 @@ describe('where its flight ends, it goes off', () => {
       slash: { phase: 'ACTIVE', direction: { x: -1, y: 0 }, remaining: 0.12 },
     });
     s = armed(s, 'a', { x: 500, y: 450 });
-    const r = run(s, 60);
+    const r = run(s, 60 + FUSE_STEPS);
     expect(types(r.events)).toContain('DEFLECTED');
     expect(blasted(r.events)).toHaveLength(1);
     expect(player(r.state, 'b').alive).toBe(true); // the deflector is immune on that leg
@@ -221,7 +234,10 @@ describe('the boomerang it destroyed comes back', () => {
     s = place(place(s, 'b', 1500, 850), 'a', 300, 450);
     s = armed(s, 'a', { x: 400, y: 450 });
     s = patchBoomerang(s, 'a', { travelled: C.throwRange - 10 });
-    return run(s, 2).state;
+    // its flight ends, it lies ticking for the fuse, then goes off: step until it is spent
+    for (let i = 0; i < FUSE_STEPS && boom(s, 'a').state !== 'SPENT'; i += 1)
+      s = stepFu(s, NONE, DT).state;
+    return s;
   }
 
   it("it is gone for 1.5 s: harmless, nothing to throw, then in its thrower's hand again, and the next throw is armed", () => {

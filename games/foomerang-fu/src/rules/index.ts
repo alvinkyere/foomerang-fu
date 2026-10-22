@@ -201,3 +201,4 @@ export {
   zoneAt,
   zoneOf,
 } from './battleRoyale';
+export { EXPLOSIVE_FUSE } from './explosive';

@@ -66,6 +66,8 @@ export interface BoomerangView {
   readonly id: string;
   /** Armed with EXPLOSIVE_BOOMERANG (a rules fact). */
   readonly blast: boolean;
+  /** EXPLOSIVE_BOOMERANG ticking where it landed (a rules fact): seconds until it goes off. */
+  readonly fuse?: number;
   /** FIRE_BOOMERANG / ICE_BOOMERANG (a rules fact): what it leaves on the ground as it flies (presentation). */
   readonly mark?: 'fire' | 'ice';
   readonly ownerId: string;

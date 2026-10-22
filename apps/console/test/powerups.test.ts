@@ -263,6 +263,20 @@ describe('buildFuView: powerup state → what Phaser draws', () => {
     expect(view.events).toEqual([expect.objectContaining({ type: 'SPLIT', x: 300, y: 200 })]);
   });
 
+  it('an armed Explosive ticking where it landed reaches the TV with its fuse (the tick is drawn from it)', () => {
+    const [mine, theirs] = base.boomerangs as [
+      (typeof base.boomerangs)[number],
+      (typeof base.boomerangs)[number],
+    ];
+    const s: FuState = {
+      ...base,
+      boomerangs: [{ ...mine, state: 'GROUNDED', blast: true, fuse: 0.3 }, theirs],
+    };
+    expect(
+      buildFuView(s, [], entries, slots()).boomerangs.find((b) => b.ownerId === 'a')?.fuse,
+    ).toBe(0.3);
+  });
+
   it('hands over the Books lying in the arena with NO hint of what they award', () => {
     const s: FuState = {
       ...base,

@@ -29,6 +29,7 @@ import { split } from './multi';
 import { ICE_FREEZE_SECONDS } from './ice';
 import { FIRE_BURN_SECONDS } from './fire';
 import { zoneAt } from './battleRoyale';
+import { EXPLOSIVE_FUSE } from './explosive';
 import { separateBodies } from './collision';
 import {
   DASH_READY,
@@ -512,6 +513,8 @@ interface Flight {
   readonly ended?: Vec2;
   /** The path it flew this step when it bounced (start, each bounce, end); hits are judged along it. */
   readonly path?: readonly Vec2[];
+  /** An armed boomerang's fuse ran out this step: it goes off where it lies (explosive.ts). */
+  readonly detonate?: boolean;
 }
 
 /** Where a lethal contact came from, in the order a guard absorbs them. */
@@ -1264,6 +1267,19 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       caught: true,
     });
 
+    if (b.state === 'GROUNDED' && b.fuse !== undefined) {
+      // an armed boomerang ticking where it landed: nobody picks it up or pulls it home; it goes off when the fuse runs out
+      const fuse = b.fuse - dt;
+      return fuse <= EPSILON
+        ? {
+            boomerang: Object.freeze({ ...b, fuse: 0 }),
+            lethalAt: b.position,
+            caught: false,
+            detonate: true,
+          }
+        : { boomerang: Object.freeze({ ...b, fuse }), lethalAt: undefined, caught: false };
+    }
+
     if (b.state === 'GROUNDED') {
       // its thrower walks over it: picked up
       if (ownerAlive && Math.hypot(owner.x - b.position.x, owner.y - b.position.y) <= reach)
@@ -1627,7 +1643,30 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       events.push({ type: 'SPLIT', ownerId: w.ownerId, position: blastAt });
       return;
     }
-    if (w.blast && (touched.length > 0 || ended !== undefined)) {
+    const detonate = flights[k]?.detonate === true;
+    if (
+      w.blast &&
+      touched.length === 0 &&
+      ended !== undefined &&
+      !detonate &&
+      w.fuse === undefined
+    ) {
+      // EXPLOSIVE_BOOMERANG: where its flight out ended it lands and lies ticking for the fuse (explosive.ts)
+      const lying = {
+        position: blastAt,
+        velocity: ZERO,
+        recall: 0,
+        follow: 0 as const,
+        travelled: 0,
+        fuse: EXPLOSIVE_FUSE,
+      };
+      weapons[k] =
+        w.state === 'GROUNDED'
+          ? Object.freeze({ ...w, ...lying })
+          : transition(w, 'GROUNDED', lying);
+      return;
+    }
+    if (w.blast && (touched.length > 0 || detonate)) {
       const hit = new Set(touched);
       players.forEach((victim, v) => {
         if (v === a || !victim.alive || immuneTo(victim)) return;
@@ -1648,8 +1687,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           lineIsClear(blastAt, closestPointOn(blastAt, prop), walls)
         )
           breakProp(prop, w.ownerId, 'BLAST');
-      // its own blast destroys it; a new one is in its thrower's hand `explosiveRespawnSeconds` later
-      weapons[k] = transition(w, 'SPENT', {
+      // its own blast destroys it; a new one is in its thrower's hand `explosiveRespawnSeconds` later (no fuse left on it)
+      const { fuse: _spentFuse, ...unfused } = w;
+      void _spentFuse;
+      weapons[k] = transition(unfused, 'SPENT', {
         ...IN_HAND,
         position: blastAt,
         blast: false,
