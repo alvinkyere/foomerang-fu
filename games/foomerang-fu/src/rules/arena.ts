@@ -50,6 +50,11 @@ export interface FuArena<W extends Solid = Solid> {
   readonly walls?: readonly W[];
   /** Props that break (see `Breakable`). Absent: none. */
   readonly breakables?: readonly Breakable[];
+  /**
+   * Low barriers (the gong islands' bridge rails: owner, 2026-10-23): solid to a body as a wall is, but a boomerang flies over
+   * one and a slash reaches across it. Absent: none.
+   */
+  readonly fences?: readonly Solid[];
   /** Exactly one point per slot (6). Absent: the Slice 1 ellipse. */
   readonly spawns?: readonly Vec2[];
   /** Slice 6: timed gates (solid while CLOSED). */
@@ -90,6 +95,7 @@ export const onGround = (p: Vec2, arena: FuArena): boolean =>
 export const wallsOf = <W extends Solid>(arena: FuArena<W>): readonly W[] =>
   arena.walls ?? NO_WALLS;
 export const breakablesOf = (arena: FuArena): readonly Breakable[] => arena.breakables ?? NO_WALLS;
+export const fencesOf = (arena: FuArena): readonly Solid[] => arena.fences ?? NO_WALLS;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry. All of it is pure and symmetric in nothing but the data it is handed.
@@ -382,6 +388,13 @@ export function assertValidWalls(arena: FuArena, playerRadius: number): void {
       assertValidSolid(wall, `wall ${index}`, arena, playerRadius),
     );
   }
+  const fences: unknown = arena.fences;
+  if (fences !== undefined) {
+    if (!Array.isArray(fences)) throw new RangeError('arena.fences must be a list of solids');
+    fences.forEach((fence: unknown, index) =>
+      assertValidSolid(fence, `fence ${index}`, arena, playerRadius),
+    );
+  }
   const breakables: unknown = arena.breakables;
   if (breakables === undefined) return;
   if (!Array.isArray(breakables)) throw new RangeError('arena.breakables must be a list of solids');
@@ -416,6 +429,9 @@ export function assertValidSpawns(
     }
     if (circleHitsWalls(p, playerRadius, walls)) {
       throw new RangeError(`spawn ${index} overlaps a wall`);
+    }
+    if (circleHitsWalls(p, playerRadius, fencesOf(arena))) {
+      throw new RangeError(`spawn ${index} overlaps a fence`);
     }
     if (circleHitsWalls(p, playerRadius, breakablesOf(arena))) {
       throw new RangeError(`spawn ${index} overlaps a breakable`);

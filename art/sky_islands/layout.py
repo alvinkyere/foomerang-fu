@@ -110,7 +110,10 @@ bodies = []
 for c in cs:
     q = cv2.approxPolyDP(c, 0.03 * K, True)[:, 0, :]
     bodies.append([[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)] for px, py in q])
-json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies), open('art/sky_islands/layout.json', 'w'),
-          indent=1)
+# the blocks the bridges rest on (the opening frame: the planks and logs run onto them; built flush with the bridges as
+# their landings), and the one in the seam where the north bar's lobe meets the tilted island; all walked over, not walls
+PIERS = {'bridges': [6, 7, 15], 'seam': [1]}
+json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies, piers=PIERS['bridges'] + PIERS['seam'],
+               landings=PIERS['bridges']), open('art/sky_islands/layout.json', 'w'), indent=1)
 print(len(bodies), 'bodies of rock:', [len(b) for b in bodies])
 print(len(ISLANDS), 'islands,', len(BRIDGES), 'bridges,', len(blocks), 'blocks; tilted island', tilted)

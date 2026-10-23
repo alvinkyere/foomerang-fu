@@ -1,6 +1,7 @@
 import type { Vec2 } from '@foomerang/game-core';
 import {
   breakablesOf,
+  fencesOf,
   circleHitsWalls,
   onGround,
   wallsOf,
@@ -29,7 +30,7 @@ export class NavGrid {
     this.rows = Math.ceil(arena.height / CELL);
     this.#free = new Uint8Array(this.cols * this.rows);
     // props that break count as solid for planning: a CPU routes round crates and pots (it does not plan to break them)
-    const walls = [...wallsOf(arena), ...breakablesOf(arena)];
+    const walls = [...wallsOf(arena), ...breakablesOf(arena), ...fencesOf(arena)];
     for (let cy = 0; cy < this.rows; cy += 1) {
       for (let cx = 0; cx < this.cols; cx += 1) {
         const p = this.centre(cx, cy);

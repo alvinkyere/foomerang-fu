@@ -2,11 +2,12 @@
 
   Blender -b --python art/sky_islands/blender/build.py -- <out_dir> [render]
 
-The ground is lit 3D, as the HQ video shows it (art/sky_islands/README.md, slice 6): each island a body of rock with rounded
-corners, running down into the mist, its top our grass (grass.py) rounding over its edge; the stone blocks rock, rounded on
-every edge. The game lights them softly and fades them into the mist (#e5f3de) by height (the manifest's `look`). The
-bridges (purple-brown wood, #936f90) and the objects are still flat and unlit (glTF KHR_materials_unlit + COLOR_0). Exports
-sky.glb; with `render`, also renders the reference view (9:04.0: the plaza rig at 0.9326x).
+The ground is lit 3D, as the HQ video shows it (art/sky_islands/README.md, slices 6-7): each island a body of rock with
+rounded corners, running down into the mist, its top our grass (grass.py) rounding over its edge; the stone blocks rock,
+rounded on every edge (the three the bridges rest on flush, as landings); the bridges planks or logs with ropes and the
+owner's barriers (bridges.py). The game lights them softly and fades them into the mist (#e5f3de) by height (the manifest's
+`look`). The objects are still flat and unlit (glTF KHR_materials_unlit + COLOR_0). Exports sky.glb; with `render`, also
+renders the reference view (9:04.0: the plaza rig at 0.9326x).
 """
 import bpy, bmesh, json, math, os, sys
 from mathutils import Vector, Matrix
@@ -20,8 +21,7 @@ CAM = json.load(open(os.path.join(ROOT, 'art/sky_islands/camera.json')))
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
 
-MIST, WOOD, WOOD_DARK, ROPE = (
-    '#e5f3de', '#936f90', '#6f526e', '#c9b38a')
+MIST = '#e5f3de'
 DEPTH = 30.0          # how far the islands and blocks run down into the mist
 
 
@@ -119,69 +119,22 @@ def body(name, outline, top_z, top_mat, top_r, corner_r):
     return o
 
 
-def box(name, centre, size, angle, colour, parent=None):
-    bm = bmesh.new()
-    bmesh.ops.create_cube(bm, size=1.0)
-    bmesh.ops.scale(bm, vec=size, verts=bm.verts)
-    bmesh.ops.rotate(bm, cent=(0, 0, 0), matrix=Matrix.Rotation(angle, 3, 'Z'), verts=bm.verts)
-    bmesh.ops.translate(bm, vec=centre, verts=bm.verts)
-    layer = bm.loops.layers.float_color.new('Col')
-    for f in bm.faces:
-        shade = 1.0 if f.normal.z > 0.5 else 0.82
-        for loop in f.loops: loop[layer] = [c * shade for c in lin(colour)[:3]] + [1.0]
-    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
-    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(MAT)
-    if parent is not None: o.parent = parent
-    return o
-
-
 # the islands as bodies of rock (layout.py: overlapping islands are one body)
 for k, outline in enumerate(L['bodies']):
     body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, CORNER_R)
 for i, b in enumerate(L['blocks']):
+    if i in L['landings']:
+        # the stone landings the bridges rest on (layout.py: walked over): flush with the grass, a bridge's deck on them
+        body(f'BLOCK_{i:02d}', b['top'], 0.06, ROCK, 0.05, 0.6)
+        continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
     body(f'BLOCK_{i:02d}', b['top'], b['height'], ROCK, 0.5, 0.6)
 
 
-def bridge(key, B):
-    c = [Vector((x, y, 0)) for x, y in B['corners']]
-    origin = sum(c, Vector()) / 4
-    along = math.radians(B['along'])
-    u = Vector((math.cos(along), math.sin(along), 0))          # the way across
-    v = Vector((-u.y, u.x, 0))                                 # across the way
-    length = max((p - origin).dot(u) for p in c) - min((p - origin).dot(u) for p in c)
-    width = max((p - origin).dot(v) for p in c) - min((p - origin).dot(v) for p in c)
-    root = bpy.data.objects.new(f'BRIDGE_{key}', None); sc.collection.objects.link(root)
-    if B['kind'] == 'planks':
-        n = max(1, round(length / 0.62))
-        for k in range(n):
-            t = -length / 2 + (k + 0.5) * length / n
-            box(f'BRIDGE_{key}_plank{k}', origin + u * t + Vector((0, 0, -0.08)), (length / n - 0.08, width, 0.16),
-                along, WOOD if k % 2 == 0 else '#8a6888', root)
-        for side in (-0.28, 0.28):
-            box(f'BRIDGE_{key}_rope{side:+.2f}', origin + v * (side * width) + Vector((0, 0, 0.02)),
-                (length, 0.07, 0.06), along, ROPE, root)
-    else:
-        n = max(1, round(length / 0.85))
-        for k in range(n):
-            t = -length / 2 + (k + 0.5) * length / n
-            bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=length / n / 2 * 0.95, depth=width,
-                                                location=origin + u * t + Vector((0, 0, -0.1)))
-            log = bpy.context.active_object; log.name = f'BRIDGE_{key}_log{k}'
-            log.rotation_euler = (math.pi / 2, 0, along)
-            me = log.data
-            layer = me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
-            for poly in me.polygons:
-                shade = 0.75 if abs(poly.normal.z) < 0.3 and False else 1.0
-                for li in poly.loop_indices: layer.data[li].color = [x * shade for x in lin(WOOD)[:3]] + [1.0]
-            me.materials.append(MAT); log.parent = root
-        for side in (-0.3, 0.3):
-            box(f'BRIDGE_{key}_rope{side:+.2f}', origin + v * (side * width) + Vector((0, 0, 0.32)),
-                (length, 0.07, 0.06), along, ROPE, root)
-
-
-for key, B in L['bridges'].items():
-    bridge(key, B)
+# the bridges, 3D (bridges.py): planks or logs, ropes, and the owner's barriers
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bridges as bridge_models
+bridge_models.build(L['bridges'])
 
 # the objects (objects.py measures them; blender/objects.py builds them)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

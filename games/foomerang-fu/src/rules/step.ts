@@ -11,6 +11,7 @@ import { assertValidConfig, type FuConfig } from './config';
 import {
   boundsOf,
   breakablesOf,
+  fencesOf,
   nearestWallNormal,
   onGround,
   circleHitsWalls,
@@ -706,10 +707,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const hazards = hazardsOf(config.arena);
   const gatesShut: boolean[] = [...state.gatesShut];
   let walls: readonly Solid[] = solidNow(staticWalls, gates, gatesShut);
-  // Breakables: solid to bodies while standing (as at the start of the step); boomerangs fly through them
+  // Breakables: solid to bodies while standing (as at the start of the step); boomerangs fly through them. Fences: solid to
+  // bodies always; boomerangs fly over them
   const breakables = breakablesOf(config.arena);
   const brokenNow: string[] = [...state.broken];
-  const standing = breakables.filter((b) => !state.broken.includes(b.id));
+  const standing = [
+    ...fencesOf(config.arena),
+    ...breakables.filter((b) => !state.broken.includes(b.id)),
+  ];
   const forBodies = (w: readonly Solid[]): readonly Solid[] =>
     standing.length === 0 ? w : [...w, ...standing];
   let bodyWalls: readonly Solid[] = forBodies(walls);

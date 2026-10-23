@@ -6,6 +6,7 @@ import {
   lineClearTo,
   wallsOf,
   breakablesOf,
+  fencesOf,
   type FuArena,
 } from './arena';
 import type { FuConfig } from './config';
@@ -50,7 +51,7 @@ function floorOf(arena: FuArena, radius: number): readonly Vec2[] {
   const cached = FLOOR.get(arena)?.get(radius);
   if (cached !== undefined) return cached;
   const walls = wallsOf(arena);
-  const props = breakablesOf(arena);
+  const props = [...breakablesOf(arena), ...fencesOf(arena)];
   const zone = arena.safeZone ?? { x: 0, y: 0, width: arena.width, height: arena.height };
   const margin = radius + 4;
   const blocked = (p: Vec2): boolean =>

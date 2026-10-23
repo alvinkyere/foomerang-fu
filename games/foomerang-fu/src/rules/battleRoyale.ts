@@ -1,4 +1,4 @@
-import { breakablesOf, distanceToSolid, wallsOf, type FuArena, type Rect } from './arena';
+import { breakablesOf, distanceToSolid, fencesOf, wallsOf, type FuArena, type Rect } from './arena';
 import type { FuState } from './state';
 
 /**
@@ -32,7 +32,7 @@ export function finalBox(arena: FuArena): Rect {
   const known = boxes.get(arena);
   if (known !== undefined) return known;
   const zone = arena.safeZone ?? { x: 0, y: 0, width: arena.width, height: arena.height };
-  const solids = [...wallsOf(arena), ...breakablesOf(arena)];
+  const solids = [...wallsOf(arena), ...breakablesOf(arena), ...fencesOf(arena)];
   const half = Math.min(BATTLE_ROYALE_FINAL, zone.width, zone.height) / 2;
   const mid = { x: zone.x + zone.width / 2, y: zone.y + zone.height / 2 };
   const free = (x: number, y: number) => solids.every((w) => distanceToSolid({ x, y }, w) > BODY);

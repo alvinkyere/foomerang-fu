@@ -2,10 +2,12 @@ import { zoneOf } from '../rules/battleRoyale';
 import { FIXED_TIMESTEP_SECONDS as DT, type Vec2 } from '@foomerang/game-core';
 import {
   breakablesOf,
+  fencesOf,
   circleHitsWalls,
   lineClearTo,
   lineIsClear,
   onGround,
+  pushOutOfSolid,
   sweepCircle,
   wallsOf,
   type Rect,
@@ -292,9 +294,46 @@ export class CpuController {
             1,
           ),
         );
+      // and where walking that way really takes it: into a pot or a block it slides round it, and the slide can carry it over
+      // an edge its heading never pointed at (the gong islands' south island: the aloe by its west edge)
+      const solids = [
+        ...wallsOf(arena),
+        ...fencesOf(arena),
+        ...breakablesOf(arena).filter((b) => !state.broken.includes(b.id)),
+      ];
+      const stride = state.config.playerSpeed * DT;
+      const slidesOff = (d: Vec2): boolean => {
+        let x = here.x;
+        let y = here.y;
+        for (let i = 0; i < 12; i += 1) {
+          x += d.x * stride;
+          y += d.y * stride;
+          for (const solid of solids) {
+            const out = pushOutOfSolid(x, y, r, solid, 0);
+            if (out !== undefined) [x, y] = out;
+          }
+          // its middle must stay on; from a few strides on, a margin round it too (one already at an edge can still leave it)
+          const room = i < 3 ? 0 : margin;
+          if (
+            [0, 1, 2, 3, 4, 5, 6, 7].some(
+              (k) =>
+                !onGround(
+                  {
+                    x: x + Math.cos((k * Math.PI) / 4) * room,
+                    y: y + Math.sin((k * Math.PI) / 4) * room,
+                  },
+                  arena,
+                ),
+            )
+          )
+            return true;
+        }
+        return false;
+      };
       const unsafe = (d: Vec2): boolean =>
         [0.05, 0.1, 0.15, 0.2, 0.25].some((k) => off(d, k * r)) ||
-        [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].some((k) => offNear(d, k * r));
+        [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].some((k) => offNear(d, k * r)) ||
+        slidesOff(d);
       if (aimOverride === undefined && (dir.x !== 0 || dir.y !== 0) && unsafe(dir)) {
         const d = dir;
         const turned = [30, -30, 60, -60, 90, -90]
@@ -621,6 +660,7 @@ export class CpuController {
         !circleHitsWalls(p, state.config.playerRadius, [
           ...wallsOf(state.config.arena),
           ...breakablesOf(state.config.arena),
+          ...fencesOf(state.config.arena),
         ]),
     );
     const best = exits.reduce<Vec2 | undefined>(

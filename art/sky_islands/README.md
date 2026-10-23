@@ -69,3 +69,18 @@ otherwise (`?arena=product` plays the rotation).
   `#a4b0dd`, far side `#8c9fba`), and everything below the tops fades into the mist from 0.8 to 14 units down.
 - Not yet: the bridges (next: 3D, with posts and rails), the objects (the plaza's crates and pots, its long-stalk plants
   recoloured), shadows under the objects, the stacked shapes of some pillars below the blocks.
+
+## Slice 7: the bridges in 3D, with barriers
+
+- `blender/bridges.py`, as the HQ shows them (9:41.6, 9:15.5):
+  - Plank bridges: rows of thick, rounded planks (two to a row, staggered like bricks) with dark boards under the gaps,
+    purple-brown `#906d90`, their cut ends tan along both sides, and two twisted rope pairs on top.
+  - The log bridge: hollow logs lying across the way, a ring at each one's middle, tan ring ends round a dark hollow, and
+    two twisted ropes binding them.
+- The owner's barriers (2026-10-23, "3D with actual barriers"; the HQ's bridges have none): wooden posts along both sides, a
+  sagging rope rail at the top and one half-way down. In the rules they are fences (`FuArena.fences`, new): solid to a
+  body as a wall is, but a boomerang flies over one and a slash reaches across it. So a bridge is crossed, never fallen off
+  its side.
+- The three blocks the bridges rest on are built flush with the grass, as stone landings (`layout.json` `landings`), so
+  the decks visibly rest on them; they were tall blocks the planks ran behind.
+- CPUs foresee where walking really takes them (sliding round a pot or a block) before taking a heading near an edge.

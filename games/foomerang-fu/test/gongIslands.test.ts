@@ -3,6 +3,7 @@ import {
   GONG_ISLANDS_ARENA,
   GONG_ISLANDS_BOOK_SPOTS,
   GONG_ISLANDS_BREAKABLES,
+  GONG_ISLANDS_FENCES,
   GONG_ISLANDS_GROUND,
   GONG_ISLANDS_SPAWNS,
   GONG_ISLANDS_WALLS,
@@ -29,7 +30,7 @@ describe('the gong islands', () => {
   });
 
   it('every spawn and Book spot stands on open ground, a body’s width from any edge', () => {
-    const solids = [...GONG_ISLANDS_WALLS, ...GONG_ISLANDS_BREAKABLES];
+    const solids = [...GONG_ISLANDS_WALLS, ...GONG_ISLANDS_BREAKABLES, ...GONG_ISLANDS_FENCES];
     for (const p of [...GONG_ISLANDS_SPAWNS, ...GONG_ISLANDS_BOOK_SPOTS]) {
       expect(circleHitsWalls(p, R + 10, solids), `${p.x},${p.y}`).toBe(false);
       for (let k = 0; k < 8; k += 1) {
@@ -55,6 +56,25 @@ describe('the gong islands', () => {
       s = stepFu(s, input({ a: { move: { x: 0, y: -1 } } }), DT).state;
     expect(player(s, 'a').alive).toBe(true);
     expect(at(s, 'a').y).toBeLessThan(Math.min(...ys));
+  });
+
+  it('a bridge has rails: a player walking sideways off it is stopped at its side, not dropped (owner, 2026-10-23)', () => {
+    const north = GONG_ISLANDS_GROUND[7] ?? []; // the north bridge: planks from the centre island up to the north bar
+    const xs = north.map((p) => p.x);
+    const ys = north.map((p) => p.y);
+    const mid = {
+      x: (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: (Math.min(...ys) + Math.max(...ys)) / 2,
+    };
+    for (const side of [-1, 1]) {
+      let s = make(['a', 'b'], { arena: GONG_ISLANDS_ARENA, roundIntroSeconds: 0 });
+      s = place(s, 'a', mid.x, mid.y);
+      for (let t = 0; t < 2; t += DT)
+        s = stepFu(s, input({ a: { move: { x: side, y: 0 } } }), DT).state;
+      expect(player(s, 'a').alive, `walking ${side < 0 ? 'west' : 'east'}`).toBe(true);
+      expect(Math.abs(at(s, 'a').x - mid.x)).toBeLessThan((Math.max(...xs) - Math.min(...xs)) / 2);
+    }
+    expect(GONG_ISLANDS_FENCES).toHaveLength(6); // two to a bridge: fences, which a boomerang flies over
   });
 
   it('CPUs play on it without walking off its edges', () => {
