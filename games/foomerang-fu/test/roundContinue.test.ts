@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { FREE_FOR_ALL, continueRound, createFuMatch, stepFu, type FuState } from '../src/rules';
+import {
+  FREE_FOR_ALL,
+  GONG_ISLANDS_ARENA,
+  MARKET_PLAZA_ARENA,
+  continueRound,
+  createFuMatch,
+  stepFu,
+  type FuState,
+} from '../src/rules';
+import { onGround } from '../src/rules/arena';
 import { C, DT, NONE, make, patchPlayer, run, types } from './support/fixtures';
 
 // The scoreboard between rounds (owner, 2026-10-19, "ff scoreboard.jpg"): after a round's end beat the match waits on the
@@ -79,5 +88,40 @@ describe('the round advances by itself unless the match waits for CONTINUE', () 
     expect(() =>
       createFuMatch([{ id: 'a', slot: 0 }], { roundAdvance: 'LATER' as unknown as 'AUTO' }),
     ).toThrow(/roundAdvance/);
+  });
+});
+
+// Every round on another map (owner, 2026-10-22; the HQ videos change the map at every CONTINUE: pond cross, maze, gong
+// islands): CONTINUE may name the next round's arena, and its Book spots.
+describe('CONTINUE onto another map', () => {
+  const onPlaza = (): FuState =>
+    run(ended({ ...WAIT, arena: MARKET_PLAZA_ARENA }), pastTheBeat).state;
+
+  it('the next round is played on the arena CONTINUE names: its walls, its ground, everyone starting on it', () => {
+    const next = continueRound(onPlaza(), { arena: GONG_ISLANDS_ARENA }).state;
+    expect(next.phase).toBe('PLAYING');
+    expect(next.round).toBe(2);
+    expect(next.config.arena).toBe(GONG_ISLANDS_ARENA);
+    // everyone starts on the islands' ground (on the plaza's spots some would be over the mist)
+    for (const body of next.world.bodies)
+      expect(onGround(body.position, GONG_ISLANDS_ARENA)).toBe(true);
+    expect(next.config.arena.walls).toBe(GONG_ISLANDS_ARENA.walls);
+  });
+
+  it('kills and the match’s settings carry over; only the arena (and where Books appear) changes', () => {
+    const waiting = { ...onPlaza(), scores: { a: 3, b: 1 } };
+    const next = continueRound(waiting, { arena: GONG_ISLANDS_ARENA }).state;
+    expect(next.scores).toEqual({ a: 3, b: 1 });
+    expect({ ...next.config, arena: undefined }).toEqual({ ...waiting.config, arena: undefined });
+  });
+
+  it('without a next arena the round stays where it was', () => {
+    expect(continueRound(onPlaza()).state.config.arena).toBe(MARKET_PLAZA_ARENA);
+  });
+
+  it('an arena the rules cannot play is refused', () => {
+    expect(() =>
+      continueRound(onPlaza(), { arena: { ...GONG_ISLANDS_ARENA, spawns: [{ x: 5, y: 5 }] } }),
+    ).toThrow();
   });
 });

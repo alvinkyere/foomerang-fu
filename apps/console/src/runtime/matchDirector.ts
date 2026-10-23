@@ -262,9 +262,14 @@ export class MatchDirector {
     return this.#inMatch ? this.runtime.matchPhase?.() : undefined;
   }
 
-  /** CONTINUE on the scoreboard: the next round begins. */
-  continueRound(): void {
-    if (this.#inMatch && !this.paused) this.runtime.continueRound?.();
+  /** Whether CONTINUE would start the next round now: the scoreboard is up and the match is not paused. */
+  get onScoreboard(): boolean {
+    return this.#inMatch && !this.paused && this.runtime.matchPhase?.() === 'SCOREBOARD';
+  }
+
+  /** CONTINUE on the scoreboard: the next round begins (on the map `next` names, if it names one). */
+  continueRound(next?: ArenaChoice): void {
+    if (this.#inMatch && !this.paused) this.runtime.continueRound?.(next);
   }
 
   onMovement(playerId: string, x: number, y: number, nowMs: number): void {

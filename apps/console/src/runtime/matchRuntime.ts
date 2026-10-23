@@ -8,6 +8,7 @@ import type { PackCharacter } from '../render/reconstructed/maps';
 import type { LatencyStats } from './inputBuffer';
 import type { TimingMetrics } from './frameStepper';
 import type { SlotAllocator } from './slots';
+import type { ArenaChoice } from './powerupMode';
 
 /**
  * Where a match is: PLAYING (between rounds included), ROUND_OVER (a round's end beat), SCOREBOARD (the end beat is over and
@@ -53,8 +54,11 @@ export interface MatchRuntime {
   neutralizeInput?(): void;
   /** Where the match is, for the games that have rounds and results (the host uses it to tell controllers what their buttons mean). */
   matchPhase?(): MatchPhase | undefined;
-  /** CONTINUE on the scoreboard: the next round begins (a no-op anywhere else, and for games without rounds). */
-  continueRound?(): void;
+  /**
+   * CONTINUE on the scoreboard: the next round begins (a no-op anywhere else, and for games without rounds), on the map `next`
+   * names if it names one.
+   */
+  continueRound?(next?: ArenaChoice): void;
   /** The vibrations each phone should feel now (a game with a border: the time a player has spent outside it). */
   rumbles?(nowMs: number): readonly PlannedRumble[];
   metrics(): RuntimeMetrics;

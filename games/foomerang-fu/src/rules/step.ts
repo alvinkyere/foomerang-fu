@@ -7,7 +7,7 @@ import {
   type Vec2,
 } from '@foomerang/game-core';
 import { teleportCatch, transition, type Boomerang } from './boomerang';
-import type { FuConfig } from './config';
+import { assertValidConfig, type FuConfig } from './config';
 import {
   boundsOf,
   breakablesOf,
@@ -459,10 +459,27 @@ function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuS
  * CONTINUE on the scoreboard (`roundAdvance: ON_CONTINUE`): the next round (or the tiebreak) begins. Anything else (play,
  * the end beat, a decided match) is left exactly as it was.
  */
-export function continueRound(state: FuState): FuStepResult {
+export function continueRound(state: FuState, next?: NextArena): FuStepResult {
   if (state.phase !== 'ROUND_OVER' || state.roundOver?.awaitingContinue !== true)
     return { state, events: [] };
-  return nextRound(state, state.elapsed);
+  if (next === undefined) return nextRound(state, state.elapsed);
+  // every round on another map (the HQ videos): the next round is played on the arena CONTINUE names, with its Book spots
+  const kept = Object.fromEntries(
+    Object.entries(state.config).filter(([key]) => key !== 'powerups'),
+  ) as Omit<FuConfig, 'powerups'>;
+  const config: FuConfig = Object.freeze({
+    ...kept,
+    arena: next.arena,
+    ...(next.powerups === undefined ? {} : { powerups: next.powerups }),
+  });
+  assertValidConfig(config);
+  return nextRound({ ...state, config }, state.elapsed);
+}
+
+/** The arena the next round is played on (and where its Books appear: none if absent). */
+export interface NextArena {
+  readonly arena: FuConfig['arena'];
+  readonly powerups?: FuConfig['powerups'];
 }
 
 /** The end of a round: the match (one full meter), a tiebreak (several), or the next round. */

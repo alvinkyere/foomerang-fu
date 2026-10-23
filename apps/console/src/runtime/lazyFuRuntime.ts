@@ -152,8 +152,8 @@ export class LazyFuRuntime implements MatchRuntime {
     return this.#real?.rumbles(nowMs) ?? [];
   }
 
-  continueRound(): void {
-    this.#real?.continueRound();
+  continueRound(next?: ArenaChoice): void {
+    this.#real?.continueRound(next);
   }
 
   matchPhase(): MatchPhase | undefined {

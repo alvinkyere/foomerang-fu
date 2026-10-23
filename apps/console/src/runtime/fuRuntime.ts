@@ -31,7 +31,7 @@ import type { ArenaView } from '../render/viewModel';
 import type { PackCharacter } from '../render/reconstructed/maps';
 import { FrameStepper } from './frameStepper';
 import { DEFAULT_MODE, type GameModeId } from './gameMode';
-import type { PowerupMode } from './powerupMode';
+import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { InputBuffer } from './inputBuffer';
 import { gameSecondsBetween } from './killSlowMo';
 import type { MatchPhase, MatchPlayer, MatchRuntime, RuntimeMetrics } from './matchRuntime';
@@ -128,18 +128,23 @@ export class FuRuntime implements MatchRuntime {
     this.#mode = mode;
     this.#arena = arena;
     this.#enabled = enabled;
+    this.#powerupMode = powerups;
+    this.#powerups = this.#powerupsIn(arena);
+  }
+
+  readonly #powerupMode: PowerupMode;
+
+  /** Where Books appear in an arena, and how often (the mode): none in an arena without places for them. */
+  #powerupsIn(arena: FuArena): FuConfig['powerups'] {
+    const powerups = this.#powerupMode;
     const choice = choiceOf(arena);
     const spots = choice === undefined ? undefined : PLAYABLE_ARENAS[choice].bookSpots; // no places to put Books: none
-    this.#powerups =
-      spots === undefined || powerups === 'off'
-        ? undefined
-        : powerups === 'fast'
-          ? // one at a time, as the real schedules: with Books at random spots, a walk to one must not sweep up others
-            { ...PRIMITIVE_POWERUPS, spots, firstSeconds: 1, intervalSeconds: 1, maxOnField: 1 }
-          : powerupsFor(
-              powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL',
-              spots,
-            );
+    return spots === undefined || powerups === 'off'
+      ? undefined
+      : powerups === 'fast'
+        ? // one at a time, as the real schedules: with Books at random spots, a walk to one must not sweep up others
+          { ...PRIMITIVE_POWERUPS, spots, firstSeconds: 1, intervalSeconds: 1, maxOnField: 1 }
+        : powerupsFor(powerups === 'low' ? 'LOW' : powerups === 'high' ? 'HIGH' : 'NORMAL', spots);
   }
 
   readonly #slowMo: boolean;
@@ -243,9 +248,15 @@ export class FuRuntime implements MatchRuntime {
       : state.phase;
   }
 
-  continueRound(): void {
+  /** CONTINUE on the scoreboard; `next` names the map the next round is played on (every round on another map). */
+  continueRound(next?: ArenaChoice): void {
     if (this.state === undefined) return;
-    const result = continueRound(this.state);
+    const arena = next === undefined ? undefined : PLAYABLE_ARENAS[next].arena;
+    const powerups = arena === undefined ? undefined : this.#powerupsIn(arena);
+    const result = continueRound(
+      this.state,
+      arena === undefined ? undefined : { arena, ...(powerups === undefined ? {} : { powerups }) },
+    );
     this.state = result.state;
     this.#events.push(...result.events);
   }

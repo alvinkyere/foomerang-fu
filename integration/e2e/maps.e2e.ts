@@ -35,3 +35,24 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
   await host.start();
   await played();
 });
+
+test('every round is on another map: CONTINUE on the scoreboard brings up the other one, drawn', async ({
+  hostAt,
+}) => {
+  test.setTimeout(240_000);
+  // the HQ videos change the map at every CONTINUE (pond cross, maze, gong islands); two kills win, so there is a scoreboard
+  const host = await hostAt('?kills=2&powerups=off');
+  await host.createRoom();
+  await host.addCpu('Hard');
+  await host.addCpu('Hard');
+  await host.start();
+  await host.waitForDrawn(2);
+  const first = (await host.snapshot()).arena;
+  await expect(host.continueButton).toBeVisible({ timeout: 120_000 });
+  await host.continueButton.click();
+  await expect.poll(async () => (await host.snapshot()).arena).not.toBe(first);
+  const swapped = Date.now();
+  await host.waitForDrawn(2);
+  console.log(`the next map was drawn ${Date.now() - swapped} ms after CONTINUE`);
+  expect((await host.snapshot()).game?.round).toBe(2);
+});

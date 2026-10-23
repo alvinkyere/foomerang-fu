@@ -270,7 +270,14 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     },
     startMatch,
     continueRound: () => {
-      director.continueRound();
+      // every round on another map (the HQ videos), as every match is: the rotation's next one, told to the screen first
+      const rotating = options.arena === 'rotate' || options.arena === 'product';
+      if (rotating && director.onScoreboard && arena !== undefined) {
+        const next = (options.arena === 'rotate' ? rotation : product).next();
+        arena = next;
+        for (const listener of [...arenaListeners]) listener();
+        director.continueRound(next);
+      } else director.continueRound();
       syncContext(); // back to the game's controls
     },
     rematch: () => {

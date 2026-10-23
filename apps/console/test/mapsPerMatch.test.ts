@@ -104,6 +104,41 @@ describe('every match is on a different map, always', () => {
     expect(c.runtime.arena()).toBeUndefined();
   });
 
+  it('every round is on another map too: CONTINUE on the scoreboard plays the next round on the next map', async () => {
+    const c = await console('product');
+    await c.enter('PLAYING');
+    const first = c.runtime.arena();
+    // the match's runtime, stood on its scoreboard (the real one gets there only after a kill)
+    const continued: (string | undefined)[] = [];
+    const real = c.runtime.director.runtime;
+    c.runtime.director.runtime = Object.assign(Object.create(real) as typeof real, {
+      matchPhase: () => 'SCOREBOARD' as const,
+      continueRound: (next?: string) => void continued.push(next),
+    });
+    const seen = [first];
+    for (let i = 0; i < 4; i += 1) {
+      c.runtime.continueRound();
+      seen.push(c.runtime.arena());
+    }
+    expect(continued).toEqual(seen.slice(1)); // the rules are told the map the screen is
+    for (let i = 1; i < seen.length; i += 1) expect(seen[i]).not.toBe(seen[i - 1]);
+    expect(c.changes).toEqual(seen);
+  });
+
+  it('a pinned map stays put from round to round', async () => {
+    const c = await console('hedge_maze');
+    await c.enter('PLAYING');
+    const continued: (string | undefined)[] = [];
+    const real = c.runtime.director.runtime;
+    c.runtime.director.runtime = Object.assign(Object.create(real) as typeof real, {
+      matchPhase: () => 'SCOREBOARD' as const,
+      continueRound: (next?: string) => void continued.push(next),
+    });
+    c.runtime.continueRound();
+    expect(continued).toEqual([undefined]);
+    expect(c.runtime.arena()).toBe('hedge_maze');
+  });
+
   it('the product rotates the plaza and the gong islands: every match the other one', async () => {
     expect(PRODUCT_POOL).toEqual(['market_plaza', 'gong_islands']);
     const c = await console('product');

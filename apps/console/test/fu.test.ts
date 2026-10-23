@@ -1,6 +1,9 @@
 import {
   DEFAULT_FU_CONFIG,
   FU_CONTROLS,
+  GONG_ISLANDS_ARENA,
+  GONG_ISLANDS_BOOK_SPOTS,
+  MARKET_PLAZA_ARENA,
   PRIMITIVE_ARENA,
   createFuMatch,
   stepFu,
@@ -657,6 +660,25 @@ describe('FuRuntime: platform input → Fu rules, one fixed step at a time', () 
       expect(s(runtime).phase).toBe('PLAYING');
       expect(runtime.matchPhase()).toBe('PLAYING');
       expect(alive(runtime, 'b')).toBe(true);
+      expect(now).toBeGreaterThan(0);
+    });
+
+    it('CONTINUE may name the next round’s map: the rules, the Books and the view all move to it (every round on another map)', () => {
+      const runtime = new FuRuntime(MARKET_PLAZA_ARENA);
+      runtime.start(players, 0);
+      const state = s(runtime);
+      runtime.state = {
+        ...state,
+        players: state.players.map((p) => (p.id === 'b' ? { ...p, alive: false } : p)),
+      };
+      let now = run(runtime, 0, 200);
+      expect(runtime.matchPhase()).toBe('SCOREBOARD');
+      runtime.continueRound('gong_islands');
+      now = run(runtime, now, 1);
+      expect(s(runtime).round).toBe(2);
+      expect(s(runtime).config.arena).toBe(GONG_ISLANDS_ARENA);
+      expect(s(runtime).config.powerups?.spots).toBe(GONG_ISLANDS_BOOK_SPOTS);
+      expect(runtime.view(roster(), slotsFor(roster()))?.arenaId).toBe('gong_islands');
       expect(now).toBeGreaterThan(0);
     });
 
