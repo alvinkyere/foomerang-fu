@@ -31,7 +31,7 @@ export interface ReconstructedMap {
 
 export type ReconstructedArena = Extract<
   ArenaChoice,
-  'market_plaza' | 'harbour_fort' | 'sky_islands'
+  'market_plaza' | 'gong_islands' | 'harbour_fort' | 'sky_islands'
 >;
 
 export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, ReconstructedMap>> =
@@ -64,6 +64,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 1418, height: 854 }),
       background: '#56819a',
+    }),
+    // the sky islands of the HQ videos (art/sky_islands): the plaza's camera and characters, its own islands
+    gong_islands: Object.freeze({
+      id: 'gong_islands',
+      assetDir: 'maps/gong_islands/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 2034, height: 1566 }),
+      background: '#e5f3de',
     }),
     // seats 1–2 are the shot's cast from the pack (S7: carrot, banana; its eggplant has no pack model yet); 3–6 are pack characters
     sky_islands: Object.freeze({

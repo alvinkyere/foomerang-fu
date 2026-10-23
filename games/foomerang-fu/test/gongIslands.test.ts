@@ -17,8 +17,8 @@ import { playMatch } from './support/cpuMatch';
 // bridges; walking off falls (falling.test.ts has the rule itself).
 
 describe('the gong islands', () => {
-  it('six islands and three bridges are its ground; blocks, posts, trunks and bamboo are solid; pots and crates break', () => {
-    expect(GONG_ISLANDS_GROUND).toHaveLength(9);
+  it('six islands (and where two of them meet) and three bridges are its ground; blocks, posts, trunks and bamboo are solid; pots and crates break', () => {
+    expect(GONG_ISLANDS_GROUND).toHaveLength(10);
     expect(GONG_ISLANDS_WALLS.filter((w) => w.kind === 'GONG')).toHaveLength(2);
     expect(GONG_ISLANDS_WALLS.filter((w) => w.kind === 'BLOCK').length).toBeGreaterThan(8);
     expect(GONG_ISLANDS_BREAKABLES.filter((b) => b.kind === 'POT')).toHaveLength(10);
@@ -43,7 +43,7 @@ describe('the gong islands', () => {
   });
 
   it('the north bridge carries a player from the centre island to the north one', () => {
-    const north = GONG_ISLANDS_GROUND[6]; // the bridges come after the six islands
+    const north = GONG_ISLANDS_GROUND[7]; // the bridges come after the six islands and the seam
     expect(north).toBeDefined();
     const xs = (north ?? []).map((p) => p.x);
     const ys = (north ?? []).map((p) => p.y);

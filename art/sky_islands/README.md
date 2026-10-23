@@ -41,3 +41,15 @@ Run order (from the repository root): `register.py`, `calibrate.py`, `layout.py`
   tiles on the tall blocks at the north corners (with those blocks, beyond the opening frame).
 - Not yet as the video: the maples' leafy texture on their caps; the bell's vertical stripes; the ferns on some blocks'
   sides.
+
+## Slice 5: in the rotation
+
+- The product rotation is the plaza and the gong islands, shuffled a bag at a time (`PRODUCT_POOL`); `?arena=` still pins
+  one map. `package.py` writes `apps/console/public/maps/gong_islands/`: the model, the plaza's camera rig with the islands'
+  own plan origin, the plaza's characters (shared, not copied: `assetsFrom`) and a flat mist floor.
+- The way round: the planks and logs run onto stone piers (the opening frame), and the north bar's lobe meets the tilted
+  island behind a block; those four blocks are walked over, not walls (`arena.py`, `PIERS`). The log bridge reaches the east
+  island's grass. The south island stands alone in the mist, as in the video: nobody walks to it or from it.
+- CPUs: a CPU that cannot walk to its opponent goes to the nearest place it can walk to with them in throwing range and in
+  sight; a heading over an edge turns along it (or stops), with a margin, and checked every few units (a bridge's corner).
+- Not yet as the video: CPUs still fall now and then (a shove off an edge), fewer than one a round.

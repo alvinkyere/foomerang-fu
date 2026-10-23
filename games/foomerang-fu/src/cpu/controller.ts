@@ -187,6 +187,8 @@ export class CpuController {
   readonly #decided = new Set<string>();
   readonly #grudge = new Map<string, number>();
   #field: { key: string; at: number; data: Int16Array } | undefined;
+  /** Where it last decided to fight its opponent from (#approach), and for which of their cells. */
+  #post: { key: string; at: number; spot: Vec2 } | undefined;
   /** Counters for evaluation only; nothing reads them to decide. */
   readonly stats = {
     deflectTries: 0,
@@ -229,6 +231,7 @@ export class CpuController {
       this.#dodge = undefined;
       this.#target = undefined;
       this.#field = undefined;
+      this.#post = undefined;
       this.#wander = 0;
       this.#intent = undefined;
       this.#decided.clear();
@@ -266,7 +269,8 @@ export class CpuController {
       if (out.dash === true) this.#lastDash = this.#tick;
     }
     let dir = aimOverride ?? this.#move;
-    // never over an edge (falling kills): a heading or a dash that would carry it off the ground is dropped
+    // never over an edge (falling kills): a heading that would carry it off the ground turns along the edge instead (the
+    // nearest turn that keeps it on: round a bridge's end it would otherwise stop dead), or stops; a dash that would is dropped
     const arena = state.config.arena;
     const body = state.world.bodies.find((b) => b.id === this.#id);
     if (arena.ground !== undefined && body !== undefined) {
@@ -274,12 +278,34 @@ export class CpuController {
       const off = (d: Vec2, reach: number): boolean =>
         !onGround({ x: here.x + d.x * reach, y: here.y + d.y * reach }, arena);
       const r = state.config.playerRadius;
-      if (
-        aimOverride === undefined &&
-        (dir.x !== 0 || dir.y !== 0) &&
-        (off(dir, r + 6) || off(dir, 2 * r))
-      )
-        dir = { x: 0, y: 0 };
+      // every few units out to two radii (one sample far ahead would step across a corner where a bridge meets an island);
+      // from half a radius out each sample must also have ground a margin round it, so it never walks along an edge with its
+      // middle on it (a shove or a slide along a wall would tip it over)
+      const margin = 12;
+      const offNear = (d: Vec2, reach: number): boolean =>
+        [0, 1, 2, 3, 4, 5, 6, 7].some((k) =>
+          off(
+            {
+              x: d.x * reach + Math.cos((k * Math.PI) / 4) * margin,
+              y: d.y * reach + Math.sin((k * Math.PI) / 4) * margin,
+            },
+            1,
+          ),
+        );
+      const unsafe = (d: Vec2): boolean =>
+        [0.05, 0.1, 0.15, 0.2, 0.25].some((k) => off(d, k * r)) ||
+        [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].some((k) => offNear(d, k * r));
+      if (aimOverride === undefined && (dir.x !== 0 || dir.y !== 0) && unsafe(dir)) {
+        const d = dir;
+        const turned = [30, -30, 60, -60, 90, -90]
+          .map((deg) => (deg * Math.PI) / 180)
+          .map((a) => ({
+            x: d.x * Math.cos(a) - d.y * Math.sin(a),
+            y: d.x * Math.sin(a) + d.y * Math.cos(a),
+          }))
+          .find((t) => !unsafe(t));
+        dir = turned ?? { x: 0, y: 0 };
+      }
       const dashReach = state.config.dashSpeed * state.config.dashSeconds + r;
       if (
         out.dash === true &&
@@ -489,7 +515,7 @@ export class CpuController {
       }
       if (d > stand || !los) {
         const before = this.#move;
-        this.#goTo(foe.position, state, view, here);
+        this.#goTo(this.#approach(foe.position, state, view, here), state, view, here);
         this.#settle(before, view, here);
         // never a committed dash down an armed opponent's line of fire
         const loaded = los && foe.weapons > foe.weaponsAway;
@@ -796,6 +822,30 @@ export class CpuController {
       }
     }
     return best === undefined ? { x: 0, y: 0 } : norm(sub(best, here));
+  }
+
+  /**
+   * Where to go to fight an opponent: to them, or, when no ground it can walk on reaches them (an island across a gap), to
+   * the nearest place it can walk to that has them in throwing range and in sight.
+   */
+  #approach(foe: Vec2, state: FuState, view: Observation, here: Vec2): Vec2 {
+    const { arena, playerRadius, throwRange } = state.config;
+    if (arena.ground === undefined) return foe;
+    const grid = navGridFor(arena, playerRadius);
+    const [fx, fy] = grid.cellOf(foe);
+    const key = `${fx},${fy}`;
+    if (this.#post === undefined || this.#post.key !== key || this.#tick - this.#post.at > 20) {
+      const reach = grid.field(foe, () => false);
+      const spot =
+        grid.distanceAt(reach, here) >= 0
+          ? foe
+          : (grid.nearest(
+              here,
+              (p) => dist(p, foe) < throwRange * 0.85 && lineIsClear(p, foe, view.solids),
+            ) ?? foe);
+      this.#post = { key, at: this.#tick, spot };
+    }
+    return this.#post.spot;
   }
 
   #goTo(goal: Vec2, state: FuState, view: Observation, here: Vec2): void {

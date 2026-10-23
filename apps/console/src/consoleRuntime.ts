@@ -3,7 +3,7 @@ import type { ControllerContext, SecondaryActionLabel } from '@foomerang/protoco
 import { HostSession, type HostStore, type HostTransportFactory } from './host';
 import { deriveContext } from './runtime/controllerContext';
 import { InputRouter, type MenuAction } from './runtime/controllerInput';
-import { MapRotation } from './runtime/mapRotation';
+import { MapRotation, PRODUCT_POOL } from './runtime/mapRotation';
 import { MatchDirector, createRuntimeFor, warmUpFor } from './runtime/matchDirector';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './runtime/powerupMode';
@@ -21,7 +21,7 @@ export interface ConsoleRuntimeOptions {
    * page address's `?arena=` picks another for development and tests). `'rotate'`: a different
    * rendered map every match. Absent: the baseline test arena.
    */
-  readonly arena?: ArenaChoice | 'rotate';
+  readonly arena?: ArenaChoice | 'rotate' | 'product';
   /** The rotation's randomness, in [0, 1) (tests make it deterministic); default Math.random. */
   readonly random?: () => number;
   /** Which powers a Book may award (the page address's `?enable=`); default all five. */
@@ -86,6 +86,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
   const now = options.now ?? ((): number => performance.now());
   // Every match chooses its map here, so the rules and the renderer are told the same one.
   const rotation = new MapRotation(options.random);
+  const product = new MapRotation(options.random, PRODUCT_POOL);
   let arena: ArenaChoice | undefined;
   const arenaListeners = new Set<() => void>();
   const director = new MatchDirector((gameId, mode) => {
@@ -94,7 +95,9 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
         ? undefined
         : options.arena === 'rotate'
           ? rotation.next()
-          : options.arena;
+          : options.arena === 'product'
+            ? product.next()
+            : options.arena;
     arena = choice;
     for (const listener of [...arenaListeners]) listener();
     return createRuntimeFor(

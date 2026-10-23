@@ -108,6 +108,26 @@ export class NavGrid {
     return dist;
   }
 
+  /**
+   * The nearest free cell's centre (by steps over free cells from `from`'s cell) where `ok` holds, or undefined if no cell
+   * it can walk to does.
+   */
+  nearest(from: Vec2, ok: (p: Vec2) => boolean): Vec2 | undefined {
+    const steps = this.field(from, () => false);
+    let best: Vec2 | undefined;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < steps.length; i += 1) {
+      const d = steps[i] as number;
+      if (d < 0 || d >= bestD) continue;
+      const cx = i % this.cols;
+      const p = this.centre(cx, (i - cx) / this.cols);
+      if (!ok(p)) continue;
+      bestD = d;
+      best = p;
+    }
+    return best;
+  }
+
   /** The distance (in cells) from a point, or -1 if the field does not reach it. */
   distanceAt(field: Int16Array, p: Vec2): number {
     const [cx, cy] = this.cellOf(p);

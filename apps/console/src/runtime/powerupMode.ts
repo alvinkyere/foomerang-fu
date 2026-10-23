@@ -61,6 +61,7 @@ export const ARENA_CHOICES = [
   'primitive',
   'systems',
   'market_plaza',
+  'gong_islands',
   'harbour_fort',
   'sky_islands',
   'pond_garden',
@@ -84,9 +85,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
 };
 
 /**
- * The map the product plays: only the market plaza (the owner, 2026-10-16: the plaza is perfected
- * first, and what is learned there builds the other maps), unless the address pins one for
- * development and tests. (Per-match rotation, `'rotate'`, stays available to the runtime.)
+ * The maps the product plays: the market plaza and the gong islands in turn (`'product'`, the owner, 2026-10-22: the
+ * islands join the rotation), unless the address pins one for development and tests. (The rotation of every reconstructed
+ * map, `'rotate'`, stays available to the runtime.)
  */
-export const productArena = (search: string): ArenaChoice =>
-  parseArenaParam(search) ?? 'market_plaza';
+export const productArena = (search: string): ArenaChoice | 'product' =>
+  parseArenaParam(search) ?? 'product';

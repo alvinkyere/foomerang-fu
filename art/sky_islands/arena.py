@@ -3,7 +3,7 @@ objects.json. World units are the plaza's (27.48 a plan unit: the plaza's 2748 p
 plan Y 106.
 
   ground      the island tops and the bridges (falling off them kills)
-  walls       the stone blocks (the smallest turned box round each top), the gong's posts, the maples' trunks, the bamboo,
+  walls       the stone blocks (the smallest turned box round each top; not the piers the bridges rest on), the gong's posts, the maples' trunks, the bamboo,
               the aloe (discs); a solid thinner than a player is widened to one, as on the plaza
   breakables  the pots (discs) and crates (turned boxes)
   spawns      six, on open ground, well apart; Book spots likewise
@@ -33,10 +33,14 @@ def turned(points, id_, kind):
                 halfWidth=round(max(bw / 2, MIN_HALF), 1), halfHeight=round(max(bh / 2, MIN_HALF), 1), angle=round(a, 4))
 
 
+# the blocks the bridges rest on, and the one in the seam where the north bar's lobe meets the tilted island: the opening frame
+# (9:04.0) shows the planks and logs running onto them, so the way across goes over them; they are not walls
+PIERS = {1, 6, 7, 15}
 walls = []
 for i, b in enumerate(L['blocks']):
     pts = [w(x, y) for x, y in b['top']]
     if cv2.contourArea(np.float32(pts)) < 900: continue          # slivers of a block's top: its neighbour covers it
+    if i in PIERS: continue
     walls.append(turned(pts, f'BLOCK_{i:02d}', 'BLOCK'))
 disc = lambda id_, kind, X, Y, r: dict(id=id_, kind=kind, shape='disc', x=w(X, Y)[0], y=w(X, Y)[1], radius=round(max(r * S, MIN_HALF), 1))
 breakables = []
@@ -55,7 +59,8 @@ for i, o in enumerate(O):
 # spawns and Book spots: on each island, the open places farthest from any edge or solid (a body's width clear at least),
 # spread out: the six islands' most open places start the round, the next most open ones take the Books
 from shapely_free_poly import clearance_points  # noqa: E402  (a helper beside this script)
-SPAWNS, BOOKS = clearance_points(ground[:6], walls + breakables, w)
+SPAWNS, BOOKS = clearance_points([[w(x, y) for x, y in o] for k, o in L['islands'].items() if not k.endswith('_join')],
+                                 walls + breakables, w)
 spawns = [dict(x=x, y=y) for x, y in SPAWNS]
 books = [dict(x=x, y=y) for x, y in BOOKS]
 

@@ -5,6 +5,7 @@ import {
   MARKET_PLAZA_ARENA,
   SKY_ISLANDS_ARENA,
   distanceToSolid,
+  onGround,
   type Solid,
 } from '@foomerang/foomerang-fu';
 import { describe, expect, it } from 'vitest';
@@ -40,10 +41,10 @@ describe('reconstructed maps', () => {
     expect(parseArenaParam('')).toBeUndefined(); // no pin: the console rotates
   });
 
-  it('the product plays only the market plaza (the owner, 2026-10-16: perfect it first); a dev pin still picks a map', () => {
-    expect(productArena('')).toBe('market_plaza');
-    expect(productArena('?kills=3&powerups=off')).toBe('market_plaza');
-    expect(productArena('?arena=garden')).toBe('market_plaza'); // unknown: the plaza, never a rotation
+  it('the product rotates the market plaza and the gong islands (the owner, 2026-10-22); a dev pin still picks a map', () => {
+    expect(productArena('')).toBe('product');
+    expect(productArena('?kills=3&powerups=off')).toBe('product');
+    expect(productArena('?arena=garden')).toBe('product'); // unknown: the product's rotation
     expect(productArena('?arena=harbour_fort')).toBe('harbour_fort'); // development and tests only
   });
 
@@ -73,7 +74,8 @@ describe('reconstructed maps', () => {
       const walls = rules.walls ?? [];
       // a map with a border (the plaza) has open sand beyond it that the camera reaches by framing the players: only the
       // ground inside the border must be within the camera's reach (the video's views: CAMERA_FRAMING.art, in the resting
-      // view's -1…1); a map without one, inside its own canvas
+      // view's -1…1); so must a map with ground to fall off (the gong islands, seen through the same camera); a map with
+      // neither, inside its own canvas
       const zone = rules.safeZone ?? {
         x: 36,
         y: 36,
@@ -88,9 +90,10 @@ describe('reconstructed maps', () => {
           y += 24
         ) {
           if (insideAWall({ x, y }, 36, walls)) continue;
+          if (!onGround({ x, y }, rules)) continue; // (the gong islands: the void between them is no place to stand)
           const p = camera.project(x, y);
           const where = `${map.id} (${x}, ${y})`;
-          if (rules.safeZone === undefined) {
+          if (rules.safeZone === undefined && rules.ground === undefined) {
             expect(p.x, where).toBeGreaterThanOrEqual(0);
             expect(p.x, where).toBeLessThanOrEqual(camera.canvas.width);
             expect(p.y, where).toBeGreaterThanOrEqual(0);

@@ -1,7 +1,7 @@
 // Foomerang Fu's rules: pure, deterministic, and free of DOM, React, Phaser, Socket.IO, wall-clock
 // time and ambient randomness (lint-enforced). The renderer reads this state; it never changes it.
 
-export { PRIMITIVE_ARENA, boundsOf, distanceToSolid } from './arena';
+export { PRIMITIVE_ARENA, boundsOf, distanceToSolid, onGround } from './arena';
 export { SYSTEMS_ARENA, SYSTEMS_POWERUP_SPOTS } from './systemsArena';
 export {
   MARKET_PLAZA_ARENA,

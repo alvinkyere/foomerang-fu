@@ -58,6 +58,8 @@ ISLANDS = {
     'north': [(-29.3, 100.5), (-17.0, 100.5), (-17.0, 98.0), (13.0, 98.0), (13.0, 91.2), (18.5, 91.2), (18.5, 88.4),
               (11.8, 88.4), (11.8, 91.0), (-17.5, 91.0), (-17.5, 74.3), (-24.2, 74.3), (-24.2, 88.6), (-29.3, 88.6)],
     'northeast': tilted,
+    # where the north bar's east end meets the tilted island, behind the blocks (the opening frame: the grass runs on)
+    'northeast_join': [(12.5, 90.5), (21.0, 90.5), (18.6, 97.8), (12.5, 97.8)],
     'centre': [(-9.5, 66.9), (10.5, 66.9), (10.5, 82.8), (-9.5, 82.8)],
     'east': [(19.1, 61.4), (25.8, 61.4), (25.8, 73.6), (19.1, 73.6)],
     'southwest': [(-24.3, 52.1), (-4.2, 52.1), (-4.2, 58.7), (-17.0, 58.7), (-17.0, 65.4), (-24.3, 65.4)],
@@ -68,7 +70,7 @@ BRIDGES = {
     'north': dict(kind='planks', corners=[(-2.75, 82.5), (3.05, 82.5), (3.05, 91.3), (-2.75, 91.3)], along=90.0),
     'south': dict(kind='planks', corners=[(-8.5, 58.4), (-2.8, 58.4), (-2.8, 67.2), (-8.5, 67.2)], along=90.0),
     # logs side by side, each lying across the way (from the centre island east to the east island)
-    'east': dict(kind='logs', corners=[(10.5, 71.0), (16.5, 69.5), (18.6, 74.7), (12.6, 76.6)], along=-17.5),
+    'east': dict(kind='logs', corners=[(10.0, 71.15), (19.6, 68.54), (21.7, 73.74), (12.1, 76.75)], along=-17.5),
 }
 
 # the stone blocks: their tops in the opening frame, back into the plan at their height

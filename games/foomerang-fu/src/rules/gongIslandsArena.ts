@@ -43,6 +43,12 @@ export const GONG_ISLANDS_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
     { x: 1666.4, y: 707.9 },
   ]),
   Object.freeze([
+    { x: 1277.8, y: 425.9 },
+    { x: 1511.4, y: 425.9 },
+    { x: 1445.4, y: 225.3 },
+    { x: 1277.8, y: 225.3 },
+  ]),
+  Object.freeze([
     { x: 673.3, y: 1074.5 },
     { x: 1222.9, y: 1074.5 },
     { x: 1222.9, y: 637.5 },
@@ -81,10 +87,10 @@ export const GONG_ISLANDS_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
     { x: 700.7, y: 1066.2 },
   ]),
   Object.freeze([
-    { x: 1222.9, y: 961.8 },
-    { x: 1387.7, y: 1003.0 },
-    { x: 1445.4, y: 860.1 },
-    { x: 1280.6, y: 807.9 },
+    { x: 1209.1, y: 957.7 },
+    { x: 1472.9, y: 1029.4 },
+    { x: 1530.6, y: 886.5 },
+    { x: 1266.8, y: 803.8 },
   ]),
 ]);
 
@@ -98,16 +104,6 @@ export const GONG_ISLANDS_WALLS: readonly GongIslandsWall[] = Object.freeze([
     halfWidth: 52.5,
     halfHeight: 43.2,
     angle: -0.1548,
-  }),
-  Object.freeze({
-    id: 'BLOCK_01',
-    kind: 'BLOCK',
-    shape: 'box',
-    x: 1443.4,
-    y: 355.8,
-    halfWidth: 46.3,
-    halfHeight: 55.0,
-    angle: -0.1466,
   }),
   Object.freeze({
     id: 'BLOCK_02',
@@ -148,26 +144,6 @@ export const GONG_ISLANDS_WALLS: readonly GongIslandsWall[] = Object.freeze([
     halfWidth: 64.9,
     halfHeight: 32.0,
     angle: 0.2532,
-  }),
-  Object.freeze({
-    id: 'BLOCK_06',
-    kind: 'BLOCK',
-    shape: 'box',
-    x: 1218.1,
-    y: 915.9,
-    halfWidth: 32.8,
-    halfHeight: 84.1,
-    angle: 0.3178,
-  }),
-  Object.freeze({
-    id: 'BLOCK_07',
-    kind: 'BLOCK',
-    shape: 'box',
-    x: 1461.7,
-    y: 921.0,
-    halfWidth: 37.0,
-    halfHeight: 18,
-    angle: -0.3923,
   }),
   Object.freeze({
     id: 'BLOCK_08',
@@ -228,16 +204,6 @@ export const GONG_ISLANDS_WALLS: readonly GongIslandsWall[] = Object.freeze([
     halfWidth: 47.9,
     halfHeight: 28.1,
     angle: -0.3705,
-  }),
-  Object.freeze({
-    id: 'BLOCK_15',
-    kind: 'BLOCK',
-    shape: 'box',
-    x: 747.0,
-    y: 1343.4,
-    halfWidth: 106.2,
-    halfHeight: 48.9,
-    angle: -0.0065,
   }),
   Object.freeze({
     id: 'BLOCK_16',
@@ -383,7 +349,7 @@ export const GONG_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 275.0, y: 360.0 }),
   Object.freeze({ x: 1695.0, y: 455.0 }),
   Object.freeze({ x: 790.0, y: 950.0 }),
-  Object.freeze({ x: 1560.0, y: 980.0 }),
+  Object.freeze({ x: 1555.0, y: 970.0 }),
   Object.freeze({ x: 365.0, y: 1260.0 }),
   Object.freeze({ x: 1310.0, y: 1380.0 }),
 ]);
@@ -391,8 +357,8 @@ export const GONG_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
 export const GONG_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 595.0, y: 310.0 }),
   Object.freeze({ x: 1665.0, y: 205.0 }),
-  Object.freeze({ x: 1050.0, y: 960.0 }),
-  Object.freeze({ x: 545.0, y: 1390.0 }),
+  Object.freeze({ x: 1110.0, y: 910.0 }),
+  Object.freeze({ x: 550.0, y: 1385.0 }),
 ]);
 
 export const GONG_ISLANDS_ARENA: FuArena = Object.freeze({

@@ -120,6 +120,9 @@ def prism(name, outline, top_z, top_hex, side_hex, bevel):
         for f in bm.faces:
             on_top = abs(f.normal.z) > 0.95 and all(v.co.z >= top_z - 0.05 for v in f.verts)
             f.material_index = 1 if on_top else 0
+            if on_top:                                 # (white: the game multiplies the texture by the vertex colour)
+                for loop in f.loops:
+                    loop[bm.loops.layers.float_color['Col']] = [1.0, 1.0, 1.0, 1.0]
             for loop in f.loops:
                 x, y = loop.vert.co.x, loop.vert.co.y
                 loop[uvl].uv = ((x - PLAN['x0']) / (PLAN['x1'] - PLAN['x0']), (y - PLAN['y0']) / (PLAN['y1'] - PLAN['y0']))
@@ -202,7 +205,8 @@ for i, o in enumerate(OBJ['objects']):
     kind = o['kind']
     if kind == 'gong': obj_models.gong(o, PAL, MAT, props)
     elif kind.startswith('tile'): obj_models.tile(o, PAL[kind], MAT, props, i, tile_images[kind])
-    else: getattr(obj_models, kind)(o, PAL, MAT, props, i)
+    # pots and crates break: the game finds each at the model's top level by its arena id (POT_<i>, CRATE_<i>)
+    else: getattr(obj_models, kind)(o, PAL, MAT, None if kind in ('pot', 'crate') else props, i)
 
 # the camera: the plaza's rig, at the reference view's zoom
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co)

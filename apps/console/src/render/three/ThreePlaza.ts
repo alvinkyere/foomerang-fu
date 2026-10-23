@@ -76,6 +76,8 @@ const WATER_FIELD = { margin: 1.03, far: 2 } as const;
 interface Manifest {
   readonly map: string;
   readonly camera: unknown;
+  /** Another map whose character atlases this one shares (the gong islands: the plaza's). */
+  readonly assetsFrom?: string;
   readonly characterScale?: number;
   readonly characters: Readonly<
     Record<
@@ -1855,7 +1857,14 @@ export async function createThreePlaza(
       const file = c.body !== undefined && parseHands(c.hands) !== undefined ? c.body : c.file;
       if (!/^[A-Za-z0-9_-]{1,64}\.(webp|png)$/.test(file))
         throw new Error('plaza manifest: bad character file');
-      const t = await loader.loadAsync(`${at}${file}`);
+      if (manifest.assetsFrom !== undefined && !/^[a-z_]{1,32}$/.test(manifest.assetsFrom))
+        throw new Error('plaza manifest: bad assetsFrom');
+      // a map may share another's characters (the gong islands: the plaza's): its atlases come from that map's folder
+      const from =
+        manifest.assetsFrom === undefined
+          ? at
+          : `${import.meta.env.BASE_URL}maps/${manifest.assetsFrom}/`;
+      const t = await loader.loadAsync(`${from}${file}`);
       t.colorSpace = THREE.SRGBColorSpace;
       t.magFilter = THREE.LinearFilter;
       atlases.set(kind, t);

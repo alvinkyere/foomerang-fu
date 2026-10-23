@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createConsoleRuntime } from '../src/consoleRuntime';
-import { MAP_POOL } from '../src/runtime/mapRotation';
+import { MAP_POOL, PRODUCT_POOL } from '../src/runtime/mapRotation';
 import { FakeHostNetwork, MemoryHostStore, createClock, roster, settle } from './support/hostFakes';
 
 const players = roster({ playerId: 'a', displayName: 'A' }, { playerId: 'b', displayName: 'B' });
@@ -102,5 +102,18 @@ describe('every match is on a different map, always', () => {
     const c = await console('rotate', 'primitive-arena');
     await c.enter('PLAYING');
     expect(c.runtime.arena()).toBeUndefined();
+  });
+
+  it('the product rotates the plaza and the gong islands: every match the other one', async () => {
+    expect(PRODUCT_POOL).toEqual(['market_plaza', 'gong_islands']);
+    const c = await console('product');
+    const seen: (string | undefined)[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      await c.enter('PLAYING');
+      seen.push(c.runtime.arena());
+      await c.enter('LOBBY');
+    }
+    for (const m of seen) expect(PRODUCT_POOL).toContain(m);
+    for (let i = 1; i < seen.length; i += 1) expect(seen[i]).not.toBe(seen[i - 1]);
   });
 });
