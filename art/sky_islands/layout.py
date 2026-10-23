@@ -97,5 +97,20 @@ for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)]
                  ([(8.0, 98.5), (19.0, 98.5), (19.0, 107.0), (8.0, 107.0)], 6.5),
                  ([(19.5, 94.5), (24.0, 94.5), (24.0, 99.5), (19.5, 99.5)], 4.0)):
     blocks.append(dict(top=top, height=hgt, image=None))
-json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks), open('art/sky_islands/layout.json', 'w'), indent=1)
+# the bodies of rock the islands are built as: islands that overlap are one body (one top, one rim round the outside: two
+# coplanar tops would flicker, and each would draw its rim across the other's grass), outlined at 1/50 unit
+K = 50
+x0 = min(x for o in ISLANDS.values() for x, _ in o) - 2; y0 = min(y for o in ISLANDS.values() for _, y in o) - 2
+x1 = max(x for o in ISLANDS.values() for x, _ in o) + 2; y1 = max(y for o in ISLANDS.values() for _, y in o) + 2
+mask = np.zeros((int((y1 - y0) * K), int((x1 - x0) * K)), np.uint8)
+for o in ISLANDS.values():
+    cv2.fillPoly(mask, [np.int32([[(x - x0) * K, (y - y0) * K] for x, y in o])], 1)
+cs, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+bodies = []
+for c in cs:
+    q = cv2.approxPolyDP(c, 0.03 * K, True)[:, 0, :]
+    bodies.append([[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)] for px, py in q])
+json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies), open('art/sky_islands/layout.json', 'w'),
+          indent=1)
+print(len(bodies), 'bodies of rock:', [len(b) for b in bodies])
 print(len(ISLANDS), 'islands,', len(BRIDGES), 'bridges,', len(blocks), 'blocks; tilted island', tilted)

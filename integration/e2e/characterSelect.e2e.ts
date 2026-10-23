@@ -8,7 +8,7 @@ test('phones pick their characters on the TV, get READY, begin from a phone, and
   hostAt,
   newPhone,
 }) => {
-  const host = await hostAt('?powerups=off'); // the product: the market plaza, in 3D
+  const host = await hostAt('?powerups=off'); // the product's map (the gong islands for now), in 3D
   const code = await host.createRoom();
   await expect(host.characterSelect).toBeVisible();
   const alice = await newPhone();

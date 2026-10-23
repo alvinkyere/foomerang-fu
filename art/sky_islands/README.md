@@ -53,3 +53,19 @@ Run order (from the repository root): `register.py`, `calibrate.py`, `layout.py`
 - CPUs: a CPU that cannot walk to its opponent goes to the nearest place it can walk to with them in throwing range and in
   sight; a heading over an edge turns along it (or stops), with a margin, and checked every few units (a bridge's corner).
 - Not yet as the video: CPUs still fall now and then (a shove off an edge), fewer than one a round.
+
+## Slice 6: the ground, ours and in 3D
+
+The owner (2026-10-22): the islands read as a picture, not an arena. The islands are the default map until the owner says
+otherwise (`?arena=product` plays the rotation).
+
+- `grass.py` → `blender/grass.png` (in place of slice 2's `tops.py`, removed): our own grass, one tileable texture (16 units a tile): the HQ's flat green `#dff9ab`
+  with soft rounded patches 2–4 units across, darker `#c6f0a9` and lighter `#f4faaf` (9:04.0).
+- The islands are bodies of rock (`layout.py`: islands that overlap are one body, so one top and one rim): rounded corners
+  (0.7 units), a rounded top edge (0.45) that is rock, a light lavender rim round the grass as the HQ shows it, and sides
+  running down into the mist. The stone blocks are rock rounded on every edge. All lit, not flat.
+- The game draws them in the islands' own soft light (`render/three/softLook.ts`, the manifest's `look`): a top shows its
+  colour, a side facing the viewer ~92% of it, a side away from the sun ~85% (the HQ's block, 9:41.6: top `#a7b3e0`, front
+  `#a4b0dd`, far side `#8c9fba`), and everything below the tops fades into the mist from 0.8 to 14 units down.
+- Not yet: the bridges (next: 3D, with posts and rails), the objects (the plaza's crates and pots, its long-stalk plants
+  recoloured), shadows under the objects, the stacked shapes of some pillars below the blocks.

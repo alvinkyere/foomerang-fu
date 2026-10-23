@@ -24,6 +24,13 @@
   "occluders": [],
   "characterScale": 1.1441,
   "assetsFrom": "market_plaza",
+  "look": {
+    "mist": {
+      "colour": "#e5f3de",
+      "from": 0.8,
+      "to": 14.0
+    }
+  },
   "characters": {
     "bread": {
       "file": "char_bread.webp",

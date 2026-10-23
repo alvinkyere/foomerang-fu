@@ -85,9 +85,12 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
 };
 
 /**
- * The maps the product plays: the market plaza and the gong islands in turn (`'product'`, the owner, 2026-10-22: the
- * islands join the rotation), unless the address pins one for development and tests. (The rotation of every reconstructed
- * map, `'rotate'`, stays available to the runtime.)
+ * The map the product plays: the gong islands, every round, while they are being perfected (the owner, 2026-10-22: "make
+ * the island map the default for now ... until I say so"). `?arena=product` plays the rotation (the market plaza and the
+ * gong islands, a new one every round); any other `?arena=` pins that map for development and tests. (The rotation of
+ * every reconstructed map, `'rotate'`, stays available to the runtime.)
  */
 export const productArena = (search: string): ArenaChoice | 'product' =>
-  parseArenaParam(search) ?? 'product';
+  new URLSearchParams(search).get('arena') === 'product'
+    ? 'product'
+    : (parseArenaParam(search) ?? 'gong_islands');

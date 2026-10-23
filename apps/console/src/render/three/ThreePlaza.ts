@@ -10,6 +10,7 @@ import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { parseSoftLook, softLights, softMaterial } from './softLook';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
@@ -78,6 +79,8 @@ interface Manifest {
   readonly camera: unknown;
   /** Another map whose character atlases this one shares (the gong islands: the plaza's). */
   readonly assetsFrom?: string;
+  /** The map's own light instead of the plaza's toon light (softLook.ts; the gong islands). */
+  readonly look?: unknown;
   readonly characterScale?: number;
   readonly characters: Readonly<
     Record<
@@ -1140,6 +1143,7 @@ class Plaza {
     this.camera.up.set(0, Math.cos(th), -Math.sin(th));
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
     this.#restCamera.copy(this.camera);
+    const look = parseSoftLook(manifest.look);
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1162,11 +1166,13 @@ class Plaza {
     });
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.02;
-    this.scene.add(
-      sun,
-      sun.target,
-      new THREE.AmbientLight(new THREE.Color(...SHADOW_TINT), Math.PI),
-    );
+    if (look !== undefined) softLights(this.scene);
+    else
+      this.scene.add(
+        sun,
+        sun.target,
+        new THREE.AmbientLight(new THREE.Color(...SHADOW_TINT), Math.PI),
+      );
     this.scene.add(gltf);
     // our vector floor (art/reconstruction/environ2/blender/floor_vector.py): one crisp flat-coloured ground, top-down
     for (const o of [...gltf.children]) if (/^(FLOOR|RUG)/.test(o.name)) o.removeFromParent();
@@ -1181,12 +1187,15 @@ class Plaza {
       )
         return;
       const m = o.material as THREE.MeshStandardMaterial;
-      o.material = new THREE.MeshToonMaterial({
-        color: m.color,
-        map: m.map ?? null,
-        gradientMap: gradient,
-        side: m.side,
-      });
+      o.material =
+        look !== undefined
+          ? softMaterial(m, look)
+          : new THREE.MeshToonMaterial({
+              color: m.color,
+              map: m.map ?? null,
+              gradientMap: gradient,
+              side: m.side,
+            });
     });
     gltf.traverse((o) => {
       if (o instanceof THREE.Mesh) {

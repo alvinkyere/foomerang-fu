@@ -41,10 +41,12 @@ describe('reconstructed maps', () => {
     expect(parseArenaParam('')).toBeUndefined(); // no pin: the console rotates
   });
 
-  it('the product rotates the market plaza and the gong islands (the owner, 2026-10-22); a dev pin still picks a map', () => {
-    expect(productArena('')).toBe('product');
-    expect(productArena('?kills=3&powerups=off')).toBe('product');
-    expect(productArena('?arena=garden')).toBe('product'); // unknown: the product's rotation
+  it('the product plays the gong islands for now; ?arena=product rotates them with the plaza; a dev pin still picks a map', () => {
+    // the islands, every round, until the owner says otherwise (2026-10-22)
+    expect(productArena('')).toBe('gong_islands');
+    expect(productArena('?kills=3&powerups=off')).toBe('gong_islands');
+    expect(productArena('?arena=garden')).toBe('gong_islands'); // unknown: the default
+    expect(productArena('?arena=product')).toBe('product'); // the plaza and the islands in turn
     expect(productArena('?arena=harbour_fort')).toBe('harbour_fort'); // development and tests only
   });
 

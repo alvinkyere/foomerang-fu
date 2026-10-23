@@ -2,11 +2,11 @@
 
   Blender -b --python art/sky_islands/blender/build.py -- <out_dir> [render]
 
-Everything is flat-coloured and unlit, as the HQ video shows it (art/sky_islands/README.md): the island tops grass
-(#def7ac) with a soft lavender lip; the cliffs lavender, fading into the mist (#e5f3de) as they go down (over ~6 units);
-the stone blocks the same with lighter tops (#afbce6) and rounded edges; the bridges purple-brown wood (#936f90). The
-colours fade by vertex colour (glTF COLOR_0 on unlit materials), so the game draws them exactly. Exports sky.glb; with
-`render`, also renders the reference view (9:04.0: the plaza rig at 0.9326x) for comparing with the video.
+The ground is lit 3D, as the HQ video shows it (art/sky_islands/README.md, slice 6): each island a body of rock with rounded
+corners, running down into the mist, its top our grass (grass.py) rounding over its edge; the stone blocks rock, rounded on
+every edge. The game lights them softly and fades them into the mist (#e5f3de) by height (the manifest's `look`). The
+bridges (purple-brown wood, #936f90) and the objects are still flat and unlit (glTF KHR_materials_unlit + COLOR_0). Exports
+sky.glb; with `render`, also renders the reference view (9:04.0: the plaza rig at 0.9326x).
 """
 import bpy, bmesh, json, math, os, sys
 from mathutils import Vector, Matrix
@@ -20,10 +20,9 @@ CAM = json.load(open(os.path.join(ROOT, 'art/sky_islands/camera.json')))
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
 
-GRASS, LIP, CLIFF, BLOCK_TOP, BLOCK_SIDE, MIST, WOOD, WOOD_DARK, ROPE = (
-    '#def7ac', '#c9cdeb', '#a9b0d8', '#afbce6', '#97a1c8', '#e5f3de', '#936f90', '#6f526e', '#c9b38a')
+MIST, WOOD, WOOD_DARK, ROPE = (
+    '#e5f3de', '#936f90', '#6f526e', '#c9b38a')
 DEPTH = 30.0          # how far the islands and blocks run down into the mist
-FADE = 6.0            # over how much of it they fade into the mist
 
 
 def lin(h):
@@ -46,53 +45,36 @@ def unlit(name):
 
 
 MAT = unlit('sky_flat')
-# the island tops: our flat-coloured grass (tops.py), over the plan's extent
-PLAN = CAM['plan']
-TOPS_RES = 20
-GRASS_MAT = bpy.data.materials.new('sky_grass'); GRASS_MAT.use_nodes = True
-_nt = GRASS_MAT.node_tree
-for _n in list(_nt.nodes):
-    if _n.type != 'OUTPUT_MATERIAL': _nt.nodes.remove(_n)
-_tex = _nt.nodes.new('ShaderNodeTexImage')
-_tex.image = bpy.data.images.load(os.path.join(ROOT, 'art/sky_islands/blender/tops.png')); _tex.image.pack()
-_bg = _nt.nodes.new('ShaderNodeBackground')
-_nt.links.new(_tex.outputs['Color'], _bg.inputs['Color'])
-_nt.links.new(_bg.outputs[0], next(n for n in _nt.nodes if n.type == 'OUTPUT_MATERIAL').inputs['Surface'])
-
-
 def mix(a, b, t):
     return [x + (y - x) * t for x, y in zip(lin(a), lin(b))]
 
 
-# the cliffs below an edge, as the video's (a column under the centre island's south edge, 9:04.0, ~16 px a unit): lavender
-# under the lip, darkening grey-blue ~3 units down, then lightening into the mist (depth below the top, units -> colour)
-CLIFF_STOPS = [(0.0, '#b4bce0'), (0.6, '#aab5d3'), (3.1, '#93a5b7'), (6.25, '#a8b9bc'), (9.4, '#c8d9c9'), (14.0, MIST)]
+def lit(name, hex_colour=None, image=None):
+    """A lit material (glTF: a plain base colour or texture): the game shades it (the map's soft look) and mists it by height."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Roughness'].default_value = 1.0
+    if image is not None:
+        tex = nt.nodes.new('ShaderNodeTexImage'); tex.image = image; tex.extension = 'REPEAT'
+        nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
+    else:
+        bsdf.inputs['Base Color'].default_value = lin(hex_colour)
+    return m
 
 
-def cliff_colour(d):
-    for (d0, c0), (d1, c1) in zip(CLIFF_STOPS, CLIFF_STOPS[1:]):
-        if d <= d1:
-            return mix(c0, c1, max(0.0, (d - d0) / (d1 - d0)))
-    return lin(MIST)
+# our grass (grass.py: a tile of TILE plan units), and the rock: the HQ's lit block top (#a7b3e0, 9:41.6), which the game's
+# soft light shows as it is on a top; sides a little darker, the far sides darker still, and everything below fades to mist
+GRASS_TILE = 16.0
+_grass_img = bpy.data.images.load(os.path.join(ROOT, 'art/sky_islands/blender/grass.png')); _grass_img.pack()
+GRASS_LIT = lit('sky_grass', image=_grass_img)
+ROCK = lit('sky_rock', '#a9b5e1')
+RIM_R, CORNER_R = 0.45, 0.7      # the round of an island's top edge and of its corners, units (the HQ close-ups)
 
 
-def colour_by_height(bm, top_hex, side_hex, top_z):
-    """Tops their colour; the rounded lip between; sides down the cliff's colours into the mist."""
-    layer = bm.loops.layers.float_color.get('Col') or bm.loops.layers.float_color.new('Col')   # linear, as glTF's COLOR_0
-    for f in bm.faces:
-        nz = abs(f.normal.z)
-        for loop in f.loops:
-            z = loop.vert.co.z
-            if nz > 0.95 and z >= top_z - 0.05:
-                c = lin(top_hex)
-            elif z >= top_z - 0.4 and nz > 0.3:
-                c = mix(top_hex, LIP, 0.6)                    # the lip: the grass turning down
-            else:
-                c = cliff_colour(top_z - z)
-            loop[layer] = c
-
-
-def prism(name, outline, top_z, top_hex, side_hex, bevel):
+def body(name, outline, top_z, top_mat, top_r, corner_r):
+    """An island (or a stone block): its outline extruded down into the mist, its corners and its top edge rounded, its top
+    (and the round of its edge) one material, its sides rock. Smooth-shaded across the rounds, sharp elsewhere."""
     bm = bmesh.new()
     vs = [bm.verts.new((x, y, top_z)) for x, y in outline]
     face = bm.faces.new(vs)
@@ -101,34 +83,39 @@ def prism(name, outline, top_z, top_hex, side_hex, bevel):
     ext = bmesh.ops.extrude_face_region(bm, geom=[face], use_keep_orig=True)   # (the original stays: the top)
     down = [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]
     bmesh.ops.translate(bm, verts=down, vec=(0, 0, -(top_z + DEPTH)))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)   # (the extrusion leaves the cap facing down)
     bm.normal_update()
-    # round the top edges (the islands' soft lip, the blocks' rounded edges)
-    top_edges = [e for e in bm.edges if all(abs(v.co.z - top_z) < 1e-4 for v in e.verts) and len(e.link_faces) == 2
-                 and any(f.normal.z > 0.7 for f in e.link_faces)]
-    bmesh.ops.bevel(bm, geom=top_edges, offset=bevel, segments=4, profile=0.5, affect='EDGES')
-    # and the vertical corners
     corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 1.0]
-    bmesh.ops.bevel(bm, geom=corners, offset=bevel * 1.5, segments=4, profile=0.5, affect='EDGES')
-    for d, _ in CLIFF_STOPS[1:]:                      # rings at the colour stops down the cliff
-        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, top_z - d), plane_no=(0, 0, 1))
+    bmesh.ops.bevel(bm, geom=corners, offset=corner_r, segments=6, profile=0.5, affect='EDGES', clamp_overlap=True)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.normal_update()
+    top_edges = [e for e in bm.edges if all(abs(v.co.z - top_z) < 1e-4 for v in e.verts) and len(e.link_faces) == 2
+                 and any(f.normal.z > 0.7 for f in e.link_faces) and any(abs(f.normal.z) < 0.3 for f in e.link_faces)]
+    bmesh.ops.bevel(bm, geom=top_edges, offset=top_r, segments=5, profile=0.5, affect='EDGES', clamp_overlap=True)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)   # outward everywhere (the cap up)
     bm.normal_update()
-    colour_by_height(bm, top_hex, side_hex, top_z)
-    grass = top_hex == GRASS
-    if grass:                                          # the caps take the grass texture, mapped by where they lie
-        uvl = bm.loops.layers.uv.new('UVMap')
-        for f in bm.faces:
-            on_top = abs(f.normal.z) > 0.95 and all(v.co.z >= top_z - 0.05 for v in f.verts)
-            f.material_index = 1 if on_top else 0
-            if on_top:                                 # (white: the game multiplies the texture by the vertex colour)
-                for loop in f.loops:
-                    loop[bm.loops.layers.float_color['Col']] = [1.0, 1.0, 1.0, 1.0]
-            for loop in f.loops:
-                x, y = loop.vert.co.x, loop.vert.co.y
-                loop[uvl].uv = ((x - PLAN['x0']) / (PLAN['x1'] - PLAN['x0']), (y - PLAN['y0']) / (PLAN['y1'] - PLAN['y0']))
+    uvl = bm.loops.layers.uv.new('UVMap')
+    for f in bm.faces:
+        # the top's material on its flat only: its rounded edge is the rock's, a lavender rim round the grass (the HQ, 9:04.0:
+        # ~half a unit of light lavender between the grass and the drop, all round)
+        on_top = f.normal.z > 0.995 and all(v.co.z >= top_z - 1e-3 for v in f.verts)
+        f.material_index = 1 if on_top else 0
+        f.smooth = True
+        for loop in f.loops:
+            x, y = loop.vert.co.x, loop.vert.co.y
+            loop[uvl].uv = (x / GRASS_TILE, y / GRASS_TILE)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
-    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(MAT)
-    if grass: me.materials.append(GRASS_MAT)
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    me.materials.append(ROCK); me.materials.append(top_mat)
+    # sharp where faces meet at more than 40 degrees (a flat side against a flat top); the rounds stay smooth
+    for e in me.edges: e.use_edge_sharp = False
+    me.update()
+    angles = {}
+    for poly in me.polygons:
+        for k in poly.edge_keys: angles.setdefault(k, []).append(poly.normal.copy())
+    keyed = {tuple(sorted(e.vertices)): e for e in me.edges}
+    for k, ns in angles.items():
+        if len(ns) == 2 and ns[0].angle(ns[1]) > math.radians(40): keyed[tuple(sorted(k))].use_edge_sharp = True
     return o
 
 
@@ -148,10 +135,12 @@ def box(name, centre, size, angle, colour, parent=None):
     return o
 
 
-for key, outline in L['islands'].items():
-    prism(f'ISLAND_{key}', outline, 0.0, GRASS, CLIFF, 0.35)
+# the islands as bodies of rock (layout.py: overlapping islands are one body)
+for k, outline in enumerate(L['bodies']):
+    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, CORNER_R)
 for i, b in enumerate(L['blocks']):
-    prism(f'BLOCK_{i:02d}', b['top'], b['height'], BLOCK_TOP, BLOCK_SIDE, 0.3)
+    # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
+    body(f'BLOCK_{i:02d}', b['top'], b['height'], ROCK, 0.5, 0.6)
 
 
 def bridge(key, B):

@@ -1,7 +1,7 @@
 """The gong islands' game folder (2026-10-22): apps/console/public/maps/gong_islands/.
 
   plaza.glb      the islands, cliffs, blocks, bridges and objects (blender/build.py)
-  manifest.json  the plaza's camera rig (the islands were measured through it: calibrate.py), with the islands' own mapping
+  manifest.json  the islands' look (soft light, mist by height), the plaza's camera rig (the islands were measured through it: calibrate.py), with the islands' own mapping
                  from world units to plan units (arena.py: x east from X -34, y south from Y 106, 2748 world units a plan
                  unit, as the plaza), and the plaza's characters: their atlases are shared (`assetsFrom`), not copied
   floor.json/.webp  the mist under everything: one flat colour, the cliffs fade into it
@@ -26,6 +26,9 @@ manifest = {
     'occluders': [],
     'characterScale': plaza['characterScale'],
     'assetsFrom': 'market_plaza',
+    # the islands' own soft light, and the mist the rock fades into below the tops (render/three/softLook.ts): lavender
+    # under the lip, mist from ~14 units down (the HQ: a column under the centre island's south edge, 9:04.0)
+    'look': {'mist': {'colour': '#e5f3de', 'from': 0.8, 'to': 14.0}},
     'characters': plaza['characters'],
     'provenance': 'art/sky_islands (register.py, calibrate.py, layout.py, objects.py, arena.py, blender/build.py, '
                   'package.py) from the HQ videos: foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq 2.mp4 7:24-8:43',

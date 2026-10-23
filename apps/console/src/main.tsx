@@ -59,7 +59,7 @@ if (!config.ok) {
     transportFactory: createSocketIOTransportFactory(config.serverUrl),
     store: createHostStore(sessionStorageOrNothing()),
     powerups: parsePowerupsParam(window.location.search),
-    // Only the market plaza, unless the address pins a map (development and tests).
+    // The gong islands for now (the owner, 2026-10-22); ?arena=product rotates them with the plaza; ?arena= pins a map.
     arena: productArena(window.location.search),
     ...enabledOption,
     ...killsOption,
