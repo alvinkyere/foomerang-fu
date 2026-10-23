@@ -171,18 +171,18 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   [
     'EXPLOSIVE_BOOMERANG',
     'TELEPORT_BOOMERANG',
-    'she can go to her armed boomerang while it flies (it is caught, unexploded); not to one lying with its fuse lit.',
+    'DASH takes her to her armed boomerang while it flies (it is caught, unexploded); not to one lying with its fuse lit.',
   ],
   ['SHIELD', 'TELEPORT_BOOMERANG', 'independent.'],
   [
     'EXTRA_BOOMERANG',
     'TELEPORT_BOOMERANG',
-    'with one still in hand a press throws it; with both out each press goes to the next.',
+    'DASH goes to the thrown one, even with the other still in hand; with both out each dash goes to the next.',
   ],
   [
     'MULTI_BOOMERANG',
     'TELEPORT_BOOMERANG',
-    'each press goes to the next piece, which is caught (the owner, 2026-10-22).',
+    'each dash goes to the next piece, which is caught (the owner, 2026-10-22).',
   ],
   ['ICE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
   ['FIRE_BOOMERANG', 'TELEPORT_BOOMERANG', 'independent.'],
@@ -210,7 +210,7 @@ const COMBINATION_TABLE: ReadonlyArray<readonly [PowerKind, PowerKind, string]> 
   [
     'TELEPORT_BOOMERANG',
     'TELEKINESIS',
-    'holding THROW steers it; letting go puts her where she steered it, with it in hand.',
+    'holding THROW steers it; DASH takes her where she steered it, with it in hand.',
   ],
 ];
 

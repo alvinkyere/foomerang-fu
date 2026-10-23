@@ -13,17 +13,19 @@ import {
   make,
   patchBoomerang,
   place,
+  player,
   run,
   weaponsOf,
   type FuState,
 } from './support/fixtures';
 
 // TELEPORT_BOOMERANG (the owner, 2026-10-22; neither HQ video shows it used): the holder teleports to where their boomerang is,
-// and that is the only way it works. With nothing in hand, a press of THROW takes them to their boomerang that is out (flying,
-// coming home or lying on the ground) and they have it in hand again. With several out (MULTI_BOOMERANG's pieces, an
-// EXTRA_BOOMERANG twin) each press takes them to the next one.
+// and that is the only way it works. Once they have thrown it, DASH takes them to it (flying, coming home or lying on the
+// ground) instead of dashing, and they have it in hand again. With several out (MULTI_BOOMERANG's pieces, an EXTRA_BOOMERANG
+// twin) each dash takes them to the next one.
 
-const TAP = input({ a: { throw: true } });
+const THROW = input({ a: { throw: true } });
+const DASH = input({ a: { dash: true } });
 const close = (p: { x: number; y: number }, q: { x: number; y: number }, within: number) =>
   Math.hypot(p.x - q.x, p.y - q.y) <= within;
 
@@ -39,32 +41,28 @@ describe('TELEPORT_BOOMERANG', () => {
     expect(POWER_KINDS).toContain('TELEPORT_BOOMERANG');
   });
 
-  it('with her boomerang out, a press of THROW puts her where it is, and it is in her hand again', () => {
-    let s = run(alice('TELEPORT_BOOMERANG'), 1, TAP).state; // thrown
+  it('with her boomerang thrown, DASH puts her where it is instead of dashing, and it is in her hand again', () => {
+    let s = run(alice('TELEPORT_BOOMERANG'), 1, THROW).state;
     s = run(s, 12).state; // flying out
     const there = boom(s, 'a').position;
     expect(boom(s, 'a').state).toBe('THROWN');
-    const r = stepFu(s, TAP, DT);
+    const r = stepFu(s, DASH, DT);
     expect(close(at(r.state, 'a'), there, C.throwSpeed * DT + 1)).toBe(true);
     expect(boom(r.state, 'a').state).toBe('HELD');
     expect(r.events).toContainEqual(
       expect.objectContaining({ type: 'TELEPORTED', playerId: 'a', from: expect.anything() }),
     );
+    expect(r.events.some((e) => e.type === 'DASHED')).toBe(false); // a teleport, not a dash
+    expect(player(r.state, 'a').dash.phase).not.toBe('DASHING');
+    expect(player(r.state, 'a').fatigue.dashes).toBe(player(s, 'a').fatigue.dashes); // and no dash spent
   });
 
-  it('pressing THROW down is enough (a phone press lasts several steps): she goes once, and letting go throws nothing', () => {
-    let s = run(alice('TELEPORT_BOOMERANG'), 1, TAP).state;
+  it('THROW does nothing of the kind: with it out, a THROW press leaves her where she is', () => {
+    let s = run(alice('TELEPORT_BOOMERANG'), 1, THROW).state;
     s = run(s, 12).state;
-    const there = boom(s, 'a').position;
-    const HOLD = input({ a: { throwHeld: true } });
-    const r1 = stepFu(s, HOLD, DT); // pressed
-    expect(r1.events.filter((e) => e.type === 'TELEPORTED')).toHaveLength(1);
-    expect(close(at(r1.state, 'a'), there, C.throwSpeed * DT + 1)).toBe(true);
-    const held = run(r1.state, 20, HOLD, { repeat: true }); // still down: no second teleport, no charge
-    expect(held.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
-    const let_go = stepFu(held.state, NONE, DT); // let go
-    expect(let_go.events.some((e) => e.type === 'THROWN')).toBe(false);
-    expect(boom(let_go.state, 'a').state).toBe('HELD');
+    const r = run(s, 10, input({ a: { throwHeld: true } }), { repeat: true });
+    expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
+    expect(close(at(r.state, 'a'), { x: 300, y: 450 }, 1)).toBe(true);
   });
 
   it('works on a boomerang lying on the ground too', () => {
@@ -72,30 +70,40 @@ describe('TELEPORT_BOOMERANG', () => {
       state: 'GROUNDED',
       position: { x: 900, y: 300 },
     });
-    const r = stepFu(s, TAP, DT);
+    const r = stepFu(s, DASH, DT);
     expect(close(at(r.state, 'a'), { x: 900, y: 300 }, 1)).toBe(true);
     expect(boom(r.state, 'a').state).toBe('HELD');
   });
 
-  it('without the power, the same press does nothing: she stays where she is and the boomerang flies on', () => {
-    let s = run(alice(), 1, TAP).state;
+  it('without the power, DASH dashes as usual and the boomerang flies on', () => {
+    let s = run(alice(), 1, THROW).state;
     s = run(s, 12).state;
-    const r = stepFu(s, TAP, DT);
-    expect(close(at(r.state, 'a'), { x: 300, y: 450 }, 1)).toBe(true);
+    const r = stepFu(s, DASH, DT);
+    expect(r.events.some((e) => e.type === 'DASHED')).toBe(true);
+    expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
     expect(boom(r.state, 'a').state).not.toBe('HELD');
+  });
+
+  it('with nothing thrown, DASH dashes as usual', () => {
+    const r = stepFu(alice('TELEPORT_BOOMERANG'), DASH, DT);
+    expect(r.events.some((e) => e.type === 'DASHED')).toBe(true);
     expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
   });
 
-  it('with a boomerang still in hand (EXTRA_BOOMERANG), a press throws it: no teleport', () => {
-    let s = run(alice('TELEPORT_BOOMERANG', 'EXTRA_BOOMERANG'), 1, TAP).state; // one out, one in hand
+  it('with EXTRA_BOOMERANG, one thrown and one still in hand: DASH takes her to the thrown one', () => {
+    let s = run(alice('TELEPORT_BOOMERANG', 'EXTRA_BOOMERANG'), 1, THROW).state;
     s = run(s, 12).state;
-    const r = stepFu(s, TAP, DT);
-    expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
-    expect(r.events.some((e) => e.type === 'THROWN')).toBe(true);
+    const out = weaponsOf(s, 'a').find((b) => b.state !== 'HELD');
+    const r = stepFu(s, DASH, DT);
+    expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(true);
+    expect(close(at(r.state, 'a'), out?.position ?? { x: 0, y: 0 }, C.throwSpeed * DT + 1)).toBe(
+      true,
+    );
+    expect(weaponsOf(r.state, 'a').every((b) => b.state === 'HELD')).toBe(true);
   });
 
-  it('with MULTI_BOOMERANG, each press takes her to the next piece, which she catches', () => {
-    let s = run(alice('TELEPORT_BOOMERANG', 'MULTI_BOOMERANG'), 1, TAP).state;
+  it('with MULTI_BOOMERANG, each dash takes her to the next piece, which she catches', () => {
+    let s = run(alice('TELEPORT_BOOMERANG', 'MULTI_BOOMERANG'), 1, THROW).state;
     for (let i = 0; i < 200 && !run(s, 1).events.some((e) => e.type === 'SPLIT'); i += 1)
       s = run(s, 1).state;
     s = run(s, 4).state; // split, the pieces fanning out
@@ -104,16 +112,15 @@ describe('TELEPORT_BOOMERANG', () => {
     expect(before).toBeGreaterThan(1);
     const visited: { x: number; y: number }[] = [];
     for (let i = 0; i < 2; i += 1) {
-      const r = stepFu(s, TAP, DT);
+      const r = stepFu(s, DASH, DT);
       const t = r.events.find((e) => e.type === 'TELEPORTED') as { to: { x: number; y: number } };
       expect(t).toBeDefined();
       visited.push(t.to);
       s = r.state;
     }
     expect(pieces()).toBeLessThanOrEqual(before - 2); // two pieces caught
-    expect(
-      close(visited[0] as { x: number; y: number }, visited[1] as { x: number; y: number }, 5),
-    ).toBe(false); // two different places
+    const [first, second] = visited as [{ x: number; y: number }, { x: number; y: number }];
+    expect(close(first, second, 5)).toBe(false); // two different places
   });
 
   it('never leaves her outside the arena, even when the boomerang lies against its edge', () => {
@@ -121,21 +128,23 @@ describe('TELEPORT_BOOMERANG', () => {
       state: 'GROUNDED',
       position: { x: 2, y: 300 },
     });
-    const r = stepFu(s, TAP, DT);
+    const r = stepFu(s, DASH, DT);
     expect(at(r.state, 'a').x).toBeGreaterThanOrEqual(C.playerRadius - 1e-6);
   });
 
   it('a dead player teleports nowhere', () => {
-    let s = run(alice('TELEPORT_BOOMERANG'), 1, TAP).state;
+    let s = run(alice('TELEPORT_BOOMERANG'), 1, THROW).state;
     s = run(s, 12).state;
     s = { ...s, players: s.players.map((p) => (p.id === 'a' ? { ...p, alive: false } : p)) };
-    const r = stepFu(s, TAP, DT);
+    const r = stepFu(s, DASH, DT);
     expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
   });
 
-  it('does nothing with nothing out to go to', () => {
-    const s = { ...alice('TELEPORT_BOOMERANG') };
-    const r = stepFu(s, NONE, DT);
+  it('does nothing on its own: no press, no teleport', () => {
+    let s = run(alice('TELEPORT_BOOMERANG'), 1, THROW).state;
+    const r = run(s, 30);
+    s = r.state;
     expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
+    expect(stepFu(s, NONE, DT).events.some((e) => e.type === 'TELEPORTED')).toBe(false);
   });
 });

@@ -854,28 +854,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return { slashes, throws, dashes, power, nextCharge };
   });
 
-  // TELEPORT_BOOMERANG (the owner, 2026-10-22): with nothing in hand, a press of THROW takes them to their boomerang that is
-  // out, the first of them (each press the next: MULTI_BOOMERANG's pieces, an EXTRA_BOOMERANG twin), and it is in hand again.
-  // Not to one lying with its fuse lit: that one goes off where it lies. The press is the step THROW goes down (a tap, or the
-  // first step it is held): a press that has already teleported is spent (CANCELLED) until THROW is let go, so it neither
-  // goes twice nor charges the throw of the boomerang it has just brought back.
+  // TELEPORT_BOOMERANG (the owner, 2026-10-22): once they have thrown it, DASH takes them to their boomerang that is out (the
+  // first of them; each dash the next: MULTI_BOOMERANG's pieces, an EXTRA_BOOMERANG twin) instead of dashing, and it is in
+  // hand again. Only a dash that could happen does (not mid-swing, not frozen); it is no dash (nothing spent, no fatigue).
+  // Not to one lying with its fuse lit: that one goes off where it lies.
   const teleportTo: (number | undefined)[] = moved.map((player, index) => {
-    const committed = dashingAtStart[index] === true || frozenAtStart[index] === true;
-    if (!player.alive || committed || heldAny[index] === true) return undefined;
-    const entry = entries[index];
+    if (!(plans[index] as (typeof plans)[number]).dashes) return undefined;
     if (!has(index, 'TELEPORT_BOOMERANG')) return undefined;
-    // with TELEKINESIS too, THROW steers it; letting go is what takes them there
-    const steered = startWeapons.findIndex((w) => w.ownerId === player.id && w.steered === true);
-    if (steered >= 0) return entry?.throwHeld === true ? undefined : steered;
-    const pressed =
-      entry?.throw === true ||
-      (entry?.throwHeld === true && state.players[index]?.charge.phase !== 'CANCELLED');
-    if (!pressed) return undefined;
-    if (
-      has(index, 'TELEKINESIS') &&
-      startWeapons.some((w) => w.ownerId === player.id && FLYING.includes(w.state))
-    )
-      return undefined;
     const k = startWeapons.findIndex(
       (w) =>
         w.ownerId === player.id &&
@@ -887,11 +872,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
   teleportTo.forEach((k, index) => {
     if (k === undefined) return;
-    const plan = plans[index] as (typeof plans)[number];
-    plans[index] = {
-      ...plan,
-      nextCharge: entries[index]?.throwHeld === true ? CANCELLED : NO_CHARGE,
-    };
+    plans[index] = { ...(plans[index] as (typeof plans)[number]), dashes: false };
   });
 
   // 1c. Movement. Walkers go through game-core; dashers (and overdriven walkers) are carried.
@@ -1221,7 +1202,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const flights: Flight[] = weapons.map((was, k) => {
     let b = was;
     if (b.state === 'HELD') return { boomerang: b, lethalAt: undefined, caught: false };
-    const steerer = steering.get(k);
+    const steerer = teleported.has(k) ? undefined : steering.get(k);
     if (steerer !== undefined) {
       // TELEKINESIS: the joystick moves it at throw speed, stopped by walls and the arena's edge, never further from its
       // thrower than a plain throw reaches; with the stick let go it hangs where it is

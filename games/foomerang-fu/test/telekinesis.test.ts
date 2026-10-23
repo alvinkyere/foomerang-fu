@@ -151,15 +151,16 @@ describe('TELEKINESIS', () => {
     expect(me.y - at(r.state, 'a').y).toBeGreaterThan(10);
   });
 
-  it('with TELEPORT_BOOMERANG too: holding steers (no teleport), letting go puts her where she steered it', () => {
+  it('with TELEPORT_BOOMERANG too: holding THROW steers it (no teleport), and DASH takes her where she steered it', () => {
     let s = out('TELEKINESIS', 'TELEPORT_BOOMERANG');
     const r = run(s, 15, steer(0, -1), { repeat: true });
     expect(r.events.some((e) => e.type === 'TELEPORTED')).toBe(false);
     s = r.state;
-    const there = boom(s, 'a').position;
-    const done = stepFu(s, NONE, DT);
+    const done = stepFu(s, input({ a: { throwHeld: true, dash: true } }), DT);
     expect(done.events.some((e) => e.type === 'TELEPORTED')).toBe(true);
-    expect(dist(at(done.state, 'a'), there)).toBeLessThan(C.playerRadius);
+    expect(dist(at(done.state, 'a'), boom(s, 'a').position)).toBeLessThan(
+      C.throwSpeed * DT + C.playerRadius,
+    );
     expect(boom(done.state, 'a').state).toBe('HELD');
   });
 });

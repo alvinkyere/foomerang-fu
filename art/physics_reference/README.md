@@ -643,13 +643,13 @@ Neither HQ video shows it used: it is taken at 9:15.3 (first video) and 11:30.5 
 jump near it (11:33.80, the red character from the top raft to the island) is the map's own pair of portals (cyan arcs that
 flash the character's colour as it passes), not the power. Built as the owner describes it (2026-10-22):
 
-- The holder teleports to where their boomerang is, and that is the only way it works. With nothing in hand, pressing THROW
-  takes them to their boomerang that is out (flying out, coming home, deflected, lying on the ground or being called) and it is
-  in their hand again. A boomerang lying with the Explosive's fuse lit goes off where it lies: no teleport to it.
-- With several out (Multi's pieces, an Extra twin) each press goes to the next one, catching it. With one still in hand, a
-  press throws it as usual.
-- They simply appear there (no effect of its own), pushed clear of walls and the arena's edge.
-- The press is the step THROW goes down; held on, it neither teleports again nor charges a throw.
+- The holder teleports to where their boomerang is, and that is the only way it works. Once they have thrown it, DASH takes
+  them to it (flying out, coming home, deflected, lying on the ground or being called) instead of dashing, and it is in their
+  hand again (owner, 2026-10-22: "it is the dash you use to teleport after you throw the boomerang"). A teleport is no dash:
+  nothing is spent, no fatigue. A boomerang lying with the Explosive's fuse lit goes off where it lies: no teleport to it.
+- With several out (Multi's pieces, an Extra twin, even with the twin still in hand) each dash goes to the next one, catching
+  it. With Telekinesis, holding THROW steers it and DASH goes to where it was steered.
+- They simply appear there, pushed clear of walls and the arena's edge.
 - The badge as the videos show it: a pink-red bar (#d01e75), two white four-pointed sparkles on its disc.
 
 ## Telekinesis (2026-10-22; applied: `rules/step.ts`)
@@ -663,5 +663,5 @@ Built as the owner describes it (2026-10-22):
 - It goes no further from them than a plain throw reaches (`throwRange`; the owner's choice), and is stopped by walls and the
   arena's edge. It is lethal all the while, with whatever else the throw carries (ice, fire, an Explosive's blast).
 - Let go, its flight out ends there (a Multi throw splits, an Explosive lands and ticks) and it comes home the usual way.
-- With TELEPORT_BOOMERANG too: holding THROW steers it, letting go puts the holder where they steered it, with it in hand.
+- With TELEPORT_BOOMERANG too: holding THROW steers it, and DASH takes the holder to where they steered it, with it in hand.
 - The badge as the videos show it: a purple bar (#b250ec), a horseshoe magnet open up and right on its disc.
