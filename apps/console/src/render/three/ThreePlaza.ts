@@ -10,7 +10,7 @@ import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { parseSoftLook, softLights, softMaterial } from './softLook';
+import { STAND_PULL, parseSoftLook, softLights, softMaterial } from './softLook';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
@@ -279,6 +279,14 @@ function readyGoOverlay(): {
 
 class Character {
   readonly sprite: THREE.Sprite;
+  /**
+   * On ground that is 3D (softLook.ts: the gong islands' grass), how far toward the camera the picture is drawn: a character
+   * is a flat picture at the depth of its feet, so the ground just in front of its feet hid the bottom of it (owner,
+   * 2026-10-23: "the characters seem to pass through the grass"). Moved along the line from the camera through its feet and
+   * scaled to match, it looks exactly the same, but only something nearer than this hides it. 0: the plaza (its floor hides
+   * nothing).
+   */
+  standPull = 0;
   /** Calling a boomerang home: two concentric rings on each hand (ss02; owner, 2026-10-19; render/callAura.ts). */
   readonly #hands: THREE.Mesh[];
   /** A round's start: the white ring spreading from its feet as it lands (render/roundIntro.ts). */
@@ -512,7 +520,14 @@ class Character {
       this.sprite.position.y += falling.lift * body;
       at.y += falling.lift * body;
     }
-    this.sprite.scale.set(h, h, 1);
+    let drawn = h;
+    if (this.standPull > 0) {
+      const toCamera = cam.position.clone().sub(this.sprite.position);
+      const far = toCamera.length();
+      this.sprite.position.addScaledVector(toCamera, this.standPull / far);
+      drawn = (h * (far - this.standPull)) / far;
+    }
+    this.sprite.scale.set(drawn, drawn, 1);
     this.sprite.center.set(this.anchor[0] / this.cell, 1 - (this.anchor[1] + hop) / this.cell);
     const r = space.length(c.radius);
     this.#ring.position.set(g.x, 0.08, g.z);
@@ -1107,6 +1122,8 @@ class Plaza {
   readonly #closing: ClosingBorder;
   #badges: PickupBadges | undefined;
   readonly #resize: ResizeObserver;
+  /** Character.standPull for this map (0 but on 3D ground). */
+  #standPull = 0;
 
   constructor(
     readonly container: HTMLElement,
@@ -1144,6 +1161,7 @@ class Plaza {
     this.camera.lookAt(cx, cz - Math.sin(th), -cy - Math.cos(th));
     this.#restCamera.copy(this.camera);
     const look = parseSoftLook(manifest.look);
+    this.#standPull = look === undefined ? 0 : STAND_PULL;
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1355,6 +1373,7 @@ class Plaza {
           CHARACTER_COLOURS[kind],
           hands === undefined ? undefined : this.#handsFor(hands, kind, scale),
         );
+        ch.standPull = this.#standPull;
         this.#characters.set(c.id, ch);
         this.#kinds.set(c.id, kind);
       }

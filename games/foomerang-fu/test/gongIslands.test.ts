@@ -19,7 +19,7 @@ import { playMatch } from './support/cpuMatch';
 
 describe('the gong islands', () => {
   it('six islands (and where two of them meet) and three bridges are its ground; blocks, posts, trunks and bamboo are solid; pots and crates break', () => {
-    expect(GONG_ISLANDS_GROUND).toHaveLength(10);
+    expect(GONG_ISLANDS_GROUND).toHaveLength(13); // seven island pieces, three bridges, their three stone landings
     expect(GONG_ISLANDS_WALLS.filter((w) => w.kind === 'GONG')).toHaveLength(2);
     expect(GONG_ISLANDS_WALLS.filter((w) => w.kind === 'BLOCK').length).toBeGreaterThan(8);
     expect(GONG_ISLANDS_BREAKABLES.filter((b) => b.kind === 'POT')).toHaveLength(10);

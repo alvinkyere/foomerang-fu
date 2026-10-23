@@ -2,7 +2,7 @@
 objects.json. World units are the plaza's (27.48 a plan unit: the plaza's 2748 per 100); x east from plan X -34, y south from
 plan Y 106.
 
-  ground      the island tops and the bridges (falling off them kills)
+  ground      the island tops, the bridges and their stone landings (falling off them kills)
   walls       the stone blocks (the smallest turned box round each top; not the piers the bridges rest on), the gong's posts, the maples' trunks, the bamboo,
               the aloe (discs); a solid thinner than a player is widened to one, as on the plaza
   breakables  the pots (discs) and crates (turned boxes)
@@ -23,6 +23,8 @@ WIDTH, HEIGHT = round((40 - X0) * S), round((Y1 - 49) * S)
 
 ground = [[w(x, y) for x, y in o] for o in L['islands'].values()]
 ground += [[w(x, y) for x, y in b['corners']] for b in L['bridges'].values()]
+# the stone landings the bridges rest on, level with the grass (layout.py): walked on as the HQ's players do
+ground += [[w(x, y) for x, y in L['blocks'][i]['top']] for i in L['landings']]
 
 
 def turned(points, id_, kind):

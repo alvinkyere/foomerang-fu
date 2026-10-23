@@ -3,7 +3,7 @@
   Blender -b --python art/sky_islands/blender/build.py -- <out_dir> [render]
 
 The ground is lit 3D, as the HQ video shows it (art/sky_islands/README.md, slices 6-7): each island a body of rock with
-rounded corners, running down into the mist, its top our grass (grass.py) rounding over its edge; the stone blocks rock,
+rounded corners, running down into the mist, its top our grass (tops.py) inside a lavender lip; the stone blocks rock,
 rounded on every edge (the three the bridges rest on flush, as landings); the bridges planks or logs with ropes and the
 owner's barriers (bridges.py). The game lights them softly and fades them into the mist (#e5f3de) by height (the manifest's
 `look`). The objects are still flat and unlit (glTF KHR_materials_unlit + COLOR_0). Exports sky.glb; with `render`, also
@@ -63,18 +63,26 @@ def lit(name, hex_colour=None, image=None):
     return m
 
 
-# our grass (grass.py: a tile of TILE plan units), and the rock: the HQ's lit block top (#a7b3e0, 9:41.6), which the game's
-# soft light shows as it is on a top; sides a little darker, the far sides darker still, and everything below fades to mist
-GRASS_TILE = 16.0
-_grass_img = bpy.data.images.load(os.path.join(ROOT, 'art/sky_islands/blender/grass.png')); _grass_img.pack()
-GRASS_LIT = lit('sky_grass', image=_grass_img)
-ROCK = lit('sky_rock', '#a9b5e1')
-RIM_R, CORNER_R = 0.45, 0.7      # the round of an island's top edge and of its corners, units (the HQ close-ups)
+# the island tops: tops.py (the HQ's grass, its light and dark areas and the darker band inside every edge, measured and
+# painted crisply), laid on by where each point lies (tops.json: the texture's extent in plan units). The rock: the HQ's
+# lavender as it shows on a lip that faces up (#b5c2e2, reference.png) and on a face toward the viewer (#a0aecd), in the
+# game's soft light (a top its colour, a front face ~92%)
+TOPS = json.load(open(os.path.join(ROOT, 'art/sky_islands/blender/tops.json')))
+_tops_img = bpy.data.images.load(os.path.join(ROOT, 'art/sky_islands/blender/tops.png')); _tops_img.pack()
+GRASS_LIT = lit('sky_grass', image=_tops_img)
+ROCK = lit('sky_rock', '#b5c3df')
+RIM_R, CORNER_R = 0.3, 0.9       # the lavender lip round the grass and the round of an island's corners (reference.png)
+SLAB = 5.6                       # how far the face below a top runs down before the rock steps out (layout.py's ledges)
+LEDGE_R, LEDGE_CORNER_R = 0.45, 1.2
 
 
-def body(name, outline, top_z, top_mat, top_r, corner_r):
-    """An island (or a stone block): its outline extruded down into the mist, its corners and its top edge rounded, its top
-    (and the round of its edge) one material, its sides rock. Smooth-shaded across the rounds, sharp elsewhere."""
+def tops_uv(x, y):
+    return ((x - TOPS['x0']) / (TOPS['x1'] - TOPS['x0']), (y - TOPS['y0']) / (TOPS['y1'] - TOPS['y0']))
+
+
+def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH):
+    """An island's top slab, a ledge below it, or a stone block: its outline extruded down to `bottom`, its corners and its
+    top edge rounded, its flat top one material, the rest rock. Smooth-shaded across the rounds, sharp elsewhere."""
     bm = bmesh.new()
     vs = [bm.verts.new((x, y, top_z)) for x, y in outline]
     face = bm.faces.new(vs)
@@ -82,10 +90,10 @@ def body(name, outline, top_z, top_mat, top_r, corner_r):
     if face.normal.z < 0: face.normal_flip()
     ext = bmesh.ops.extrude_face_region(bm, geom=[face], use_keep_orig=True)   # (the original stays: the top)
     down = [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]
-    bmesh.ops.translate(bm, verts=down, vec=(0, 0, -(top_z + DEPTH)))
+    bmesh.ops.translate(bm, verts=down, vec=(0, 0, bottom - top_z))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)   # (the extrusion leaves the cap facing down)
     bm.normal_update()
-    corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 1.0]
+    corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 0.05]
     bmesh.ops.bevel(bm, geom=corners, offset=corner_r, segments=6, profile=0.5, affect='EDGES', clamp_overlap=True)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.normal_update()
@@ -103,7 +111,7 @@ def body(name, outline, top_z, top_mat, top_r, corner_r):
         f.smooth = True
         for loop in f.loops:
             x, y = loop.vert.co.x, loop.vert.co.y
-            loop[uvl].uv = (x / GRASS_TILE, y / GRASS_TILE)
+            loop[uvl].uv = tops_uv(x, y)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
     me.materials.append(ROCK); me.materials.append(top_mat)
@@ -119,13 +127,15 @@ def body(name, outline, top_z, top_mat, top_r, corner_r):
     return o
 
 
-# the islands as bodies of rock (layout.py: overlapping islands are one body)
+# the islands as bodies of rock (layout.py: overlapping islands are one body): a top slab, and a wider ledge below it
 for k, outline in enumerate(L['bodies']):
-    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, CORNER_R)
+    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, CORNER_R, bottom=-SLAB - 0.3)
+for k, outline in enumerate(L['ledges']):
+    body(f'LEDGE_{k}', outline, -SLAB, ROCK, LEDGE_R, LEDGE_CORNER_R)
 for i, b in enumerate(L['blocks']):
     if i in L['landings']:
         # the stone landings the bridges rest on (layout.py: walked over): flush with the grass, a bridge's deck on them
-        body(f'BLOCK_{i:02d}', b['top'], 0.06, ROCK, 0.05, 0.6)
+        body(f'BLOCK_{i:02d}', b['top'], 0.06, ROCK, 0.3, 0.7)
         continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
     body(f'BLOCK_{i:02d}', b['top'], b['height'], ROCK, 0.5, 0.6)
@@ -134,7 +144,7 @@ for i, b in enumerate(L['blocks']):
 # the bridges, 3D (bridges.py): planks or logs, ropes, and the owner's barriers
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridges as bridge_models
-bridge_models.build(L['bridges'])
+bridge_models.build(L['bridges'], L['bodies'] + [L['blocks'][i]['top'] for i in L['landings']])
 
 # the objects (objects.py measures them; blender/objects.py builds them)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

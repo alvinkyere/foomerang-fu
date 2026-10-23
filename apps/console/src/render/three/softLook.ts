@@ -7,17 +7,25 @@ import * as THREE from 'three';
  * #8c9fba), the light from the upper left (the shadows fall to the lower right). And everything below the island tops fades
  * into the mist as it goes down (the cliffs: lavender under the lip, mist ~14 units down).
  *
- * With the ambient at `AMBIENT` and the sun at `SUN` (three.js's physical units: π lights a surface to its own colour), a top
- * shows its colour as it is, a side facing the viewer ~92% of it, a side facing away from the sun ~85%.
+ * With the ambient at `AMBIENT` and the sun at `SUN` (three.js's physical units: π lights a surface to its own colour; the light
+ * works on linear colour, so these are linear), a top shows its colour as it is, a side facing the viewer ~88% of it on screen
+ * (reference.png 9:04.0: the lip over the centre island's south face #b5c3df, the face #a0aecb), one facing west ~95%, one
+ * facing east ~86%.
  */
 export interface SoftLook {
   readonly mist: { readonly colour: string; readonly from: number; readonly to: number };
 }
 
-const AMBIENT = 0.85 * Math.PI;
-const SUN = 0.18 * Math.PI;
-/** Toward the sun (scene axes: x east, y up, z toward the viewer): up, from the west, a little from the viewer's side. */
-const TOWARD_SUN = new THREE.Vector3(-0.5, 1, 0.45).normalize();
+const AMBIENT = 0.723 * Math.PI;
+/**
+ * How far toward the camera a character is drawn on 3D ground (scene units, the islands' layout units: a body is ~1.3 wide):
+ * a little more than a body's width, so the ground round its feet never hides it, while a block or a tree in front of it
+ * still does (ThreePlaza's Character.standPull).
+ */
+export const STAND_PULL = 1.5;
+const SUN = 0.326 * Math.PI;
+/** Toward the sun (scene axes: x east, y up, z toward the viewer): high, from the west, barely from the viewer's side. */
+const TOWARD_SUN = new THREE.Vector3(-0.6, 1, 0.15).normalize();
 
 /** The manifest's `look`, checked (the manifest is a file we ship, but a bad one must fail loudly, not draw nonsense). */
 export function parseSoftLook(raw: unknown): SoftLook | undefined {

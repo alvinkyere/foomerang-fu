@@ -11,7 +11,7 @@ them, one at the top and one half-way down (the rules' fences: a body cannot cro
 import bpy, bmesh, math, random
 from mathutils import Vector, Matrix
 
-WOOD, WOOD_SEAM, TAN, HOLLOW, ROPE, POST = '#906d90', '#5f465f', '#b69a86', '#675776', '#b8987c', '#6f526e'
+WOOD, WOOD_SEAM, TAN, HOLLOW, ROPE, POST = '#906d90', '#5f465f', '#c0a184', '#675776', '#b8987c', '#6f526e'
 DECK = 0.1                 # the deck's top, units above the grass (it rests on the islands' rims and the stone landings)
 POST_H = 1.05              # a post's height above the deck
 RAIL_H = 0.85              # the rail's height at a post
@@ -44,6 +44,34 @@ def frame(B):
     length = max((p - origin).dot(u) for p in c) - min((p - origin).dot(u) for p in c)
     width = max((p - origin).dot(v) for p in c) - min((p - origin).dot(v) for p in c)
     return origin, a, u, v, length, width
+
+
+GROUND = []          # (build sets it) the island bodies and the stone landings: where a drawn deck stops
+
+
+def inside(p, poly):
+    hit = False
+    for (ax, ay), (bx, by) in zip(poly, poly[1:] + poly[:1]):
+        if (ay > p.y) != (by > p.y) and p.x < (bx - ax) * (p.y - ay) / (by - ay) + ax: hit = not hit
+    return hit
+
+
+def deck(B):
+    """The bridge as drawn: its rules extent (which runs onto the islands, so a player steps on and off it) cut back at each
+    end to just past the lavender lip of the ground it reaches (reference.png: the planks stop at the lip)."""
+    origin, a, u, v, length, width = frame(B)
+    ends = []
+    for sign in (-1, 1):
+        end = length / 2
+        t = 0.0
+        while t < length / 2:
+            if any(inside(origin + u * (sign * t), g) for g in GROUND):
+                end = min(length / 2, t + 0.12)
+                break
+            t += 0.03
+        ends.append(sign * end)
+    centre = origin + u * ((ends[0] + ends[1]) / 2)
+    return centre, a, u, v, ends[1] - ends[0], width
 
 
 def link(name, bm, materials, parent):
@@ -126,7 +154,7 @@ def barriers(key, origin, a, u, v, length, width, parent):
 
 
 def planks_bridge(key, B, rng):
-    origin, a, u, v, length, width = frame(B)
+    origin, a, u, v, length, width = deck(B)
     root = bpy.data.objects.new(f'BRIDGE_{key}', None); bpy.context.scene.collection.objects.link(root)
     rows = max(1, round(length / 0.9)); pitch = length / rows
     for k in range(rows):
@@ -135,9 +163,12 @@ def planks_bridge(key, B, rng):
         lift = rng.uniform(-0.03, 0.03)
         for j, (v0, v1) in enumerate(((-0.5, split - 0.5), (split - 0.5, 0.5))):
             w0, w1 = v0 * width + (0.03 if j else 0), v1 * width - (0 if j else 0.03)
+            # the outer ends uneven, a little past the deck's side (the HQ: a ragged tan edge along each side)
+            if j == 0: w0 -= rng.uniform(0.0, 0.14)
+            else: w1 += rng.uniform(0.0, 0.14)
             centre = origin + u * t + v * ((w0 + w1) / 2) + Vector((0, 0, DECK - 0.15 + lift))
             # the plank's long axis runs across the way: size (along the way, across, thick); its outer end shows tan
-            plank(f'BRIDGE_{key}_plank{k}_{j}', centre, (pitch - 0.07, w1 - w0, 0.3), a, 0.08, root,
+            plank(f'BRIDGE_{key}_plank{k}_{j}', centre, (pitch - 0.07, w1 - w0, 0.3), a, 0.13, root,
                   tan_ends=(-1,) if j == 0 else (1,))
     # under the planks, dark boards the length of the bridge: the gaps between planks show wood, not the mist below
     bm = bmesh.new()
@@ -155,7 +186,7 @@ def planks_bridge(key, B, rng):
 
 
 def logs_bridge(key, B, rng):
-    origin, a, u, v, length, width = frame(B)
+    origin, a, u, v, length, width = deck(B)
     root = bpy.data.objects.new(f'BRIDGE_{key}', None); bpy.context.scene.collection.objects.link(root)
     n = max(1, round(length / 1.4)); pitch = length / n
     r = pitch / 2 * 0.96
@@ -191,7 +222,8 @@ def logs_bridge(key, B, rng):
     barriers(key, origin, a, u, v, length, width, root)
 
 
-def build(bridges):
+def build(bridges, ground):
+    GROUND[:] = [[tuple(p) for p in g] for g in ground]
     rng = random.Random(23)
     for key, B in bridges.items():
         (planks_bridge if B['kind'] == 'planks' else logs_bridge)(key, B, rng)

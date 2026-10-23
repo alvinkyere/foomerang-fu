@@ -1951,9 +1951,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       credit: -1,
     });
   });
-  // Falling: a living player whose middle has left the ground falls and dies (no shield can stop it; nobody is credited)
+  // Falling: a living player whose middle has left the ground falls and dies (no shield can stop it; nobody is credited).
+  // Not mid-dash: a dash carries them over a gap, and where it ends is what counts (the HQ videos: players reach the gong
+  // islands' south island, which no bridge joins; the bread at ff physics hq 2.mp4 8:03.6 falls where its dash ended)
   players.forEach((p, v) => {
-    if (!p.alive || onGround(positionOf(p.id), config.arena)) return;
+    if (!p.alive || (dashes[v] as DashState).phase === 'DASHING') return;
+    if (onGround(positionOf(p.id), config.arena)) return;
     exploding.add(v);
     (contacts[v] as Contact[]).push({
       attacker: count,

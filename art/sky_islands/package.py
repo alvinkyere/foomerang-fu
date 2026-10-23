@@ -28,7 +28,7 @@ manifest = {
     'assetsFrom': 'market_plaza',
     # the islands' own soft light, and the mist the rock fades into below the tops (render/three/softLook.ts): lavender
     # under the lip, mist from ~14 units down (the HQ: a column under the centre island's south edge, 9:04.0)
-    'look': {'mist': {'colour': '#e5f3de', 'from': 0.8, 'to': 14.0}},
+    'look': {'mist': {'colour': '#e5f3de', 'from': 7.0, 'to': 14.0}},
     'characters': plaza['characters'],
     'provenance': 'art/sky_islands (register.py, calibrate.py, layout.py, objects.py, arena.py, blender/build.py, '
                   'package.py) from the HQ videos: foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq 2.mp4 7:24-8:43',

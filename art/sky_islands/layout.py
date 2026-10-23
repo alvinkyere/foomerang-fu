@@ -68,7 +68,9 @@ ISLANDS = {
 BRIDGES = {
     # planks laid across the way, two ropes along it; their ends just over the islands' edges
     'north': dict(kind='planks', corners=[(-2.75, 82.5), (3.05, 82.5), (3.05, 91.3), (-2.75, 91.3)], along=90.0),
-    'south': dict(kind='planks', corners=[(-8.5, 58.4), (-2.8, 58.4), (-2.8, 67.2), (-8.5, 67.2)], along=90.0),
+    # (its south end at its stone landing, which carries on to the southwest island: reference.png, the planks stop where
+    # the landing's top begins)
+    'south': dict(kind='planks', corners=[(-8.5, 60.1), (-2.8, 60.1), (-2.8, 67.2), (-8.5, 67.2)], along=90.0),
     # logs side by side, each lying across the way (from the centre island east to the east island)
     'east': dict(kind='logs', corners=[(10.0, 71.15), (19.6, 68.54), (21.7, 73.74), (12.1, 76.75)], along=-17.5),
 }
@@ -90,7 +92,7 @@ for i in range(1, nlab):
     quad = cv2.approxPolyDP(c, 6, True)[:, 0, :]
     plan = unproject(quad, H0)
     blocks.append(dict(top=[list(map(float, np.round(p, 2))) for p in plan], height=H0,
-                       image=[int(st[i, 0]), int(st[i, 1]), int(st[i, 2]), int(st[i, 3])]))
+                       image=[int(st[i, 0]), int(st[i, 1]), int(st[i, 2]), int(st[i, 3])], quad=quad.tolist()))
 # beyond the opening frame's top (seen as the camera moves north, output/plan.png): the tall block at the north-west corner
 # that carries the blue spiral tile, and the great block behind the north bar's east end that carries the gold one
 for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)], 4.0),
@@ -113,7 +115,25 @@ for c in cs:
 # the blocks the bridges rest on (the opening frame: the planks and logs run onto them; built flush with the bridges as
 # their landings), and the one in the seam where the north bar's lobe meets the tilted island; all walked over, not walls
 PIERS = {'bridges': [6, 7, 15], 'seam': [1]}
-json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies, piers=PIERS['bridges'] + PIERS['seam'],
+# the landings are level with the grass, not 2.5 units up (2026-10-23: ff physics hq 2.mp4 7:28-7:36, the log bridge meets the
+# centre island at the grass, no tall block; players stand where the south bridge lands, 7:54 and 8:22): their tops cast
+# back into the plan at the ground's height, which puts each between its bridge's end and the island it leads to
+for i in PIERS['bridges']:
+    blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], 0.0)]
+    blocks[i]['height'] = 0.0
+for b in blocks: b.pop('quad', None)
+# below each island's top slab the rock steps out: a wider tier whose lit top shows as a lighter band (the HQ, 9:04.0: under
+# the centre island's south edge the face runs ~5.6 units down (88 px; a drop shows at ~15.5 px a unit there), then a ledge
+# ~0.9 units out; west of the north arm, the same), its outline the bodies' grown by LEDGE_OUT
+LEDGE_OUT = 0.9
+grown = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(2 * LEDGE_OUT * K) + 1,) * 2))
+cs, _ = cv2.findContours(grown, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+ledges = []
+for c in cs:
+    q = cv2.approxPolyDP(c, 0.05 * K, True)[:, 0, :]
+    ledges.append([[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)] for px, py in q])
+json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies, ledges=ledges,
+               piers=PIERS['bridges'] + PIERS['seam'],
                landings=PIERS['bridges']), open('art/sky_islands/layout.json', 'w'), indent=1)
 print(len(bodies), 'bodies of rock:', [len(b) for b in bodies])
 print(len(ISLANDS), 'islands,', len(BRIDGES), 'bridges,', len(blocks), 'blocks; tilted island', tilted)

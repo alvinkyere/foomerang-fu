@@ -84,3 +84,30 @@ otherwise (`?arena=product` plays the rotation).
 - The three blocks the bridges rest on are built flush with the grass, as stone landings (`layout.json` `landings`), so
   the decks visibly rest on them; they were tall blocks the planks ran behind.
 - CPUs foresee where walking really takes them (sliding round a pot or a block) before taking a heading near an edge.
+
+## Slice 8: the ground as the HQs show it, compared frame to frame
+
+The owner (2026-10-23): the floors and the rocks were not yet the HQs'; characters seemed to pass through the grass; every
+bit of green must be walkable. Each change below was checked against reference.png (9:04.0) with the game's own screenshot
+warped onto it (the grass outlines registered, `cmp.py` in the session's scratch), by colour profiles across edges and down
+the rock.
+
+- `tops.py` (again, rewritten; `grass.py`'s tile removed): the tops as the HQ has them. One grass tone `#dff9ab` (ours
+  `#dffaab` where the HQ shows `#e0f7ab`), a darker band inside every edge (`#c4efa9` at the edge, back to the grass ~0.45
+  units in: the HQ's band is darker, not lighter), and the HQ's own light-yellow areas and dark-green ones (the shadows of
+  the plants and trees), each traced from the plan as a smooth outline and painted crisply (no video pixel kept).
+- The rock: a 0.3-unit lavender lip round the grass, corners rounded 0.9; the face below a top runs 5.6 units down, then
+  the rock steps out 0.9 units in a ledge whose lit top shows as a lighter band (`layout.json` `ledges`), and it all fades
+  into the mist from 7 to 14 units down. A drop shows at ~15.5 px a unit in the reference view (the camera's 56° pitch),
+  not 27.7. The soft light is set in linear colour so that on screen a face toward the viewer is ~88% of a lip (HQ:
+  `#a0aecb` under `#b5c3df`; ours `#a2aec8`).
+- The stone landings: HQ2 (7:28–7:36) shows the log bridge meeting the centre island at the grass, and players standing
+  where the south bridge lands (7:54, 8:22): the three "blocks" under the bridges' ends are landings level with the grass,
+  re-measured at that height, which puts each between its bridge and the island it leads to. They are ground in the rules.
+  The south bridge ends at its landing; each drawn deck stops at the lavender lip it reaches (the rules' bridge still runs
+  onto the island, so a player steps on and off).
+- Characters on 3D ground are drawn a body's width toward the camera (along the line from the camera through their feet,
+  scaled to match: they look the same), so the grass round their feet no longer hides them; a block or a tree in front
+  still does.
+- Walkable: a dash carries a player over a gap, and where it ends is what counts (the HQs: players reach the south island,
+  which no bridge joins; the bread at HQ2 8:03.6 falls where its dash ended). CPUs do not dash over gaps.
