@@ -101,23 +101,50 @@ for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)]
     blocks.append(dict(top=top, height=hgt, image=None))
 # the bodies of rock the islands are built as: islands that overlap are one body (one top, one rim round the outside: two
 # coplanar tops would flicker, and each would draw its rim across the other's grass). Outlined at 1/50 unit, every corner
-# rounded in the plan itself (owner, 2026-10-25: "the corners are always a little rounded, never ever sharp"): a closing
-# rounds the inner corners, an opening the outer ones, so no corner is sharp however short its edges
+# rounded in the plan itself (owner, 2026-10-25: "the corners are always a little rounded, never ever sharp"): the outline
+# simplified to straight sides, then every corner, inner or outer, given a true arc
 K = 50
 x0 = min(x for o in ISLANDS.values() for x, _ in o) - 4; y0 = min(y for o in ISLANDS.values() for _, y in o) - 4
 x1 = max(x for o in ISLANDS.values() for x, _ in o) + 4; y1 = max(y for o in ISLANDS.values() for _, y in o) + 4
 disk = lambda r: cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(round(r * K)) + 1,) * 2)
 
 
+def fillet(poly, r, step=math.radians(10)):
+    """A polygon's corners rounded with true arcs of radius r (each clamped to what its two edges allow), points every 10
+    degrees: straight sides stay straight, so a face along one is flat (no shading stripes)."""
+    P = [np.array(p, float) for p in poly]
+    n = len(P)
+    area = sum(P[i][0] * P[(i + 1) % n][1] - P[(i + 1) % n][0] * P[i][1] for i in range(n)) / 2
+    out = []
+    for i in range(n):
+        a, b, c = P[i - 1], P[i], P[(i + 1) % n]
+        u, v = (a - b) / np.linalg.norm(a - b), (c - b) / np.linalg.norm(c - b)
+        ang = math.acos(max(-1.0, min(1.0, float(np.dot(u, v)))))
+        if ang > math.radians(175) or ang < 1e-3: out.append(b); continue
+        t = r / math.tan(ang / 2)                                  # how far along each edge the arc starts
+        t = min(t, 0.45 * np.linalg.norm(a - b), 0.45 * np.linalg.norm(c - b))
+        rr = t * math.tan(ang / 2)
+        p0, p1 = b + u * t, b + v * t
+        bis = (u + v) / np.linalg.norm(u + v)
+        centre = b + bis * (rr / math.sin(ang / 2))
+        a0 = math.atan2(*(p0 - centre)[::-1]); a1 = math.atan2(*(p1 - centre)[::-1])
+        d = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+        k = max(1, int(abs(d) / step))
+        out += [centre + rr * np.array([math.cos(a0 + d * j / k), math.sin(a0 + d * j / k)]) for j in range(k + 1)]
+    return [[round(float(x), 3), round(float(y), 3)] for x, y in out]
+
+
 def rounded(m, grow, r):
-    """Outlines (plan units) of mask `m` grown by `grow` units, its corners rounded to radius `r`."""
+    """Outlines (plan units) of mask `m` grown by `grow` units: simplified to straight sides (to 0.06 units), every corner then
+    rounded to radius `r` with a true arc."""
     if grow > 0: m = cv2.dilate(m, disk(grow))
-    if r > 0:
-        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, disk(r))
-        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, disk(r))
     cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    return [[[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)]
-             for px, py in cv2.approxPolyDP(c, 0.01 * K, True)[:, 0, :]] for c in cs]
+    out = []
+    for c in cs:
+        q = cv2.approxPolyDP(c, 0.06 * K, True)[:, 0, :]
+        poly = [(float(px) / K + x0, float(py) / K + y0) for px, py in q]
+        out.append(fillet(poly, r) if r > 0 else [[round(x, 3), round(y, 3)] for x, y in poly])
+    return out
 
 
 mask = np.zeros((int((y1 - y0) * K), int((x1 - x0) * K)), np.uint8)
@@ -144,6 +171,12 @@ for i, why in NOT_BLOCKS.items(): blocks[i]['not_a_block'] = why
 for i in PIERS['bridges']:
     blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], 0.0)]
     blocks[i]['height'] = 0.0
+# the stones standing on the grass, each its own height: its front face's length down to the grass in reference.png (a unit
+# of height shows ~16 px there): 1 37 px, 2 52, 4 34, 11 35. Each top is cast back again at its own height
+HEIGHTS = {1: 2.3, 2: 3.2, 4: 2.1, 11: 2.2}
+for i, h in HEIGHTS.items():
+    blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], h)]
+    blocks[i]['height'] = h
 for b in blocks: b.pop('quad', None)
 # a stone block: its flat light top is what was measured; the block runs a round of BLOCK_ROUND further out (the HQ's blocks:
 # a soft round on every edge), its corners rounded too
@@ -156,7 +189,47 @@ for b in blocks:
     out = rounded(m, BLOCK_ROUND, min(BLOCK_CORNER + BLOCK_ROUND, 0.3 * (min(bw, bh) + 2 * BLOCK_ROUND)))
     if not out: print('lost block', b['top'], bw, bh, int(m.sum()))
     b['outline'] = out[0] if out else b['top']
-json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, grass=grass, bodies=bodies,
+    b['over_grass'] = round(float((m & mask).sum() / m.sum()), 2)
+# which blocks are stones standing on the grass (a short front face down to it, nothing under them) and which are pillars
+# running down into the mist, as reference.png shows each (how much of a block lies over grass does not tell them apart:
+# block 2, on the ground, 0.57; blocks 8, 13 and 16, pillars, 0.51-0.55)
+ON_GROUND = {0, 1, 2, 4, 11, 20}
+for i, b in enumerate(blocks): b['on_ground'] = i in ON_GROUND
+# rock standing under the islands' tops, as the HQ shows it (reference.png 9:04.0; ff physics hq 2.mp4 7:26-8:32 closer): a
+# column of the HQ's darker stone (#828dc3 on its face toward the viewer) under the tilted island's south corner, its face
+# at the corner, 160 px wide on screen (x 1580-1741), its top just under the rim, running down into the mist
+# the tilted island is a slab (SLAB_T thick) on rock set back from its south-west edge by RECESS (the HQ2 close views: that
+# side overhangs; its north-west side runs on into the north bar): what is cut from under it
+SLAB_T, RECESS = 1.6, 1.0
+def offset_edges(quad, amounts):
+    """The quad with each edge (i -> i+1) moved outward by amounts[i] (negative: inward)."""
+    P = [np.array(p, float) for p in quad]
+    c = sum(P) / 4
+    lines = []
+    for i in range(4):
+        a, b = P[i], P[(i + 1) % 4]
+        d = (b - a) / np.linalg.norm(b - a); n = np.array([d[1], -d[0]])
+        if np.dot(n, (a + b) / 2 - c) < 0: n = -n
+        lines.append((a + n * amounts[i], d))
+    out = []
+    for i in range(4):
+        (p1, d1), (p2, d2) = lines[i - 1], lines[i]
+        t = np.linalg.solve(np.array([d1, -d2]).T, p2 - p1)
+        out.append([round(float(v), 3) for v in p1 + d1 * t[0]])
+    return out
+# its edges in order: north-west (to the north bar), north-east, south-east, south-west
+# (only its south-west side is cut back: under its south-east side the rock runs on flush, reference.png x 1740-1860, and
+# its dark column stands at the south corner between them)
+UNDERCUT = dict(cut=offset_edges(tilted, [-0.3, 3.0, -0.5, 3.0]), keep=offset_edges(tilted, [-0.3, -RECESS, 0.0, -RECESS]),
+                top=-SLAB_T)
+UNDERCUT['cut'][0] = [round(tilted[0][0] + 0.25, 3), round(tilted[0][1] - 0.15, 3)]   # (not under the north bar's end)
+COLUMNS = [dict(name='tilted_south', outline=[(24.4, 80.0), (29.6, 80.0), (29.6, 84.0), (24.4, 84.0)], top=-0.5,
+                colour='#96a2e0'),
+           # a shelf under the centre island's south face east of the south bridge: its lit top the lighter band 62 px under
+           # the lip (reference.png x 890-1110, y 784-808; cast back at 5 units down it lies 0.3-1.3 units in front of the face)
+           dict(name='centre_shelf', outline=[(-2.6, 65.3), (5.5, 65.3), (5.5, 67.5), (-2.6, 67.5)], top=-5.0,
+                colour='#bac6e6')]
+json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, grass=grass, bodies=bodies, columns=COLUMNS, undercut=UNDERCUT,
                piers=PIERS['bridges'] + PIERS['seam'],
                landings=PIERS['bridges']), open('art/sky_islands/layout.json', 'w'), indent=1)
 print(len(bodies), 'bodies of rock:', [len(b) for b in bodies])

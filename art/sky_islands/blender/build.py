@@ -131,8 +131,34 @@ def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH, side_mat
 
 # the islands as bodies of rock (layout.py: overlapping islands are one body): a top slab, and a wider ledge below it
 # (outlines rounded in the plan: the grass inside a lip of RIM_R, layout.py)
-for k, outline in enumerate(L['bodies']):
-    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, 0)
+islands = [body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, 0) for k, outline in enumerate(L['bodies'])]
+
+
+def undercut(u):
+    """The tilted island as the HQ shows it (layout.py's undercut): a slab, the rock under it cut back from its edges."""
+    cx = sum(x for x, _ in u['keep']) / 4; cy = sum(y for _, y in u['keep']) / 4
+    owner = next(o for o in islands if inside_outline((cx, cy), L['bodies'][islands.index(o)]))
+    cutter = body('CUTTER', u['cut'], u['top'], ROCK, 0.0, 0, bottom=-DEPTH - 10)
+    mod = owner.modifiers.new('undercut', 'BOOLEAN'); mod.operation = 'DIFFERENCE'; mod.object = cutter; mod.solver = 'EXACT'
+    for other in bpy.context.selected_objects: other.select_set(False)
+    bpy.context.view_layer.objects.active = owner; owner.select_set(True)
+    bpy.ops.object.modifier_apply(modifier='undercut')
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    body('UNDER_tilted', u['keep'], u['top'] + 0.05, ROCK, 0.05, 0.6)
+
+
+def inside_outline(p, poly):
+    hit = False
+    for (ax, ay), (bx, by) in zip(poly, poly[1:] + poly[:1]):
+        if (ay > p[1]) != (by > p[1]) and p[0] < (bx - ax) * (p[1] - ay) / (by - ay) + ax: hit = not hit
+    return hit
+
+
+undercut(L['undercut'])
+# rock standing under the islands (layout.py's columns): each in its own measured stone colour
+for c in L['columns']:
+    body(f'COLUMN_{c["name"]}', c['outline'], c['top'], lit(f'sky_column_{c["name"]}', c['colour']), 0.25, 0,
+         side_mat=lit(f'sky_column_side_{c["name"]}', c['colour']))
 for i, b in enumerate(L['blocks']):
     if 'not_a_block' in b: continue                    # (layout.py: an island's lip or rim, not a stone)
     if i in L['landings']:
@@ -140,7 +166,8 @@ for i, b in enumerate(L['blocks']):
         body(f'BLOCK_{i:02d}', b['outline'], 0.06, BLOCK_ROCK, 0.3, 0, side_mat=BLOCK_ROCK)
         continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
-    body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0, side_mat=BLOCK_ROCK)
+    body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0, side_mat=BLOCK_ROCK,
+         bottom=-0.5 if b.get('on_ground') else -DEPTH)
 
 
 # the bridges, 3D (bridges.py): planks or logs, ropes, and the owner's barriers
