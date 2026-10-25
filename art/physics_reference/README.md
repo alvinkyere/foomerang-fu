@@ -635,7 +635,8 @@ From the HQ cut, 60 frames a second (9:05.66–9:07.32, the sky-islands round; t
 - **A kill** (the donut 1:03.85, the coffee mug 2:21.18; read from the camera's pan, which follows the players): the game
   stops dead for 0.1 s (six identical frames), then runs at ≈ 0.2× (the camera crawls at a fifth of its pace) until 1.1 s
   after the hit, back to full speed by 1.35 s. No special zoom. The remains' motions were measured in the video's own time,
-  so they stay on the real clock; only the game's clock slows (`?slowmo=off` turns it off).
+  so they stay on the real clock; only the game's clock slows. Off by default since 2026-10-25 (the owner: "it's just bad right
+  now"); `?slowmo=on` plays it.
 
 ## Teleport boomerang (2026-10-22; applied: `rules/step.ts`, `rules/boomerang.ts` `teleportCatch`)
 
