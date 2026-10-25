@@ -168,9 +168,15 @@ for i, why in NOT_BLOCKS.items(): blocks[i]['not_a_block'] = why
 # the landings are level with the grass, not 2.5 units up (2026-10-23: ff physics hq 2.mp4 7:28-7:36, the log bridge meets the
 # centre island at the grass, no tall block; players stand where the south bridge lands, 7:54 and 8:22): their tops cast
 # back into the plan at the ground's height, which puts each between its bridge's end and the island it leads to
+# (block 15, the south bridge's: its top stands ~0.4 units over the southwest island's grass, reference.png: the top's near
+# edge at y 895, the grass from y 900; on the gap's side its face runs down into the mist)
+LANDING_H = 0.4
+# its top seen in the opening frame, measured by hand (the segmentation took in the island's lip beside it): x 640-875, from
+# the bridge's end (y 858) to its near edge (y 895)
+blocks[15]['quad'] = [[645, 858], [870, 858], [876, 895], [640, 895]]
 for i in PIERS['bridges']:
-    blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], 0.0)]
-    blocks[i]['height'] = 0.0
+    blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], LANDING_H)]
+    blocks[i]['height'] = LANDING_H
 # the stones standing on the grass, each its own height: its front face's length down to the grass in reference.png (a unit
 # of height shows ~16 px there): 1 37 px, 2 52, 4 34, 11 35. Each top is cast back again at its own height
 HEIGHTS = {1: 2.3, 2: 3.2, 4: 2.1, 11: 2.2}
@@ -225,6 +231,10 @@ UNDERCUT = dict(cut=offset_edges(tilted, [-0.3, 3.0, -0.5, 3.0]), keep=offset_ed
 UNDERCUT['cut'][0] = [round(tilted[0][0] + 0.25, 3), round(tilted[0][1] - 0.15, 3)]   # (not under the north bar's end)
 COLUMNS = [dict(name='tilted_south', outline=[(24.4, 80.0), (29.6, 80.0), (29.6, 84.0), (24.4, 84.0)], top=-0.5,
                 colour='#96a2e0'),
+           # a buttress under the north bar's south face, west of its lobe (what was taken for block 3): its top a lighter band
+           # at y 225-238 in reference.png, x 1125-1300, cast back at 1.5 units below the grass
+           dict(name='north_buttress', outline=[(6.5, 89.1), (12.6, 89.1), (12.6, 91.6), (6.5, 91.6)], top=-1.5,
+                colour='#acb6e2'),
            # a shelf under the centre island's south face east of the south bridge: its lit top the lighter band 62 px under
            # the lip (reference.png x 890-1110, y 784-808; cast back at 5 units down it lies 0.3-1.3 units in front of the face)
            dict(name='centre_shelf', outline=[(-2.6, 65.3), (5.5, 65.3), (5.5, 67.5), (-2.6, 67.5)], top=-5.0,

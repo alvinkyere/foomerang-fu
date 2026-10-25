@@ -162,8 +162,8 @@ for c in L['columns']:
 for i, b in enumerate(L['blocks']):
     if 'not_a_block' in b: continue                    # (layout.py: an island's lip or rim, not a stone)
     if i in L['landings']:
-        # the stone landings the bridges rest on (layout.py: walked over): flush with the grass, a bridge's deck on them
-        body(f'BLOCK_{i:02d}', b['outline'], 0.06, BLOCK_ROCK, 0.3, 0, side_mat=BLOCK_ROCK)
+        # the stone landing the south bridge rests on (layout.py: walked over), a little above the grass
+        body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.3, 0, side_mat=BLOCK_ROCK)
         continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
     body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0, side_mat=BLOCK_ROCK,
