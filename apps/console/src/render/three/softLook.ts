@@ -8,10 +8,10 @@ import * as THREE from 'three';
  * into the mist as it goes down (the cliffs: lavender under the lip, mist ~14 units down).
  *
  * With the ambient at `AMBIENT` and the sun at `SUN` (three.js's physical units: π lights a surface to its own colour; the light
- * works on linear colour, so these are linear), a top shows its colour as it is, a side facing the viewer ~87% of it on screen,
- * one facing west ~88%, one facing east ~84%: fitted to reference.png (9:04.0) over the stone blocks' faces (block tops
- * #a6b2df-#b2bce6, their fronts #939fc6-#9ba7d4, an east side #8b99c8, a west side #93a1bc) and the centre island's lip and
- * face (#b5c3df over #a0aecb).
+ * works on linear colour, so these are linear), a top shows its colour as it is on screen, a side facing the viewer ~87% of
+ * it, one facing south-west ~95%, west ~92%, south-east ~77%, east ~75%: fitted to reference.png (9:04.0), the centre
+ * island's lip over its face (#b5c3df, #a0aecb) and the tilted island's south-west and south-east faces (#adb5ca, #828dc3),
+ * so that the rock has the HQ's spread of tones (about a fifth of it the darker faces, #8d9bc1-#828db7).
  */
 export interface SoftLook {
   /**
@@ -28,16 +28,16 @@ export interface SoftLook {
   readonly mist: { readonly tint: string; readonly from: number; readonly to: number };
 }
 
-const AMBIENT = 0.69 * Math.PI;
+const AMBIENT = 0.52 * Math.PI;
 /**
  * How far toward the camera a character is drawn on 3D ground (scene units, the islands' layout units: a body is ~1.3 wide):
  * a little more than a body's width, so the ground round its feet never hides it, while a block or a tree in front of it
  * still does (ThreePlaza's Character.standPull).
  */
 export const STAND_PULL = 1.5;
-const SUN = 0.318 * Math.PI;
-/** Toward the sun (scene axes: x east, y up, z toward the viewer): nearly overhead, a little from the west and the viewer. */
-const TOWARD_SUN = new THREE.Vector3(-0.19, 0.975, 0.157).normalize();
+const SUN = 0.608 * Math.PI;
+/** Toward the sun (scene axes: x east, y up, z toward the viewer): high, from the west and a little from the viewer. */
+const TOWARD_SUN = new THREE.Vector3(-0.493, 0.789, 0.362).normalize();
 
 /** The manifest's `look`, checked (the manifest is a file we ship, but a bad one must fail loudly, not draw nonsense). */
 export function parseSoftLook(raw: unknown): SoftLook | undefined {

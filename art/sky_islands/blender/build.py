@@ -81,7 +81,7 @@ def tops_uv(x, y):
     return ((x - TOPS['x0']) / (TOPS['x1'] - TOPS['x0']), (y - TOPS['y0']) / (TOPS['y1'] - TOPS['y0']))
 
 
-def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH):
+def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH, side_mat=None):
     """An island's top slab, a ledge below it, or a stone block: its outline extruded down to `bottom`, its corners and its
     top edge rounded, its flat top one material, the rest rock. Smooth-shaded across the rounds, sharp elsewhere."""
     bm = bmesh.new()
@@ -116,7 +116,7 @@ def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH):
             loop[uvl].uv = tops_uv(x, y)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
-    me.materials.append(ROCK); me.materials.append(top_mat)
+    me.materials.append(side_mat or ROCK); me.materials.append(top_mat)
     # sharp where faces meet at more than 40 degrees (a flat side against a flat top); the rounds stay smooth
     for e in me.edges: e.use_edge_sharp = False
     me.update()
@@ -137,10 +137,10 @@ for i, b in enumerate(L['blocks']):
     if 'not_a_block' in b: continue                    # (layout.py: an island's lip or rim, not a stone)
     if i in L['landings']:
         # the stone landings the bridges rest on (layout.py: walked over): flush with the grass, a bridge's deck on them
-        body(f'BLOCK_{i:02d}', b['outline'], 0.06, BLOCK_ROCK, 0.3, 0)
+        body(f'BLOCK_{i:02d}', b['outline'], 0.06, BLOCK_ROCK, 0.3, 0, side_mat=BLOCK_ROCK)
         continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
-    body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0)
+    body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0, side_mat=BLOCK_ROCK)
 
 
 # the bridges, 3D (bridges.py): planks or logs, ropes, and the owner's barriers
