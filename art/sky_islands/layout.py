@@ -100,21 +100,44 @@ for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)]
                  ([(19.5, 94.5), (24.0, 94.5), (24.0, 99.5), (19.5, 99.5)], 4.0)):
     blocks.append(dict(top=top, height=hgt, image=None))
 # the bodies of rock the islands are built as: islands that overlap are one body (one top, one rim round the outside: two
-# coplanar tops would flicker, and each would draw its rim across the other's grass), outlined at 1/50 unit
+# coplanar tops would flicker, and each would draw its rim across the other's grass). Outlined at 1/50 unit, every corner
+# rounded in the plan itself (owner, 2026-10-25: "the corners are always a little rounded, never ever sharp"): a closing
+# rounds the inner corners, an opening the outer ones, so no corner is sharp however short its edges
 K = 50
-x0 = min(x for o in ISLANDS.values() for x, _ in o) - 2; y0 = min(y for o in ISLANDS.values() for _, y in o) - 2
-x1 = max(x for o in ISLANDS.values() for x, _ in o) + 2; y1 = max(y for o in ISLANDS.values() for _, y in o) + 2
+x0 = min(x for o in ISLANDS.values() for x, _ in o) - 4; y0 = min(y for o in ISLANDS.values() for _, y in o) - 4
+x1 = max(x for o in ISLANDS.values() for x, _ in o) + 4; y1 = max(y for o in ISLANDS.values() for _, y in o) + 4
+disk = lambda r: cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(round(r * K)) + 1,) * 2)
+
+
+def rounded(m, grow, r):
+    """Outlines (plan units) of mask `m` grown by `grow` units, its corners rounded to radius `r`."""
+    if grow > 0: m = cv2.dilate(m, disk(grow))
+    if r > 0:
+        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, disk(r))
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, disk(r))
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    return [[[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)]
+             for px, py in cv2.approxPolyDP(c, 0.01 * K, True)[:, 0, :]] for c in cs]
+
+
 mask = np.zeros((int((y1 - y0) * K), int((x1 - x0) * K)), np.uint8)
 for o in ISLANDS.values():
     cv2.fillPoly(mask, [np.int32([[(x - x0) * K, (y - y0) * K] for x, y in o])], 1)
-cs, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-bodies = []
-for c in cs:
-    q = cv2.approxPolyDP(c, 0.03 * K, True)[:, 0, :]
-    bodies.append([[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)] for px, py in q])
+# the grass is the islands as measured, its corners rounded (reference.png: ~0.9 units); the rock round it runs a lip of
+# RIM further out (the HQ: ~0.3 units of lavender outside the grass, all round): the grass always within the rock
+RIM, CORNER = 0.3, 0.9
+grass = rounded(mask, 0.0, CORNER)
+bodies = rounded(mask, RIM, CORNER + RIM)
 # the blocks the bridges rest on (the opening frame: the planks and logs run onto them; built flush with the bridges as
 # their landings), and the one in the seam where the north bar's lobe meets the tilted island; all walked over, not walls
-PIERS = {'bridges': [6, 7, 15], 'seam': [1]}
+PIERS = {'bridges': [15], 'seam': [1]}
+# not blocks at all (2026-10-25: every block's top and footprint cast back over reference.png): 3, 5 and 10 are the lit
+# lavender lips and faces of the north bar, the tilted island and the east island; 6 and 7, the "landings" at the log
+# bridge's ends, are the centre and east islands' own rims where the logs meet them. Kept in the list (their numbers name
+# the others) but dropped from the model and the rules
+NOT_BLOCKS = {3: 'the north bar\'s lip', 5: 'the tilted island\'s face', 10: 'the east island\'s lip',
+              6: 'the centre island\'s rim under the logs', 7: 'the east island\'s rim under the logs'}
+for i, why in NOT_BLOCKS.items(): blocks[i]['not_a_block'] = why
 # the landings are level with the grass, not 2.5 units up (2026-10-23: ff physics hq 2.mp4 7:28-7:36, the log bridge meets the
 # centre island at the grass, no tall block; players stand where the south bridge lands, 7:54 and 8:22): their tops cast
 # back into the plan at the ground's height, which puts each between its bridge's end and the island it leads to
@@ -122,17 +145,18 @@ for i in PIERS['bridges']:
     blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], 0.0)]
     blocks[i]['height'] = 0.0
 for b in blocks: b.pop('quad', None)
-# below each island's top slab the rock steps out: a wider tier whose lit top shows as a lighter band (the HQ, 9:04.0: under
-# the centre island's south edge the face runs ~5.6 units down (88 px; a drop shows at ~15.5 px a unit there), then a ledge
-# ~0.9 units out; west of the north arm, the same), its outline the bodies' grown by LEDGE_OUT
-LEDGE_OUT = 0.9
-grown = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(2 * LEDGE_OUT * K) + 1,) * 2))
-cs, _ = cv2.findContours(grown, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-ledges = []
-for c in cs:
-    q = cv2.approxPolyDP(c, 0.05 * K, True)[:, 0, :]
-    ledges.append([[round(float(px) / K + x0, 3), round(float(py) / K + y0, 3)] for px, py in q])
-json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, bodies=bodies, ledges=ledges,
+# a stone block: its flat light top is what was measured; the block runs a round of BLOCK_ROUND further out (the HQ's blocks:
+# a soft round on every edge), its corners rounded too
+# boxes, not pills (reference.png, block 13 close: square faces, edges and corners rounded about a third of a unit)
+BLOCK_ROUND, BLOCK_CORNER = 0.35, 0.35
+for b in blocks:
+    m = np.zeros_like(mask)
+    cv2.fillPoly(m, [np.int32([[(x - x0) * K, (y - y0) * K] for x, y in b['top']])], 1)
+    (_, _), (bw, bh), _ = cv2.minAreaRect(np.float32(b['top']))
+    out = rounded(m, BLOCK_ROUND, min(BLOCK_CORNER + BLOCK_ROUND, 0.3 * (min(bw, bh) + 2 * BLOCK_ROUND)))
+    if not out: print('lost block', b['top'], bw, bh, int(m.sum()))
+    b['outline'] = out[0] if out else b['top']
+json.dump(dict(islands=ISLANDS, bridges=BRIDGES, blocks=blocks, grass=grass, bodies=bodies,
                piers=PIERS['bridges'] + PIERS['seam'],
                landings=PIERS['bridges']), open('art/sky_islands/layout.json', 'w'), indent=1)
 print(len(bodies), 'bodies of rock:', [len(b) for b in bodies])

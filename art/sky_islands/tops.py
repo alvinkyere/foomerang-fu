@@ -17,7 +17,6 @@ import numpy as np, cv2
 
 BASE, EDGE, LIGHT, DARK = '#dff9ab', '#c4efa9', '#f4faaf', '#c6f0a9'
 EDGE_IN = 0.45            # units: how far in from the edge the darker band runs
-RIM = 0.3                 # units: the lavender lip round the grass (build.py rounds the top's edge this much)
 RES = 32                  # px a unit
 MIN_AREA = 0.6            # square units: smaller specks are noise
 
@@ -33,7 +32,7 @@ def bgr(h):
 
 # where the light and dark areas lie, on the plan (K px a unit)
 inside = np.zeros(plan.shape[:2], np.uint8)
-for b in L['bodies']:
+for b in L['grass']:
     cv2.fillPoly(inside, [np.int32([[(x - PX0) * K, (PY1 - y) * K] for x, y in b])], 1)
 inner = cv2.erode(inside, np.ones((19, 19), np.uint8)) > 0                # (an edge's own band is drawn separately)
 lab = cv2.cvtColor(cv2.medianBlur(plan, 21), cv2.COLOR_BGR2LAB).astype(int)
@@ -43,7 +42,7 @@ mid = np.median(lum[grassy])
 masks = {'light': grassy & (lum >= mid + 4), 'dark': grassy & (lum <= mid - 5)}
 
 # the extent of the texture: the bodies, a unit round
-xs = [x for bd in L['bodies'] for x, _ in bd]; ys = [y for bd in L['bodies'] for _, y in bd]
+xs = [x for bd in L['bodies'] for x, _ in bd]; ys = [y for bd in L['bodies'] for _, y in bd]   # (the rock's extent)
 X0, X1, Y0, Y1 = min(xs) - 1, max(xs) + 1, min(ys) - 1, max(ys) + 1
 W, H = int((X1 - X0) * RES), int((Y1 - Y0) * RES)
 to_tex = lambda x, y: ((x - X0) * RES, (Y1 - y) * RES)
@@ -79,9 +78,9 @@ areas = {k: outlines(m) for k, m in masks.items()}
 for k, colour in (('light', LIGHT), ('dark', DARK)):
     a_ = paint(areas[k], (W, H))
     img = img * (1 - a_) + bgr(colour) * a_
-# the darker band inside every edge: by distance from the grass's edge (the body's outline less the lip)
-body = paint(L['bodies'], (W, H))[..., 0] > 0.5
-d = cv2.distanceTransform(body.astype(np.uint8), cv2.DIST_L2, 5) / RES - RIM
+# the darker band inside every edge: by distance from the grass's edge (layout.py's grass: inside the rock's lip)
+body = paint(L['grass'], (W, H))[..., 0] > 0.5
+d = cv2.distanceTransform(body.astype(np.uint8), cv2.DIST_L2, 5) / RES
 t = np.clip(d / EDGE_IN, 0, 1)
 t = (t * t * (3 - 2 * t))[..., None]
 img = img * t + bgr(EDGE) * (1 - t)

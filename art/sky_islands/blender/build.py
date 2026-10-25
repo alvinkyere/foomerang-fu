@@ -70,10 +70,11 @@ def lit(name, hex_colour=None, image=None):
 TOPS = json.load(open(os.path.join(ROOT, 'art/sky_islands/blender/tops.json')))
 _tops_img = bpy.data.images.load(os.path.join(ROOT, 'art/sky_islands/blender/tops.png')); _tops_img.pack()
 GRASS_LIT = lit('sky_grass', image=_tops_img)
-ROCK = lit('sky_rock', '#b5c3df')
+ROCK = lit('sky_rock', '#bac6e6')
+# the stone blocks are a bluer, darker lavender than the islands' rock (reference.png: a block's top #a6b2df, its front
+# ~#93a1c6, its east side ~#8b99c8; the islands' lip #b5c3db, their face #a0aecb)
+BLOCK_ROCK = lit('sky_block', '#acb7e2')
 RIM_R, CORNER_R = 0.3, 0.9       # the lavender lip round the grass and the round of an island's corners (reference.png)
-SLAB = 5.6                       # how far the face below a top runs down before the rock steps out (layout.py's ledges)
-LEDGE_R, LEDGE_CORNER_R = 0.45, 1.2
 
 
 def tops_uv(x, y):
@@ -93,8 +94,9 @@ def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH):
     bmesh.ops.translate(bm, verts=down, vec=(0, 0, bottom - top_z))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)   # (the extrusion leaves the cap facing down)
     bm.normal_update()
-    corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 0.05]
-    bmesh.ops.bevel(bm, geom=corners, offset=corner_r, segments=6, profile=0.5, affect='EDGES', clamp_overlap=True)
+    if corner_r > 0:                                   # (layout.py rounds the outlines in the plan: most need none here)
+        corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 0.05]
+        bmesh.ops.bevel(bm, geom=corners, offset=corner_r, segments=6, profile=0.5, affect='EDGES', clamp_overlap=True)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.normal_update()
     top_edges = [e for e in bm.edges if all(abs(v.co.z - top_z) < 1e-4 for v in e.verts) and len(e.link_faces) == 2
@@ -128,17 +130,17 @@ def body(name, outline, top_z, top_mat, top_r, corner_r, bottom=-DEPTH):
 
 
 # the islands as bodies of rock (layout.py: overlapping islands are one body): a top slab, and a wider ledge below it
+# (outlines rounded in the plan: the grass inside a lip of RIM_R, layout.py)
 for k, outline in enumerate(L['bodies']):
-    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, CORNER_R, bottom=-SLAB - 0.3)
-for k, outline in enumerate(L['ledges']):
-    body(f'LEDGE_{k}', outline, -SLAB, ROCK, LEDGE_R, LEDGE_CORNER_R)
+    body(f'ISLAND_{k}', outline, 0.0, GRASS_LIT, RIM_R, 0)
 for i, b in enumerate(L['blocks']):
+    if 'not_a_block' in b: continue                    # (layout.py: an island's lip or rim, not a stone)
     if i in L['landings']:
         # the stone landings the bridges rest on (layout.py: walked over): flush with the grass, a bridge's deck on them
-        body(f'BLOCK_{i:02d}', b['top'], 0.06, ROCK, 0.3, 0.7)
+        body(f'BLOCK_{i:02d}', b['outline'], 0.06, BLOCK_ROCK, 0.3, 0)
         continue
     # the stone blocks: rock all over, rounded more (the HQ: a big soft round on every edge)
-    body(f'BLOCK_{i:02d}', b['top'], b['height'], ROCK, 0.5, 0.6)
+    body(f'BLOCK_{i:02d}', b['outline'], b['height'], BLOCK_ROCK, 0.35, 0)
 
 
 # the bridges, 3D (bridges.py): planks or logs, ropes, and the owner's barriers

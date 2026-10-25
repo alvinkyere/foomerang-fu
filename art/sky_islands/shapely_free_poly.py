@@ -27,5 +27,6 @@ def clearance_points(islands, solids, _w, cell=5.0):
         yy, xx = np.mgrid[0:H, 0:W]
         d2 = np.where(np.hypot(xx - x, yy - y) * cell > 220, d, 0)
         y2, x2 = np.unravel_index(d2.argmax(), d2.shape)
-        if d2.max() > 55: books.append((round(float(x2 * cell), 1), round(float(y2 * cell), 1)))
+        # (a body's width clear all round, 2 x 36, and a little)
+        if d2.max() > 75: books.append((round(float(x2 * cell), 1), round(float(y2 * cell), 1)))
     return spawns, books

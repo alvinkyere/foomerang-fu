@@ -28,7 +28,13 @@ manifest = {
     'assetsFrom': 'market_plaza',
     # the islands' own soft light, and the mist the rock fades into below the tops (render/three/softLook.ts): lavender
     # under the lip, mist from ~14 units down (the HQ: a column under the centre island's south edge, 9:04.0)
-    'look': {'mist': {'colour': '#e5f3de', 'from': 7.0, 'to': 14.0}},
+    # the HQ's sky behind everything, by height on the screen (reference.png, 9:04.0: #e0f2d4 at the bottom, #e9f4e0 a third
+    # of the way up, #eff7eb at 61%, near white at the top), and the rock below the tops fading toward that sky tinted warm
+    # (x #ebebd6: what the HQ's faces turn toward half way down, less blue than the sky: a warm light grey under the north
+    # bar, a light green under the centre island) and then into it, from 1.5 to 16 units down
+    'look': {'sky': [{'at': 0.0, 'colour': '#e0f2d4'}, {'at': 0.333, 'colour': '#e9f4e0'},
+                     {'at': 0.611, 'colour': '#eff7eb'}, {'at': 1.0, 'colour': '#f8faf6'}],
+             'mist': {'tint': '#ebebd6', 'from': 1.5, 'to': 16.0}},
     'characters': plaza['characters'],
     'provenance': 'art/sky_islands (register.py, calibrate.py, layout.py, objects.py, arena.py, blender/build.py, '
                   'package.py) from the HQ videos: foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq 2.mp4 7:24-8:43',

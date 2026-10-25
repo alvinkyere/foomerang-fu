@@ -25,10 +25,28 @@
   "characterScale": 1.1441,
   "assetsFrom": "market_plaza",
   "look": {
+    "sky": [
+      {
+        "at": 0.0,
+        "colour": "#e0f2d4"
+      },
+      {
+        "at": 0.333,
+        "colour": "#e9f4e0"
+      },
+      {
+        "at": 0.611,
+        "colour": "#eff7eb"
+      },
+      {
+        "at": 1.0,
+        "colour": "#f8faf6"
+      }
+    ],
     "mist": {
-      "colour": "#e5f3de",
-      "from": 7.0,
-      "to": 14.0
+      "tint": "#ebebd6",
+      "from": 1.5,
+      "to": 16.0
     }
   },
   "characters": {

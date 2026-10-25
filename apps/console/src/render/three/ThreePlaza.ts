@@ -10,7 +10,7 @@ import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { STAND_PULL, parseSoftLook, softLights, softMaterial } from './softLook';
+import { STAND_PULL, parseSoftLook, skyBackground, softLights, softMaterial } from './softLook';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
@@ -1194,7 +1194,13 @@ class Plaza {
     this.scene.add(gltf);
     // our vector floor (art/reconstruction/environ2/blender/floor_vector.py): one crisp flat-coloured ground, top-down
     for (const o of [...gltf.children]) if (/^(FLOOR|RUG)/.test(o.name)) o.removeFromParent();
-    this.scene.add(plazaFloor(floor.texture, floor.extent));
+    const backdrop = plazaFloor(floor.texture, floor.extent);
+    this.scene.add(backdrop);
+    if (look !== undefined) {
+      // the HQ's mist is a gradient up the screen, not a floor: the sky behind everything (softLook.ts)
+      this.scene.background = skyBackground(look);
+      backdrop.visible = false;
+    }
     const gradient = this.#gradient;
     gltf.traverse((o) => {
       // (unlit stays unlit: the trees' canopies, flat-toned as the video's: art/.../plants.py)

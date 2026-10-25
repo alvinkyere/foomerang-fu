@@ -41,9 +41,11 @@ def turned(points, id_, kind):
 PIERS = set(L['piers'])
 walls = []
 for i, b in enumerate(L['blocks']):
+    if 'not_a_block' in b: continue                    # (layout.py: an island's lip or rim, not a stone)
     pts = [w(x, y) for x, y in b['top']]
     if cv2.contourArea(np.float32(pts)) < 900: continue          # slivers of a block's top: its neighbour covers it
     if i in PIERS: continue
+    pts = [w(x, y) for x, y in b['outline']]           # (the whole block, its round included: layout.py)
     walls.append(turned(pts, f'BLOCK_{i:02d}', 'BLOCK'))
 # the bridges' rails (owner, 2026-10-23: "3D with actual barriers"): a fence along each long side, just outside it, the
 # bridge's whole length; so a bridge is crossed, never fallen off
