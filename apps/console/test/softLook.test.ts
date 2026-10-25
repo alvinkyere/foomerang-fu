@@ -61,10 +61,35 @@ describe('a map’s soft look', () => {
     expect(() => parseSoftLook(raw)).toThrow(/look/);
   });
 
+  it('may carry its own light (the ambient and the sun in units of π, the way to the sun); a bad one is refused', () => {
+    const light = { ambient: 0.52, sun: 0.48, toward: [-0.14, 0.91, 0.39] };
+    expect(
+      parseSoftLook({ sky: SKY, mist: { tint: '#ebebd6', from: 0.8, to: 14 }, light })?.light,
+    ).toEqual(light);
+    for (const bad of [
+      { ...light, ambient: -1 },
+      { ...light, sun: 'bright' },
+      { ...light, toward: [0, 1] },
+    ])
+      expect(() =>
+        parseSoftLook({ sky: SKY, mist: { tint: '#ebebd6', from: 0.8, to: 14 }, light: bad }),
+      ).toThrow(/look/);
+  });
+
+  it('may name colours for the model’s materials; a bad name or colour is refused', () => {
+    const base = { sky: SKY, mist: { tint: '#ebebd6', from: 0.8, to: 14 } };
+    expect(parseSoftLook({ ...base, colours: { sky_rock: '#b5c3df' } })?.colours).toEqual({
+      sky_rock: '#b5c3df',
+    });
+    expect(() => parseSoftLook({ ...base, colours: { sky_rock: 'blue' } })).toThrow(/look/);
+    expect(() => parseSoftLook({ ...base, colours: { 'Sky Rock!': '#b5c3df' } })).toThrow(/look/);
+  });
+
   it('the gong islands ship one', () => {
     const manifest = JSON.parse(
       readFileSync(join(process.cwd(), 'public/maps/gong_islands/manifest.json'), 'utf8'),
     ) as { look?: unknown };
-    expect(parseSoftLook(manifest.look)?.mist.tint).toBe('#ebebd6');
+    expect(parseSoftLook(manifest.look)?.mist.tint).toBe('#ebf1e8');
+    expect(parseSoftLook(manifest.look)?.light?.sun).toBeGreaterThan(0);
   });
 });

@@ -26,6 +26,17 @@ export interface SoftLook {
    * the sky itself.
    */
   readonly mist: { readonly tint: string; readonly from: number; readonly to: number };
+  /**
+   * The light (optional; absent: the fitted defaults below): the ambient and the sun in units of π (1 lights a surface facing
+   * it to its own colour), and the direction toward the sun (scene axes: x east, y up, z toward the viewer).
+   */
+  /** Colours for the model's materials by name (the rock, the blocks: fitted to the HQ without rebuilding the model). */
+  readonly colours?: Readonly<Record<string, string>>;
+  readonly light?: {
+    readonly ambient: number;
+    readonly sun: number;
+    readonly toward: readonly [number, number, number];
+  };
 }
 
 const AMBIENT = 0.52 * Math.PI;
@@ -67,9 +78,41 @@ export function parseSoftLook(raw: unknown): SoftLook | undefined {
     !(mist.to > mist.from)
   )
     throw new Error('plaza manifest: bad look');
+  const light = (raw as { light?: unknown }).light as
+    { ambient?: unknown; sun?: unknown; toward?: unknown } | undefined;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  if (
+    light !== undefined &&
+    (!num(light.ambient) ||
+      !num(light.sun) ||
+      light.ambient < 0 ||
+      light.sun < 0 ||
+      !Array.isArray(light.toward) ||
+      light.toward.length !== 3 ||
+      !light.toward.every(num))
+  )
+    throw new Error('plaza manifest: bad look');
+  const colours = (raw as { colours?: unknown }).colours;
+  if (
+    colours !== undefined &&
+    (typeof colours !== 'object' ||
+      colours === null ||
+      Object.entries(colours).some(([k, v]) => !/^[a-z_]{1,40}$/.test(k) || !hex(v)))
+  )
+    throw new Error('plaza manifest: bad look');
   return {
+    ...(colours === undefined ? {} : { colours: { ...(colours as Record<string, string>) } }),
     sky: stops.map((stop) => ({ at: stop.at as number, colour: stop.colour as string })),
     mist: { tint: mist.tint, from: mist.from, to: mist.to },
+    ...(light === undefined
+      ? {}
+      : {
+          light: {
+            ambient: light.ambient as number,
+            sun: light.sun as number,
+            toward: light.toward as [number, number, number],
+          },
+        }),
   };
 }
 
@@ -102,11 +145,18 @@ export function skyBackground(look: SoftLook): THREE.Texture {
 }
 
 /** The soft light: a strong even ambient and a weak sun. */
-export function softLights(scene: THREE.Scene): void {
-  const sun = new THREE.DirectionalLight(0xffffff, SUN);
-  sun.position.copy(TOWARD_SUN).multiplyScalar(100);
+export function softLights(scene: THREE.Scene, look?: SoftLook): void {
+  const l = look?.light;
+  const sun = new THREE.DirectionalLight(0xffffff, l === undefined ? SUN : l.sun * Math.PI);
+  sun.position
+    .copy(l === undefined ? TOWARD_SUN : new THREE.Vector3(...l.toward).normalize())
+    .multiplyScalar(100);
   sun.target.position.set(0, 0, 0);
-  scene.add(sun, sun.target, new THREE.AmbientLight(0xffffff, AMBIENT));
+  scene.add(
+    sun,
+    sun.target,
+    new THREE.AmbientLight(0xffffff, l === undefined ? AMBIENT : l.ambient * Math.PI),
+  );
 }
 
 /**
@@ -114,8 +164,9 @@ export function softLights(scene: THREE.Scene): void {
  * below the ground (scene height 0) it is: none above `from` units down, all of it from `to` units down.
  */
 export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THREE.Material {
+  const named = look.colours?.[m.name];
   const soft = new THREE.MeshLambertMaterial({
-    color: m.color,
+    color: named === undefined ? m.color : new THREE.Color(named),
     map: m.map ?? null,
     side: m.side,
     vertexColors: m.vertexColors,

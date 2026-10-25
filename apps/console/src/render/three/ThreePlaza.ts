@@ -1184,7 +1184,7 @@ class Plaza {
     });
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.02;
-    if (look !== undefined) softLights(this.scene);
+    if (look !== undefined) softLights(this.scene, look);
     else
       this.scene.add(
         sun,
