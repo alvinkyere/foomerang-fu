@@ -46,24 +46,30 @@ def meet(l1, l2):
 
 
 # the tilted island: its edges as fitted; its north corner where its north-east edge reaches the grass's top (y 103.3)
-SW, SE, NE = line(-61.96, (23.66, 85.83)), line(30.94, (32.33, 83.65)), line(-60.37, (31.55, 94.96))
+# (its south-west and south-east edges 0.2 units in from the first fit: 2026-10-25, checked along their length against
+# reference.png's grass)
+SW, SE, NE = line(-61.96, (23.837, 85.924)), line(30.94, (32.227, 83.822)), line(-60.37, (31.55, 94.96))
 s, e = meet(SW, SE), meet(SE, NE)
 n = meet(NE, (np.array([0.0, 103.3]), np.array([1.0, 0.0])))
 NW = (n, SE[1])
 w = meet(SW, NW)
 tilted = [list(map(float, np.round(p, 2))) for p in (w, n, e, s)]
 
+# each straight side checked against reference.png's grass (2026-10-25: sampled along the side, the grass's end found across it
+# at the ground, the median taken; moved where it was off by 0.3 units or more with a tight spread)
 ISLANDS = {
     # the long one round the top-left: its west end, the arm south, the bar east, the lobe at its east end
     'north': [(-29.3, 100.5), (-17.0, 100.5), (-17.0, 98.0), (13.0, 98.0), (13.0, 91.2), (18.5, 91.2), (18.5, 88.4),
-              (11.8, 88.4), (11.8, 91.0), (-17.5, 91.0), (-17.5, 74.3), (-24.2, 74.3), (-24.2, 88.6), (-29.3, 88.6)],
+              (13.15, 88.4), (13.15, 91.0), (-18.35, 91.0), (-18.35, 74.3), (-24.2, 74.3), (-24.2, 88.6), (-29.3, 88.6)],
     'northeast': tilted,
     # where the north bar's east end meets the tilted island, behind the blocks (the opening frame: the grass runs on)
     'northeast_join': [(12.5, 90.5), (21.0, 90.5), (18.6, 97.8), (12.5, 97.8)],
-    'centre': [(-9.5, 66.9), (10.5, 66.9), (10.5, 82.8), (-9.5, 82.8)],
-    'east': [(19.1, 61.4), (25.8, 61.4), (25.8, 73.6), (19.1, 73.6)],
-    'southwest': [(-24.3, 52.1), (-4.2, 52.1), (-4.2, 58.7), (-17.0, 58.7), (-17.0, 65.4), (-24.3, 65.4)],
-    'south': [(2.0, 51.6), (21.0, 51.6), (21.0, 58.8), (2.0, 58.8)],
+    'centre': [(-9.8, 66.9), (10.1, 66.9), (10.1, 82.8), (-9.8, 82.8)],
+    'east': [(18.75, 61.4), (25.25, 61.4), (25.25, 73.6), (18.75, 73.6)],
+    # (its east side: reference.png's grass edge x 799-805, y 955-1045, cast back at the ground; the south bridge's landing
+    # stands out past it over the gap)
+    'southwest': [(-24.3, 52.1), (-5.3, 52.1), (-5.3, 58.25), (-18.3, 58.25), (-18.3, 64.1), (-24.3, 64.1)],
+    'south': [(2.75, 51.6), (20.4, 51.6), (20.4, 58.8), (2.75, 58.8)],
 }
 BRIDGES = {
     # planks laid across the way, two ropes along it; their ends just over the islands' edges
