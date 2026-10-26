@@ -1,8 +1,9 @@
 {
   "period": 3.86,
+  "lags": [0.0, 0.65, 0.0, 0.65],
   "swirl_turn": {
     "blue": -120.0,
-    "gold": -210.0
+    "gold": -105.0
   },
   "frames": {
     "count": 80,
@@ -74,12 +75,16 @@
     "blue": {
       "face": "#1ce0f5",
       "glyph": ["#187db6", "#1f69a6"],
-      "ghost": "#3fe3f2"
+      "ghost": "#3fe3f2",
+      "bevel": ["#2bc4dd", "#2a9fc0"],
+      "back": "#58ddc4"
     },
     "gold": {
-      "face": "#f4c256",
+      "face": "#ecc262",
       "glyph": ["#3b8cc0", "#2e6fa8"],
-      "ghost": "#f0c450"
+      "ghost": "#f0c450",
+      "bevel": ["#e6c166", "#dcbd6e"],
+      "back": "#f6c451"
     }
   },
   "sides": "#363e76",
@@ -92,13 +97,7 @@
       "turn": 8.25,
       "radius": 1.6,
       "navy": 2.0,
-      "back": 1.0,
-      "ghost": {
-        "forward": 0.6,
-        "right": 0.3,
-        "radius": 1.6,
-        "turn": 30.0
-      }
+      "back": 1.0
     },
     {
       "colour": "gold",
@@ -108,45 +107,28 @@
       "turn": 17.5,
       "radius": 1.27,
       "navy": 1.6,
-      "back": 1.0,
-      "ghost": {
-        "forward": 0.6,
-        "right": 0.3,
-        "radius": 1.27,
-        "turn": 30.0
-      }
+      "back": 1.0
     },
     {
       "colour": "blue",
-      "centre": [6.81, 68.56, 0.75],
-      "facing": 126.7,
-      "lean": -60.0,
-      "turn": 0.0,
-      "radius": 1.4,
-      "navy": 1.47,
+      "centre": [6.87, 69.4, 0.98],
+      "facing": -36.0,
+      "lean": -36.0,
+      "turn": 148.75,
+      "radius": 1.21,
+      "navy": 0.0,
       "back": 0.82,
-      "ghost": {
-        "forward": 0.6,
-        "right": 0.3,
-        "radius": 1.4,
-        "turn": 30.0
-      }
+      "ring_away": true
     },
     {
       "colour": "gold",
-      "centre": [23.2, 64.27, 0.75],
-      "facing": 109.6,
-      "lean": -60.0,
-      "turn": 0.0,
-      "radius": 1.4,
-      "navy": 1.47,
-      "back": 0.82,
-      "ghost": {
-        "forward": 0.6,
-        "right": 0.3,
-        "radius": 1.4,
-        "turn": 30.0
-      }
+      "centre": [23.49, 64.87, 0.85],
+      "facing": 123.6,
+      "lean": 12.25,
+      "turn": 24.0,
+      "radius": 1.12,
+      "navy": 0.0,
+      "back": 0.82
     }
   ]
 }

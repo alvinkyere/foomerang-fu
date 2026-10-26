@@ -90,21 +90,36 @@ def build(data, parent):
         # thick navy border all round the face, deepest at its lower left, where the slab's side shows)
         bm = bmesh.new()
         RB = p['navy']
-        fr = [bm.verts.new(c - n * 0.02 + corner(j, RB)) for j in range(6)]
-        bk = [bm.verts.new(c - n * d + corner(j, RB)) for j in range(6)]
-        bm.faces.new(fr)
-        for j in range(6): bm.faces.new((fr[j], bk[j], bk[(j + 1) % 6], fr[(j + 1) % 6]))
-        bm.normal_update()
-        for f in bm.faces:
-            if f.normal.dot(n) < -0.9: f.normal_flip()
-        cen = c - n * (d / 2)
-        for f in bm.faces:
-            if f.normal.dot(f.calc_center_median() - cen) < 0: f.normal_flip()
-        me = bpy.data.meshes.new(f'PORTAL_{k}_backing'); bm.to_mesh(me); bm.free()
-        nm = unlit(f'portal_{k}_backing', sides); nm.use_backface_culling = True; me.materials.append(nm)
-        ob = bpy.data.objects.new(f'PORTAL_{k}_backing', me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
-        hexmesh(f'PORTAL_{k}', (0, R * 0.86), c, True, image=images[('solid', key0)])        # the tile's face
-        hexmesh(f'PORTAL_{k}_rim', (R * 0.86, R), c + n * 0.005, False, image=images[('solid', key0)])   # its rim
+        if RB <= 0: RB = None                                         # (none: the lower two, only ever seen from behind)
+        if RB is not None:
+            fr = [bm.verts.new(c - n * 0.02 + corner(j, RB)) for j in range(6)]
+            bk = [bm.verts.new(c - n * d + corner(j, RB)) for j in range(6)]
+            bm.faces.new(fr)
+            for j in range(6): bm.faces.new((fr[j], bk[j], bk[(j + 1) % 6], fr[(j + 1) % 6]))
+            bm.normal_update()
+            for f in bm.faces:
+                if f.normal.dot(n) < -0.9: f.normal_flip()
+            cen = c - n * (d / 2)
+            for f in bm.faces:
+                if f.normal.dot(f.calc_center_median() - cen) < 0: f.normal_flip()
+            me = bpy.data.meshes.new(f'PORTAL_{k}_backing'); bm.to_mesh(me); bm.free()
+            nm = unlit(f'portal_{k}_backing', sides); nm.use_backface_culling = True; me.materials.append(nm)
+            ob = bpy.data.objects.new(f'PORTAL_{k}_backing', me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
+        # the tile's thickness: its sides, 0.22 of its radius deep, in its bevel's outer colour (the HQ: a lighter band along a
+        # tile's lower edge seen from in front, a solid band seen edge-on from behind; open at its back: hollow from behind)
+        bm = bmesh.new()
+        TT = 0.22 * R
+        fr_ = [bm.verts.new(c + corner(j, R)) for j in range(6)]
+        bk_ = [bm.verts.new(c - n * TT + corner(j, R)) for j in range(6)]
+        for j in range(6): bm.faces.new((fr_[j], bk_[j], bk_[(j + 1) % 6], fr_[(j + 1) % 6]))
+        me = bpy.data.meshes.new(f'PORTAL_{k}_sides'); bm.to_mesh(me); bm.free()
+        # (from behind, the HQ's lower blue a pale teal #58ddc4, its gold #f6c451: `back` in the palette)
+        sm = unlit(f'portal_{k}_sides', pal['back'] if p['navy'] <= 0 else pal['bevel'][1]); sm.use_backface_culling = False
+        me.materials.append(sm)
+        ob = bpy.data.objects.new(f'PORTAL_{k}_sides', me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
+        hexmesh(f'PORTAL_{k}', (0, R * 0.84), c, True, image=images[('solid', key0)])        # the tile's face
+        hexmesh(f'PORTAL_{k}_rim', (R * 0.84, R * 0.92), c + n * 0.005, False, colour=pal['bevel'][0])  # its bevel,
+        hexmesh(f'PORTAL_{k}_rim_outer', (R * 0.92, R), c + n * 0.005, False, colour=pal['bevel'][1])   # darker outward
         # the swirl: a disc just in front of the face showing one cell of its colour's atlas (portals.py draws it: the HQ's
         # swirl frame by frame), and a second just in front of that, for the next frame fading in; their own objects at the
         # model's top level (the game merges whatever never moves, and finds these to play them), the first cell's UVs
@@ -115,7 +130,8 @@ def build(data, parent):
             images[key].pack()
         fr = data['frames']; cw, chh = 1 / fr['columns'], 1 / fr['rows']
         # (PORTAL_CELL in the environment: show that frame, for a still render to compare; the game picks its own)
-        cell = int(os.environ.get('PORTAL_CELL', '0')); cu, cv = (cell % fr['columns']) * cw, (cell // fr['columns']) * chh
+        cell = int(os.environ.get('PORTAL_CELL_' + p['colour'].upper(), os.environ.get('PORTAL_CELL', '0')))
+        cu, cv = (cell % fr['columns']) * cw, (cell // fr['columns']) * chh
         h = 1.28 * R; rd = 0.84 * R                                 # (a cell spans +-h; the disc, inside the hexagon)
         for name, ahead in ((f'PORTAL_{k}_glyph', 0.02), (f'PORTAL_{k}_glyph_next', 0.025)):
             bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
@@ -138,7 +154,8 @@ def build(data, parent):
         # (the game moves it out along its local Z, the face's normal, and up, and fades it); built where it rests, at the
         # curve's start, so a game that does not move it still draws it where the HQ shows it most
         r0 = data['ring'][0]
-        rest = c + n * r0[1] + Vector((0.0, 0.0, r0[2]))
+        rn = -n if p.get('ring_away') else n                       # (the way it goes out: its local Z)
+        rest = c + rn * r0[1] + Vector((0.0, 0.0, r0[2]))
         bm = bmesh.new()
         w = 0.06 * R                                                # (its line: ~6% of the face's radius, the HQ's 2-3 px)
         for j in range(6):
@@ -149,4 +166,4 @@ def build(data, parent):
         me = bpy.data.meshes.new(f'PORTAL_{k}_ring'); bm.to_mesh(me); bm.free()
         me.materials.append(unlit(f'portal_{k}_ring', pal['ghost']))
         ob = bpy.data.objects.new(f'PORTAL_{k}_ring', me); bpy.context.scene.collection.objects.link(ob)
-        ob.matrix_world = Matrix.Translation(rest) @ Matrix((s, u, n)).transposed().to_4x4()
+        ob.matrix_world = Matrix.Translation(rest) @ Matrix((s, -u, rn) if p.get('ring_away') else (s, u, n)).transposed().to_4x4()

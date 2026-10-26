@@ -1372,9 +1372,10 @@ class Plaza {
     const frames = spin?.frames;
     if (spin !== undefined && frames !== undefined)
       gltf.traverse((o) => {
-        const which = /^PORTAL_\d+_glyph(_next)?$/.exec(o.name);
+        const which = /^PORTAL_(\d+)_glyph(_next)?$/.exec(o.name);
         if (!(o instanceof THREE.Mesh) || which === null) return;
-        const next = which[1] !== undefined;
+        const next = which[2] !== undefined;
+        const lag = (spin.lags?.[Number(which[1])] ?? 0) * 1000; // (each portal runs its own clock behind: portalSpin.ts)
         const material = o.material as THREE.MeshBasicMaterial;
         if (material.map === null) return;
         const map = material.map.clone(); // (its own: each disc shows its own cell)
@@ -1391,7 +1392,7 @@ class Plaza {
         this.#moving.push({
           object: o,
           motion: (t) => {
-            const f = frameAt(spin, t);
+            const f = frameAt(spin, t - lag);
             if (f === undefined) return;
             show(next ? f.to : f.from);
             if (next) material.opacity = f.mix;
@@ -1415,8 +1416,9 @@ class Plaza {
     if (spin?.ring !== undefined) {
       const first = spin.ring[0];
       gltf.traverse((o) => {
-        if (!(o instanceof THREE.Mesh) || !/^PORTAL_\d+_ring$/.test(o.name) || first === undefined)
-          return;
+        const which = /^PORTAL_(\d+)_ring$/.exec(o.name);
+        if (!(o instanceof THREE.Mesh) || which === null || first === undefined) return;
+        const lag = (spin.lags?.[Number(which[1])] ?? 0) * 1000;
         const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(o.quaternion);
         const origin = o.position
           .clone()
@@ -1428,7 +1430,7 @@ class Plaza {
         this.#moving.push({
           object: o,
           motion: (t) => {
-            const r = ringAt(spin, t);
+            const r = ringAt(spin, t - lag);
             if (r === undefined) return;
             o.position.copy(origin).addScaledVector(normal, r.out);
             o.position.y += r.up;

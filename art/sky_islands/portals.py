@@ -38,47 +38,37 @@ GLYPH = [(0.25, 0.59), (0.055, 0.6), (-0.32, 0.545), (-0.58, -0.275), (-0.545, -
 # (7% larger, 2026-10-26: the HQ's held "G" covers 22.4% of its face, the outline as traced 19.7%: its blur is lost in the
 # tracing)
 GLYPH = [(round(x * 1.066, 3), round(y * 1.066, 3)) for x, y in GLYPH]
+# (each face's bevel: two bands round its edge, 0.84-0.92 and 0.92-1 of its radius, darker toward the navy: the HQ's blue
+# face, unskewed, flat #1ce0f5 to 0.82 then #28d4eb, #2aafc9, #2f7fa5; the gold's a little darker at its edge, its face
+# #ebc364 in reference.png)
 PALETTES = {
-    'blue': dict(face='#1ce0f5', glyph=['#187db6', '#1f69a6'], ghost='#3fe3f2'),
-    'gold': dict(face='#f4c256', glyph=['#3b8cc0', '#2e6fa8'], ghost='#f0c450'),
+    'blue': dict(face='#1ce0f5', glyph=['#187db6', '#1f69a6'], ghost='#3fe3f2', bevel=['#2bc4dd', '#2a9fc0'], back='#58ddc4'),
+    'gold': dict(face='#ecc262', glyph=['#3b8cc0', '#2e6fa8'], ghost='#f0c450', bevel=['#e6c166', '#dcbd6e'], back='#f6c451'),
 }
 SIDES = '#363e76'
 # each portal: its colour; its face's centre (plan x, y; height); the way its face looks (degrees from east), how far it leans
 # back and turns in its plane (degrees); its corner radius; its rock's navy, a hexagonal slab behind the tile (`navy` its
-# corner radius, standing out to the tile from `back` units behind it); the outline on the grass (its centre forward of the
-# tile's bottom corner and to its right, its radius, its turn). The top two fitted in reference.png (the exact camera), the
+# corner radius, standing out to the tile from `back` units behind it). The top two fitted in reference.png (the exact camera), the
 # face and the navy together (2026-10-26): the blue's face 91% overlapping the HQ's; the gold's six corners read by hand
 # ((1524,30), (1546,7), (1576,9), (1579,28), (1572,40), (1530,53): its colour alone runs into its outline on the grass), the
 # pose through them within 4 px a corner, straight out of its rock; the outlines from the 9:30-9:44 stack (the near corner at the tile's foot)
 PORTALS = [
-    dict(colour='blue', centre=[-27.53, 97.75, 1.64], facing=-48.0, lean=10.0, turn=8.25, radius=1.6, navy=2.0, back=1.0,
-         ghost=dict(forward=0.6, right=0.3, radius=1.6, turn=30.0)),
-    dict(colour='gold', centre=[23.68, 97.11, 1.73], facing=-74.7, lean=9.7, turn=17.5, radius=1.27, navy=1.6, back=1.0,
-         ghost=dict(forward=0.6, right=0.3, radius=1.27, turn=30.0)),
+    dict(colour='blue', centre=[-27.53, 97.75, 1.64], facing=-48.0, lean=10.0, turn=8.25, radius=1.6, navy=2.0, back=1.0),
+    dict(colour='gold', centre=[23.68, 97.11, 1.73], facing=-74.7, lean=9.7, turn=17.5, radius=1.27, navy=1.6, back=1.0),
 ]
 
 
-def on_side(a, b, along, radius, lean=10.0, depth=0.82):
-    """A portal on a block's side (from its top's corner `a` toward `b`, `along` units in), facing out of it: its face 0.35
-    out from the top's edge (the block's round) plus half its depth, its bottom corner at the grass."""
-    d = [b[0] - a[0], b[1] - a[1]]; L = math.hypot(*d); d = [d[0] / L, d[1] / L]
-    n = [-d[1], d[0]]
-    if n[1] < 0: n = [-n[0], -n[1]]                                        # (the north side: out of it is north)
-    out = 0.35 + depth / 2
-    c = [a[0] + d[0] * along + n[0] * out, a[1] + d[1] * along + n[1] * out]
-    return dict(centre=[round(c[0], 2), round(c[1], 2), round(radius * math.cos(math.radians(lean)) + 0.05, 2)],
-                facing=round(math.degrees(math.atan2(n[1], n[0])), 1), lean=lean, turn=0.0, radius=radius,
-                navy=round(radius * 1.05, 2), back=depth,
-                ghost=dict(forward=0.6, right=0.3, radius=radius, turn=30.0))
-
-
-# the two lower ones, on the north sides of their blocks, facing away (ff physics hq 2.mp4 8:05.0, its ground homography: the
-# plaques' edges and their outlines on the grass 1.9 units along their sides; their faces never seen from the camera, their
-# size between the two above; leaning over away from their blocks, -60 degrees, as the hollow frames the HQ shows from
-# behind lean): the blue's on block 8 at the centre island's south-east corner, the gold's on block 13 at the
-# east island's south-east corner
-PORTALS += [dict(colour='blue', **on_side((5.72, 66.8), (9.08, 69.3), 1.92, 1.4, lean=-60.0)),
-            dict(colour='gold', **on_side((21.66, 62.91), (26.04, 64.47), 1.91, 1.4, lean=-60.0))]
+# the two lower ones, on the north sides of their blocks, facing away (ff physics hq 2.mp4 8:05.0, through its ground
+# homography; 2026-10-26, in place of first estimates): seen from behind, each a hollow outline of its colour, no navy. The
+# blue's six corners read by hand ((1250,846), (1258,856), (1300,826), (1311,804), (1303,800), (1282,805)), its pose through
+# them within 6 px a corner; the gold's outline fitted whole (1.2 px)
+PORTALS += [
+    # (the blue's face turned to the other side of its plane: the fit cannot tell them apart, and the HQ shows it hollow, from
+    # behind; its ring still goes out away from its block: ring_away)
+    dict(colour='blue', centre=[6.87, 69.4, 0.98], facing=-36.0, lean=-36.0, turn=148.75, radius=1.21, navy=0.0, back=0.82,
+         ring_away=True),
+    dict(colour='gold', centre=[23.49, 64.87, 0.85], facing=123.6, lean=12.25, turn=24.0, radius=1.12, navy=0.0, back=0.82),
+]
 
 # the swirl, frame by frame (2026-10-26: the HQ's is not a rigid "G" turning: it holds as a "G", breaks apart ~1.6 s, is a
 # wedge ~2.2 s, a "G" turned half round ~2.7 s, and turns back into the first by ~0.5 s): its shape traced in 80 phases of
@@ -112,9 +102,14 @@ def atlas(colour, path):
 for colour in PALETTES: atlas(colour, f'art/sky_islands/blender/portal_glyph_{colour}.png')
 
 # the atlas's frame to each tile's, by colour (anticlockwise, seen from in front): rendered through reference.png's camera at its
-# moment in the cycle (~1.0 s, the held "G") and scored against its swirls, -30 to -210 degrees in 15s: the blue's best -120
-# (41% overlapping), the gold's -210 (39%); the lower two, never seen from in front, take their colour's
-SWIRL_TURN = {'blue': -120.0, 'gold': -210.0}
-json.dump(dict(period=PERIOD, swirl_turn=SWIRL_TURN, frames=dict(count=len(FRAMES), columns=COLS, rows=ROWS), spin=SPIN, ring=RING, glyph=GLYPH, palettes=PALETTES, sides=SIDES, portals=PORTALS),
+# moment in the cycle (~1.0 s, the held "G"; the gold's 0.65 s behind, LAG) and scored against its swirls, -30 to -210 degrees:
+# the blue's best -120 (41% overlapping), the gold's -90 to -120 (36%); the lower two, never seen from in front, take their
+# colour's
+SWIRL_TURN = {'blue': -120.0, 'gold': -105.0}
+# each portal's swirl and ring run behind the clock by its colour's lag (2026-10-26: the gold's swirl is the blue's 0.65 s
+# later, its dark share through 2,421 frames of 9:03-9:47 against the blue's correlating 0.88 at that lag; the lower two,
+# never seen from in front, take their colour's)
+LAG = {'blue': 0.0, 'gold': 0.65}
+json.dump(dict(period=PERIOD, lags=[LAG[q['colour']] for q in PORTALS], swirl_turn=SWIRL_TURN, frames=dict(count=len(FRAMES), columns=COLS, rows=ROWS), spin=SPIN, ring=RING, glyph=GLYPH, palettes=PALETTES, sides=SIDES, portals=PORTALS),
           open('art/sky_islands/portals.json', 'w'), indent=1)
 print(len(PORTALS), 'portals')

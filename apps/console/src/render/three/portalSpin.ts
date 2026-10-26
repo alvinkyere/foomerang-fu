@@ -19,6 +19,8 @@ export interface PortalSpin {
    * `columns` x `rows` cells, row by row from the top left.
    */
   readonly frames?: { readonly count: number; readonly columns: number; readonly rows: number };
+  /** Each portal's lag behind the clock, seconds, by its number (PORTAL_<k>): its swirl and ring run that much later. */
+  readonly lags?: readonly number[];
 }
 
 /** Which two frames show, and how far the second has faded in over the first. */
@@ -63,11 +65,16 @@ export function parsePortalSpin(raw: unknown): PortalSpin | undefined {
     return bad();
   const ring = parseRing((r as { ring?: unknown }).ring, period);
   const frames = parseFrames((r as { frames?: unknown }).frames);
+  const lagsRaw = (r as { lags?: unknown }).lags;
+  if (lagsRaw !== undefined && (!Array.isArray(lagsRaw) || !lagsRaw.every((v) => num(v) && v >= 0)))
+    throw new Error('map manifest: bad portals');
+  const lags = lagsRaw as number[] | undefined;
   return {
     period,
     spin,
     ...(ring === undefined ? {} : { ring }),
     ...(frames === undefined ? {} : { frames }),
+    ...(lags === undefined ? {} : { lags: [...lags] }),
   };
 }
 

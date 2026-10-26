@@ -124,6 +124,13 @@ describe('a portal’s spin', () => {
       expect(() => parsePortalSpin({ ...SPIN, frames })).toThrow(/portals/);
   });
 
+  it('each portal may run behind the clock by its own lag (seconds), by its number; a bad one is refused', () => {
+    const s = parsePortalSpin({ ...SPIN, lags: [0, 0.65] });
+    expect(s?.lags).toEqual([0, 0.65]);
+    expect(() => parsePortalSpin({ ...SPIN, lags: [0, -1] })).toThrow(/portals/);
+    expect(() => parsePortalSpin({ ...SPIN, lags: 'late' })).toThrow(/portals/);
+  });
+
   it('the gong islands ship the HQ’s', () => {
     const manifest = JSON.parse(
       readFileSync(join(__dirname, '../public/maps/gong_islands/manifest.json'), 'utf8'),
@@ -132,5 +139,6 @@ describe('a portal’s spin', () => {
     expect(s?.period).toBeCloseTo(3.86);
     expect(s === undefined ? undefined : ringAt(s, 480)?.opacity).toBeGreaterThan(0.5);
     expect(s?.frames?.count).toBe(80);
+    expect(s?.lags).toEqual([0, 0.65, 0, 0.65]);
   });
 });

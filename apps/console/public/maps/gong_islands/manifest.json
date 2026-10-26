@@ -96,7 +96,8 @@
       "count": 80,
       "columns": 10,
       "rows": 8
-    }
+    },
+    "lags": [0.0, 0.65, 0.0, 0.65]
   },
   "characters": {
     "bread": {
