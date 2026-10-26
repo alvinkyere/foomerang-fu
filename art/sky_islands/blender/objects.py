@@ -114,6 +114,10 @@ def maple(o, P, mat, root, k):
     w, h, z0 = o['width'], o['height'], o['z']
     base = Vector((o['x'], o['y'], z0))
     lean = Vector((rng.uniform(-0.25, 0.25), rng.uniform(-0.1, 0.1), 0)) * w
+    # (objects.py's crown fit: the crown moved across and up, and scaled, to where the HQ's is; the trunk leans to it)
+    cdx, cdz, cs = o.get('crown', [0.0, 0.0, 1.0])
+    shift = Vector((cdx, 0, cdz))
+    w = w * cs
     # caps in tiers up the trunk, alternating sides (the video's: four or five, set well apart so the branches show between
     # them; reference.png 9:04.0, 2026-10-25: an open crown, not a stack)
     tiers = [0.42, 0.56, 0.7, 0.84, 1.0]
@@ -123,11 +127,11 @@ def maple(o, P, mat, root, k):
         caps.append((lean * t + Vector((side * w * rng.uniform(0.22, 0.33), rng.uniform(-0.16, 0.16) * w, 0)), t))
     caps[-1] = (lean + Vector((rng.uniform(-0.06, 0.06) * w, 0, 0)), 1.0)
     bm = bmesh.new()
-    cylinder(bm, base, base + lean + Vector((0, 0, h * 0.95)), 0.36, 0.2, 8)
+    cylinder(bm, base, base + lean + shift + Vector((0, 0, h * 0.95)), 0.36, 0.2, 8)
     tips = []
     for off, t in caps:
-        tip = base + off + Vector((0, 0, h * t - w * 0.1))
-        cylinder(bm, base + lean * t + Vector((0, 0, h * t * 0.8)), tip, 0.18, 0.1, 6); tips.append(tip)
+        tip = base + off + shift + Vector((0, 0, h * t - w * 0.1))
+        cylinder(bm, base + (lean + shift) * t + Vector((0, 0, h * t * 0.8)), tip, 0.18, 0.1, 6); tips.append(tip)
     paint(bm, P['trunk'])
     emit(f'MAPLE_{k}_trunk', bm, mat, root)
     bm = bmesh.new()
@@ -259,10 +263,15 @@ def bamboo(o, P, mat, root, k):
         cylinder(bm, at + Vector((0, 0, z0)), at + Vector((0, 0, z1 - 0.06)), r, r, 10)
         cylinder(nodes, at + Vector((0, 0, z1 - 0.08)), at + Vector((0, 0, z1 + 0.02)), r * 1.12, r * 1.12, 10)
         if j in (n // 2, n - 2):                               # a spray of leaves at two of its nodes
-            for q in range(4):
-                a = rng.uniform(0, 2 * math.pi)
-                tip = at + Vector((math.cos(a) * 1.1, math.sin(a) * 1.1, z1 + 0.35))
-                cylinder(leaves, at + Vector((0, 0, z1)), tip, 0.12, 0.0, 3)
+            # (reference.png, 2026-10-26: full fans of leaves drooping a little, not spikes)
+            a0 = rng.uniform(0, 2 * math.pi)
+            for q in range(6):
+                a = a0 + rng.uniform(-0.6, 0.6) + (q % 2) * math.pi
+                tip = at + Vector((math.cos(a) * 1.4, math.sin(a) * 1.4, z1 - 0.1))
+                cylinder(leaves, at + Vector((0, 0, z1)), tip, 0.18, 0.0, 3)
+    hollow = bmesh.new()                                       # its hollow top, seen dark from above
+    sphere(hollow, at + Vector((0, 0, h + 0.01)), r * 0.62, sz=0.15, segments=10, rings=3)
+    paint(hollow, None, flat=P['bamboo'][2]); emit(f'BAMBOO_{k}_hollow', hollow, mat, root)
     paint(bm, P['bamboo']); emit(f'BAMBOO_{k}', bm, mat, root)
     paint(nodes, P['bamboo'], cut=(0.9, 0.5)); emit(f'BAMBOO_{k}_nodes', nodes, mat, root)
     paint(leaves, P['bamboo'], cut=(0.3, -0.3)); emit(f'BAMBOO_{k}_leaves', leaves, mat, root)

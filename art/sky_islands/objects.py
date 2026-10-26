@@ -58,7 +58,8 @@ SEEN = [
     ('pot', (1525, 696), 656, 39), ('pot', (405, 1006), 958, 38),
     ('crate', (1233, 968), 912, 42), ('crate', (1263, 930), 885, 40),
     ('aloe', (1076, 1020), 952, 55),
-    ('bamboo', (1218, 70), 0, 16), ('bamboo', (1277, 250), 170, 18), ('bamboo', (1486, 95), -10, 18),
+    # (the one at x 1277 read again, 2026-10-26: its top at y 145, 15 px wide)
+    ('bamboo', (1218, 70), 0, 16), ('bamboo', (1277, 250), 145, 15), ('bamboo', (1486, 95), -10, 18),
     ('bamboo', (1664, 90), 20, 14), ('bamboo', (1452, 1058), 960, 22), ('bamboo', (1407, 1090), 990, 20),
     ('tuft', (835, 73), None, 31), ('tuft', (870, 84), None, 27), ('tuft', (1162, 388), None, 26),
     ('tuft', (864, 527), None, 35), ('tuft', (917, 523), None, 33), ('tuft', (938, 498), None, 30),
@@ -74,11 +75,14 @@ PALETTES = {                                   # light, mid, dark (sRGB)
     'maple': ['#cd695b', '#c1625f', '#bb5f5f'], 'trunk': ['#8f93c2', '#6f73a4', '#565a87'],
     'hexplant': ['#8ddea2', '#7ed39a', '#6bc691'], 'pot': ['#af7e6e', '#916251', '#6a4a3b'],
     'crate': ['#ad8189', '#926676', '#73556a'], 'aloe': ['#b8e39a', '#79b37c', '#4f8a5f'],
-    'aloe_pot': ['#8d90b5', '#6d7099', '#53567a'], 'bamboo': ['#c3f097', '#99d46c', '#6bb057'],
+    'aloe_pot': ['#8d90b5', '#6d7099', '#53567a'], 'bamboo': ['#a1de70', '#93d16c', '#60ac59'],
     'tuft': ['#9fbe71', '#86a85c', '#6e8d4a'], 'tile_blue': ['#22dcf3', '#137ba7', '#3b3f71'],
     'tile_gold': ['#f2c053', '#c49c51', '#3b3f71'],
 }
 HEX_PLATES = 2.0      # the hex plants' plates: how high they stand (their stems as long; the close-up 9:41.6)
+# the maples' crowns where reference.png's are (2026-10-26: each built crown's leaves against the HQ's, by foot): moved by
+# (dx, dy) px on screen and scaled (the builder's caps lie at random about the trunk, so a crown can land off its tree's)
+CROWN_FIT = {(745, 399): (34, -34, 1.14), (1805, 273): (0, -25, 0.92), (1330, 486): (-12, 0, 0.83)}
 out = []
 for kind, (fx, fy), top, wpx in SEEN:
     base_z = -3.0 if kind == 'maple_low' else 0.0      # this one grows from the cliff below the bridge
@@ -106,6 +110,10 @@ for kind, (fx, fy), top, wpx in SEEN:
         # its crown's top at reference.png's y 358 as built (2026-10-25: 9 units drew it at y 315, ~16 px a unit there; the
         # far-edge reading above takes a crown this wide for deeper than it is and gives 3.5)
         item['height'] = 6.2
+    if kind.startswith('maple') and (fx, fy) in CROWN_FIT:
+        dx, dy, s = CROWN_FIT[(fx, fy)]
+        k = scale(X, Y, base_z + 0.75 * item['height'])        # px a unit at the crown
+        item['crown'] = [round(dx / k, 2), round(-dy / k, 2), s]
     out.append(item)
 for kind, (fx, fy), _, wpx in TILES:
     # standing on the grass in front of their blocks (reference.png: grass all round each, no block face before them; 2026-10-25,

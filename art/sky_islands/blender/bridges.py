@@ -11,7 +11,9 @@ them, one at the top and one half-way down (the rules' fences: a body cannot cro
 import bpy, bmesh, math, random
 from mathutils import Vector, Matrix
 
-WOOD, WOOD_SEAM, TAN, HOLLOW, ROPE, POST = '#906d90', '#5f465f', '#c0a184', '#675776', '#b8987c', '#6f526e'
+# (the wood 4% lighter and its seams softer, 2026-10-26: reference.png's planks #936f91 on screen to our #8d6b8d, their seams
+# faint)
+WOOD, WOOD_SEAM, TAN, HOLLOW, ROPE, POST = '#967195', '#76577a', '#c0a184', '#675776', '#b8987c', '#6f526e'
 DECK = 0.1                 # the deck's top, units above the grass (it rests on the islands' rims and the stone landings)
 POST_H = 1.05              # a post's height above the deck
 RAIL_H = 0.85              # the rail's height at a post
