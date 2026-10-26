@@ -101,9 +101,11 @@ for i in range(1, nlab):
                        image=[int(st[i, 0]), int(st[i, 1]), int(st[i, 2]), int(st[i, 3])], quad=quad.tolist()))
 # beyond the opening frame's top (seen as the camera moves north, output/plan.png): the tall block at the north-west corner
 # that carries the blue spiral tile, and the great block behind the north bar's east end that carries the gold one
-for top, hgt in (([(-31.0, 96.5), (-26.5, 96.5), (-26.5, 103.5), (-31.0, 103.5)], 4.0),
+# (the first and the third set back north 2.6 and 4.1 units, 2026-10-25: their tiles stand on the grass in front of them,
+# objects.py, and reference.png shows grass up to each tile, no block face)
+for top, hgt in (([(-31.0, 99.1), (-26.5, 99.1), (-26.5, 106.1), (-31.0, 106.1)], 4.0),
                  ([(8.0, 98.5), (19.0, 98.5), (19.0, 107.0), (8.0, 107.0)], 6.5),
-                 ([(19.5, 94.5), (24.0, 94.5), (24.0, 99.5), (19.5, 99.5)], 4.0)):
+                 ([(19.5, 98.6), (24.0, 98.6), (24.0, 103.6), (19.5, 103.6)], 4.0)):
     blocks.append(dict(top=top, height=hgt, image=None))
 # the bodies of rock the islands are built as: islands that overlap are one body (one top, one rim round the outside: two
 # coplanar tops would flicker, and each would draw its rim across the other's grass). Outlined at 1/50 unit, every corner

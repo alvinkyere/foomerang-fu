@@ -100,7 +100,13 @@ for kind, (fx, fy), top, wpx in SEEN:
         item['height'] = 9.0      # its canopy level with the centre island's maple's (it rises from the cliff below)
     out.append(item)
 for kind, (fx, fy), _, wpx in TILES:
-    X, Y = ground(fx, fy, 2.5)                                  # on a block's face, its foot at the block's top height
-    out.append(dict(kind=kind, x=round(X, 2), y=round(Y, 2), z=0.6, width=round(wpx / scale(X, Y, 2.5), 2)))
+    # standing on the grass in front of their blocks (reference.png: grass all round each, no block face before them; 2026-10-25,
+    # they had been put 2.5 up on the blocks' faces, which buried the gold one in its block once built true to that)
+    X, Y = ground(fx, fy, 0.0)
+    w = wpx / scale(X, Y, 0.0)
+    # (the build stands the plaque's centre 1.25 + z up and 0.15 south of y, tipped back 45 degrees: its lowest point then
+    # lies w/2 x 0.71 below and south of the centre; placed so that point is the foot measured)
+    lean = w / 2 * math.cos(math.radians(45))
+    out.append(dict(kind=kind, x=round(X, 2), y=round(Y + lean + 0.15, 2), z=round(lean - 1.25, 2), width=round(w, 2)))
 json.dump(dict(objects=out, palettes=PALETTES), open('art/sky_islands/objects.json', 'w'), indent=1)
 for o in out: print(o)
