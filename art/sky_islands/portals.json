@@ -64,7 +64,7 @@
       "lean": 10.0,
       "turn": 9.75,
       "radius": 1.55,
-      "depth": 0.82,
+      "depth": 0.43,
       "ghost": {
         "forward": 0.6,
         "right": 0.3,
@@ -79,11 +79,41 @@
       "lean": 73.0,
       "turn": -16.5,
       "radius": 1.14,
-      "depth": 0.7,
+      "depth": 0.58,
       "ghost": {
         "forward": 0.6,
         "right": 0.3,
         "radius": 1.14,
+        "turn": 30.0
+      }
+    },
+    {
+      "colour": "blue",
+      "centre": [6.81, 68.56, 0.75],
+      "facing": 126.7,
+      "lean": -60.0,
+      "turn": 0.0,
+      "radius": 1.4,
+      "depth": 0.82,
+      "ghost": {
+        "forward": 0.6,
+        "right": 0.3,
+        "radius": 1.4,
+        "turn": 30.0
+      }
+    },
+    {
+      "colour": "gold",
+      "centre": [23.2, 64.27, 0.75],
+      "facing": 109.6,
+      "lean": -60.0,
+      "turn": 0.0,
+      "radius": 1.4,
+      "depth": 0.82,
+      "ghost": {
+        "forward": 0.6,
+        "right": 0.3,
+        "radius": 1.4,
         "turn": 30.0
       }
     }
