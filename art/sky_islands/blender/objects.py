@@ -112,13 +112,14 @@ def maple(o, P, mat, root, k):
     w, h, z0 = o['width'], o['height'], o['z']
     base = Vector((o['x'], o['y'], z0))
     lean = Vector((rng.uniform(-0.25, 0.25), rng.uniform(-0.1, 0.1), 0)) * w
-    # caps in tiers up the trunk, alternating sides (the video's: four or five, a third of the tree's width each)
+    # caps in tiers up the trunk, alternating sides (the video's: four or five, set well apart so the branches show between
+    # them; reference.png 9:04.0, 2026-10-25: an open crown, not a stack)
     tiers = [0.42, 0.56, 0.7, 0.84, 1.0]
     caps = []
     for j, t in enumerate(tiers):
         side = -1 if j % 2 == 0 else 1
-        caps.append((lean * t + Vector((side * w * rng.uniform(0.18, 0.3), rng.uniform(-0.12, 0.12) * w, 0)), t))
-    caps[-1] = (lean, 1.0)
+        caps.append((lean * t + Vector((side * w * rng.uniform(0.22, 0.33), rng.uniform(-0.16, 0.16) * w, 0)), t))
+    caps[-1] = (lean + Vector((rng.uniform(-0.06, 0.06) * w, 0, 0)), 1.0)
     bm = bmesh.new()
     cylinder(bm, base, base + lean + Vector((0, 0, h * 0.95)), 0.36, 0.2, 8)
     tips = []
@@ -129,16 +130,21 @@ def maple(o, P, mat, root, k):
     emit(f'MAPLE_{k}_trunk', bm, mat, root)
     bm = bmesh.new()
     for j, tip in enumerate(tips):
-        r = w * rng.uniform(0.2, 0.25)
+        r = w * rng.uniform(0.19, 0.24)
+        # a ragged clump, not a disc (the HQ's caps: lumpy, jagged outlines): the rim pushed in and out round the cap by a few
+        # waves and a little noise, the top raised in bumps, the fringe's leaves each their own length
+        ph = [rng.uniform(0, 2 * math.pi) for _ in range(3)]
+        jag = {}
         res = bmesh.ops.create_uvsphere(bm, u_segments=36, v_segments=8, radius=r)
-        teeth = {}
         for v in res['verts']:
+            a = round(math.atan2(v.co.y, v.co.x), 4)
+            jag.setdefault(a, 1 + 0.16 * math.sin(3 * a + ph[0]) + 0.1 * math.sin(7 * a + ph[1]) + rng.uniform(-0.07, 0.07))
+            v.co.x *= jag[a]; v.co.y *= jag[a]
             v.co.z = max(v.co.z * 0.32, -0.05 * r)               # a flat umbrella
+            if v.co.z > 0: v.co.z *= 1 + 0.25 * (1 + math.sin(5 * a + ph[2])) / 2
             if v.co.z <= -0.05 * r + 1e-4:                       # its ragged fringe of leaves hanging down
-                a = round(math.atan2(v.co.y, v.co.x), 4)
-                teeth.setdefault(a, rng.uniform(0.25, 0.6))
-                v.co.z -= r * teeth[a]
-                v.co.x *= 1.05; v.co.y *= 1.05
+                v.co.z -= r * rng.uniform(0.15, 0.75)
+                v.co.x *= 1.07; v.co.y *= 1.07
             v.co += tip + Vector((0, 0, 0.05))
     paint(bm, P['maple'], cut=(0.6, 0.05))
     emit(f'MAPLE_{k}_canopy', bm, mat, root)
