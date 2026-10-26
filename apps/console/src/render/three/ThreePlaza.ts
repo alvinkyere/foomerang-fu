@@ -10,7 +10,14 @@ import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { STAND_PULL, parseSoftLook, skyBackground, softLights, softMaterial } from './softLook';
+import {
+  STAND_PULL,
+  mistedUnlit,
+  parseSoftLook,
+  skyBackground,
+  softLights,
+  softMaterial,
+} from './softLook';
 import type { ArenaRenderer, DrawnCircle } from '../renderer';
 import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '../viewModel';
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
@@ -1203,13 +1210,13 @@ class Plaza {
     }
     const gradient = this.#gradient;
     gltf.traverse((o) => {
-      // (unlit stays unlit: the trees' canopies, flat-toned as the video's: art/.../plants.py)
-      if (
-        !(o instanceof THREE.Mesh) ||
-        o.name === 'FOUNTAIN_water' ||
-        o.material instanceof THREE.MeshBasicMaterial
-      )
+      if (!(o instanceof THREE.Mesh) || o.name === 'FOUNTAIN_water') return;
+      // (unlit stays unlit: the trees' canopies, flat-toned as the video's: art/.../plants.py; in a soft look, misted below
+      // the tops as the rock is)
+      if (o.material instanceof THREE.MeshBasicMaterial) {
+        if (look !== undefined) o.material = mistedUnlit(o.material, look);
         return;
+      }
       const m = o.material as THREE.MeshStandardMaterial;
       o.material =
         look !== undefined

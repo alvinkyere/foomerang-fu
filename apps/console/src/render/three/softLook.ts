@@ -193,19 +193,35 @@ export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THR
     side: m.side,
     vertexColors: m.vertexColors,
   });
+  addMist(soft, look, true);
+  return soft;
+}
+
+/**
+ * An unlit material (the objects: flat-toned as the video draws them) kept unlit, but fading into the mist below the tops as
+ * the rock does (the HQ: the maple rising from the cliff under the log bridge, its trunk pale in the mist).
+ */
+export function mistedUnlit(m: THREE.MeshBasicMaterial, look: SoftLook): THREE.MeshBasicMaterial {
+  const misted = m.clone();
+  addMist(misted, look, false);
+  return misted;
+}
+
+/** The sky behind and the mist below the tops, into a material's shader (`lip`: the lit band under the tops too). */
+function addMist(material: THREE.Material, look: SoftLook, lip: boolean): void {
   // the sky's stops for the shader (padded to four: a stop past the top repeats the last)
   const at = [0, 1, 2, 3].map((i) => (look.sky[i] ?? { at: 2 }).at);
   const colours = [0, 1, 2, 3].map(
     (i) => new THREE.Color((look.sky[i] ?? look.sky[look.sky.length - 1])?.colour),
   );
-  soft.onBeforeCompile = (shader) => {
+  material.onBeforeCompile = (shader) => {
     shader.uniforms['skyAt'] = { value: at };
     shader.uniforms['skyColour'] = { value: colours };
     shader.uniforms['mistTint'] = { value: new THREE.Color(look.mist.tint) };
     shader.uniforms['mistFrom'] = { value: look.mist.from };
     shader.uniforms['mistTo'] = { value: look.mist.to };
     shader.uniforms['lipDepth'] = { value: look.mist.lip?.depth ?? 1 };
-    shader.uniforms['lipLift'] = { value: look.mist.lip?.lift ?? 0 };
+    shader.uniforms['lipLift'] = { value: lip ? (look.mist.lip?.lift ?? 0) : 0 };
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'varying float vMistY;\nvarying float vSkyT;\nvoid main() {')
       .replace(
@@ -246,5 +262,4 @@ export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THR
         ].join('\n\t'),
       );
   };
-  return soft;
 }

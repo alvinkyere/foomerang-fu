@@ -98,7 +98,9 @@ for kind, (fx, fy), top, wpx in SEEN:
     if kind in ('pot', 'crate', 'aloe'):
         item['height'] = round(w * {'pot': 1.15, 'crate': 1.0, 'aloe': 1.5}[kind], 2)
     if kind == 'maple_low':
-        item['height'] = 9.0      # its canopy level with the centre island's maple's (it rises from the cliff below)
+        # its crown's top at reference.png's y 358 as built (2026-10-25: 9 units drew it at y 315, ~16 px a unit there; the
+        # far-edge reading above takes a crown this wide for deeper than it is and gives 3.5)
+        item['height'] = 6.2
     out.append(item)
 for kind, (fx, fy), _, wpx in TILES:
     # standing on the grass in front of their blocks (reference.png: grass all round each, no block face before them; 2026-10-25,

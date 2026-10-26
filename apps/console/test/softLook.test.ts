@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { parseSoftLook, skyAt } from '../src/render/three/softLook';
+import { mistedUnlit, parseSoftLook, skyAt } from '../src/render/three/softLook';
 
 // A map's own look (the gong islands, 2026-10-22): soft light, and the rock fading into the mist below the tops. The manifest
 // is a file we ship; a bad `look` fails loudly instead of drawing nonsense.
@@ -95,6 +96,25 @@ describe('a map’s soft look', () => {
     });
     for (const lip of [{ depth: 0, lift: 0.1 }, { depth: 2, lift: -0.2 }, { depth: 2 }])
       expect(() => parseSoftLook({ sky: SKY, mist: { ...mist, lip } })).toThrow(/look/);
+  });
+
+  it('an unlit material stays unlit but fades into the mist below the tops like the rock', () => {
+    const look = parseSoftLook({ sky: SKY, mist: { tint: '#ebebd6', from: 0.8, to: 14 } });
+    if (look === undefined) throw new Error('no look');
+    const misted = mistedUnlit(new THREE.MeshBasicMaterial({ color: '#8f93c2' }), look);
+    expect(misted).toBeInstanceOf(THREE.MeshBasicMaterial);
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: 'void main() {\n#include <project_vertex>\n}',
+      fragmentShader: 'void main() {\n#include <tonemapping_fragment>\n}',
+    };
+    misted.onBeforeCompile(
+      shader as unknown as THREE.WebGLProgramParametersWithUniforms,
+      undefined as never,
+    );
+    expect(shader.uniforms['mistTo']?.value).toBe(14);
+    expect(shader.fragmentShader).toContain('mistAmount');
+    expect(shader.vertexShader).toContain('vMistY');
   });
 
   it('the gong islands ship one', () => {
