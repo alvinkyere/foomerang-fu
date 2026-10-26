@@ -81,19 +81,21 @@ def gong(o, P, mat, root):
     w, h = o['width'], o['height']
     at = Vector((o['x'], o['y'], 0))
     bm = bmesh.new()
-    for s in (-1, 1):                                           # two posts, a beam with round ends
-        cylinder(bm, at + Vector((s * w * 0.4, 0, 0)), at + Vector((s * w * 0.4, 0, h - 0.4)), 0.34)
-    cylinder(bm, at + Vector((-w * 0.5, 0, h - 0.5)), at + Vector((w * 0.5, 0, h - 0.5)), 0.5, segments=14)
+    # two posts, a thick beam across their tops ending in round knobs over them (reference.png, 2026-10-25: the beam ~1.4
+    # units thick, its top ~15 px over the first build's, the knobs right over the posts, 155 px across in all)
     for s in (-1, 1):
-        sphere(bm, at + Vector((s * w * 0.5, 0, h - 0.5)), 0.62)
+        cylinder(bm, at + Vector((s * w * 0.4, 0, 0)), at + Vector((s * w * 0.4, 0, h)), 0.34)
+    cylinder(bm, at + Vector((-w * 0.4, 0, h)), at + Vector((w * 0.4, 0, h)), 0.7, segments=14)
+    for s in (-1, 1):
+        sphere(bm, at + Vector((s * w * 0.4, 0, h)), 0.8)
     paint(bm, P['gong_frame'])
     emit('GONG_frame', bm, mat, root)
-    bm = bmesh.new()                                            # the bell: a beehive of stacked rings, its mouth dark
+    bm = bmesh.new()                                            # the bell: a smooth wide dome, its mouth dark
     c = at + Vector((0, 0.05, h - 2.6))
-    profile = [(0.0, 0.0), (1.15, 0.05), (1.3, 0.35), (1.18, 0.55), (1.22, 0.75), (1.05, 1.0), (1.08, 1.2), (0.82, 1.45),
-               (0.84, 1.6), (0.45, 1.85), (0.0, 1.95)]
+    # (reference.png, 2026-10-25: from above its top reads as one light dome; the stacked rings first built drew stripes)
+    profile = [(0.0, 0.0), (1.2, 0.05), (1.32, 0.3), (1.25, 0.65), (1.08, 1.1), (0.8, 1.5), (0.42, 1.82), (0.0, 1.95)]
     lathe(bm, profile, 24, c)
-    paint(bm, P['gong_bell'], cut=(0.8, -0.3))
+    paint(bm, P['gong_bell'], cut=(0.6, -0.3))                  # (its top in the light: reference.png's ~10% #dddd7a)
     emit('GONG_bell', bm, mat, root)
     bm = bmesh.new()
     for s in (-1, 1):                                           # its cords
@@ -161,14 +163,17 @@ def hexplant(o, P, mat, root, k):
     w = o['width']
     hp = 0.6 * w                                               # its stems as long as the cluster is wide, nearly
     at = Vector((o['x'], o['y'], 0))
-    R = w / 8.5                                                # a plate's radius (the close-up: ~5 plates across)
+    # a plate's radius (the close-up: ~5 plates across; reference.png, 2026-10-25: the plates edge to edge, the cluster ~7%
+    # wider than first built)
+    R = w / 7.8
     bm = bmesh.new(); stems = bmesh.new(); dots = bmesh.new()
     plates = []
     for q in range(-5, 6):
         for r in range(-5, 6):
             x = R * math.sqrt(3) * (q + r / 2); y = R * 1.5 * r
-            if x * x + y * y <= (w / 2 - R * 0.3) ** 2:
+            if x * x + y * y <= (w / 2 + R * 0.1) ** 2:
                 plates.append((x, y))
+    dark = [rng.random() < 0.3 for _ in plates]                 # (reference.png: about a third of the plates darker)
     for i, (x, y) in enumerate(plates):
         z = hp + rng.uniform(-0.12, 0.12)
         c = at + Vector((x, y, z))
@@ -182,12 +187,13 @@ def hexplant(o, P, mat, root, k):
                      at + Vector((x * 1.05, y * 1.05, 0.0)), 0.05, 0.04, 5)
         if rng.random() < 0.35:
             sphere(dots, c + Vector((rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), 0.05)), 0.08, sz=0.5, segments=6, rings=3)
-    # plates: light at their middles, their mid tone at the rim
+    # plates: light at their middles, their mid tone at the rim; the darker ones dark all over (each plate six faces, in order)
     layer = bm.loops.layers.float_color.new('Col')
-    for f in bm.faces:
+    for n, f in enumerate(bm.faces):
         for loop in f.loops:
             centre = loop.vert.co.z > max(v.co.z for v in f.verts) - 1e-4 and len(loop.vert.link_faces) == 6
-            loop[layer] = lin(P['hexplant'][0] if centre else P['hexplant'][1])
+            tone = 2 if dark[n // 6] else 0 if centre else 1
+            loop[layer] = lin(P['hexplant'][tone])
     emit(f'HEXPLANT_{k}_plates', bm, mat, root)
     paint(stems, None, flat=P['hexplant'][2]); emit(f'HEXPLANT_{k}_stems', stems, mat, root)
     paint(dots, None, flat='#f4d98c'); emit(f'HEXPLANT_{k}_dots', dots, mat, root)

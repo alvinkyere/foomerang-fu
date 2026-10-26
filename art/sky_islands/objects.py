@@ -47,8 +47,12 @@ SEEN = [
     ('gong', (969, 502), 418, 135),
     ('maple', (487, -12), -123, 105), ('maple', (745, 399), 238, 148), ('maple', (1805, 273), 46, 170),
     ('maple', (287, 1027), 818, 152), ('maple_low', (1330, 486), 358, 182),
-    ('hexplant', (380, 478), 355, 118), ('hexplant', (730, 1023), 903, 119), ('hexplant', (1059, 113), 54, 80),
-    ('hexplant', (332, 799), 731, 83),
+    # (the hex plants' x: their clusters' middles in reference.png, 2026-10-25: 26-40 px left of where their feet had been
+    # read, at their stems)
+    ('hexplant', (354, 478), 355, 118), ('hexplant', (702, 1023), 903, 119), ('hexplant', (1059, 113), 54, 80),
+    ('hexplant', (292, 799), 731, 83),
+    # (the pots stand ~10 px over reference.png's and ~6 px right; left as they are, 2026-10-26: moved to the HQ's places
+    # the medium CPUs' rounds here ran slower, 30 -> 19 over 12 seeds, past what nudges that small do by chance, 21-27)
     ('pot', (430, 21), -18, 33), ('pot', (494, 48), 16, 23), ('pot', (458, 85), 46, 32), ('pot', (230, 118), 80, 28),
     ('pot', (255, 92), 58, 26), ('pot', (1085, 388), 352, 32), ('pot', (1125, 402), 374, 34), ('pot', (1482, 660), 625, 34),
     ('pot', (1525, 696), 656, 39), ('pot', (405, 1006), 958, 38),
@@ -63,11 +67,12 @@ SEEN = [
 ]
 # the spiral tiles: on the stone blocks' faces at the map's top corners, facing the camera (foot = their lower edge)
 TILES = [('tile_blue', (262, 60), 0, 72), ('tile_gold', (1555, 70), 0, 72)]   # (their blocks: layout.py)
-# (the maples' leaves: reference.png's own spread, 10th/50th/90th percentile, 2026-10-25; ours had run darker and lighter)
+# (the maples' leaves and the hex plants' plates: reference.png's own spread, 10th/50th/90th percentile, 2026-10-25; ours
+# had run darker and lighter, and paler)
 PALETTES = {                                   # light, mid, dark (sRGB)
-    'gong_frame': ['#4f527f', '#3f4267', '#313552'], 'gong_bell': ['#eff5a6', '#b0aa59', '#745f29'],
+    'gong_frame': ['#4f527f', '#3f4267', '#313552'], 'gong_bell': ['#dddd7a', '#b0aa59', '#745f29'],
     'maple': ['#cd695b', '#c1625f', '#bb5f5f'], 'trunk': ['#8f93c2', '#6f73a4', '#565a87'],
-    'hexplant': ['#bbecae', '#87d79e', '#6ec48f'], 'pot': ['#af7e6e', '#916251', '#6a4a3b'],
+    'hexplant': ['#8ddea2', '#7ed39a', '#6bc691'], 'pot': ['#af7e6e', '#916251', '#6a4a3b'],
     'crate': ['#ad8189', '#926676', '#73556a'], 'aloe': ['#b8e39a', '#79b37c', '#4f8a5f'],
     'aloe_pot': ['#8d90b5', '#6d7099', '#53567a'], 'bamboo': ['#c3f097', '#99d46c', '#6bb057'],
     'tuft': ['#9fbe71', '#86a85c', '#6e8d4a'], 'tile_blue': ['#22dcf3', '#137ba7', '#3b3f71'],
