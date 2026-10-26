@@ -21,10 +21,14 @@ O = json.load(open('art/sky_islands/objects.json'))['objects']
 w = lambda X, Y: (round((X - X0) * S, 1), round((Y1 - Y) * S, 1))
 WIDTH, HEIGHT = round((40 - X0) * S), round((Y1 - 49) * S)
 
-ground = [[w(x, y) for x, y in o] for o in L['islands'].values()]
+# the ground is what is drawn to stand on (owner, 2026-10-26: "I slip through the ground"): each island's whole top, its
+# lavender lip too (layout.py's bodies), and each landing's whole top, its round too (its outline); the islands as measured
+# and the landings' flat tops had left gaps where they met (a quarter unit at the log bridge's west end, half a unit at the
+# south bridge's), which the bridges did not cover. Islands that overlap are one body.
+ground = [[w(x, y) for x, y in o] for o in L['bodies']]
 ground += [[w(x, y) for x, y in b['corners']] for b in L['bridges'].values()]
-# the stone landings the bridges rest on, level with the grass (layout.py): walked on as the HQ's players do
-ground += [[w(x, y) for x, y in L['blocks'][i]['top']] for i in L['landings']]
+# the stone landings the bridges rest on, a little over the grass (layout.py): walked on as the HQ's players do
+ground += [[w(x, y) for x, y in L['blocks'][i]['outline']] for i in L['landings']]
 
 
 def turned(points, id_, kind):
