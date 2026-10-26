@@ -95,8 +95,8 @@
       "facing": -48.0,
       "lean": 10.0,
       "turn": 8.25,
-      "radius": 1.6,
-      "navy": 2.0,
+      "radius": 1.49,
+      "navy": 1.86,
       "back": 1.0
     },
     {
@@ -105,8 +105,8 @@
       "facing": -74.7,
       "lean": 9.7,
       "turn": 17.5,
-      "radius": 1.27,
-      "navy": 1.6,
+      "radius": 1.18,
+      "navy": 1.49,
       "back": 1.0
     },
     {

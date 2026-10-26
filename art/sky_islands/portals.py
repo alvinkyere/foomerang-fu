@@ -53,8 +53,8 @@ SIDES = '#363e76'
 # ((1524,30), (1546,7), (1576,9), (1579,28), (1572,40), (1530,53): its colour alone runs into its outline on the grass), the
 # pose through them within 4 px a corner, straight out of its rock; the outlines from the 9:30-9:44 stack (the near corner at the tile's foot)
 PORTALS = [
-    dict(colour='blue', centre=[-27.53, 97.75, 1.64], facing=-48.0, lean=10.0, turn=8.25, radius=1.6, navy=2.0, back=1.0),
-    dict(colour='gold', centre=[23.68, 97.11, 1.73], facing=-74.7, lean=9.7, turn=17.5, radius=1.27, navy=1.6, back=1.0),
+    dict(colour='blue', centre=[-27.53, 97.75, 1.64], facing=-48.0, lean=10.0, turn=8.25, radius=1.49, navy=1.86, back=1.0),
+    dict(colour='gold', centre=[23.68, 97.11, 1.73], facing=-74.7, lean=9.7, turn=17.5, radius=1.18, navy=1.49, back=1.0),
 ]
 
 
@@ -62,6 +62,8 @@ PORTALS = [
 # homography; 2026-10-26, in place of first estimates): seen from behind, each a hollow outline of its colour, no navy. The
 # blue's six corners read by hand ((1250,846), (1258,856), (1300,826), (1311,804), (1303,800), (1282,805)), its pose through
 # them within 6 px a corner; the gold's outline fitted whole (1.2 px)
+# (the top two 7% smaller, 2026-10-26: as the game draws them, their faces covered 15-17% more of reference.png than the
+# HQ's, the swirl, ring and bevel now on them)
 PORTALS += [
     # (the blue's face turned to the other side of its plane: the fit cannot tell them apart, and the HQ shows it hollow, from
     # behind; its ring still goes out away from its block: ring_away)
