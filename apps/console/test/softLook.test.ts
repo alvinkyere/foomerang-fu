@@ -85,11 +85,23 @@ describe('a map’s soft look', () => {
     expect(() => parseSoftLook({ ...base, colours: { 'Sky Rock!': '#b5c3df' } })).toThrow(/look/);
   });
 
+  it('its mist may carry a lit band under the tops (lip: how deep, how much lighter); a bad one is refused', () => {
+    const mist = { tint: '#ebebd6', from: 0.8, to: 14 };
+    expect(
+      parseSoftLook({ sky: SKY, mist: { ...mist, lip: { depth: 2.5, lift: 0.1 } } })?.mist.lip,
+    ).toEqual({
+      depth: 2.5,
+      lift: 0.1,
+    });
+    for (const lip of [{ depth: 0, lift: 0.1 }, { depth: 2, lift: -0.2 }, { depth: 2 }])
+      expect(() => parseSoftLook({ sky: SKY, mist: { ...mist, lip } })).toThrow(/look/);
+  });
+
   it('the gong islands ship one', () => {
     const manifest = JSON.parse(
       readFileSync(join(process.cwd(), 'public/maps/gong_islands/manifest.json'), 'utf8'),
     ) as { look?: unknown };
-    expect(parseSoftLook(manifest.look)?.mist.tint).toBe('#ebf1e8');
+    expect(parseSoftLook(manifest.look)?.mist.tint).toBe('#e5e8ee');
     expect(parseSoftLook(manifest.look)?.light?.sun).toBeGreaterThan(0);
   });
 });

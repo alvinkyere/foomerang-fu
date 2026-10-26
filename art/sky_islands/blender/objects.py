@@ -130,7 +130,7 @@ def maple(o, P, mat, root, k):
     emit(f'MAPLE_{k}_trunk', bm, mat, root)
     bm = bmesh.new()
     for j, tip in enumerate(tips):
-        r = w * rng.uniform(0.19, 0.24)
+        r = w * rng.uniform(0.175, 0.22)                           # (reference.png's crowns: ~20% less leaf on screen)
         # a ragged clump, not a disc (the HQ's caps: lumpy, jagged outlines): the rim pushed in and out round the cap by a few
         # waves and a little noise, the top raised in bumps, the fringe's leaves each their own length
         ph = [rng.uniform(0, 2 * math.pi) for _ in range(3)]

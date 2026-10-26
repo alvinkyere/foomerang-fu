@@ -63,9 +63,10 @@ SEEN = [
 ]
 # the spiral tiles: on the stone blocks' faces at the map's top corners, facing the camera (foot = their lower edge)
 TILES = [('tile_blue', (262, 60), 0, 72), ('tile_gold', (1555, 70), 0, 72)]   # (their blocks: layout.py)
+# (the maples' leaves: reference.png's own spread, 10th/50th/90th percentile, 2026-10-25; ours had run darker and lighter)
 PALETTES = {                                   # light, mid, dark (sRGB)
     'gong_frame': ['#4f527f', '#3f4267', '#313552'], 'gong_bell': ['#eff5a6', '#b0aa59', '#745f29'],
-    'maple': ['#d46a5c', '#ca6358', '#a95454'], 'trunk': ['#8f93c2', '#6f73a4', '#565a87'],
+    'maple': ['#cd695b', '#c1625f', '#bb5f5f'], 'trunk': ['#8f93c2', '#6f73a4', '#565a87'],
     'hexplant': ['#bbecae', '#87d79e', '#6ec48f'], 'pot': ['#af7e6e', '#916251', '#6a4a3b'],
     'crate': ['#ad8189', '#926676', '#73556a'], 'aloe': ['#b8e39a', '#79b37c', '#4f8a5f'],
     'aloe_pot': ['#8d90b5', '#6d7099', '#53567a'], 'bamboo': ['#c3f097', '#99d46c', '#6bb057'],

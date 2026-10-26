@@ -165,13 +165,15 @@ grass = rounded(mask, 0.0, CORNER)
 bodies = rounded(mask, RIM, CORNER + RIM)
 # the blocks the bridges rest on (the opening frame: the planks and logs run onto them; built flush with the bridges as
 # their landings), and the one in the seam where the north bar's lobe meets the tilted island; all walked over, not walls
-PIERS = {'bridges': [15], 'seam': [1]}
+# (block 6 too, 2026-10-25: the stone the log bridge's west end rests on, east of the centre island's grass, x 1238-1302,
+# y 451-603 in reference.png: lit lavender stone, not grass, the logs starting past it)
+PIERS = {'bridges': [15, 6], 'seam': [1]}
 # not blocks at all (2026-10-25: every block's top and footprint cast back over reference.png): 3, 5 and 10 are the lit
 # lavender lips and faces of the north bar, the tilted island and the east island; 6 and 7, the "landings" at the log
 # bridge's ends, are the centre and east islands' own rims where the logs meet them. Kept in the list (their numbers name
 # the others) but dropped from the model and the rules
 NOT_BLOCKS = {3: 'the north bar\'s lip', 5: 'the tilted island\'s face', 10: 'the east island\'s lip',
-              6: 'the centre island\'s rim under the logs', 7: 'the east island\'s rim under the logs'}
+              7: 'the east island\'s rim under the logs'}
 for i, why in NOT_BLOCKS.items(): blocks[i]['not_a_block'] = why
 # the landings are level with the grass, not 2.5 units up (2026-10-23: ff physics hq 2.mp4 7:28-7:36, the log bridge meets the
 # centre island at the grass, no tall block; players stand where the south bridge lands, 7:54 and 8:22): their tops cast

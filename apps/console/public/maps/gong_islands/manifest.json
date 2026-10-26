@@ -44,9 +44,13 @@
       }
     ],
     "mist": {
-      "tint": "#ebf1e8",
+      "tint": "#e5e8ee",
       "from": 0.14,
-      "to": 19.2
+      "to": 19.2,
+      "lip": {
+        "depth": 1.5,
+        "lift": 0.11
+      }
     },
     "light": {
       "ambient": 0.52,

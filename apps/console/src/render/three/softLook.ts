@@ -23,9 +23,15 @@ export interface SoftLook {
   /**
    * Below the tops the rock fades: from `from` units down it turns toward the sky behind it tinted by `tint` (multiplied: the
    * HQ's is a warm light grey high on the screen, a light green low down, as the sky there is), and by `to` units down it is
-   * the sky itself.
+   * the sky itself. `lip` (optional): a lit band under the tops, `lift` lighter at the top and none by `depth` units down
+   * (the HQ's faces: lighter just under the lip, darker below it, before the mist takes them).
    */
-  readonly mist: { readonly tint: string; readonly from: number; readonly to: number };
+  readonly mist: {
+    readonly tint: string;
+    readonly from: number;
+    readonly to: number;
+    readonly lip?: { readonly depth: number; readonly lift: number };
+  };
   /**
    * The light (optional; absent: the fitted defaults below): the ambient and the sun in units of π (1 lights a surface facing
    * it to its own colour), and the direction toward the sun (scene axes: x east, y up, z toward the viewer).
@@ -54,7 +60,7 @@ const TOWARD_SUN = new THREE.Vector3(-0.493, 0.789, 0.362).normalize();
 export function parseSoftLook(raw: unknown): SoftLook | undefined {
   if (raw === undefined) return undefined;
   const mist = (raw as { mist?: unknown } | null)?.mist as
-    { tint?: unknown; from?: unknown; to?: unknown } | undefined;
+    { tint?: unknown; from?: unknown; to?: unknown; lip?: unknown } | undefined;
   const sky = (raw as { sky?: unknown } | null)?.sky;
   const hex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
   const stops =
@@ -76,6 +82,15 @@ export function parseSoftLook(raw: unknown): SoftLook | undefined {
     !Number.isFinite(mist.from) ||
     !Number.isFinite(mist.to) ||
     !(mist.to > mist.from)
+  )
+    throw new Error('plaza manifest: bad look');
+  const lip = mist.lip as { depth?: unknown; lift?: unknown } | undefined;
+  if (
+    lip !== undefined &&
+    (typeof lip.depth !== 'number' ||
+      typeof lip.lift !== 'number' ||
+      !(lip.depth > 0 && lip.depth < 50) ||
+      !(lip.lift >= 0 && lip.lift <= 1))
   )
     throw new Error('plaza manifest: bad look');
   const light = (raw as { light?: unknown }).light as
@@ -103,7 +118,14 @@ export function parseSoftLook(raw: unknown): SoftLook | undefined {
   return {
     ...(colours === undefined ? {} : { colours: { ...(colours as Record<string, string>) } }),
     sky: stops.map((stop) => ({ at: stop.at as number, colour: stop.colour as string })),
-    mist: { tint: mist.tint, from: mist.from, to: mist.to },
+    mist: {
+      tint: mist.tint,
+      from: mist.from,
+      to: mist.to,
+      ...(lip === undefined
+        ? {}
+        : { lip: { depth: lip.depth as number, lift: lip.lift as number } }),
+    },
     ...(light === undefined
       ? {}
       : {
@@ -182,6 +204,8 @@ export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THR
     shader.uniforms['mistTint'] = { value: new THREE.Color(look.mist.tint) };
     shader.uniforms['mistFrom'] = { value: look.mist.from };
     shader.uniforms['mistTo'] = { value: look.mist.to };
+    shader.uniforms['lipDepth'] = { value: look.mist.lip?.depth ?? 1 };
+    shader.uniforms['lipLift'] = { value: look.mist.lip?.lift ?? 0 };
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'varying float vMistY;\nvarying float vSkyT;\nvoid main() {')
       .replace(
@@ -199,6 +223,8 @@ export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THR
           'uniform vec3 mistTint;',
           'uniform float mistFrom;',
           'uniform float mistTo;',
+          'uniform float lipDepth;',
+          'uniform float lipLift;',
           'vec3 skyHere(float t) {',
           '  vec3 c = skyColour[0];',
           '  for (int i = 1; i < 4; i++) c = mix(c, skyColour[i], clamp((t - skyAt[i - 1]) / max(skyAt[i] - skyAt[i - 1], 1e-4), 0.0, 1.0));',
@@ -210,6 +236,8 @@ export function softMaterial(m: THREE.MeshStandardMaterial, look: SoftLook): THR
       .replace(
         '#include <tonemapping_fragment>',
         [
+          // (the lit band under the tops: not on the tops themselves, at the ground's height)
+          'gl_FragColor.rgb *= 1.0 + lipLift * step(0.05, -vMistY) * (1.0 - smoothstep(0.0, lipDepth, -vMistY));',
           'float mistAmount = smoothstep(mistFrom, mistTo, -vMistY);',
           'vec3 sky = skyHere(vSkyT);',
           'vec3 mistHere = mix(sky * mistTint, sky, smoothstep(mistFrom + (mistTo - mistFrom) * 0.45, mistTo, -vMistY));',

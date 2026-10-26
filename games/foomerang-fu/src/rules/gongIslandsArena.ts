@@ -100,6 +100,12 @@ export const GONG_ISLANDS_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
     { x: 855.2, y: 1297.9 },
     { x: 632.3, y: 1297.9 },
   ]),
+  Object.freeze([
+    { x: 1218.5, y: 785.1 },
+    { x: 1219.0, y: 961.8 },
+    { x: 1228.6, y: 968.9 },
+    { x: 1281.9, y: 806.3 },
+  ]),
 ]);
 
 export const GONG_ISLANDS_WALLS: readonly GongIslandsWall[] = Object.freeze([

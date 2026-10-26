@@ -34,7 +34,9 @@ manifest = {
              # the light and the fog fitted to the HQ (2026-10-25): coordinate descent over real game screenshots, each scored
              # on reference.png's rock pixels (mean colour error, a 4 px slip forgiven: 41.2 -> 35.4); the rock's and the
              # blocks' colours (blender/build.py) came out where they were
-             'mist': {'tint': '#ebf1e8', 'from': 0.14, 'to': 19.2},
+             # (the lit band under the tops and the tint refitted 2026-10-25 with the comparison mapping the game's view box
+             # straight onto the HQ frame: 30.86 -> 30.25)
+             'mist': {'tint': '#e5e8ee', 'from': 0.14, 'to': 19.2, 'lip': {'depth': 1.5, 'lift': 0.11}},
              'light': {'ambient': 0.52, 'sun': 0.4812, 'toward': [-0.0949, 0.9111, 0.4012]}},
     'characters': plaza['characters'],
     'provenance': 'art/sky_islands (register.py, calibrate.py, layout.py, objects.py, arena.py, blender/build.py, '
