@@ -76,7 +76,9 @@ BRIDGES = {
     'north': dict(kind='planks', corners=[(-2.75, 82.5), (3.05, 82.5), (3.05, 91.3), (-2.75, 91.3)], along=90.0),
     # (its south end at its stone landing, which carries on to the southwest island: reference.png, the planks stop where
     # the landing's top begins)
-    'south': dict(kind='planks', corners=[(-8.5, 60.1), (-2.8, 60.1), (-2.8, 67.2), (-8.5, 67.2)], along=90.0),
+    # (0.8 units west of the first measure, 2026-10-25: reference.png's planks x 694-859 at y 740-830 cast back at the deck,
+    # X -9.3 to -3.55; the deck draws ~0.2 inside these corners)
+    'south': dict(kind='planks', corners=[(-9.45, 60.1), (-3.3, 60.1), (-3.3, 67.2), (-9.45, 67.2)], along=90.0),
     # logs side by side, each lying across the way (from the centre island east to the east island)
     'east': dict(kind='logs', corners=[(10.0, 71.15), (19.6, 68.54), (21.7, 73.74), (12.1, 76.75)], along=-17.5),
 }
@@ -183,13 +185,16 @@ for i, why in NOT_BLOCKS.items(): blocks[i]['not_a_block'] = why
 LANDING_H = 0.4
 # its top seen in the opening frame, measured by hand (the segmentation took in the island's lip beside it): x 640-875, from
 # the bridge's end (y 858) to its near edge (y 895)
-blocks[15]['quad'] = [[645, 858], [870, 858], [876, 895], [640, 895]]
+# (and on its east side it carries on south beside the southwest island's grass: its lit top, #9fabe0, x 805-870 down to
+# y 955; 2026-10-25)
+blocks[15]['quad'] = [[645, 858], [870, 858], [872, 955], [812, 955], [803, 900], [640, 895]]
 for i in PIERS['bridges']:
     blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], LANDING_H)]
     blocks[i]['height'] = LANDING_H
 # the stones standing on the grass, each its own height: its front face's length down to the grass in reference.png (a unit
 # of height shows ~16 px there): 1 37 px, 2 52, 4 34, 11 35. Each top is cast back again at its own height
-HEIGHTS = {1: 2.3, 2: 3.2, 4: 2.1, 11: 2.2}
+# (0, its top cut by the frame's edge, from where its face meets the grass instead: y 125 at x 1340, 2026-10-25)
+HEIGHTS = {0: 4.0, 1: 2.3, 2: 3.2, 4: 2.1, 11: 2.2}
 for i, h in HEIGHTS.items():
     blocks[i]['top'] = [list(map(float, np.round(p, 2))) for p in unproject(blocks[i]['quad'], h)]
     blocks[i]['height'] = h
