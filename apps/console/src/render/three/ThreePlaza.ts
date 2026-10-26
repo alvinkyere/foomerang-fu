@@ -39,7 +39,7 @@ import {
   type CameraMotion,
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
-import { parsePortalSpin, spinAt, type PortalSpin } from './portalSpin';
+import { frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1241,11 +1241,11 @@ class Plaza {
     });
     // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
     // objects that never move, fade or break into one; crates and pots (they break), the water and the portals' turning "G"
-    // stay as they are
+    // and moving ring stay as they are
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_\d+_glyph$/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_\d+_(glyph|glyph_next|ring)$/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1366,9 +1366,39 @@ class Plaza {
         },
       });
     }
-    // the portals' "G", each turning in its face's plane (its local Y: the face's normal, art/sky_islands/blender/portals.py)
+    // the portals' swirl: played frame by frame from its atlas, the next frame fading in over the one shown (the HQ's is not
+    // a rigid shape turning); without frames, the "G" turning in its face's plane (its local Y: the face's normal)
     const spin = this.#portalSpin;
-    if (spin !== undefined)
+    const frames = spin?.frames;
+    if (spin !== undefined && frames !== undefined)
+      gltf.traverse((o) => {
+        const which = /^PORTAL_\d+_glyph(_next)?$/.exec(o.name);
+        if (!(o instanceof THREE.Mesh) || which === null) return;
+        const next = which[1] !== undefined;
+        const material = o.material as THREE.MeshBasicMaterial;
+        if (material.map === null) return;
+        const map = material.map.clone(); // (its own: each disc shows its own cell)
+        material.map = map;
+        if (next) {
+          material.transparent = true;
+          material.depthWrite = false;
+        }
+        const show = (cell: number) =>
+          map.offset.set(
+            (cell % frames.columns) / frames.columns,
+            Math.floor(cell / frames.columns) / frames.rows,
+          );
+        this.#moving.push({
+          object: o,
+          motion: (t) => {
+            const f = frameAt(spin, t);
+            if (f === undefined) return;
+            show(next ? f.to : f.from);
+            if (next) material.opacity = f.mix;
+          },
+        });
+      });
+    else if (spin !== undefined)
       gltf.traverse((o) => {
         if (!/^PORTAL_\d+_glyph$/.test(o.name)) return;
         const rest = o.quaternion.clone();
@@ -1381,6 +1411,33 @@ class Plaza {
           },
         });
       });
+    // their rings, out along the face's normal (the ring's local Y) and up, fading; built where they rest at the curve's start
+    if (spin?.ring !== undefined) {
+      const first = spin.ring[0];
+      gltf.traverse((o) => {
+        if (!(o instanceof THREE.Mesh) || !/^PORTAL_\d+_ring$/.test(o.name) || first === undefined)
+          return;
+        const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(o.quaternion);
+        const origin = o.position
+          .clone()
+          .addScaledVector(normal, -first[1])
+          .add(new THREE.Vector3(0, -first[2], 0));
+        const material = o.material as THREE.MeshBasicMaterial;
+        material.transparent = true;
+        material.depthWrite = false;
+        this.#moving.push({
+          object: o,
+          motion: (t) => {
+            const r = ringAt(spin, t);
+            if (r === undefined) return;
+            o.position.copy(origin).addScaledVector(normal, r.out);
+            o.position.y += r.up;
+            material.opacity = r.opacity;
+            o.visible = r.opacity > 0.01;
+          },
+        });
+      });
+    }
   }
 
   show(view: ArenaView): void {

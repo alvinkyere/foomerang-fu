@@ -38,8 +38,8 @@ manifest = {
              # straight onto the HQ frame: 30.86 -> 30.25)
              'mist': {'tint': '#e5e8ee', 'from': 0.14, 'to': 19.2, 'lip': {'depth': 1.5, 'lift': 0.11}},
              'light': {'ambient': 0.52, 'sun': 0.4812, 'toward': [-0.0949, 0.9111, 0.4012]}},
-    # the portals' "G" turning (portals.py measures it; render/three/portalSpin.ts plays it)
-    'portals': {k: json.load(open('art/sky_islands/portals.json'))[k] for k in ('period', 'spin')},
+    # the portals' "G" turning and their ring (portals.py measures them; render/three/portalSpin.ts plays them)
+    'portals': {k: json.load(open('art/sky_islands/portals.json'))[k] for k in ('period', 'spin', 'ring', 'frames')},
     'characters': plaza['characters'],
     'provenance': 'art/sky_islands (register.py, calibrate.py, layout.py, objects.py, arena.py, blender/build.py, '
                   'package.py) from the HQ videos: foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq 2.mp4 7:24-8:43',

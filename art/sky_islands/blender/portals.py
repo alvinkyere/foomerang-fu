@@ -1,14 +1,19 @@
 """The gong islands' portals (portals.py measures them; build.py calls this): each a thick hexagonal tile standing out of its
-rock's face, its "G" swirl a separate plane the game turns (PORTAL_<k>_glyph: its local Z the face's normal, its origin the
-face's centre), and the hexagon lying flat on the grass in front as a thin outline (PORTAL_<k>_ghost). Unlit, as the
+rock's face, its swirl two discs the game plays frame by frame (PORTAL_<k>_glyph, _glyph_next: their local Z the face's normal, their origin the
+face's centre), and a ring, the face's outline, in front of it (PORTAL_<k>_ring: the game moves and fades it). Unlit, as the
 video's objects are (glTF KHR_materials_unlit)."""
-import bpy, bmesh, math
+import bpy, bmesh, math, os
 from mathutils import Vector, Matrix
 
 
+def linear(h):
+    """A colour for a shader node (Blender's node colours are linear; the glTF export writes them back as the hex)."""
+    return [(int(h[i:i + 2], 16) / 255) ** 2.2 for i in (1, 3, 5)] + [1.0]
+
+
 def hexcol(h):
-    # (as written: the export and the game take these as they are; made linear here they had come out a gamma too dark,
-    # the gold face #e78c17 for #f4c256)
+    # (for an image's pixels, which are as shown: made linear these had come out a gamma too dark, the gold face #e78c17
+    # for #f4c256; plain colours on shader nodes are linear: `linear`)
     return [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)] + [1.0]
 
 
@@ -17,7 +22,7 @@ def unlit(name, colour, image=None, alpha=None, opaque=False):
     for nd in list(nt.nodes):
         if nd.type != 'OUTPUT_MATERIAL': nt.nodes.remove(nd)
     out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
-    bg = nt.nodes.new('ShaderNodeBackground'); bg.inputs['Color'].default_value = hexcol(colour)
+    bg = nt.nodes.new('ShaderNodeBackground'); bg.inputs['Color'].default_value = linear(colour)
     if image is not None and opaque:
         tex = nt.nodes.new('ShaderNodeTexImage'); tex.image = image
         nt.links.new(tex.outputs['Color'], bg.inputs['Color']); nt.links.new(bg.outputs[0], out.inputs['Surface'])
@@ -40,36 +45,6 @@ def unlit(name, colour, image=None, alpha=None, opaque=False):
     return m
 
 
-def glyph_image(name, outline, colours, face, N=512):
-    """The "G" drawn crisp (4x supersampled) on the face's colour; darker toward its lower left (the HQ's). Opaque: it is
-    shown on a disc inside the face's hexagon, so turning it never shows the disc."""
-    S = 4 * N
-    inside = []
-    poly = [((x + 1.28) / 2.56 * S, (1.28 - y) / 2.56 * S) for x, y in outline]   # the plane spans +-1.28 face radii
-
-    def contains(px, py):
-        hit = False
-        for (ax, ay), (bx, by) in zip(poly, poly[1:] + poly[:1]):
-            if (ay > py) != (by > py) and px < (bx - ax) * (py - ay) / (by - ay) + ax: hit = not hit
-        return hit
-    c1, c2, bgc = hexcol(colours[0]), hexcol(colours[1]), hexcol(face)
-    im = bpy.data.images.new(name, N, N)
-    px = bgc * (N * N)
-    for j in range(N):
-        for i in range(N):
-            cov = 0
-            for sj in range(4):
-                for si in range(4):
-                    cov += contains(i * 4 + si + 0.5, (N - 1 - j) * 4 + sj + 0.5)
-            if cov == 0: continue
-            t = min(1.0, max(0.0, (i + j) / (2 * N))); a = cov / 16
-            k = (j * N + i) * 4
-            g = [c2[q] + (c1[q] - c2[q]) * t for q in range(3)]
-            px[k:k + 4] = [bgc[q] * (1 - a) + g[q] * a for q in range(3)] + [1.0]
-    im.pixels = px; im.pack()
-    return im
-
-
 def frame_of(p):
     """The face's axes in the world: n out of the rock (toward `facing`, leaned back by `lean`), s along the face (to the right
     seen from in front), u up the face; s and u turned in the face by `turn` (anticlockwise seen from in front)."""
@@ -86,7 +61,7 @@ def build(data, parent):
     for k, p in enumerate(data['portals']):
         pal = data['palettes'][p['colour']]
         n, s, u = frame_of(p)
-        c = Vector(p['centre']); R = p['radius']; d = p['depth']
+        c = Vector(p['centre']); R = p['radius']; d = p['back']
         corner = lambda j, r: s * (r * math.cos(math.radians(90 + 60 * j))) + u * (r * math.sin(math.radians(90 + 60 * j)))
         # (2026-10-26, ff physics hq 2.mp4 8:04-8:06: seen from behind, a portal is a hollow hexagon of its colour, no navy:
         # the navy is the rock's, a hexagon on its face behind the tile; the tile's face and its swirl show from in front only,
@@ -111,40 +86,67 @@ def build(data, parent):
             mat.use_backface_culling = front_only
             me.materials.append(mat)
             ob = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
-        hexmesh(f'PORTAL_{k}_backing', (0, R * 1.18), c - n * d, True, colour=sides)          # the rock's navy, behind
+        # the rock's navy: a hexagonal slab standing out of the rock's face to just behind the tile, bigger than it (the HQ: a
+        # thick navy border all round the face, deepest at its lower left, where the slab's side shows)
+        bm = bmesh.new()
+        RB = p['navy']
+        fr = [bm.verts.new(c - n * 0.02 + corner(j, RB)) for j in range(6)]
+        bk = [bm.verts.new(c - n * d + corner(j, RB)) for j in range(6)]
+        bm.faces.new(fr)
+        for j in range(6): bm.faces.new((fr[j], bk[j], bk[(j + 1) % 6], fr[(j + 1) % 6]))
+        bm.normal_update()
+        for f in bm.faces:
+            if f.normal.dot(n) < -0.9: f.normal_flip()
+        cen = c - n * (d / 2)
+        for f in bm.faces:
+            if f.normal.dot(f.calc_center_median() - cen) < 0: f.normal_flip()
+        me = bpy.data.meshes.new(f'PORTAL_{k}_backing'); bm.to_mesh(me); bm.free()
+        nm = unlit(f'portal_{k}_backing', sides); nm.use_backface_culling = True; me.materials.append(nm)
+        ob = bpy.data.objects.new(f'PORTAL_{k}_backing', me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
         hexmesh(f'PORTAL_{k}', (0, R * 0.86), c, True, image=images[('solid', key0)])        # the tile's face
         hexmesh(f'PORTAL_{k}_rim', (R * 0.86, R), c + n * 0.005, False, image=images[('solid', key0)])   # its rim
-        # the swirl: a square plane just in front of the face, its own object so the game can turn it about its local Z
+        # the swirl: a disc just in front of the face showing one cell of its colour's atlas (portals.py draws it: the HQ's
+        # swirl frame by frame), and a second just in front of that, for the next frame fading in; their own objects at the
+        # model's top level (the game merges whatever never moves, and finds these to play them), the first cell's UVs
         key = p['colour']
-        if key not in images: images[key] = glyph_image(f'portal_glyph_{key}', data['glyph'], pal['glyph'], pal['face'])
-        h = 1.28 * R; rd = 0.84 * R                                 # (the image spans +-h; the disc, inside the hexagon)
-        bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
-        mid = bm.verts.new((0, 0, 0))
-        ring = [bm.verts.new((rd * math.cos(2 * math.pi * j / 48), rd * math.sin(2 * math.pi * j / 48), 0)) for j in range(48)]
-        for j in range(48):
-            f = bm.faces.new((mid, ring[j], ring[(j + 1) % 48]))
-            for loop in f.loops: loop[uvl].uv = (0.5 + loop.vert.co.x / (2 * h), 0.5 + loop.vert.co.y / (2 * h))
-        me = bpy.data.meshes.new(f'PORTAL_{k}_glyph'); bm.to_mesh(me); bm.free()
-        gm = unlit(f'portal_{k}_glyph', '#ffffff', image=images[key], opaque=True); gm.use_backface_culling = True
-        me.materials.append(gm)
-        # (at the model's top level, not under `parent`: the game merges whatever never moves, and finds this to turn it)
-        ob = bpy.data.objects.new(f'PORTAL_{k}_glyph', me); bpy.context.scene.collection.objects.link(ob)
-        ob.matrix_world = Matrix.Translation(c + n * 0.02) @ Matrix((s, u, n)).transposed().to_4x4()
-        # the outline on the grass: the face's hexagon laid flat in front of the tile, `ghost` placing it from the tile's
-        # bottom corner: forward (out of the rock) and right, its radius and its turn
-        foot = c + corner(3, R)                                     # (corner 3: the bottom one)
-        g = p['ghost']
-        nh = Vector((n.x, n.y, 0.0)).normalized(); sh = Vector((0.0, 0.0, 1.0)).cross(nh)
-        centre = Vector((foot.x, foot.y, 0.03)) + nh * g['forward'] + sh * g['right']
-        R_g, turn_g = g['radius'], g['turn']
+        if key not in images:
+            images[key] = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                            f'portal_glyph_{key}.png'))
+            images[key].pack()
+        fr = data['frames']; cw, chh = 1 / fr['columns'], 1 / fr['rows']
+        # (PORTAL_CELL in the environment: show that frame, for a still render to compare; the game picks its own)
+        cell = int(os.environ.get('PORTAL_CELL', '0')); cu, cv = (cell % fr['columns']) * cw, (cell // fr['columns']) * chh
+        h = 1.28 * R; rd = 0.84 * R                                 # (a cell spans +-h; the disc, inside the hexagon)
+        for name, ahead in ((f'PORTAL_{k}_glyph', 0.02), (f'PORTAL_{k}_glyph_next', 0.025)):
+            bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
+            mid = bm.verts.new((0, 0, 0))
+            ring = [bm.verts.new((rd * math.cos(2 * math.pi * j / 48), rd * math.sin(2 * math.pi * j / 48), 0)) for j in range(48)]
+            for j in range(48):
+                f = bm.faces.new((mid, ring[j], ring[(j + 1) % 48]))
+                for loop in f.loops:
+                    loop[uvl].uv = (cu + (0.5 + loop.vert.co.x / (2 * h)) * cw, 1 - cv - chh + (0.5 + loop.vert.co.y / (2 * h)) * chh)
+            me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+            gm = unlit(name.lower(), '#ffffff', image=images[key], opaque=True); gm.use_backface_culling = True
+            me.materials.append(gm)
+            ob = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(ob)
+            # (turned in the face by data['swirl_turn'] for its colour, anticlockwise seen from in front: the atlas is drawn in the frame the HQ's
+            # face was unskewed into, which sits that far round from the tile's own)
+            st = math.radians(data['swirl_turn'][p['colour']])
+            ss, uu = s * math.cos(st) + u * math.sin(st), -s * math.sin(st) + u * math.cos(st)
+            ob.matrix_world = Matrix.Translation(c + n * ahead) @ Matrix((ss, uu, n)).transposed().to_4x4()
+        # the ring (portals.py's RING): the face's hexagon outline in the face's plane, its own object at the model's top level
+        # (the game moves it out along its local Z, the face's normal, and up, and fades it); built where it rests, at the
+        # curve's start, so a game that does not move it still draws it where the HQ shows it most
+        r0 = data['ring'][0]
+        rest = c + n * r0[1] + Vector((0.0, 0.0, r0[2]))
         bm = bmesh.new()
-        w = 0.05
+        w = 0.06 * R                                                # (its line: ~6% of the face's radius, the HQ's 2-3 px)
         for j in range(6):
-            a0, a1 = math.radians(turn_g + 60 * j), math.radians(turn_g + 60 * (j + 1))
-            def flat(a, r): return centre + nh * (r * math.cos(a)) + sh * (r * math.sin(a))
-            o0, o1, i0, i1 = flat(a0, R_g), flat(a1, R_g), flat(a0, R_g - w * 2), flat(a1, R_g - w * 2)
-            bm.faces.new([bm.verts.new(v) for v in (o0, o1, i1, i0)])
-        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
-        me = bpy.data.meshes.new(f'PORTAL_{k}_ghost'); bm.to_mesh(me); bm.free()
-        me.materials.append(unlit(f'portal_{k}_ghost', pal['ghost']))
-        ob = bpy.data.objects.new(f'PORTAL_{k}_ghost', me); bpy.context.scene.collection.objects.link(ob); ob.parent = parent
+            a0, a1 = math.radians(90 + 60 * j), math.radians(90 + 60 * (j + 1))
+            def at(a, rr): return Vector((rr * math.cos(a), rr * math.sin(a), 0.0))
+            bm.faces.new([bm.verts.new(v) for v in (at(a0, R), at(a1, R), at(a1, R - w), at(a0, R - w))])
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+        me = bpy.data.meshes.new(f'PORTAL_{k}_ring'); bm.to_mesh(me); bm.free()
+        me.materials.append(unlit(f'portal_{k}_ring', pal['ghost']))
+        ob = bpy.data.objects.new(f'PORTAL_{k}_ring', me); bpy.context.scene.collection.objects.link(ob)
+        ob.matrix_world = Matrix.Translation(rest) @ Matrix((s, u, n)).transposed().to_4x4()
