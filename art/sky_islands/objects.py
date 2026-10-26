@@ -67,7 +67,8 @@ SEEN = [
     ('tuft', (1355, 144), None, 18), ('tuft', (1369, 147), None, 18),
 ]
 # the spiral tiles: on the stone blocks' faces at the map's top corners, facing the camera (foot = their lower edge)
-TILES = [('tile_blue', (262, 60), 0, 72), ('tile_gold', (1555, 70), 0, 72)]   # (their blocks: layout.py)
+# (2026-10-26: the spiral tiles are the portals now, measured and built on their own: portals.py, blender/portals.py)
+TILES = []
 # (the maples' leaves and the hex plants' plates: reference.png's own spread, 10th/50th/90th percentile, 2026-10-25; ours
 # had run darker and lighter, and paler)
 PALETTES = {                                   # light, mid, dark (sRGB)

@@ -105,9 +105,25 @@ for i in range(1, nlab):
 # that carries the blue spiral tile, and the great block behind the north bar's east end that carries the gold one
 # (the first and the third set back north 2.6 and 4.1 units, 2026-10-25: their tiles stand on the grass in front of them,
 # objects.py, and reference.png shows grass up to each tile, no block face)
-for top, hgt in (([(-31.0, 99.1), (-26.5, 99.1), (-26.5, 106.1), (-31.0, 106.1)], 4.0),
+def portal_rock(foot, along_deg, t0, t1, depth, round_=0.35):
+    """A rock whose front face runs along a measured line (through `foot`, at `along_deg`), from t0 to t1 units along it,
+    `depth` deep behind it: its top, set back by the blocks' round so the face as built stands on the line."""
+    a = math.radians(along_deg)
+    u = np.array([math.cos(a), math.sin(a)]); n = np.array([-u[1], u[0]])   # n: back from the face (north-ish)
+    f = np.array(foot, float) + n * round_
+    return [list(map(float, np.round(p, 2))) for p in (f + u * t0, f + u * t1, f + u * t1 + n * depth, f + u * t0 + n * depth)]
+
+
+# the portals' rocks (owner, 2026-10-26: "the rocks on which the portals are ... pixel perfect"): their front faces where they
+# meet the grass in the HQ's 9:44.0 frame (foomerang-fu physics hq.mp4 584.0 s), cast back through the frame's ground
+# homography to reference.png: the blue portal's rock along the north island's north-west corner, its face at 42 degrees
+# through (-28.32, 96.27) and (-23.91, 100.25), 4.4 units tall (its face 92 px at 21 px a unit there); the gold portal's at
+# 22 degrees through (22.3, 96.8) and (26.9, 98.66), 3.7 units tall. Between them the great block behind the north bar's end.
+# (the blue's rock set back 1.03 units from its first measure, 2026-10-26: its portal, fitted in reference.png with the exact
+# camera, stands half out of the face there; the 9:44 frame's camera has moved, which the ground homography cannot follow)
+for top, hgt in ((portal_rock((-28.32 - 0.69, 96.27 + 0.76), 42.1, -1.5, 6.2, 3.5), 4.4),
                  ([(8.0, 98.5), (19.0, 98.5), (19.0, 107.0), (8.0, 107.0)], 6.5),
-                 ([(19.5, 98.6), (24.0, 98.6), (24.0, 103.6), (19.5, 103.6)], 4.0)):
+                 (portal_rock((22.3, 96.8), 22.0, -2.0, 5.5, 3.5), 3.7)):
     blocks.append(dict(top=top, height=hgt, image=None))
 # the bodies of rock the islands are built as: islands that overlap are one body (one top, one rim round the outside: two
 # coplanar tops would flicker, and each would draw its rim across the other's grass). Outlined at 1/50 unit, every corner

@@ -39,6 +39,7 @@ import {
   type CameraMotion,
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
+import { parsePortalSpin, spinAt, type PortalSpin } from './portalSpin';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1131,6 +1132,8 @@ class Plaza {
   readonly #resize: ResizeObserver;
   /** Character.standPull for this map (0 but on 3D ground). */
   #standPull = 0;
+  /** The gong islands' portals' "G" turning (render/three/portalSpin.ts); undefined: a map without portals. */
+  #portalSpin: PortalSpin | undefined;
 
   constructor(
     readonly container: HTMLElement,
@@ -1169,6 +1172,7 @@ class Plaza {
     this.#restCamera.copy(this.camera);
     const look = parseSoftLook(manifest.look);
     this.#standPull = look === undefined ? 0 : STAND_PULL;
+    this.#portalSpin = parsePortalSpin((manifest as { portals?: unknown }).portals);
     // environ2's cartoon light: a violet ambient (what a surface keeps in shadow) and a sun of the complementary colour, so a
     // fully lit surface shows exactly its own colour and a shadowed one its colour times the violet tint (never grey). The sun
     // travels west, a little away from the viewer, and down; its light falls into soft bands (toon materials, below).
@@ -1236,11 +1240,12 @@ class Plaza {
       }
     });
     // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
-    // objects that never move, fade or break into one; crates and pots (they break) and the water stay as they are
+    // objects that never move, fade or break into one; crates and pots (they break), the water and the portals' turning "G"
+    // stay as they are
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_\d+_glyph$/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1361,6 +1366,21 @@ class Plaza {
         },
       });
     }
+    // the portals' "G", each turning in its face's plane (its local Y: the face's normal, art/sky_islands/blender/portals.py)
+    const spin = this.#portalSpin;
+    if (spin !== undefined)
+      gltf.traverse((o) => {
+        if (!/^PORTAL_\d+_glyph$/.test(o.name)) return;
+        const rest = o.quaternion.clone();
+        const turn = new THREE.Quaternion();
+        const axis = new THREE.Vector3(0, 1, 0);
+        this.#moving.push({
+          object: o,
+          motion: (t) => {
+            o.quaternion.copy(rest).multiply(turn.setFromAxisAngle(axis, spinAt(spin, t)));
+          },
+        });
+      });
   }
 
   show(view: ArenaView): void {
