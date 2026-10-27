@@ -15,7 +15,9 @@ What the HQ shows on the tops (9:04.0, reference.png; 9:41.6; ff physics hq 2.mp
 import json
 import numpy as np, cv2
 
-BASE, EDGE, LIGHT, DARK = '#dff9ab', '#c4efa9', '#f4faaf', '#c6f0a9'
+# (painted ~2% lighter than the HQ shows them, 2026-10-27: the islands' soft light renders a top at ~98% of its colour, and the
+# game's grass had come out #dbf5a8 against the HQ's #dff7ab, both its videos, 9:04-9:35 and 7:30-8:30)
+BASE, EDGE, LIGHT, DARK = '#e3feae', '#c8f4ac', '#f8ffb2', '#caf5ac'
 EDGE_IN = 0.45            # units: how far in from the edge the darker band runs
 RES = 32                  # px a unit
 MIN_AREA = 0.6            # square units: smaller specks are noise
