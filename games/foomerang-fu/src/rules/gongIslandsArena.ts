@@ -529,6 +529,16 @@ export const GONG_ISLANDS_WALLS: readonly GongIslandsWall[] = Object.freeze([
     angle: -0.1577,
   }),
   Object.freeze({
+    id: 'BLOCK_01',
+    kind: 'BLOCK',
+    shape: 'box',
+    x: 1444.8,
+    y: 351.5,
+    halfWidth: 56.6,
+    halfHeight: 64.5,
+    angle: -0.1536,
+  }),
+  Object.freeze({
     id: 'BLOCK_02',
     kind: 'BLOCK',
     shape: 'box',

@@ -185,7 +185,9 @@ bodies = rounded(mask, RIM, CORNER + RIM)
 # their landings), and the one in the seam where the north bar's lobe meets the tilted island; all walked over, not walls
 # (block 6 too, 2026-10-25: the stone the log bridge's west end rests on, east of the centre island's grass, x 1238-1302,
 # y 451-603 in reference.png: lit lavender stone, not grass, the logs starting past it)
-PIERS = {'bridges': [15, 6], 'seam': [1]}
+# (block 1 no longer: 2026-10-26, it stands 2.3 units on the grass as the HQ's stone does, and the owner found players passing
+# through it; it is solid like every other stone)
+PIERS = {'bridges': [15, 6], 'seam': []}
 # not blocks at all (2026-10-25: every block's top and footprint cast back over reference.png): 3, 5 and 10 are the lit
 # lavender lips and faces of the north bar, the tilted island and the east island; 6 and 7, the "landings" at the log
 # bridge's ends, are the centre and east islands' own rims where the logs meet them. Kept in the list (their numbers name

@@ -114,6 +114,12 @@ describe('the gong islands', () => {
     }
   });
 
+  it('every stone standing on the grass is solid (owner, 2026-10-26: players passed through the one beside the gold portal)', () => {
+    // the stone left of the top-right gold portal (block 1, layout.py): its middle, plan (18.4, 93.2)
+    const p = { x: (18.4 + 34) * 27.48, y: (106 - 93.2) * 27.48 };
+    expect(circleHitsWalls(p, 1, GONG_ISLANDS_WALLS)).toBe(true);
+  });
+
   it('a bridge has rails: a player walking sideways off it is stopped at its side, not dropped (owner, 2026-10-23)', () => {
     const north = BRIDGES[0] ?? []; // the north bridge: planks from the centre island up to the north bar
     const xs = north.map((p) => p.x);
