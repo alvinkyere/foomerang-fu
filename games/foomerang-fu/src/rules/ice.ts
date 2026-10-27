@@ -6,3 +6,11 @@
  * blast is a blast (it kills).
  */
 export const ICE_FREEZE_SECONDS = 1.83;
+
+/**
+ * A slash on a frozen player does not kill (owner, 2026-10-26, from ff physics hq 2.mp4 6:43.62: the ice cream slashes beside the
+ * frozen sushi, whose block shoots off ~3 character widths in ~0.5 s and stays frozen): it knocks the block sliding away from
+ * the slasher at `ICE_SLIDE_SPEED`, slowing at `ICE_SLIDE_DECELERATION` to a stop. The freeze runs on as it was. Units/s, /s².
+ */
+export const ICE_SLIDE_SPEED = 820;
+export const ICE_SLIDE_DECELERATION = 1800;

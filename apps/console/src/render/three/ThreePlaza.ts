@@ -4,7 +4,8 @@ import { ClosingBorder } from './closingBorder';
 import { blockScale, freezeBody, thawBody } from '../iceMotion';
 import { FIRE_MOTION, flameBall } from '../fireMotion';
 import { SHIELD_LOOK } from '../shieldLook';
-import { Flipbooks, type Played } from './flipbooks';
+import { Flipbooks } from './flipbooks';
+import { IceShards, iceBlockGeometry } from './iceShards';
 import { bookScale } from '../pickupMotion';
 import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
@@ -300,7 +301,9 @@ class Character {
   /** A round's start: the white ring spreading from its feet as it lands (render/roundIntro.ts). */
   readonly #landRing: THREE.Mesh;
   /** ICE_BOOMERANG: the block of ice it stands frozen in (render/iceLook.ts). */
-  readonly #ice: THREE.Sprite;
+  readonly #ice: THREE.Mesh;
+  /** The body's recolouring while frozen (its sprite's shader): the colour and how much of it. */
+  readonly #recolour = { colour: { value: new THREE.Color('#ffffff') }, amount: { value: 0 } };
   /** When it froze, and when its ice broke (render/iceMotion.ts). */
   #frozenAt: number | undefined;
   #thawedAt: number | undefined;
@@ -311,10 +314,6 @@ class Character {
   wasBurning = false;
   /** The video's own effects (flipbooks.ts) and one character width in scene units, once the plaza has them. */
   effects: { readonly flipbooks: Flipbooks; readonly w: number } | undefined;
-  /** The video's flames on it while it burns (a loop that follows it). */
-  #burningLoop: Played | undefined;
-  /** The ice block is the video's own (iceblock.webp) once it is loaded. */
-  #iceFromVideo = false;
   /** SHIELD: the bubble round it while it owns the Shield (render/shieldLook.ts). */
   readonly #bubble: THREE.Sprite;
   #callingAt: number | undefined;
@@ -388,9 +387,32 @@ class Character {
     this.#texture = atlas.clone();
     this.#texture.repeat.set(1 / 16, 1 / 2);
     this.#texture.needsUpdate = true;
-    this.sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: this.#texture, transparent: true, alphaTest: 0.05 }),
-    );
+    const look = new THREE.SpriteMaterial({
+      map: this.#texture,
+      transparent: true,
+      alphaTest: 0.05,
+    });
+    // frozen (ICE_BOOMERANG): the whole body recoloured blue, keeping only its own light and shade (the HQ: the sushi's black
+    // nori and the eggplant's purple both turn the same blue, 6:41.8, 6:55.83)
+    const recolour = this.#recolour;
+    look.onBeforeCompile = (shader) => {
+      shader.uniforms['recolour'] = recolour.colour;
+      shader.uniforms['recolourAmount'] = recolour.amount;
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          'void main() {',
+          'uniform vec3 recolour;\nuniform float recolourAmount;\nvoid main() {',
+        )
+        .replace(
+          '#include <map_fragment>',
+          [
+            '#include <map_fragment>',
+            'float recolourLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));',
+            'diffuseColor.rgb = mix(diffuseColor.rgb, recolour * (0.55 + 0.75 * recolourLum), recolourAmount);',
+          ].join('\n'),
+        );
+    };
+    this.sprite = new THREE.Sprite(look);
     this.sprite.center.set(anchor[0] / cell, 1 - anchor[1] / cell);
     this.sprite.renderOrder = CHARACTER_RENDER_ORDER;
     this.#ring = new THREE.Mesh(
@@ -439,15 +461,18 @@ class Character {
       }),
     );
     this.#landRing.visible = false;
-    this.#ice = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        color: ICE_LOOK.block,
+    // a translucent pale-cyan cube with rounded edges, lighter on top (the HQ's: ff physics hq 2.mp4 6:41.8-6:46.9,
+    // foomerang-fu physics hq.mp4 6:55.83-6:57.62; iceLook.ts), standing on the feet: a unit cube, scaled to the body
+    this.#ice = new THREE.Mesh(
+      iceBlockGeometry(),
+      new THREE.MeshBasicMaterial({
+        color: '#ffffff',
+        vertexColors: true,
         transparent: true,
         opacity: ICE_LOOK.blockOpacity,
         depthWrite: false,
       }),
     );
-    this.#ice.center.set(0.5, 0);
     this.#ice.renderOrder = CHARACTER_RENDER_ORDER + 1;
     this.#ice.visible = false;
     this.#bubble = new THREE.Sprite(
@@ -458,7 +483,8 @@ class Character {
     scene.add(this.#bubble);
     this.#flames = Array.from({ length: FIRE_MOTION.balls }, () => {
       const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 10, 8),
+        // (the HQ's fire balls are faceted, as the fire it lays on the ground: groundMarks.ts)
+        new THREE.IcosahedronGeometry(0.5, 0),
         new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
       );
       m.renderOrder = CHARACTER_RENDER_ORDER + 1;
@@ -685,20 +711,6 @@ class Character {
     else this.#burningAt = undefined;
     const body = h * BODY_OF_CELL;
     const w = body; // the characters are about as wide as tall
-    // the video's own flames (9:55.95–9:56.45, cut out following the burning eggplant), looping on its body
-    const fx = this.effects;
-    if (fx !== undefined && fx.flipbooks.has('burning')) {
-      for (const m of this.#flames) m.visible = false;
-      if (!on) {
-        if (this.#burningLoop !== undefined) fx.flipbooks.stop(this.#burningLoop);
-        this.#burningLoop = undefined;
-        return;
-      }
-      const at = new THREE.Vector3(feet.x, feet.y + 0.5 * body, feet.z);
-      this.#burningLoop ??= fx.flipbooks.play('burning', at, fx.w, now);
-      this.#burningLoop?.object.position.copy(at);
-      return;
-    }
     this.#flames.forEach((m, i) => {
       m.visible = on;
       if (!on) return;
@@ -717,41 +729,35 @@ class Character {
       this.#frozenAt = undefined;
       this.#thawedAt = c.dead ? undefined : now;
     }
-    const material = this.sprite.material as THREE.SpriteMaterial;
     if (!on) {
       this.#ice.visible = false;
       // just thawed: the blue lifts over 0.1 s (iceMotion.ts)
       const thaw =
         this.#thawedAt === undefined ? undefined : thawBody((now - this.#thawedAt) / 1000);
-      if (thaw === undefined) this.#thawedAt = undefined;
-      else material.color.set('#ffffff').lerp(new THREE.Color(thaw.colour), thaw.amount);
+      if (thaw === undefined) {
+        this.#thawedAt = undefined;
+        this.#recolour.amount.value = 0;
+      } else {
+        this.#recolour.colour.value.set(thaw.colour);
+        this.#recolour.amount.value = thaw.amount;
+      }
+      this.#ownHands?.tint(this.#recolour.colour.value, this.#recolour.amount.value);
       return;
     }
     // the cold hits first (dark blue), then the block grows round it and it brightens to ice-blue (6:54.53–6:54.68)
     const t = (now - (this.#frozenAt as number)) / 1000;
-    material.color.set(freezeBody(t));
+    this.#recolour.colour.value.set(freezeBody(t));
+    this.#recolour.amount.value = 1;
+    this.#ownHands?.tint(this.#recolour.colour.value, 1);
     const k = blockScale(t);
     this.#ice.visible = k > 0;
-    const body = h * BODY_OF_CELL;
+    // (in character widths: the drawn character, not its sprite's cell)
+    const w = this.effects?.w ?? h * BODY_OF_CELL;
     this.#ice.position.copy(feet);
-    const fx = this.effects;
-    if (!this.#iceFromVideo && fx !== undefined) {
-      // the video's own block (6:55.40, cut by its outline, the eggplant inpainted out), standing on the feet
-      const still = fx.flipbooks.still('iceblock');
-      if (still !== undefined) {
-        const ice = this.#ice.material as THREE.SpriteMaterial;
-        ice.map = still;
-        ice.color.set('#ffffff');
-        ice.opacity = ICE_CUT.opacity;
-        ice.needsUpdate = true;
-        this.#ice.center.set(0.5, ICE_CUT.feetInCell);
-        this.#iceFromVideo = true;
-      }
-    }
-    if (this.#iceFromVideo && fx !== undefined) {
-      const size = (fx.flipbooks.meta('iceblock')?.widths ?? 3.2) * fx.w * k;
-      this.#ice.scale.set(size, size, 1);
-    } else this.#ice.scale.set(body * ICE_LOOK.blockWidth * k, body * ICE_LOOK.blockHeight * k, 1);
+    const bw = w * ICE_LOOK.blockWidth * k;
+    const bh = w * ICE_LOOK.blockHeight * k;
+    this.#ice.scale.set(bw, bh, bw * ICE_LOOK.blockDepth);
+    this.#ice.position.y += bh / 2;
   }
 
   /** A round's start (the reference video, 0:31.4–0:32.8): not there before its jump, two somersaults in the air, a crouch
@@ -1047,14 +1053,6 @@ class Boomerang {
 /** Where the video's blast was cut (art/physics_reference/vfx/blast.json): the core's crop centre against the ring's centre
  * (video px), the video's foreshortening of the ground, and its yardstick (the donut beside it, px). */
 const BLAST_CUT = Object.freeze({ coreOffset: [9, -3] as const, aspect: 0.86, charPx: 21 });
-/** The video's ice block (art/physics_reference/vfx/iceblock.json): its middle is 1.33 widths above the feet. */
-const ICE_CUT = Object.freeze({
-  centreUp: 20 / 15,
-  /** The block's bottom edge in its cut (0 bottom, 1 top): 4 px of 48 up. */
-  feetInCell: 4 / 48,
-  /** The character shows through it as the eggplant does (6:55.40). */
-  opacity: 0.82,
-});
 
 /** A short effect: something that grows and fades, then removes itself. */
 interface Burst {
@@ -1099,7 +1097,6 @@ class Plaza {
   readonly #takenBooks: { readonly book: THREE.Group; readonly at: number }[] = [];
   /** The reference video's own effects, cut out of it frame by frame (flipbooks.ts; public/vfx/). */
   readonly flipbooks: Flipbooks;
-  #fireFromVideo = false;
   /** Armed Explosives ticking where they landed: their bloom and their flash (render/explosiveTick.ts). */
   readonly #ticks = new Map<string, { bloom: THREE.Sprite; flash: THREE.Sprite }>();
   readonly #bursts: Burst[] = [];
@@ -1123,6 +1120,8 @@ class Plaza {
   readonly #restCamera = new THREE.PerspectiveCamera();
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
+  /** The ice blocks breaking: pieces thrown out (iceShards.ts). */
+  readonly #shards: IceShards;
   readonly #blasts: Blasts;
   /** Fire and ice left on the ground by fire / ice boomerangs and burning players (groundMarks.ts). */
   readonly #marks: GroundMarks;
@@ -1266,6 +1265,7 @@ class Plaza {
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
+    this.#shards = new IceShards(this.scene);
     this.#blasts = new Blasts(this.scene);
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
@@ -1618,19 +1618,8 @@ class Plaza {
       const circle = this.#view?.circles.find((c) => c.id === e.actor);
       if (ch !== undefined && circle !== undefined) {
         const kind = characterOf(this.map.roster, circle, this.#hasArt);
-        // burning when it died: it falls whole onto its side and smokes (the video, 9:57.62–9:58.3)
-        const videoSmoke = ch.wasBurning && this.flipbooks.has('burnt');
-        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning, videoSmoke });
-        if (videoSmoke) {
-          // the video's own last flames and smoke off the burnt body (9:57.62–9:58.30)
-          const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
-          this.flipbooks.play(
-            'burnt',
-            victim.at.clone().add(new THREE.Vector3(0, 0.5 * victim.bodyHeight, 0)),
-            w,
-            now,
-          );
-        }
+        // burning when it died: it falls whole onto its side and smokes (deathRemains.ts)
+        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning });
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
           const f = this.#space.toScene(e.from.x, e.from.y);
@@ -1730,15 +1719,11 @@ class Plaza {
       const at = this.#space.toScene(e.x, e.y, 30);
       this.flipbooks.play('split', new THREE.Vector3(at.x, at.y, at.z), w, now);
     } else if (e.type === 'THAWED') {
-      // the video's own ice breaking (6:56.38–6:57.22), where the block stood
+      // the ice breaks: pale cubes of it thrown out from where the block stood, falling and fading (the HQ: ff physics hq 2.mp4
+      // 6:46.95-6:47.5, foomerang-fu physics hq.mp4 6:57.62)
       const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
       const at = this.#space.toScene(e.x, e.y);
-      this.flipbooks.play(
-        'thaw',
-        new THREE.Vector3(at.x, at.y + ICE_CUT.centreUp * w, at.z),
-        w,
-        now,
-      );
+      this.#shards.burst(new THREE.Vector3(at.x, at.y, at.z), w, now);
     } else if (e.type === 'SPAWNED' || e.type === 'PICKUP') {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(1.2, 1.6, 48).rotateX(-Math.PI / 2),
@@ -1892,18 +1877,10 @@ class Plaza {
     this.#tick();
     this.#props.frame(time);
     this.#remains.frame(time);
+    this.#shards.frame(time);
     const w = this.#space.length(DRAWN_CHARACTER_WIDTH);
     for (const ch of this.#characters.values())
       if (ch.effects === undefined) ch.effects = { flipbooks: this.flipbooks, w };
-    if (!this.#fireFromVideo) {
-      const atlas = this.flipbooks.atlas('fire_patch');
-      const meta = this.flipbooks.meta('fire_patch');
-      if (atlas !== undefined && meta !== undefined) {
-        // the fire a fire boomerang (or a burning player) leaves: the video's own patch of it, all its life (10:00.25–10:01.98)
-        this.#marks.useFlipbook('fire', atlas, meta);
-        this.#fireFromVideo = true;
-      }
-    }
     this.flipbooks.frame(time);
     for (let i = this.#takenBooks.length - 1; i >= 0; i -= 1) {
       const { book, at } = this.#takenBooks[i] as { book: THREE.Group; at: number };
@@ -1996,18 +1973,7 @@ class Plaza {
 }
 
 /** The flipbooks cut from the reference video (public/vfx/<name>.png + .json). */
-const VFX_FLIPBOOKS = [
-  'pickup',
-  'blast',
-  'blast_ring',
-  'shield_pop',
-  'split',
-  'iceblock',
-  'thaw',
-  'burning',
-  'burnt',
-  'fire_patch',
-] as const;
+const VFX_FLIPBOOKS = ['pickup', 'blast', 'blast_ring', 'shield_pop', 'split'] as const;
 
 /** Creates the 3D plaza inside `container` and resolves once its models and characters are loaded and a frame is drawn. */
 export async function createThreePlaza(

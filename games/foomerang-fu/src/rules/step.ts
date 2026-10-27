@@ -29,7 +29,7 @@ import {
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
 import { split } from './multi';
-import { ICE_FREEZE_SECONDS } from './ice';
+import { ICE_FREEZE_SECONDS, ICE_SLIDE_DECELERATION, ICE_SLIDE_SPEED } from './ice';
 import { FIRE_BURN_SECONDS } from './fire';
 import { zoneAt } from './battleRoyale';
 import { EXPLOSIVE_FUSE } from './explosive';
@@ -933,6 +933,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         y: v.y * config.playerSpeed * factor,
       });
     } else frame.set(player.id, factor === 1 ? move : slowedMove(move, deadZone, factor));
+  });
+  // ICE_BOOMERANG: a frozen block knocked sliding by a slash (ice.ts) is carried along like an overdriven walker, walls and all
+  state.players.forEach((p, index) => {
+    if (frozenAtStart[index] === true && p.slide !== undefined) boosted.set(p.id, p.slide);
   });
   // Move in sub-steps no longer than the fixed step, separating living players after each, so that no
   // supported dt can carry one player through another or through a wall. (dt = the fixed step is exactly
@@ -1975,6 +1979,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
   const freezing = new Set<number>(); // ICE_BOOMERANG: frozen by this step's contacts
+  const knocked = new Map<number, Vec2>(); // ICE_BOOMERANG: frozen blocks a slash sent sliding this step
   const igniting = new Map<number, NonNullable<FuPlayer['burning']>>(); // FIRE_BOOMERANG: set alight this step
   const killedBy = new Map<string, string>(); // victim → the attacker of their first lethal contact
   const deathOf = new Map<string, Death>(); // victim → how they died and who is credited (Slice 8)
@@ -1985,7 +1990,20 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     );
     // ICE_BOOMERANG: an iced contact freezes instead of killing; a shield they wear pops with it (the video, 6:54.52–6:54.55)
     const iced = sorted.filter((c) => c.ice === true);
-    const list = sorted.filter((c) => c.ice !== true);
+    // ICE_BOOMERANG: a slash on a frozen player does not kill: it knocks the block sliding away from the slasher (ice.ts)
+    const slashed =
+      frozenAtStart[v] === true ? sorted.find((c) => c.source === 'SLASH') : undefined;
+    if (slashed !== undefined) {
+      const from = positionOf((players[slashed.attacker] as FuPlayer).id);
+      const here = positionOf(victim.id);
+      const d = Math.hypot(here.x - from.x, here.y - from.y);
+      const away =
+        d > EPSILON ? { x: (here.x - from.x) / d, y: (here.y - from.y) / d } : { x: 1, y: 0 };
+      knocked.set(v, { x: away.x * ICE_SLIDE_SPEED, y: away.y * ICE_SLIDE_SPEED });
+    }
+    const list = sorted.filter(
+      (c) => c.ice !== true && !(frozenAtStart[v] === true && c.source === 'SLASH'),
+    );
     if (iced.length > 0 && frozenAtStart[v] !== true && !freezing.has(v)) {
       const first = iced[0] as Contact;
       freezing.add(v);
@@ -2209,7 +2227,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           (p.burning !== undefined && p.burning.seconds - dt > EPSILON
             ? Object.freeze({ ...p.burning, seconds: p.burning.seconds - dt })
             : undefined));
+    // ICE_BOOMERANG: a knocked block slides on, slowing to a stop; it stops being one when they thaw
+    const was = knocked.get(index) ?? p.slide;
+    const speed = was === undefined ? 0 : Math.hypot(was.x, was.y);
+    const slowed = knocked.has(index) ? speed : speed - ICE_SLIDE_DECELERATION * dt;
+    const slide =
+      frozen !== undefined && was !== undefined && slowed > EPSILON
+        ? Object.freeze({ x: (was.x / speed) * slowed, y: (was.y / speed) * slowed })
+        : undefined;
     const unchanged =
+      base.slide === slide &&
       base.burning === burning &&
       base.inventory === owned &&
       sparedSame &&
@@ -2217,9 +2244,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       base.charge === charge &&
       base.frozen === frozen;
     if (unchanged) return base;
-    const { frozen: _was, burning: _burnt, ...rest } = base;
+    const { frozen: _was, burning: _burnt, slide: _slid, ...rest } = base;
     void _was;
     void _burnt;
+    void _slid;
     return Object.freeze({
       ...rest,
       inventory: owned,
@@ -2227,6 +2255,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       outsideFor: outside,
       charge,
       ...(burning !== undefined ? { burning } : {}),
+      ...(slide !== undefined ? { slide } : {}),
       // (frozen mid-dash: the burst ends where they are)
       ...(frozen !== undefined
         ? { frozen, ...(freezing.has(index) ? { dash: DASH_READY } : {}) }

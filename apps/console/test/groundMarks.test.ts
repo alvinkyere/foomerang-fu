@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { GROUND_MARK, GroundMarks } from '../src/render/three/groundMarks';
 
-// What fire and ice boomerangs (and burning players) leave on the ground, timed from the reference video: fire gone 1.7 s after
-// it is laid (10:00.16–10:03.0), ice a solid band for 3 s, gone by 4.3 s (groundMarkMotion.ts).
+// What fire and ice boomerangs (and burning players) leave on the ground, timed from the HQ videos (2026-10-27,
+// groundMarkMotion.ts): fire gone 2.2 s after it is laid, ice a solid band for 4 s, gone by 7 s.
 
 describe('ground marks', () => {
   it('lifetimes are the measured ones', () => {
-    expect(GROUND_MARK.fire.lifeMs).toBe(1700);
-    expect(GROUND_MARK.ice.lifeMs).toBe(4300);
+    expect(GROUND_MARK.fire.lifeMs).toBe(2200);
+    expect(GROUND_MARK.ice.lifeMs).toBe(7000);
   });
 
   it('a still source drops at most one blob per interval; each fades away at the end of its life', () => {
@@ -28,7 +28,7 @@ describe('ground marks', () => {
     const marks = new GroundMarks(new THREE.Scene());
     marks.drop('a', 'ice', 0, 0, 1, 0);
     marks.drop('a', 'ice', 3, 0, 1, 16); // one frame at a charged throw's speed: 3 widths
-    const spacing = 0.3 * 0.35; // ice: 0.3 W patches, 0.35 apart
+    const spacing = 0.6 * 0.3; // ice: 0.6 W patches, 0.3 of one apart
     expect(marks.count).toBeGreaterThanOrEqual(1 + Math.floor(3 / spacing));
   });
 

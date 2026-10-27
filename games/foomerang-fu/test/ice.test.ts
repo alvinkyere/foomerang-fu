@@ -88,9 +88,9 @@ describe('an ice hit', () => {
     expect(at(s, 'b').y).toBeGreaterThan(where.y);
   });
 
-  it('a frozen player can still be killed by a normal hit', () => {
+  it('a slash does not kill a frozen player: it knocks the ice block sliding away, and they stay frozen (owner, 2026-10-26; the HQ: ff physics hq 2.mp4 6:43.62)', () => {
     let s = freezeBob().state;
-    // Alice, her boomerang back in hand, slashes him where he stands
+    // Alice, her boomerang back in hand, slashes him where he stands, from his left
     s = patchBoomerang(s, 'a', {
       state: 'HELD',
       position: at(s, 'a'),
@@ -98,8 +98,30 @@ describe('an ice hit', () => {
       travelled: 0,
     });
     s = face(place(s, 'a', 460, 450), 'a', 1, 0);
+    const before = at(s, 'b');
     s = stepFu(s, input({ a: { slash: true } }), DT).state;
-    const r = run(s, 10);
+    const r = run(s, 40);
+    expect(player(r.state, 'b').alive).toBe(true);
+    expect(player(r.state, 'b').frozen ?? 0).toBeGreaterThan(0);
+    // slid away from her, ~3 character widths (the HQ's ~230 units), then stopped
+    expect(at(r.state, 'b').x - before.x).toBeGreaterThan(150);
+    expect(at(r.state, 'b').x - before.x).toBeLessThan(300);
+    const stopped = at(r.state, 'b');
+    const later = run(r.state, 10).state;
+    if ((player(later, 'b').frozen ?? 0) > 0) expect(at(later, 'b')).toEqual(stopped);
+  });
+
+  it('a frozen player can still be killed by a (plain) boomerang', () => {
+    // Bob frozen at (520,450); Carol, below him with a plain boomerang, throws up through him
+    let s = place(place(make(['a', 'b', 'c'], STRAIGHT), 'a', 300, 450), 'b', 520, 450);
+    s = face(give(s, 'a', 'ICE_BOOMERANG'), 'a', 1, 0);
+    s = face(place(s, 'c', 520, 700), 'c', 0, -1);
+    s = stepFu(s, THROW, DT).state;
+    for (let i = 0; i < 60 && (player(s, 'b').frozen ?? 0) === 0; i += 1)
+      s = stepFu(s, NONE, DT).state;
+    expect(player(s, 'b').frozen ?? 0).toBeGreaterThan(0);
+    s = stepFu(s, input({ c: { throw: true } }), DT).state;
+    const r = run(s, 30);
     expect(player(r.state, 'b').alive).toBe(false);
   });
 

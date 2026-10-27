@@ -17,8 +17,9 @@ export const FIRE_MOTION = Object.freeze({
   riseTo: 1.1,
   sizeFrom: 0.38,
   sizeTo: 0.18,
-  low: '#fbe01e',
-  high: '#f08a2c',
+  // (the HQ's: lemon #fde725 climbing to orange #f99b36, foomerang-fu physics hq.mp4 9:57.0-10:00.3)
+  low: '#fde725',
+  high: '#f99b36',
   /** How far the column leans back against the run, W per (W/s) of speed, at most 0.4 W. */
   lean: 0.04,
   death: Object.freeze({

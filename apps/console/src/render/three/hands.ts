@@ -142,6 +142,11 @@ export class Hands {
     return this.meshes[k].position;
   }
 
+  /** Recoloured toward `colour` by `amount` (0: its own; frozen: the body's blue, as the HQ's frozen hands are). */
+  tint(colour: THREE.Color, amount: number): void {
+    this.#material.color.set(this.hands.colour).lerp(colour, amount);
+  }
+
   destroy(scene: THREE.Scene): void {
     for (const m of this.meshes) scene.remove(m);
     scene.remove(this.#held);

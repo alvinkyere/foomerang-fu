@@ -44,6 +44,8 @@ export interface FuPlayer {
   readonly charge: ThrowCharge;
   /** ICE_BOOMERANG: seconds left frozen in ice (ice.ts): they stand still and can do nothing. Absent: not frozen. */
   readonly frozen?: number;
+  /** ICE_BOOMERANG: a frozen player's block sliding, knocked by a slash (ice.ts), units/s. Absent: still. */
+  readonly slide?: Vec2;
   /** FIRE_BOOMERANG: burning (fire.ts): seconds until the burn kills them, who set them alight and who the kill is credited to. */
   readonly burning?: {
     readonly seconds: number;

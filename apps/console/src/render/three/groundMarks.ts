@@ -56,12 +56,19 @@ class Layer {
     readonly kind: MarkKind,
     readonly y: number,
   ) {
-    const geometry = new THREE.CircleGeometry(0.5, 12).rotateX(-Math.PI / 2);
+    // fire: small faceted balls, lighter on top (the HQ's puffs, 7:06-7:08: low-poly, a pale glint up top); ice and dust: flat
+    // discs on the ground
+    const geometry =
+      kind === 'fire' ? facetedBall() : new THREE.CircleGeometry(0.5, 12).rotateX(-Math.PI / 2);
     this.#alpha = new THREE.InstancedBufferAttribute(new Float32Array(GROUND_MARK.capacity), 1);
     geometry.setAttribute('instanceAlpha', this.#alpha);
     this.#frame = new THREE.InstancedBufferAttribute(new Float32Array(GROUND_MARK.capacity), 1);
     geometry.setAttribute('instanceFrame', this.#frame);
-    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+    const material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      vertexColors: kind === 'fire',
+    });
     material.onBeforeCompile = (shader) => {
       shader.uniforms['grid'] = this.#grid;
       shader.vertexShader = shader.vertexShader
@@ -141,7 +148,13 @@ class Layer {
       if (look === undefined) continue;
       keep.push(m);
       const s = Math.max(1e-3, look.size * m.w * (m.scale ?? 1));
-      this.#m.makeScale(s, 1, s).setPosition(m.x, this.y, m.z);
+      if (this.kind === 'fire')
+        // a ball sitting on the ground (or smoke risen off it), turned its own way
+        this.#m
+          .makeRotationY(m.seed * Math.PI * 2)
+          .scale(new THREE.Vector3(s, s * 0.85, s))
+          .setPosition(m.x, this.y + s * 0.35 + (look.rise ?? 0) * m.w, m.z);
+      else this.#m.makeScale(s, 1, s).setPosition(m.x, this.y, m.z);
       this.mesh.setMatrixAt(n, this.#m);
       this.mesh.setColorAt(n, this.#c.set(look.colour));
       this.#alpha.setX(n, 0.95 * look.opacity);
@@ -155,6 +168,22 @@ class Layer {
     this.#alpha.needsUpdate = true;
     this.#frame.needsUpdate = true;
   }
+}
+
+/** A low-poly ball of radius 0.5, its faces shaded by how much they face up (baked: the marks are unlit). */
+function facetedBall(): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(0.5, 0).toNonIndexed();
+  g.computeVertexNormals();
+  const n = g.getAttribute('normal');
+  const colours = new Float32Array(n.count * 3);
+  for (let i = 0; i < n.count; i += 3) {
+    // (one shade a face: the mean of its three normals' up)
+    const up = (n.getY(i) + n.getY(i + 1) + n.getY(i + 2)) / 3;
+    const shade = up > 0.5 ? 1.08 : up > -0.2 ? 0.95 : 0.82;
+    for (let k = 0; k < 9; k += 1) colours[i * 3 + k] = shade;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+  return g;
 }
 
 export class GroundMarks {
@@ -242,7 +271,7 @@ export class GroundMarks {
     this.#dropped += 1;
     const seed = (((this.#dropped * 0.6180339887) % 1) + 1) % 1;
     // fire puffs sit a little about the path; ice is a band right along it
-    const jitter = kind === 'fire' ? 0.12 * w : 0;
+    const jitter = kind === 'fire' ? 0.2 * w : 0; // (the HQ's band: puffs several abreast, ~0.6 W wide)
     this.#layers[kind].add({
       x: x + jitter * Math.cos(seed * 40),
       z: z + jitter * Math.sin(seed * 40),
