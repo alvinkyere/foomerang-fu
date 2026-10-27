@@ -31,6 +31,8 @@ import {
   STONE_RUINS_ARENA,
   STONE_RUINS_BOOK_SPOTS,
   CROSS_POND_ARENA,
+  POND_CROSS_ARENA,
+  POND_CROSS_BOOK_SPOTS,
   CROSS_POND_BOOK_SPOTS,
   DIAMOND_WALLS_ARENA,
   DIAMOND_WALLS_BOOK_SPOTS,
@@ -67,6 +69,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
   hex_grove: { arena: HEX_GROVE_ARENA, bookSpots: HEX_GROVE_BOOK_SPOTS, named: true },
   stone_ruins: { arena: STONE_RUINS_ARENA, bookSpots: STONE_RUINS_BOOK_SPOTS, named: true },
   cross_pond: { arena: CROSS_POND_ARENA, bookSpots: CROSS_POND_BOOK_SPOTS, named: true },
+  pond_cross: { arena: POND_CROSS_ARENA, bookSpots: POND_CROSS_BOOK_SPOTS, named: true },
   diamond_walls: { arena: DIAMOND_WALLS_ARENA, bookSpots: DIAMOND_WALLS_BOOK_SPOTS, named: true },
 });
 

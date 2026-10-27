@@ -1103,6 +1103,8 @@ class Plaza {
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
   readonly #waterField: THREE.Texture | null;
+  /** The cross pond's raft (pond_cross: RAFT), turned by the rules' turntable angle each frame; null elsewhere. */
+  readonly #raft: THREE.Object3D | null;
   readonly #banner: HTMLDivElement;
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
   readonly #word = readyGoOverlay();
@@ -1151,6 +1153,7 @@ class Plaza {
     },
   ) {
     this.#waterField = floor.water;
+    this.#raft = gltf.getObjectByName('RAFT') ?? null;
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1242,11 +1245,11 @@ class Plaza {
     });
     // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
     // objects that never move, fade or break into one; crates and pots (they break), the water and the portals (their swirl
-    // plays, their ring moves, they flash) stay as they are
+    // plays, their ring moves, they flash) and the cross pond's raft (it turns) stay as they are
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1494,6 +1497,9 @@ class Plaza {
 
   show(view: ArenaView): void {
     this.#view = view;
+    // the raft turns clockwise on screen: about the scene's up, the other way round (scene z is the rules' y)
+    const turned = view.turntables?.[0];
+    if (this.#raft !== null && turned !== undefined) this.#raft.rotation.set(0, -turned, 0);
     const now = this.#virtual ?? performance.now();
     const present = new Set<string>();
     this.#circles = [];

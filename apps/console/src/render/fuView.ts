@@ -2,6 +2,7 @@ import {
   isFatigued,
   roundLabel,
   systemsView,
+  turntableAngle,
   zoneOf,
   type Boomerang,
   type FuArena,
@@ -456,6 +457,11 @@ export function buildFuView(
       y: p.position.y,
     })),
     systems: systemsView(state.config.arena, state.roundTime, state.gatesShut),
+    ...(state.config.arena.turntables === undefined
+      ? {}
+      : {
+          turntables: state.config.arena.turntables.map((t) => turntableAngle(t, state.roundTime)),
+        }),
     broken: state.broken,
     events: viewEvents,
     banner,

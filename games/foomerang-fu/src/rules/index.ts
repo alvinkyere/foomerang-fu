@@ -1,7 +1,7 @@
 // Foomerang Fu's rules: pure, deterministic, and free of DOM, React, Phaser, Socket.IO, wall-clock
 // time and ambient randomness (lint-enforced). The renderer reads this state; it never changes it.
 
-export { PRIMITIVE_ARENA, boundsOf, distanceToSolid, onGround } from './arena';
+export { PRIMITIVE_ARENA, boundsOf, distanceToSolid, onGround, turntableAngle } from './arena';
 export { SYSTEMS_ARENA, SYSTEMS_POWERUP_SPOTS } from './systemsArena';
 export {
   MARKET_PLAZA_ARENA,
@@ -55,7 +55,17 @@ export type {
   PlatformSpec,
   SystemsView,
 } from './systems';
-export type { Breakable, Disc, FuArena, Rect, Solid, TurnedBox } from './arena';
+export type { Breakable, Disc, FuArena, Rect, Solid, TurnedBox, Turntable } from './arena';
+export {
+  POND_CROSS_ARENA,
+  POND_CROSS_BOOK_SPOTS,
+  POND_CROSS_GROUND,
+  POND_CROSS_HEIGHT,
+  POND_CROSS_RAFT,
+  POND_CROSS_SPAWNS,
+  POND_CROSS_WALLS,
+  POND_CROSS_WIDTH,
+} from './pondCrossArena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';

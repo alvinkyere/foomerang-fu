@@ -14,7 +14,10 @@ import {
   breakablesOf,
   fencesOf,
   nearestWallNormal,
+  carriedBy,
   onGround,
+  turntableUnder,
+  turntableWalls,
   circleHitsWalls,
   closestPointOn,
   distanceToRect,
@@ -713,7 +716,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const platforms = platformsOf(config.arena);
   const hazards = hazardsOf(config.arena);
   const gatesShut: boolean[] = [...state.gatesShut];
-  let walls: readonly Solid[] = solidNow(staticWalls, gates, gatesShut);
+  let walls: readonly Solid[] = [
+    ...solidNow(staticWalls, gates, gatesShut),
+    ...turntableWalls(config.arena, state.roundTime),
+  ];
   // Breakables: solid to bodies while standing (as at the start of the step); boomerangs fly through them. Fences: solid to
   // bodies always; boomerangs fly over them
   const breakables = breakablesOf(config.arena);
@@ -970,7 +976,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         if (!busy) gatesShut[k] = true;
       }
     });
-    walls = solidNow(staticWalls, gates, gatesShut);
+    walls = [...solidNow(staticWalls, gates, gatesShut), ...turntableWalls(config.arena, tEnd)];
     bodyWalls = forBodies(walls);
     // Riders (standing on a platform at the start of the sub-step, not mid-dash) are carried with it.
     const rides = new Map<string, Vec2>();
@@ -984,6 +990,17 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         if (index === undefined || !solid.has(b.id) || rides.has(b.id)) return;
         if ((dashes[index] as DashState).phase === 'DASHING' || !inRect(b.position, from)) return;
         rides.set(b.id, delta);
+      });
+    });
+    // Riders of a turntable (standing on it at the start of the sub-step, not mid-dash) are turned with it.
+    (config.arena.turntables ?? []).forEach((tt) => {
+      world.bodies.forEach((b) => {
+        const index = ownerOf.get(b.id);
+        if (index === undefined || !solid.has(b.id) || rides.has(b.id)) return;
+        if ((dashes[index] as DashState).phase === 'DASHING') return;
+        if (turntableUnder(b.position, config.arena, tStart) !== tt) return;
+        const to = carriedBy(tt, b.position, tStart, tEnd);
+        rides.set(b.id, { x: to.x - b.position.x, y: to.y - b.position.y });
       });
     });
     world = stepWorld(world, frame, h);
@@ -1967,7 +1984,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // islands' south island, which no bridge joins; the bread at ff physics hq 2.mp4 8:03.6 falls where its dash ended)
   players.forEach((p, v) => {
     if (!p.alive || (dashes[v] as DashState).phase === 'DASHING') return;
-    if (onGround(positionOf(p.id), config.arena)) return;
+    if (onGround(positionOf(p.id), config.arena, state.roundTime + dt)) return;
     exploding.add(v);
     (contacts[v] as Contact[]).push({
       attacker: count,

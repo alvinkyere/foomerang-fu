@@ -31,6 +31,7 @@ export class NavGrid {
     this.#free = new Uint8Array(this.cols * this.rows);
     // props that break count as solid for planning: a CPU routes round crates and pots (it does not plan to break them)
     const walls = [...wallsOf(arena), ...breakablesOf(arena), ...fencesOf(arena)];
+    const fixed: FuArena = { ...arena, turntables: [] };
     for (let cy = 0; cy < this.rows; cy += 1) {
       for (let cx = 0; cx < this.cols; cx += 1) {
         const p = this.centre(cx, cy);
@@ -39,7 +40,8 @@ export class NavGrid {
           p.y >= radius &&
           p.x <= arena.width - radius &&
           p.y <= arena.height - radius;
-        // over ground all round (falling kills): its middle and eight points a body's radius out
+        // over ground all round (falling kills): its middle and eight points a body's radius out; the fixed ground only (a
+        // turntable, the cross pond's raft, turns away under a plan made once)
         const grounded =
           arena.ground === undefined ||
           [
@@ -48,7 +50,7 @@ export class NavGrid {
               x: p.x + Math.cos((k * Math.PI) / 4) * radius,
               y: p.y + Math.sin((k * Math.PI) / 4) * radius,
             })),
-          ].every((q) => onGround(q, arena));
+          ].every((q) => onGround(q, fixed));
         // and off the portals' pads (rules/portals.ts): it does not know where one leads, so it routes round them
         const onPad = (arena.portals ?? []).some(
           (pad) => Math.hypot(p.x - pad.x, p.y - pad.y) < pad.radius + radius,

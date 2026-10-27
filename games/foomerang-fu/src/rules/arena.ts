@@ -76,7 +76,73 @@ export interface FuArena<W extends Solid = Solid> {
   readonly ground?: readonly (readonly Vec2[])[];
   /** Portals' pads (portals.ts): reaching one takes a player, or a flying boomerang, to its partner. Absent: none. */
   readonly portals?: readonly ArenaPortal[];
+  /** Turntables (the cross pond's raft): ground and walls that turn about a centre, carrying whoever stands on them. */
+  readonly turntables?: readonly Turntable[];
 }
+
+/**
+ * A turntable: `ground` (polygons) and `walls` (turned boxes) given about its centre at its start, turning at `degreesPerSecond`
+ * (clockwise on screen: +Y is down) from `startDegrees`, by the round's clock (owner, 2026-10-27: the cross pond's raft, the HQ
+ * foomerang-fu physics hq.mp4 4:26-4:28, ~24 degrees a second clockwise; its crates turn with it).
+ */
+export interface Turntable {
+  readonly x: number;
+  readonly y: number;
+  readonly degreesPerSecond: number;
+  readonly startDegrees: number;
+  readonly ground: readonly (readonly Vec2[])[];
+  readonly walls: readonly TurnedBox[];
+}
+
+/** A turntable's angle at round time `t`, radians (clockwise on screen). */
+export const turntableAngle = (tt: Turntable, t: number): number =>
+  ((tt.startDegrees + tt.degreesPerSecond * t) * Math.PI) / 180;
+
+/** `p` (about the turntable's centre) turned by `a` radians and placed in the arena. */
+const turned = (tt: Turntable, p: Vec2, a: number): Vec2 => ({
+  x: tt.x + p.x * Math.cos(a) - p.y * Math.sin(a),
+  y: tt.y + p.x * Math.sin(a) + p.y * Math.cos(a),
+});
+
+/** Every turntable's ground at round time `t`, in the arena. */
+export const turntableGround = (arena: FuArena, t: number): Vec2[][] =>
+  (arena.turntables ?? []).flatMap((tt) => {
+    const a = turntableAngle(tt, t);
+    return tt.ground.map((poly) => poly.map((p) => turned(tt, p, a)));
+  });
+
+/** Every turntable's walls at round time `t`, in the arena. */
+export const turntableWalls = (arena: FuArena, t: number): TurnedBox[] =>
+  (arena.turntables ?? []).flatMap((tt) => {
+    const a = turntableAngle(tt, t);
+    return tt.walls.map((w) => ({
+      ...w,
+      ...turned(tt, { x: w.x, y: w.y }, a),
+      angle: w.angle + a,
+    }));
+  });
+
+/** Where something at `p` on turntable `tt` is carried to as round time goes from `t0` to `t1`. */
+export const carriedBy = (tt: Turntable, p: Vec2, t0: number, t1: number): Vec2 => {
+  const d = turntableAngle(tt, t1) - turntableAngle(tt, t0);
+  const r = { x: p.x - tt.x, y: p.y - tt.y };
+  return {
+    x: tt.x + r.x * Math.cos(d) - r.y * Math.sin(d),
+    y: tt.y + r.x * Math.sin(d) + r.y * Math.cos(d),
+  };
+};
+
+/** The turntable whose ground `p` is on at round time `t`, if any. */
+export const turntableUnder = (p: Vec2, arena: FuArena, t: number): Turntable | undefined =>
+  (arena.turntables ?? []).find((tt) => {
+    const a = turntableAngle(tt, t);
+    return tt.ground.some((poly) =>
+      insidePolygon(
+        p,
+        poly.map((q) => turned(tt, q, a)),
+      ),
+    );
+  });
 
 const NO_WALLS: readonly never[] = Object.freeze([]);
 
@@ -93,8 +159,10 @@ export function insidePolygon(p: Vec2, poly: readonly Vec2[]): boolean {
 }
 
 /** Is there ground under `p`? (An arena without `ground` is ground everywhere.) */
-export const onGround = (p: Vec2, arena: FuArena): boolean =>
-  arena.ground === undefined || arena.ground.some((poly) => insidePolygon(p, poly));
+export const onGround = (p: Vec2, arena: FuArena, t = 0): boolean =>
+  arena.ground === undefined ||
+  arena.ground.some((poly) => insidePolygon(p, poly)) ||
+  turntableUnder(p, arena, t) !== undefined;
 export const wallsOf = <W extends Solid>(arena: FuArena<W>): readonly W[] =>
   arena.walls ?? NO_WALLS;
 export const breakablesOf = (arena: FuArena): readonly Breakable[] => arena.breakables ?? NO_WALLS;

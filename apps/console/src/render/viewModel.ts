@@ -254,6 +254,8 @@ export interface ArenaView {
   readonly closing?: RectView & { readonly seconds: number };
   /** Gates, platforms and hazards (empty in arenas without them). */
   readonly systems: SystemsViewModel;
+  /** Each turntable's angle now, radians clockwise on screen (the cross pond's raft; rules: turntableAngle). */
+  readonly turntables?: readonly number[];
   /** The ids of the arena's breakable props broken this round (none at a round's start). */
   readonly broken: readonly string[];
   readonly events: readonly ViewEvent[];

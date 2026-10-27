@@ -15,9 +15,10 @@ const camera = parseMapCamera(manifest.camera);
 const space = sceneSpace(camera);
 
 describe('the plaza in 3D', () => {
-  it('the market plaza and the gong islands are drawn in 3D; every other map and the test arenas stay on Phaser', () => {
+  it('the market plaza, the gong islands and the cross pond are drawn in 3D; every other map and the test arenas stay on Phaser', () => {
     expect(rendererKindFor('market_plaza')).toBe('three');
     expect(rendererKindFor('gong_islands')).toBe('three');
+    expect(rendererKindFor('pond_cross')).toBe('three');
     for (const arena of ['harbour_fort', 'sky_islands', 'primitive', 'systems'] as const)
       expect(rendererKindFor(arena), arena).toBe('phaser');
   });

@@ -74,23 +74,25 @@ export const ARENA_CHOICES = [
   'hex_grove',
   'stone_ruins',
   'cross_pond',
+  'pond_cross',
   'diamond_walls',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice | undefined => {
-  const value = new URLSearchParams(search).get('arena');
+  const given = new URLSearchParams(search).get('arena');
+  // `?arena=pond`: the cross pond (the owner tests it there, 2026-10-27)
+  const value = given === 'pond' ? 'pond_cross' : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;
 };
 
 /**
- * The map the product plays: the gong islands, every round, while they are being perfected (the owner, 2026-10-22: "make
- * the island map the default for now ... until I say so"). `?arena=product` plays the rotation (the market plaza and the
- * gong islands, a new one every round); any other `?arena=` pins that map for development and tests. (The rotation of
- * every reconstructed map, `'rotate'`, stays available to the runtime.)
+ * The map the product plays: the rotation (the market plaza and the gong islands, a new one every round: the owner,
+ * 2026-10-27, "I don't see the rotation in effect"; from 2026-10-22 it had been the gong islands only; the cross pond is out
+ * of it while it is developed: `?arena=pond`). Any `?arena=` map pins that map for development and tests;
+ * `?arena=product` is the rotation too. (The rotation of every
+ * reconstructed map, `'rotate'`, stays available to the runtime.)
  */
 export const productArena = (search: string): ArenaChoice | 'product' =>
-  new URLSearchParams(search).get('arena') === 'product'
-    ? 'product'
-    : (parseArenaParam(search) ?? 'gong_islands');
+  parseArenaParam(search) ?? 'product';

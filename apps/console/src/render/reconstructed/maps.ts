@@ -31,7 +31,7 @@ export interface ReconstructedMap {
 
 export type ReconstructedArena = Extract<
   ArenaChoice,
-  'market_plaza' | 'gong_islands' | 'harbour_fort' | 'sky_islands'
+  'market_plaza' | 'gong_islands' | 'pond_cross' | 'harbour_fort' | 'sky_islands'
 >;
 
 export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, ReconstructedMap>> =
@@ -79,6 +79,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 2034, height: 1566 }),
       background: '#e5f3de',
+    }),
+    // the HQ's stone-walled pond with the turning raft (art/pond_cross): the plaza's camera and characters, its own pond
+    pond_cross: Object.freeze({
+      id: 'pond_cross',
+      assetDir: 'maps/pond_cross/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 1292, height: 1182 }),
+      background: '#78d2e7',
     }),
     // seats 1–2 are the shot's cast from the pack (S7: carrot, banana; its eggplant has no pack model yet); 3–6 are pack characters
     sky_islands: Object.freeze({

@@ -7,6 +7,7 @@ import {
   lineClearTo,
   lineIsClear,
   onGround,
+  turntableUnder,
   pushOutOfSolid,
   sweepCircle,
   wallsOf,
@@ -271,14 +272,14 @@ export class CpuController {
       if (out.dash === true) this.#lastDash = this.#tick;
     }
     let dir = aimOverride ?? this.#move;
-    // never over an edge (falling kills): a heading that would carry it off the ground turns along the edge instead (the
+    // never over an edge (falling kills; the ground as it is now: a turntable turns): a heading that would carry it off the ground turns along the edge instead (the
     // nearest turn that keeps it on: round a bridge's end it would otherwise stop dead), or stops; a dash that would is dropped
     const arena = state.config.arena;
     const body = state.world.bodies.find((b) => b.id === this.#id);
     if (arena.ground !== undefined && body !== undefined) {
       const here = body.position;
       const off = (d: Vec2, reach: number): boolean =>
-        !onGround({ x: here.x + d.x * reach, y: here.y + d.y * reach }, arena);
+        !onGround({ x: here.x + d.x * reach, y: here.y + d.y * reach }, arena, state.roundTime);
       const r = state.config.playerRadius;
       // every few units out to two radii (one sample far ahead would step across a corner where a bridge meets an island);
       // from half a radius out each sample must also have ground a margin round it, so it never walks along an edge with its
@@ -323,6 +324,7 @@ export class CpuController {
                     y: y + Math.sin((k * Math.PI) / 4) * room,
                   },
                   arena,
+                  state.roundTime,
                 ),
             )
           )
@@ -937,7 +939,20 @@ export class CpuController {
       this.#field = { key, at: this.#tick, data };
     }
     const next = grid.steer(this.#field.data, here, 8, clear);
-    this.#move = next === undefined ? norm(sub(goal, here)) : norm(sub(next, here));
+    if (next !== undefined) {
+      this.#move = norm(sub(next, here));
+      return;
+    }
+    // no planned way: straight for the goal; but carried on a turntable (the cross pond's raft, where its plan has no
+    // ground), only onto ground there now; otherwise it stays, carried, until ground lies that way
+    const straight = norm(sub(goal, here));
+    const ahead = { x: here.x + straight.x * radius, y: here.y + straight.y * radius };
+    const t = state.roundTime;
+    this.#move =
+      turntableUnder(here, state.config.arena, t) === undefined ||
+      onGround(ahead, state.config.arena, t)
+        ? straight
+        : { x: 0, y: 0 };
   }
 
   /** DASH to cover ground or to take a shortcut through a wall (only if it owns PHASE_DASH: the rules make that true or false). */
