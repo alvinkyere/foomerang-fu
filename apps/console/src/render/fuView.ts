@@ -306,6 +306,20 @@ export function buildFuView(
       // TELEPORT_BOOMERANG: they simply appear where their boomerang was (the owner, 2026-10-22): no effect of its own
       case 'TELEPORTED':
         return [];
+      // a portal crossing (rules portals.ts): its two portals flash, where the pad it came out on is
+      case 'PORTAL': {
+        const out = state.config.arena.portals?.find((p) => p.id === event.to);
+        return [
+          {
+            type: 'PORTAL',
+            x: out?.x ?? 0,
+            y: out?.y ?? 0,
+            color: '#9376f6',
+            actor: 'playerId' in event ? event.playerId : event.ownerId,
+            portals: [event.from, event.to],
+          },
+        ];
+      }
       case 'CAUGHT':
         return [
           {

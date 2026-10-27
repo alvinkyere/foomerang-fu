@@ -109,6 +109,8 @@ export interface FuState {
   readonly tiebreak: boolean;
   /** Slice 8: set once someone has won; phase is then MATCH_OVER. */
   readonly matchOver: FuMatchOver | undefined;
+  /** Portals (portals.ts): each player still on the pad they came out on, by id (they are not sent back until they leave it). */
+  readonly portalLocks?: Readonly<Record<string, string>>;
 }
 
 export const MAX_PLAYERS = 6;

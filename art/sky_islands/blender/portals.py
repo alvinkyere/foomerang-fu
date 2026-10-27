@@ -167,3 +167,8 @@ def build(data, parent):
         me.materials.append(unlit(f'portal_{k}_ring', pal['ghost']))
         ob = bpy.data.objects.new(f'PORTAL_{k}_ring', me); bpy.context.scene.collection.objects.link(ob)
         ob.matrix_world = Matrix.Translation(rest) @ Matrix((s, -u, rn) if p.get('ring_away') else (s, u, n)).transposed().to_4x4()
+    # every part at the model's top level (the game leaves them out of its static merging: it flashes them when something
+    # crosses, rules portals.ts)
+    for ob in list(bpy.context.scene.objects):
+        if ob.name.startswith('PORTAL_') and ob.parent is not None:
+            mw = ob.matrix_world.copy(); ob.parent = None; ob.matrix_world = mw

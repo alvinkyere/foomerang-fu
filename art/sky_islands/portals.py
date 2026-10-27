@@ -42,8 +42,10 @@ GLYPH = [(round(x * 1.066, 3), round(y * 1.066, 3)) for x, y in GLYPH]
 # face, unskewed, flat #1ce0f5 to 0.82 then #28d4eb, #2aafc9, #2f7fa5; the gold's a little darker at its edge, its face
 # #ebc364 in reference.png)
 PALETTES = {
-    'blue': dict(face='#1ce0f5', glyph=['#187db6', '#1f69a6'], ghost='#3fe3f2', bevel=['#2bc4dd', '#2a9fc0'], back='#58ddc4'),
-    'gold': dict(face='#ecc262', glyph=['#3b8cc0', '#2e6fa8'], ghost='#f0c450', bevel=['#e6c166', '#dcbd6e'], back='#f6c451'),
+    'blue': dict(face='#1ce0f5', glyph=['#187db6', '#1f69a6'], ghost='#3fe3f2', bevel=['#2bc4dd', '#2a9fc0'], back='#58ddc4',
+             flash=['#9376f6', '#4366c1']),
+    'gold': dict(face='#ecc262', glyph=['#3b8cc0', '#2e6fa8'], ghost='#f0c450', bevel=['#e6c166', '#dcbd6e'], back='#f6c451',
+             flash=['#5f3b28', '#356e99']),
 }
 SIDES = '#363e76'
 # each portal: its colour; its face's centre (plan x, y; height); the way its face looks (degrees from east), how far it leans
@@ -112,6 +114,10 @@ SWIRL_TURN = {'blue': -120.0, 'gold': -105.0}
 # later, its dark share through 2,421 frames of 9:03-9:47 against the blue's correlating 0.88 at that lag; the lower two,
 # never seen from in front, take their colour's)
 LAG = {'blue': 0.0, 'gold': 0.65}
-json.dump(dict(period=PERIOD, lags=[LAG[q['colour']] for q in PORTALS], swirl_turn=SWIRL_TURN, frames=dict(count=len(FRAMES), columns=COLS, rows=ROWS), spin=SPIN, ring=RING, glyph=GLYPH, palettes=PALETTES, sides=SIDES, portals=PORTALS),
+# a crossing (rules portals.ts): both portals of the pair flash, their faces and swirls going at once to `flash` (face,
+# swirl) and back over FLASH_SECONDS (foomerang-fu physics hq.mp4 9:09.53: the blue to #9376f6 / #4366c1, back by 9:09.95;
+# 9:09.35: the gold to #5f3b28 / #356e99, back by 9:09.80)
+FLASH_SECONDS = 0.45
+json.dump(dict(period=PERIOD, flash_seconds=FLASH_SECONDS, flashes=[PALETTES[q['colour']]['flash'] for q in PORTALS], lags=[LAG[q['colour']] for q in PORTALS], swirl_turn=SWIRL_TURN, frames=dict(count=len(FRAMES), columns=COLS, rows=ROWS), spin=SPIN, ring=RING, glyph=GLYPH, palettes=PALETTES, sides=SIDES, portals=PORTALS),
           open('art/sky_islands/portals.json', 'w'), indent=1)
 print(len(PORTALS), 'portals')

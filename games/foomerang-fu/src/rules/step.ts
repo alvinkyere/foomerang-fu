@@ -1,3 +1,4 @@
+import { crossPortals, type PortalEvent } from './portals';
 import {
   FIXED_TIMESTEP_SECONDS,
   normalizeMovementInput,
@@ -220,7 +221,8 @@ export type FuEvent =
   | { readonly type: 'SCOREBOARD' }
   | { readonly type: 'ROUND_START'; readonly round: number }
   /** The round's intro is over (READY … GO): play starts now. */
-  | { readonly type: 'GO' };
+  | { readonly type: 'GO' }
+  | PortalEvent;
 
 export interface FuStepResult {
   readonly state: FuState;
@@ -409,7 +411,12 @@ export function stepFu(state: FuState, inputs: FuInputs, dt: number): FuStepResu
       events: [{ type: 'GO' }],
     };
   }
-  return stepPlaying(state, inputs, dt);
+  // portals (portals.ts): once everything has moved, whatever stands on a pad goes to its partner
+  const played = stepPlaying(state, inputs, dt);
+  const crossed = crossPortals(played.state);
+  return crossed.state === played.state
+    ? played
+    : { state: crossed.state, events: [...played.events, ...crossed.events] };
 }
 
 function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuStepResult {

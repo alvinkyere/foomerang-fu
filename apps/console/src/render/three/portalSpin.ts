@@ -21,6 +21,9 @@ export interface PortalSpin {
   readonly frames?: { readonly count: number; readonly columns: number; readonly rows: number };
   /** Each portal's lag behind the clock, seconds, by its number (PORTAL_<k>): its swirl and ring run that much later. */
   readonly lags?: readonly number[];
+  /** Each portal's flash when something crosses (face, swirl colours), by its number; and how long it takes to fade. */
+  readonly flashes?: readonly (readonly [string, string])[];
+  readonly flash_seconds?: number;
 }
 
 /** Which two frames show, and how far the second has faded in over the first. */
@@ -69,12 +72,27 @@ export function parsePortalSpin(raw: unknown): PortalSpin | undefined {
   if (lagsRaw !== undefined && (!Array.isArray(lagsRaw) || !lagsRaw.every((v) => num(v) && v >= 0)))
     throw new Error('map manifest: bad portals');
   const lags = lagsRaw as number[] | undefined;
+  const hex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+  const flashesRaw = (r as { flashes?: unknown }).flashes;
+  if (
+    flashesRaw !== undefined &&
+    (!Array.isArray(flashesRaw) ||
+      !flashesRaw.every((f) => Array.isArray(f) && f.length === 2 && f.every(hex)))
+  )
+    throw new Error('map manifest: bad portals');
+  const flashSeconds = (r as { flash_seconds?: unknown }).flash_seconds;
+  if (flashSeconds !== undefined && !(num(flashSeconds) && flashSeconds > 0))
+    throw new Error('map manifest: bad portals');
   return {
     period,
     spin,
     ...(ring === undefined ? {} : { ring }),
     ...(frames === undefined ? {} : { frames }),
     ...(lags === undefined ? {} : { lags: [...lags] }),
+    ...(flashesRaw === undefined
+      ? {}
+      : { flashes: (flashesRaw as string[][]).map((f) => [f[0], f[1]] as [string, string]) }),
+    ...(flashSeconds === undefined ? {} : { flash_seconds: flashSeconds as number }),
   };
 }
 
@@ -154,4 +172,11 @@ export function spinAt(s: PortalSpin, ms: number): number {
     }
   }
   return ((deg + 360 * turns) * Math.PI) / 180;
+}
+
+/** How strong a portal's flash is (1 at once, 0 once faded), `ms` on the map's clock, for a crossing at `since` (or none). */
+export function flashAt(s: PortalSpin, since: number | undefined, ms: number): number {
+  if (since === undefined) return 0;
+  const f = 1 - (ms - since) / ((s.flash_seconds ?? 0.45) * 1000);
+  return f <= 0 ? 0 : Math.min(1, f);
 }

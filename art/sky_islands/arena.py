@@ -93,6 +93,40 @@ SPAWNS, BOOKS = clearance_points([[w(x, y) for x, y in o] for k, o in L['islands
 spawns = [dict(x=x, y=y) for x, y in SPAWNS]
 books = [dict(x=x, y=y) for x, y in BOOKS]
 
+# the portals' pads (portals.py; rules portals.ts): each a disc on the grass in front of its portal, where the HQ's players
+# step to go through (foomerang-fu physics hq.mp4 9:09.4: onto the plaque's foot), its centre PAD_OUT plan units out from the
+# plaque's bottom corner on the side that is open ground; partners: the other portal of its colour
+P = json.load(open('art/sky_islands/portals.json'))
+PAD_OUT, PAD_R = 1.0, 1.0
+
+
+def pad_of(q):
+    y, t, tn = (math.radians(q.get(k, 0.0)) for k in ('facing', 'lean', 'turn'))
+    n = np.array([math.cos(y) * math.cos(t), math.sin(y) * math.cos(t), math.sin(t)])
+    sv = np.cross([0.0, 0.0, 1.0], n); sv /= np.linalg.norm(sv); u = np.cross(n, sv)
+    u2 = -sv * math.sin(tn) + u * math.cos(tn)
+    foot = np.array(q['centre']) - u2 * q['radius']                          # its bottom corner
+    nh = np.array([n[0], n[1]]); nh /= np.linalg.norm(nh)
+    best = None
+    for side in (1, -1):
+        c = foot[:2] + nh * side * PAD_OUT
+        wx, wy = w(*c)
+        clear = min((math.hypot(wx - o['x'], wy - o['y']) - max(o.get('halfWidth', o.get('radius', 0)), o.get('halfHeight', 0))
+                     for o in walls), default=1e9)
+        on = any(cv2.pointPolygonTest(np.float32(g).reshape(-1, 1, 2), (float(wx), float(wy)), True) > PAD_R * S
+                 for g in ground)
+        score = (on, clear)
+        if best is None or score > best[0]: best = (score, (wx, wy))
+    return best[1]
+
+
+portals = []
+for k, q in enumerate(P['portals']):
+    x, y = pad_of(q)
+    mate = next(j for j, o in enumerate(P['portals']) if j != k and o['colour'] == q['colour'])
+    portals.append(dict(id=f'PORTAL_{k}', x=round(float(x), 1), y=round(float(y), 1), radius=round(PAD_R * S, 1),
+                        to=f'PORTAL_{mate}'))
+
 fmt = lambda o: 'Object.freeze(' + json.dumps(o).replace('"', "'").replace("'x'", 'x') + ')'
 def obj(d):
     return 'Object.freeze({ ' + ', '.join(f'{k}: ' + (f"'{v}'" if isinstance(v, str) else json.dumps(v)) for k, v in d.items()) + ' })'
@@ -100,6 +134,7 @@ def pts(poly):
     return 'Object.freeze([' + ', '.join(f'{{ x: {x}, y: {y} }}' for x, y in poly) + '])'
 ts = f"""import type {{ Vec2 }} from '@foomerang/game-core';
 import type {{ Breakable, FuArena, Solid }} from './arena';
+import type {{ ArenaPortal }} from './portals';
 
 /**
  * THE GONG ISLANDS (`gong_islands`): the sky islands of the HQ videos (foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq
@@ -136,6 +171,9 @@ export const GONG_ISLANDS_FENCES: readonly GongIslandsFence[] = Object.freeze([
 export const GONG_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
 {''.join('  ' + obj(o) + ',\n' for o in spawns)}]);
 
+export const GONG_ISLANDS_PORTALS: readonly ArenaPortal[] = Object.freeze([
+{''.join('  ' + obj(o) + ',\n' for o in portals)}]);
+
 export const GONG_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 {''.join('  ' + obj(o) + ',\n' for o in books)}]);
 
@@ -147,6 +185,7 @@ export const GONG_ISLANDS_ARENA: FuArena = Object.freeze({{
   breakables: GONG_ISLANDS_BREAKABLES,
   fences: GONG_ISLANDS_FENCES,
   spawns: GONG_ISLANDS_SPAWNS,
+  portals: GONG_ISLANDS_PORTALS,
 }});
 """
 open('games/foomerang-fu/src/rules/gongIslandsArena.ts', 'w').write(ts)

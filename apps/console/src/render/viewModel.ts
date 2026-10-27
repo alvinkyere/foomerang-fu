@@ -108,12 +108,15 @@ export interface ViewEvent {
     | 'THAWED'
     | 'IGNITED'
     | 'SPLIT'
-    | 'ROUND_START';
+    | 'ROUND_START'
+    | 'PORTAL';
   readonly x: number;
   readonly y: number;
   readonly color: string;
   /** Who the event is about (the thrower, the swinger, the victim of a HIT...): lets a presentation animate that player. */
   readonly actor?: string;
+  /** For PORTAL: the two portals of the crossing, by their ids (PORTAL_<k>), which both flash. */
+  readonly portals?: readonly [string, string];
   /** For DEFLECTED: where the boomerang was sent (unit vector), so the effect can point the way it went. */
   readonly knock?: Vec2;
   /** For DASHED: the way the dash goes (unit vector), so the burst can be drawn pointing along it. */

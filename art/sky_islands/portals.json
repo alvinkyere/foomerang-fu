@@ -1,5 +1,12 @@
 {
   "period": 3.86,
+  "flash_seconds": 0.45,
+  "flashes": [
+    ["#9376f6", "#4366c1"],
+    ["#5f3b28", "#356e99"],
+    ["#9376f6", "#4366c1"],
+    ["#5f3b28", "#356e99"]
+  ],
   "lags": [0.0, 0.65, 0.0, 0.65],
   "swirl_turn": {
     "blue": -120.0,
@@ -77,14 +84,16 @@
       "glyph": ["#187db6", "#1f69a6"],
       "ghost": "#3fe3f2",
       "bevel": ["#2bc4dd", "#2a9fc0"],
-      "back": "#58ddc4"
+      "back": "#58ddc4",
+      "flash": ["#9376f6", "#4366c1"]
     },
     "gold": {
       "face": "#ecc262",
       "glyph": ["#3b8cc0", "#2e6fa8"],
       "ghost": "#f0c450",
       "bevel": ["#e6c166", "#dcbd6e"],
-      "back": "#f6c451"
+      "back": "#f6c451",
+      "flash": ["#5f3b28", "#356e99"]
     }
   },
   "sides": "#363e76",

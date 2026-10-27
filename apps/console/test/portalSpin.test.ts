@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { frameAt, parsePortalSpin, ringAt, spinAt } from '../src/render/three/portalSpin';
+import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt } from '../src/render/three/portalSpin';
 
 // The gong islands' portals (owner, 2026-10-26: "the portals have a certain animation ... exactly like it is in the video"):
 // the "G" on each turns in its face's plane on the HQ's curve, one turn a period (art/sky_islands/portals.py measures it).
@@ -131,6 +131,22 @@ describe('a portal’s spin', () => {
     expect(() => parsePortalSpin({ ...SPIN, lags: 'late' })).toThrow(/portals/);
   });
 
+  it('a crossing flashes its portals: the flash colours at once, gone after flash_seconds; bad ones are refused', () => {
+    const s = parsePortalSpin({
+      ...SPIN,
+      flashes: [['#9376f6', '#4366c1']],
+      flash_seconds: 0.5,
+    });
+    if (s === undefined) throw new Error('no spin');
+    expect(s.flashes).toEqual([['#9376f6', '#4366c1']]);
+    expect(flashAt(s, 1000, 1000)).toBeCloseTo(1);
+    expect(flashAt(s, 1000, 1250)).toBeCloseTo(0.5);
+    expect(flashAt(s, 1000, 1600)).toBe(0);
+    expect(flashAt(s, undefined, 1600)).toBe(0);
+    expect(() => parsePortalSpin({ ...SPIN, flashes: [['violet', '#000000']] })).toThrow(/portals/);
+    expect(() => parsePortalSpin({ ...SPIN, flash_seconds: 0 })).toThrow(/portals/);
+  });
+
   it('the gong islands ship the HQ’s', () => {
     const manifest = JSON.parse(
       readFileSync(join(__dirname, '../public/maps/gong_islands/manifest.json'), 'utf8'),
@@ -140,5 +156,6 @@ describe('a portal’s spin', () => {
     expect(s === undefined ? undefined : ringAt(s, 480)?.opacity).toBeGreaterThan(0.5);
     expect(s?.frames?.count).toBe(80);
     expect(s?.lags).toEqual([0, 0.65, 0, 0.65]);
+    expect(s?.flashes?.[0]).toEqual(['#9376f6', '#4366c1']);
   });
 });

@@ -39,7 +39,7 @@ import {
   type CameraMotion,
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
-import { frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
+import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1134,6 +1134,8 @@ class Plaza {
   #standPull = 0;
   /** The gong islands' portals' "G" turning (render/three/portalSpin.ts); undefined: a map without portals. */
   #portalSpin: PortalSpin | undefined;
+  /** When each portal (by its number) last had something cross it (view event PORTAL): it flashes from then. */
+  readonly #portalCrossed = new Map<number, number>();
 
   constructor(
     readonly container: HTMLElement,
@@ -1240,12 +1242,12 @@ class Plaza {
       }
     });
     // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
-    // objects that never move, fade or break into one; crates and pots (they break), the water and the portals' turning "G"
-    // and moving ring stay as they are
+    // objects that never move, fade or break into one; crates and pots (they break), the water and the portals (their swirl
+    // plays, their ring moves, they flash) stay as they are
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_\d+_(glyph|glyph_next|ring)$/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1412,6 +1414,54 @@ class Plaza {
           },
         });
       });
+    // their flash when something crosses (view event PORTAL): every part but the rock's navy goes to the flash colours, the
+    // lighter parts to the face's, the darker to the swirl's, at once, and back over flash_seconds (portalSpin.ts flashAt)
+    const flashes = spin?.flashes;
+    if (spin !== undefined && flashes !== undefined) {
+      const strength = new Map<number, { value: number }>();
+      gltf.traverse((o) => {
+        const which = /^PORTAL_(\d+)(_glyph|_glyph_next|_ring|_rim|_rim_outer|_sides)?$/.exec(
+          o.name,
+        );
+        const k = which === null ? undefined : Number(which[1]);
+        const colours = k === undefined ? undefined : flashes[k];
+        if (!(o instanceof THREE.Mesh) || k === undefined || colours === undefined) return;
+        const material = o.material as THREE.MeshBasicMaterial;
+        const flash = strength.get(k) ?? { value: 0 };
+        if (!strength.has(k)) {
+          strength.set(k, flash);
+          this.#moving.push({
+            object: o,
+            motion: (t) => {
+              flash.value = flashAt(spin, this.#portalCrossed.get(k), t);
+            },
+          });
+        }
+        const before = material.onBeforeCompile.bind(material);
+        material.onBeforeCompile = (shader, renderer) => {
+          before(shader, renderer);
+          shader.uniforms['portalFlash'] = flash;
+          shader.uniforms['flashFace'] = { value: new THREE.Color(colours[0]) };
+          shader.uniforms['flashSwirl'] = { value: new THREE.Color(colours[1]) };
+          shader.fragmentShader = shader.fragmentShader
+            .replace(
+              'void main() {',
+              'uniform float portalFlash;\nuniform vec3 flashFace;\nuniform vec3 flashSwirl;\nvoid main() {',
+            )
+            .replace(
+              '#include <color_fragment>',
+              [
+                '#include <color_fragment>',
+                'float portalLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));',
+                'vec3 portalTo = mix(flashSwirl, flashFace, smoothstep(0.17, 0.32, portalLum));',
+                'diffuseColor.rgb = mix(diffuseColor.rgb, portalTo, portalFlash);',
+              ].join('\n'),
+            );
+        };
+        material.customProgramCacheKey = () => `portal-flash-${o.name}`;
+        material.needsUpdate = true;
+      });
+    }
     // their rings, out along the face's normal (the ring's local Y) and up, fading; built where they rest at the curve's start
     if (spin?.ring !== undefined) {
       const first = spin.ring[0];
@@ -1553,6 +1603,12 @@ class Plaza {
       this.scene.add(object);
       this.#bursts.push({ object, born: now, life, grow });
     };
+    if (e.type === 'PORTAL') {
+      // a crossing: both its portals flash (their #animate motion reads when)
+      for (const id of e.portals ?? [])
+        this.#portalCrossed.set(Number(id.replace('PORTAL_', '')), now);
+      return;
+    }
     if (e.type === 'HIT' && e.actor !== undefined && e.fell === true) {
       // it walked off the ground: no remains, it drops away whole (render/fallMotion.ts)
       this.#characters.get(e.actor)?.fall(now);

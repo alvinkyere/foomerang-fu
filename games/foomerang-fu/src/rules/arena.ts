@@ -1,4 +1,5 @@
 import type { Vec2 } from '@foomerang/game-core';
+import type { ArenaPortal } from './portals';
 import type { GateSpec, HazardSpec, PlatformSpec } from './systems';
 
 /**
@@ -73,6 +74,8 @@ export interface FuArena<W extends Solid = Solid> {
    * middle leaves every one of them falls and dies. Absent: ground everywhere.
    */
   readonly ground?: readonly (readonly Vec2[])[];
+  /** Portals' pads (portals.ts): reaching one takes a player, or a flying boomerang, to its partner. Absent: none. */
+  readonly portals?: readonly ArenaPortal[];
 }
 
 const NO_WALLS: readonly never[] = Object.freeze([]);

@@ -1,5 +1,6 @@
 import type { Vec2 } from '@foomerang/game-core';
 import type { Breakable, FuArena, Solid } from './arena';
+import type { ArenaPortal } from './portals';
 
 /**
  * THE GONG ISLANDS (`gong_islands`): the sky islands of the HQ videos (foomerang-fu physics hq.mp4 9:03-9:47, ff physics hq
@@ -819,6 +820,13 @@ export const GONG_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 1305.0, y: 1375.0 }),
 ]);
 
+export const GONG_ISLANDS_PORTALS: readonly ArenaPortal[] = Object.freeze([
+  Object.freeze({ id: 'PORTAL_0', x: 205.3, y: 248.4, radius: 27.5, to: 'PORTAL_2' }),
+  Object.freeze({ id: 'PORTAL_1', x: 1603.1, y: 273.3, radius: 27.5, to: 'PORTAL_3' }),
+  Object.freeze({ id: 'PORTAL_2', x: 1124.5, y: 985.5, radius: 27.5, to: 'PORTAL_0' }),
+  Object.freeze({ id: 'PORTAL_3', x: 1550.9, y: 1109.3, radius: 27.5, to: 'PORTAL_1' }),
+]);
+
 export const GONG_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   Object.freeze({ x: 600.0, y: 310.0 }),
   Object.freeze({ x: 1025.0, y: 965.0 }),
@@ -833,4 +841,5 @@ export const GONG_ISLANDS_ARENA: FuArena = Object.freeze({
   breakables: GONG_ISLANDS_BREAKABLES,
   fences: GONG_ISLANDS_FENCES,
   spawns: GONG_ISLANDS_SPAWNS,
+  portals: GONG_ISLANDS_PORTALS,
 });

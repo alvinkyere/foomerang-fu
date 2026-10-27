@@ -37,12 +37,15 @@ export {
   GONG_ISLANDS_FENCES,
   GONG_ISLANDS_GROUND,
   GONG_ISLANDS_HEIGHT,
+  GONG_ISLANDS_PORTALS,
   GONG_ISLANDS_SPAWNS,
   GONG_ISLANDS_WALLS,
   GONG_ISLANDS_WIDTH,
 } from './gongIslandsArena';
 export type { GongIslandsBreakable, GongIslandsWall } from './gongIslandsArena';
 export type { SkyIslandsWall } from './skyIslandsArena';
+export { crossPortals } from './portals';
+export type { ArenaPortal, PortalEvent } from './portals';
 export { gatePhaseAt, hazardPhaseAt, platformAt, systemsView } from './systems';
 export type {
   GatePhase,

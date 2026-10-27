@@ -49,8 +49,12 @@ export class NavGrid {
               y: p.y + Math.sin((k * Math.PI) / 4) * radius,
             })),
           ].every((q) => onGround(q, arena));
+        // and off the portals' pads (rules/portals.ts): it does not know where one leads, so it routes round them
+        const onPad = (arena.portals ?? []).some(
+          (pad) => Math.hypot(p.x - pad.x, p.y - pad.y) < pad.radius + radius,
+        );
         this.#free[cy * this.cols + cx] =
-          inside && grounded && !circleHitsWalls(p, radius, walls) ? 1 : 0;
+          inside && grounded && !onPad && !circleHitsWalls(p, radius, walls) ? 1 : 0;
       }
     }
   }
