@@ -27,7 +27,8 @@ const defaultFactory: ContextFactory = () => {
 /**
  * The game's sound: a music bed while an arena is up, an effect for every match event, and the menus' blips. It listens; it
  * never decides anything (the rules do not know it exists). Browsers keep audio locked until a key or a tap, so the context
- * is resumed on the first one (and tried again while it waits). `?sound=off` is silence, for tests and a quiet room.
+ * is resumed on the first one (and tried again while it waits). OFF BY DEFAULT (the owner, 2026-10-28: "it's bad, turn it off"):
+ * `?sound=on` turns it on, until the sounds are right.
  */
 export class SoundEngine {
   readonly #factory: ContextFactory;
@@ -171,6 +172,6 @@ export class SoundEngine {
   }
 }
 
-const quiet =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).get('sound') === 'off';
-export const soundEngine = new SoundEngine(defaultFactory, !quiet);
+const wanted =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).get('sound') === 'on';
+export const soundEngine = new SoundEngine(defaultFactory, wanted);

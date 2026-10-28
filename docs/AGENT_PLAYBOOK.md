@@ -94,8 +94,8 @@ console title: every timing, size and colour is measured, not guessed; every mot
   `art/audio/output/preview/*.wav` and prints peak and average loudness with the level that evens them out. Re-run it after
   changing a recipe and paste the printed levels into `recipes.ts`.
 - **You cannot hear.** Say so. Ship, then ask the owner to listen and name what is wrong; adjust recipes from their words.
-- `?sound=off` silences everything (tests, quiet rooms). The browser keeps audio locked until a key or tap; the engine resumes
-  on the first one.
+- **Sound is OFF by default** (the owner found the first version bad, 2026-10-28): `?sound=on` turns it on while the sounds are
+  tuned. The browser keeps audio locked until a key or tap; the engine resumes on the first one.
 
 ## 5. Validate and commit
 
