@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createConsoleRuntime } from '../src/consoleRuntime';
+import { soundHooks, type SoundCue } from '../src/shell/sound';
 import { deriveContext } from '../src/runtime/controllerContext';
 import { FakeHostNetwork, MemoryHostStore, createClock, roster, settle } from './support/hostFakes';
 
@@ -93,6 +94,20 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
     expect(r.runtime.director.picks.pick('a')).toEqual({ character: 'banana', ready: true });
     expect(r.runtime.director.picks.pick('b')).toEqual({ character: 'icecream', ready: false });
     expect(r.menu).toEqual([]);
+  });
+
+  it('and each has its sound (game-setting.mp4): a hover on arriving at a character, a chirp for ready, a sag for taking it back', async () => {
+    const heard: SoundCue[] = [];
+    const off = soundHooks.on((cue) => heard.push(cue));
+    const r = await room('foomerang-fu');
+    await r.enter('LOBBY');
+    await r.move('a', 0, -1); // bread -> banana: the cursor arrives on another character
+    await r.press('a', 'PRIMARY');
+    await r.press('a', 'PRIMARY', 'released');
+    r.setNow(500);
+    await r.press('a', 'SECONDARY');
+    off();
+    expect(heard).toEqual(['hover', 'ready', 'unready']);
   });
 
   it('THROW un-readies (and never asks to close the room)', async () => {

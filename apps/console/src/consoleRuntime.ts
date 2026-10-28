@@ -4,6 +4,7 @@ import { HostSession, type HostStore, type HostTransportFactory } from './host';
 import { deriveContext } from './runtime/controllerContext';
 import { InputRouter, type MenuAction } from './runtime/controllerInput';
 import { MapRotation, PRODUCT_POOL } from './runtime/mapRotation';
+import { soundHooks } from './shell/sound';
 import { MatchDirector, createRuntimeFor, warmUpFor } from './runtime/matchDirector';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './runtime/powerupMode';
@@ -130,20 +131,38 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     const picks = director.picks;
     const pick = picks.pick(playerId);
     if (pick === undefined) return;
+    // (each action's sound: the hover of a cursor that arrived on another character, the chirps of ready and taken back)
+    const moved = (): void => {
+      const now = picks.pick(playerId);
+      if (now !== undefined && now.character !== pick.character) soundHooks.emit('hover');
+    };
     if (action === 'select') {
-      if (picks.select(playerId) === 'BEGIN') startMatch();
-    } else if (action === 'back') picks.back(playerId);
-    else if (action === 'left' || action === 'right') {
-      if (!pick.ready) picks.move(playerId, action);
-      else if (picks.allReady) {
+      const result = picks.select(playerId);
+      if (result === 'BEGIN') {
+        soundHooks.emit('start');
+        startMatch();
+      } else if (result === 'READY') soundHooks.emit('ready');
+      else if (result === 'TAKEN' || result === 'COMING_SOON') soundHooks.emit('error');
+    } else if (action === 'back') {
+      picks.back(playerId);
+      if (pick.ready) soundHooks.emit('unready');
+    } else if (action === 'left' || action === 'right') {
+      if (!pick.ready) {
+        picks.move(playerId, action);
+        moved();
+      } else if (picks.allReady) {
         // the begin bar's ‹ BOTS ›: one more, or one fewer (the last added)
+        soundHooks.emit('toggle');
         if (action === 'right') director.cpus.add('MEDIUM', humans());
         else {
           const last = director.cpus.entries.at(-1);
           if (last !== undefined) director.cpus.remove(last.id);
         }
       }
-    } else if (action === 'up' || action === 'down') picks.move(playerId, action);
+    } else if (action === 'up' || action === 'down') {
+      picks.move(playerId, action);
+      moved();
+    }
   };
   const router = new InputRouter({
     ownCursors: choosing,

@@ -3,7 +3,19 @@
  * audio ships yet; a later slice attaches an audio engine here without touching a component.
  */
 export type SoundCue =
-  'move' | 'select' | 'back' | 'open' | 'close' | 'toggle' | 'error' | 'join' | 'start';
+  | 'move'
+  | 'select'
+  | 'back'
+  | 'open'
+  | 'close'
+  | 'toggle'
+  | 'error'
+  | 'join'
+  | 'start'
+  // character select (game-setting.mp4): a cursor arriving on a character, a player ready, a player taking it back
+  | 'hover'
+  | 'ready'
+  | 'unready';
 
 export interface SoundHooks {
   emit(cue: SoundCue): void;

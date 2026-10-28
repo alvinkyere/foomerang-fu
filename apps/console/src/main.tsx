@@ -1,6 +1,7 @@
 import { createSocketIOTransportFactory } from '@foomerang/controller-sdk';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { loadSound } from './audio/sound';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
 import {
@@ -98,4 +99,6 @@ if (!config.ok) {
       />
     </StrictMode>,
   );
+  // the sound arrives after the first screen (its own chunk): the menus' blips work from the lobby on
+  void loadSound();
 }

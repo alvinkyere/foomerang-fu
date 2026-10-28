@@ -18,6 +18,7 @@ const loadScoreboard = () => import('./Scoreboard');
 const loadResults = () => import('./MatchEnd');
 const Scoreboard = lazy(() => loadScoreboard().then((m) => ({ default: m.Scoreboard })));
 const MatchEnd = lazy(() => loadResults().then((m) => ({ default: m.MatchEnd })));
+import { sound } from '../audio/sound';
 import { addScoreToasts, type ScoreToastState } from './scoreToasts';
 import { useHostState } from './useStore';
 
@@ -77,6 +78,7 @@ export function ArenaScreen({
     let cancelled = false;
     let renderer: ArenaRenderer | undefined;
 
+    sound.start(); // (the music while an arena is up; the effects follow the view's events)
     // The simulation starts immediately; it must not wait for the renderer to download.
     const loop = createLoop();
     loop.start(() => {
@@ -84,6 +86,7 @@ export function ArenaScreen({
       const view = runtime.director.arenaView();
       if (view === undefined) return;
       renderer?.render(view);
+      sound.frame(view);
       const next = view.hud;
       if (next === undefined) return;
       // React re-renders only when what the HUD shows has changed, not on every frame
@@ -147,6 +150,7 @@ export function ArenaScreen({
     return () => {
       cancelled = true;
       loop.stop();
+      sound.stop();
       renderer?.destroy();
       renderer = undefined;
       rendererRef.current = undefined;

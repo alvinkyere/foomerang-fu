@@ -19,3 +19,4 @@ This block is written and re-added by `turbo` before repository-scoped commands 
 - **Validation (Zod) only at trust boundaries** (wire input). Internal code relies on types.
 - **Dependencies:** justify every new one; pick versions from verified registry/compatibility data, not "latest". **`minimumReleaseAgeExclude` must never be added or modified merely to make an install succeed** — any exception to the package-age / supply-chain policy needs explicit engineering review and documented justification (docs/DEPENDENCIES.md); `packages/config/test/supply-chain-policy.test.ts` enforces it.
 - **Treat all network input as hostile.** Never log tokens.
+- **How the look, motion and sound are built** (measure the reference, build our own, compare, test, validate, commit): `docs/AGENT_PLAYBOOK.md`. Never ship the reference videos' pixels or audio.

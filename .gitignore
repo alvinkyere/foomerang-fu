@@ -32,4 +32,5 @@ docs/review/visual-owner-review/
 .env*
 art/physics_reference/output/
 art/sky_islands/output/
+art/audio/output/
 art/pond_cross/output/
