@@ -86,9 +86,11 @@ for (x, y), in (plan([p]) for p in spots):
 pad = (h[..., 0] >= 50) & (h[..., 0] <= 85) & (h[..., 1] > 60) & (h[..., 2] < 160)
 n, lab, st, cen = cv2.connectedComponentsWithStats(clean(pad, 3))
 pads = [dict(at=r1(plan([cen[i]]))[0], r=round(math.sqrt(st[i, 4] / math.pi) / 20, 2)) for i in range(1, n) if 60 < st[i, 4] < 3000]
+# the raft's speed, measured 2026-10-29: its angle goes -34.1 -> -25.9 degrees over 266.7-267.6 s of the HQ video, 9.45 degrees a second,
+# COUNTER-clockwise on screen (a rules turntable's positive speed is clockwise, so it is negative here)
 out = dict(zoom=Z, banks=[r1(b) for b in banks], walls=[r1(w) for w in walls],
            raft=dict(centre=[round(cx, 2), round(cy, 2)], arm=round(L_, 2), width=round(W_, 2), degrees=round(float(a), 2),
-                     crates=crates, crates_are='local, along the arms at degrees', degreesPerSecond=24), pads=pads)
+                     crates=crates, crates_are='local, along the arms at degrees', degreesPerSecond=-9.45), pads=pads)
 json.dump(out, open('art/pond_cross/layout.json', 'w'))
 allp = np.concatenate(banks + walls)
 print('banks', [len(b) for b in banks], 'walls', [len(w) for w in walls], 'bounds', allp.min(0).round(1), allp.max(0).round(1))

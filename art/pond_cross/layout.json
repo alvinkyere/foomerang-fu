@@ -1419,7 +1419,7 @@
       [12.5, -2.1]
     ],
     "crates_are": "local, along the arms at degrees",
-    "degreesPerSecond": 24
+    "degreesPerSecond": -9.45
   },
   "pads": []
 }

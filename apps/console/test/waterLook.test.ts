@@ -99,6 +99,10 @@ describe('the water shader of a map with a moving raft', () => {
     cartoon: {
       fps: 1.5,
       wobble: 0.3,
+      scale: 1.5,
+      wobbleScale: 1.3,
+      presence: [0.28, 0.55],
+      raftFoam: { width: 0.35, presenceShift: 0.12 },
       motion: 1.6,
       glow: 0.3,
       ribbons: [
@@ -110,7 +114,12 @@ describe('the water shader of a map with a moving raft', () => {
 
   it('draws the cartoon water too: a ribbon for each entry, its outline morphing from one draw to the next', () => {
     expect(cartoon.fragmentShader).toContain('floor(time * 1.5000)');
-    expect(cartoon.fragmentShader.match(/foamAmount = max/g)).toHaveLength(2);
+    // one line for each ribbon, in the function the banks and the raft each call (the raft with its own, thinner width)
+    expect(cartoon.fragmentShader.match(/amount = max\(amount/g)).toHaveLength(2);
+    expect(cartoon.fragmentShader).toContain('ribbons(uv, dBank, wobble, stepNo, ease, 1.0, 0.0)');
+    expect(cartoon.fragmentShader).toContain(
+      'ribbons(uv, dRaft, wobble, stepNo, ease, 0.3500, 0.1200)',
+    );
   });
 
   it('names no reserved GLSL word (one did: `half`, and the whole water silently did not draw)', () => {

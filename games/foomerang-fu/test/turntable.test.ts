@@ -7,7 +7,13 @@ import {
   type FuArena,
   type FuEvent,
 } from '../src/rules';
-import { circleHitsWalls, onGround, turntableGround, turntableWalls } from '../src/rules/arena';
+import {
+  circleHitsWalls,
+  onGround,
+  turntableAngle,
+  turntableGround,
+  turntableWalls,
+} from '../src/rules/arena';
 import { navGridFor } from '../src/cpu/nav';
 import { playMatch } from './support/cpuMatch';
 import { DT, NONE, R, at, make, place, player } from './support/fixtures';
@@ -151,7 +157,7 @@ describe('the cross pond', () => {
     const reachOverWater = 1 * 27.48; // (the ground reaches a unit out over the water: arena.py)
     const allowed = reachOverWater + 0.5 * 27.48 + 6;
     let deepest = 0;
-    for (let t = 0; t < 360 / POND_CROSS_RAFT.degreesPerSecond; t += 0.25)
+    for (let t = 0; t < 360 / Math.abs(POND_CROSS_RAFT.degreesPerSecond); t += 0.25)
       for (const raft of turntableGround(POND_CROSS_ARENA, t))
         for (let i = 0; i < raft.length; i += 1) {
           const a = raft[i] as P;
@@ -165,11 +171,17 @@ describe('the cross pond', () => {
     expect(deepest).toBeLessThanOrEqual(allowed);
   });
 
+  it('the pond’s raft turns as slowly as the HQ’s, and the other way: 9.45 degrees a second counter-clockwise (measured from 0.9 s of the video)', () => {
+    expect(POND_CROSS_RAFT.degreesPerSecond).toBeCloseTo(-9.45, 1);
+    // counter-clockwise on screen: its angle (clockwise positive) goes down
+    expect(turntableAngle(POND_CROSS_RAFT, 1)).toBeLessThan(turntableAngle(POND_CROSS_RAFT, 0));
+  });
+
   it('a player who stands on the raft rides it a full turn and stays alive', () => {
     const tt = POND_CROSS_RAFT;
     let s = make(['a', 'b'], { arena: POND_CROSS_ARENA, roundIntroSeconds: 0 });
     s = place(s, 'a', tt.x, tt.y);
-    for (let t = 0; t < 360 / tt.degreesPerSecond; t += DT) s = stepFu(s, NONE, DT).state;
+    for (let t = 0; t < 360 / Math.abs(tt.degreesPerSecond); t += DT) s = stepFu(s, NONE, DT).state;
     expect(player(s, 'a').alive).toBe(true);
   });
 });

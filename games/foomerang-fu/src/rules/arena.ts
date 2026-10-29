@@ -83,7 +83,8 @@ export interface FuArena<W extends Solid = Solid> {
 /**
  * A turntable: `ground` (polygons) and `walls` (turned boxes) given about its centre at its start, turning at `degreesPerSecond`
  * (clockwise on screen: +Y is down) from `startDegrees`, by the round's clock (owner, 2026-10-27: the cross pond's raft, the HQ
- * foomerang-fu physics hq.mp4 4:26-4:28, ~24 degrees a second clockwise; its crates turn with it).
+ * foomerang-fu physics hq.mp4 4:26-4:28: its angle measured over 0.9 s, 9.45 degrees a second COUNTER-clockwise, so a
+ * negative speed; its crates turn with it).
  */
 export interface Turntable {
   readonly x: number;

@@ -65,20 +65,27 @@
     "foamReach": 1.15,
     "drift": 0.07,
     "cartoon": {
-      "fps": 1.5,
-      "wobble": 0.3,
-      "motion": 1.6,
+      "fps": 0.17,
+      "wobble": 0.06,
+      "raftFoam": {
+        "width": 0.35,
+        "presenceShift": 0.12
+      },
+      "scale": 0.95,
+      "wobbleScale": 0.85,
+      "presence": [0.5, 0.75],
+      "motion": 0.5,
       "glow": 0.3,
       "ribbons": [
         {
           "centre": 0.42,
-          "width": 0.34,
-          "sway": 0.1
+          "width": 0.23,
+          "sway": 0.02
         },
         {
           "centre": 1.05,
-          "width": 0.2,
-          "sway": 0.15
+          "width": 0.13,
+          "sway": 0.02
         }
       ]
     },

@@ -42,10 +42,14 @@ manifest = {
     'water': {'base': HQ.flat('#74a2b3'), 'light': HQ.flat('#9bc5d1'), 'foam': HQ.flat('#a8deeb'), 'glowWidth': 0.25, 'foamSpacing': 1.0,
               'foamWidth': 0.26, 'foamReach': 1.15, 'drift': 0.07,
               # the raft is in the water: its edges get the foam too, as it turns (the shader reads where it is now)
-              # drawn as the HQ draws it: ribbons with wavy outlines re-drawn in steps (CartoonWater, render/three/waterShader.ts); the widest
-              # reads 0.32-0.67 across (44 ribbons measured), the second one thinner and farther out
-              'cartoon': {'fps': 1.5, 'wobble': 0.30, 'motion': 1.6, 'glow': 0.3,
-                          'ribbons': [{'centre': 0.42, 'width': 0.34, 'sway': 0.10}, {'centre': 1.05, 'width': 0.20, 'sway': 0.15}]},
+              # (owner, 2026-10-29, three times "too strong": the HQ's steady water, studied with the camera jitter and compression flicker removed,
+              # is nearly STILL: along the banks 3% of the foam changes in 0.1 s; round the raft almost none (short-lived streaks, 87% gone in 0.8 s).
+              # So: banks' ribbons stay put and fade in and out, a new draw every ~6 s; the raft's are thin and sparse)
+              # drawn as the HQ draws it: ribbons with wavy outlines morphing from one drawing to the next (CartoonWater, waterShader.ts); the widths
+              # are fitted so the foam covers the HQ's share of the water (4.9%: 6.7% with the first widths, 0.34 and 0.20), the second ribbon
+              # thinner and farther out
+              'cartoon': {'fps': 0.17, 'wobble': 0.06, 'raftFoam': {'width': 0.35, 'presenceShift': 0.12}, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.5, 0.75], 'motion': 0.5, 'glow': 0.3,
+                          'ribbons': [{'centre': 0.42, 'width': 0.23, 'sway': 0.02}, {'centre': 1.05, 'width': 0.13, 'sway': 0.02}]},
               'raft': {'halfArm': round(RAFT['arm'] / 2, 3), 'halfWidth': round(RAFT['width'] / 2, 3)}},
     'characters': gong['characters'],
     'provenance': 'art/pond_cross (layout.py, arena.py, blender/build.py, package.py) from foomerang-fu physics hq.mp4 4:27',

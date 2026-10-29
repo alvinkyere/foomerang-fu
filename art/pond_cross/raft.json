@@ -10,6 +10,6 @@
     [12.48, -1.4]
   ],
   "crates_are": "local, along the arms at degrees",
-  "degreesPerSecond": 24,
+  "degreesPerSecond": -9.45,
   "deck": 0.8
 }

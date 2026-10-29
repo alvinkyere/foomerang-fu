@@ -10,6 +10,17 @@ import { WATER_LOOK, waterGlsl, type WaterShape } from '../waterLook';
 export interface CartoonWater {
   readonly fps: number;
   readonly wobble: number;
+  /** The size of a ribbon's pieces and of its outline's waves: the field noise is looked up at this multiple of its own scale (smaller: longer pieces, gentler waves). */
+  readonly scale: number;
+  readonly wobbleScale: number;
+  /** Where a ribbon exists along its edge: the pieces of noise above `from` begin to show and by `to` are at full width (higher: fewer, sparser ribbons). */
+  readonly presence: readonly [number, number];
+  /**
+   * The foam round something moving in the water (the raft) against the banks' (the HQ, steady state: along the banks it is thin and
+   * nearly still; round the raft almost none, short-lived streaks, 87% gone in 0.8 s): its ribbons' width as a multiple of the banks',
+   * and how much higher the noise must be for one to show.
+   */
+  readonly raftFoam?: { readonly width: number; readonly presenceShift: number };
   /** How fast the ribbons drift and sway along their edges, a multiple of the base pace (art/pond_cross/water_pace.py found it). */
   readonly motion: number;
   readonly glow: number;
@@ -114,13 +125,19 @@ function cartoonFragment(c: CartoonWater, far: number): string {
     .map((r, i) => {
       const k = i + 1;
       return `  {
-    float n = texture2D(field, uv * ${FLOAT(1.5 + 0.7 * i)} + vec2(time * ${FLOAT(0.01 + 0.003 * i)}, time * ${FLOAT(-0.007 - 0.002 * i)}) + vec2(${FLOAT(0.31 * k)}, ${FLOAT(0.17 * k)})).g;
+    // where this ribbon is present: two draws of the blob noise, each at its own random place, eased from one to the next: the ribbon
+    // fades in and out where it is, and does not slide along its edge
+    vec2 at0 = uv * ${FLOAT(c.scale * (1 + 0.4667 * i))} + vec2(${FLOAT(0.31 * k)}, ${FLOAT(0.17 * k)});
+    float nA = texture2D(field, at0 + vec2(hash(stepNo + ${FLOAT(17 * k)}), hash(stepNo + ${FLOAT(29 * k)}))).g;
+    float nB = texture2D(field, at0 + vec2(hash(stepNo + ${FLOAT(18 * k)}), hash(stepNo + ${FLOAT(30 * k)}))).g;
+    float n = mix(nA, nB, ease);
     float centre = ${FLOAT(r.centre)} + ${FLOAT(r.sway)} * sin(time * ${FLOAT((0.7 + 0.2 * i) * c.motion)} + n * 6.2832 + ${FLOAT(1.3 * i)});
-    float reach = ${FLOAT(r.width)} * smoothstep(0.28, 0.55, n);
-    foamAmount = max(foamAmount, 1.0 - smoothstep(reach * 0.6, reach, abs(dw - centre)));
+    float reach = ${FLOAT(r.width)} * widthK * smoothstep(${FLOAT(c.presence[0])} + shift, ${FLOAT(c.presence[1])} + shift, n);
+    amount = max(amount, 1.0 - smoothstep(reach * 0.6, reach, abs(dw - centre)));
   }`;
     })
     .join('\n');
+  const raft = c.raftFoam ?? { width: 1, presenceShift: 0 };
   return `uniform sampler2D field; uniform vec3 box; uniform float time; uniform vec3 base, light, foam; uniform vec4 raftAt; uniform vec2 raftHalf;
 varying vec2 at;
 float boxDistance(vec2 p, vec2 size) {
@@ -128,24 +145,33 @@ float boxDistance(vec2 p, vec2 size) {
   return length(max(a, 0.0)) + min(max(a.x, a.y), 0.0);
 }
 float hash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+// the ribbons along an edge \`d\` away: \`widthK\` times as wide, needing the noise \`shift\` higher to show
+float ribbons(vec2 uv, float d, float wobble, float stepNo, float ease, float widthK, float shift) {
+  float dw = d + wobble * ${FLOAT(c.wobble)};
+  float amount = 0.0;
+${ribbons}
+  return amount;
+}
 void main() {
   vec2 uv = (at - box.xy) / box.z;
-  float d = texture2D(field, uv).r * ${far.toFixed(3)};
-  if (raftHalf.x > 0.0) {
-    vec2 q = at - raftAt.xy;
-    vec2 lp = vec2(q.x * raftAt.z - q.y * raftAt.w, q.x * raftAt.w + q.y * raftAt.z);
-    d = min(d, max(min(boxDistance(lp, raftHalf), boxDistance(lp, raftHalf.yx)), 0.0));
-  }
+  float dBank = texture2D(field, uv).r * ${far.toFixed(3)};
   // the outline's wobble: two draws of the fine noise, each looked up somewhere new at its step of the boil, morphed from one to the next
   float stepNo = floor(time * ${FLOAT(c.fps)});
   float into = fract(time * ${FLOAT(c.fps)});
-  float drawA = texture2D(field, uv * 1.3 + vec2(hash(stepNo), hash(stepNo + 11.0))).b;
-  float drawB = texture2D(field, uv * 1.3 + vec2(hash(stepNo + 1.0), hash(stepNo + 12.0))).b;
-  float wobble = mix(drawA, drawB, smoothstep(0.0, 1.0, into)) - 0.5;      // (large and slow: a gentle wave, not a scribble)
-  float dw = d + wobble * ${FLOAT(c.wobble)};
-  float foamAmount = 0.0;
-${ribbons}
-  float glow = 1.0 - smoothstep(0.0, ${FLOAT(c.glow)}, d);
+  float ease = smoothstep(0.0, 1.0, into);
+  float drawA = texture2D(field, uv * ${FLOAT(c.wobbleScale)} + vec2(hash(stepNo), hash(stepNo + 11.0))).b;
+  float drawB = texture2D(field, uv * ${FLOAT(c.wobbleScale)} + vec2(hash(stepNo + 1.0), hash(stepNo + 12.0))).b;
+  float wobble = mix(drawA, drawB, ease) - 0.5;      // (large and slow: a gentle wave, not a scribble)
+  float foamAmount = ribbons(uv, dBank, wobble, stepNo, ease, 1.0, 0.0);
+  if (raftHalf.x > 0.0) {
+    // the raft's two planks as they are now: its own foam, thinner and sparser than the banks'
+    vec2 q = at - raftAt.xy;
+    vec2 lp = vec2(q.x * raftAt.z - q.y * raftAt.w, q.x * raftAt.w + q.y * raftAt.z);
+    float dRaft = max(min(boxDistance(lp, raftHalf), boxDistance(lp, raftHalf.yx)), 0.0);
+    foamAmount = max(foamAmount, ribbons(uv, dRaft, wobble, stepNo, ease, ${FLOAT(raft.width)}, ${FLOAT(raft.presenceShift)}));
+    dBank = min(dBank, dRaft);
+  }
+  float glow = 1.0 - smoothstep(0.0, ${FLOAT(c.glow)}, dBank);
   vec3 col = mix(base, light, glow * 0.85);
   gl_FragColor = vec4(mix(col, foam, foamAmount), 1.0);
 }`;

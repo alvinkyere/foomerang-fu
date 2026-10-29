@@ -1526,7 +1526,7 @@ class Plaza {
 
   show(view: ArenaView): void {
     this.#view = view;
-    // the raft turns clockwise on screen: about the scene's up, the other way round (scene z is the rules' y)
+    // the raft turns by the rules' angle (clockwise on screen when positive): about the scene's up, the other way round (scene z is the rules' y)
     const turned = view.turntables?.[0];
     if (this.#raft !== null && turned !== undefined) this.#raft.rotation.set(0, -turned, 0);
     const now = this.#virtual ?? performance.now();
