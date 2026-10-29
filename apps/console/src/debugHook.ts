@@ -34,6 +34,8 @@ export interface DebugSnapshot {
   readonly drawnProps: { readonly broken: readonly string[]; readonly pieces: number } | undefined;
   /** Which character each player is drawn as (the 3D plaza only). */
   readonly drawnCharacters: Readonly<Record<string, string>> | undefined;
+  /** Where each player is on the screen, as fractions of the viewport (the 3D plaza only). */
+  readonly screens?: Readonly<Record<string, { x: number; y: number }>>;
   /** The pickups the renderer has on screen (undefined until Phaser is up). */
   readonly drawnPickups: readonly { id: string; x: number; y: number }[] | undefined;
   /** The walls the renderer has on screen (undefined until Phaser is up). */
@@ -87,6 +89,13 @@ export function installDebugHook(
         drawnSystems: getRenderer()?.drawnSystems?.(),
         drawnProps: getRenderer()?.drawnProps?.(),
         drawnCharacters: getRenderer()?.drawnCharacters?.(),
+        // where each player is on the screen, as fractions of the viewport (for cropping a picture around a character)
+        screens: Object.fromEntries(
+          (getRenderer()?.drawn() ?? []).flatMap((d) => {
+            const at = getRenderer()?.screenOf?.(d.id);
+            return at === undefined ? [] : [[d.id, { x: at.x, y: at.y }]];
+          }),
+        ),
         drawnPickups: getRenderer()
           ?.drawnPickups?.()
           .map((d) => ({ ...d })),
