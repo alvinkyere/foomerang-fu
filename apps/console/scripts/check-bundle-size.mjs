@@ -28,7 +28,9 @@ import { gzipSync } from 'node:zlib';
 // Measured lazy 563.6 kB before Telekinesis.
 // Raised on purpose (owner-approved 2026-10-27): the cross pond (its rules data, the turntable, the raft's turning), with
 // room for its polish. Measured lazy 576.6 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 152_000, initialCss: 10_000, lazyJs: 585_000 };
+// Raised on purpose (owner-approved 2026-10-30): Team Up (GAME MODE, PICK TEAMS, the team recolour of the players, the team scoreboard)
+// and the lily island map (initial 152.5 kB, lazy 586.3 kB measured).
+const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 587_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

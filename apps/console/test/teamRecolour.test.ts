@@ -3,12 +3,12 @@ import { bodyWeight, recolourPixels, teamPixel } from '../src/characters/teamRec
 
 // Team Up recolours the players the HQ's way (ff physics hq 2.mp4 9:48+): the body goes to the team's hue, the rest stays.
 
-const hue = ([r, g, b]: readonly number[]): number => {
-  const max = Math.max(r as number, g as number, b as number);
-  const min = Math.min(r as number, g as number, b as number);
+const hue = ([r = 0, g = 0, b = 0]: readonly number[]): number => {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
   const d = max - min;
   if (d === 0) return 0;
-  const h = max === r ? ((g! - b!) / d) % 6 : max === g ? (b! - r!) / d + 2 : (r! - g!) / d + 4;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return (h * 60 + 360) % 360;
 };
 
