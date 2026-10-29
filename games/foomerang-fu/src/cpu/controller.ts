@@ -121,6 +121,9 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
     [...s.boomerangs, ...s.extraBoomerangs].filter((b) => b.ownerId === id);
   const foes: FoeView[] = past.players.flatMap((p): FoeView[] => {
     if (p.id === selfId || !p.alive) return [];
+    // TEAM UP: a teammate is no foe (nothing of theirs hurts it, nothing of its hurts them)
+    const side = past.config.teams?.[selfId];
+    if (side !== undefined && past.config.teams?.[p.id] === side) return [];
     const now = positionOf(past, p.id);
     const before = positionOf(earlier, p.id);
     const mine = weaponsOf(past, p.id);

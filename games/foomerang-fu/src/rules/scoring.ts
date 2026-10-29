@@ -82,3 +82,35 @@ export const fullMeters = (
   gained: readonly string[],
   target: number,
 ): readonly string[] => gained.filter((id) => (scores[id] ?? 0) >= target);
+
+/** TEAM UP: every team's kills together (a kill by any member fills the team's meter). */
+export const teamTotals = (
+  scores: Readonly<Record<string, number>>,
+  teams: Readonly<Record<string, number>>,
+): ReadonlyMap<number, number> => {
+  const totals = new Map<number, number>();
+  for (const [id, team] of Object.entries(teams))
+    totals.set(team, (totals.get(team) ?? 0) + (scores[id] ?? 0));
+  return totals;
+};
+
+/**
+ * TEAM UP: who holds a full meter. One team only: its top scorer stands for it (`ids` has one name: the match is won, and
+ * `team` says which side). Several teams (they filled it on the same step): everyone on them, which is a tie.
+ * `among` limits it to those who gained a kill on this step (as `fullMeters`); omitted, to everyone on a full team.
+ */
+export const fullTeams = (
+  scores: Readonly<Record<string, number>>,
+  teams: Readonly<Record<string, number>>,
+  target: number,
+  among?: readonly string[],
+): { readonly ids: readonly string[]; readonly team: number | undefined } => {
+  const totals = teamTotals(scores, teams);
+  const pool = (among ?? Object.keys(teams)).filter(
+    (id) => (totals.get(teams[id] as number) ?? 0) >= target,
+  );
+  const sides = new Set(pool.map((id) => teams[id] as number));
+  if (sides.size !== 1) return { ids: pool, team: undefined };
+  const best = [...pool].sort((x, y) => (scores[y] ?? 0) - (scores[x] ?? 0))[0] as string;
+  return { ids: [best], team: [...sides][0] };
+};

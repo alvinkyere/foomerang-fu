@@ -49,7 +49,14 @@ import {
   type DashState,
   type Fatigue,
 } from './dash';
-import { applyDeaths, fullMeters, type Death, type DeathCause, type ScoreChange } from './scoring';
+import {
+  applyDeaths,
+  fullMeters,
+  fullTeams,
+  type Death,
+  type DeathCause,
+  type ScoreChange,
+} from './scoring';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import {
   awardPool,
@@ -422,6 +429,17 @@ export function stepFu(state: FuState, inputs: FuInputs, dt: number): FuStepResu
     : { state: crossed.state, events: [...played.events, ...crossed.events] };
 }
 
+/** Who holds a full meter (a whole side's, in Team Up: scoring.ts `fullTeams`). */
+function fullPlayers(state: FuState): { ids: readonly string[]; team: number | undefined } {
+  const { targetKills: target, teams } = state.config;
+  if (target === undefined) return { ids: [], team: undefined };
+  if (teams !== undefined) return fullTeams(state.scores, teams, target);
+  return {
+    ids: state.players.filter((p) => (state.scores[p.id] ?? 0) >= target).map((p) => p.id),
+    team: undefined,
+  };
+}
+
 function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuStepResult {
   const over = state.roundOver;
   const remaining = (over?.resetInSeconds ?? 0) - dt;
@@ -431,9 +449,7 @@ function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuS
     return { state: Object.freeze({ ...state, elapsed, world }), events: [] };
   }
   if (remaining <= EPSILON) {
-    const target = state.config.targetKills;
-    const full =
-      target === undefined ? [] : state.players.filter((p) => (state.scores[p.id] ?? 0) >= target);
+    const full = fullPlayers(state).ids;
     if (full.length !== 1 && state.config.roundAdvance === 'ON_CONTINUE') {
       return {
         state: Object.freeze({
@@ -499,11 +515,10 @@ function nextRound(state: FuState, elapsed: number): FuStepResult {
   const specs = state.players.map((p) => ({ id: p.id, slot: p.slot }));
   // Whoever holds a full meter at the end of a round (only possible after a tie, or after a tiebreak in which the others
   // lost holes): one of them has won; several play a tiebreak between only them.
-  const target = state.config.targetKills;
-  const full =
-    target === undefined ? [] : state.players.filter((p) => (state.scores[p.id] ?? 0) >= target);
+  const side = fullPlayers(state);
+  const full = side.ids;
   if (full.length === 1) {
-    const winnerId = (full[0] as FuPlayer).id;
+    const winnerId = full[0] as string;
     return {
       state: Object.freeze({
         ...state,
@@ -511,7 +526,10 @@ function nextRound(state: FuState, elapsed: number): FuStepResult {
         world,
         phase: 'MATCH_OVER' as const,
         roundOver: undefined,
-        matchOver: Object.freeze({ winnerId }),
+        matchOver: Object.freeze({
+          winnerId,
+          ...(side.team !== undefined ? { winnerTeam: side.team } : {}),
+        }),
       }),
       events: [{ type: 'MATCH_WON', winnerId, kills: state.scores[winnerId] ?? 0 }],
     };
@@ -519,7 +537,7 @@ function nextRound(state: FuState, elapsed: number): FuStepResult {
   // What each player owns (and the match's count of Books taken) and every kill count carry into the next round.
   const carried = new Map(state.players.map((p) => [p.id, p.inventory]));
   if (full.length > 1) {
-    const playerIds = full.map((p) => p.id);
+    const playerIds = [...full];
     const next = startRound(specs, state.config, state.round + 1, elapsed, carried, state.awards, {
       scores: state.scores,
       playing: playerIds,
@@ -1799,6 +1817,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // rest kill. An armed boomerang's first contact, or the end of its flight out, is an explosion instead: everyone
   // (not its owner, not whoever just deflected it) within `blastRadius` with a clear line is a victim.
   const contacts: Contact[][] = players.map(() => []);
+  // TEAM UP: nothing a player throws, swings or blows up touches their own side
+  const sameSide = (i: number, j: number): boolean => {
+    const teams = config.teams;
+    if (teams === undefined || i >= players.length || j >= players.length) return false;
+    const x = teams[(players[i] as FuPlayer).id];
+    return x !== undefined && x === teams[(players[j] as FuPlayer).id];
+  };
   const newPieces: Boomerang[] = []; // MULTI_BOOMERANG: the pieces of this step's splits
   const blastRadiusSquared = config.blastRadius * config.blastRadius;
   weapons.forEach((w, k) => {
@@ -1825,7 +1850,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     const from =
       (flownFrom[k] as Boomerang).state === 'HELD' ? at : (flownFrom[k] as Boomerang).position;
     players.forEach((victim, v) => {
-      if (v === a || !victim.alive || immuneTo(victim)) return;
+      if (v === a || sameSide(v, a) || !victim.alive || immuneTo(victim)) return;
       const start = startPosition.get(victim.id) ?? positionOf(victim.id);
       if (approachAlong(flights[k]?.path ?? [from, at], start, positionOf(victim.id)) < hitReach)
         touched.push(v);
@@ -1886,7 +1911,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (w.blast && (touched.length > 0 || detonate)) {
       const hit = new Set(touched);
       players.forEach((victim, v) => {
-        if (v === a || !victim.alive || immuneTo(victim)) return;
+        if (v === a || sameSide(v, a) || !victim.alive || immuneTo(victim)) return;
         const where = positionOf(victim.id);
         if (
           distanceSquared(blastAt, where) < blastRadiusSquared &&
@@ -1939,7 +1964,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     if (swing.phase !== 'ACTIVE') return;
     const from = positionOf(attacker.id);
     players.forEach((victim, v) => {
-      if (v === a || !victim.alive || swing.spared?.includes(victim.id) === true) return;
+      if (v === a || sameSide(v, a) || !victim.alive || swing.spared?.includes(victim.id) === true)
+        return;
       const where = positionOf(victim.id);
       if (
         inSlashRegion(from, swing.direction, where, config) &&
@@ -2163,10 +2189,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     }),
   );
   for (const change of scored.changes) events.push({ type: 'SCORE', ...change });
+  const sides =
+    config.targetKills === undefined || config.teams === undefined
+      ? undefined
+      : fullTeams(scored.scores, config.teams, config.targetKills, scored.gained);
   const winners =
     config.targetKills === undefined
       ? []
-      : fullMeters(scored.scores, scored.gained, config.targetKills);
+      : sides !== undefined
+        ? sides.ids
+        : fullMeters(scored.scores, scored.gained, config.targetKills);
   const matchWonBy = winners.length === 1 ? (winners[0] as string) : undefined;
   if (matchWonBy !== undefined)
     events.push({ type: 'MATCH_WON', winnerId: matchWonBy, kills: scored.scores[matchWonBy] ?? 0 });
@@ -2177,8 +2209,18 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const alive = survivors.filter((p) => p.alive);
   const roundEnds =
     matchWonBy === undefined &&
-    ((survivors.length >= 2 && alive.length <= 1) || winners.length > 1);
-  const winnerId = alive.length === 1 ? (alive[0] as FuPlayer).id : undefined;
+    ((survivors.length >= 2 &&
+      (config.teams === undefined
+        ? alive.length <= 1
+        : new Set(alive.map((p) => config.teams?.[p.id])).size <= 1)) ||
+      winners.length > 1);
+  // (a round is won by a player; in Team Up by a side: one of its members who stands, the first)
+  const winnerId =
+    alive.length >= 1 && (config.teams !== undefined || alive.length === 1)
+      ? new Set(alive.map((p) => config.teams?.[p.id])).size === 1
+        ? (alive[0] as FuPlayer).id
+        : undefined
+      : undefined;
   if (roundEnds) events.push({ type: 'ROUND_OVER', winnerId });
   const concluded = roundEnds || matchWonBy !== undefined; // nothing is live any more: no new Book, no half-finished burst
 
@@ -2322,7 +2364,13 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
           })
         : undefined,
       scores: scored.scores,
-      matchOver: matchWonBy === undefined ? undefined : Object.freeze({ winnerId: matchWonBy }),
+      matchOver:
+        matchWonBy === undefined
+          ? undefined
+          : Object.freeze({
+              winnerId: matchWonBy,
+              ...(sides?.team !== undefined ? { winnerTeam: sides.team } : {}),
+            }),
     }),
     events,
   };

@@ -67,6 +67,8 @@ export interface FuRoundOver {
 /** Slice 8: the match is decided; nothing happens after this (no step changes anything, no kill is processed). */
 export interface FuMatchOver {
   readonly winnerId: string;
+  /** TEAM UP: the side that won (`winnerId` is its top scorer). */
+  readonly winnerTeam?: number;
 }
 
 /**

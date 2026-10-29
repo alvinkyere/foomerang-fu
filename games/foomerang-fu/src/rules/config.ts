@@ -118,6 +118,12 @@ export interface FuConfig {
    */
   readonly targetKills?: number;
   /**
+   * TEAM UP (the owner, 2026-10-30): each player's side (0, 1, ...). Nothing a player throws, swings or blows up hurts their own
+   * side; a round ends when one side is all that is left alive; the match is won by the first side whose kills together reach
+   * `targetKills`. Absent: Free For All.
+   */
+  readonly teams?: Readonly<Record<string, number>>;
+  /**
    * After a round's end beat (`roundEndSeconds`): AUTO (default) starts the next round at once; ON_CONTINUE keeps the
    * round over, on the scoreboard, until `continueRound` is called (a player pressed CONTINUE; owner, 2026-10-19).
    */
@@ -281,6 +287,11 @@ export function assertValidConfig(config: FuConfig): void {
     if (value !== undefined && (!Number.isInteger(value) || value < 1))
       throw new RangeError(`${key} must be a positive integer`);
   }
+  if (
+    config.teams !== undefined &&
+    !Object.values(config.teams).every((t) => Number.isInteger(t) && t >= 0)
+  )
+    throw new RangeError('teams must be whole numbers from 0');
   if (
     config.roundAdvance !== undefined &&
     config.roundAdvance !== 'AUTO' &&
