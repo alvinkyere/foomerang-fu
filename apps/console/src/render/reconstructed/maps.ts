@@ -31,7 +31,7 @@ export interface ReconstructedMap {
 
 export type ReconstructedArena = Extract<
   ArenaChoice,
-  'market_plaza' | 'gong_islands' | 'pond_cross' | 'harbour_fort' | 'sky_islands'
+  'market_plaza' | 'gong_islands' | 'pond_cross' | 'lily_island' | 'harbour_fort' | 'sky_islands'
 >;
 
 export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, ReconstructedMap>> =
@@ -49,6 +49,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 2209, height: 1418 }),
       background: '#efe6c4',
+    }),
+    // the HQ's lime island in the water (art/lily_island, HQ1 10:37): the plaza's camera and characters, its own island
+    lily_island: Object.freeze({
+      id: 'lily_island',
+      assetDir: 'maps/lily_island/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 1209, height: 1044 }),
+      background: '#7aa8bb',
     }),
     // seats 1–2 are the shot's cast (S9: avocado, watermelon); 3–6 are pack characters not seen on this map
     harbour_fort: Object.freeze({

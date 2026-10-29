@@ -7,6 +7,9 @@ import type { ArenaChoice } from '../runtime/powerupMode';
 export type RendererKind = 'three' | 'phaser';
 
 export const rendererKindFor = (arena: ArenaChoice): RendererKind =>
-  arena === 'market_plaza' || arena === 'gong_islands' || arena === 'pond_cross'
+  arena === 'market_plaza' ||
+  arena === 'gong_islands' ||
+  arena === 'pond_cross' ||
+  arena === 'lily_island'
     ? 'three'
     : 'phaser';

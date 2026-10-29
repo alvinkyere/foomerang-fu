@@ -75,13 +75,15 @@ export const ARENA_CHOICES = [
   'stone_ruins',
   'cross_pond',
   'pond_cross',
+  'lily_island',
   'diamond_walls',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice | undefined => {
   const given = new URLSearchParams(search).get('arena');
   // `?arena=pond`: the cross pond (the owner tests it there, 2026-10-27)
-  const value = given === 'pond' ? 'pond_cross' : given;
+  // `?arena=island`: the lily island (HQ1 10:37), tested outside the rotation (owner, 2026-10-30)
+  const value = given === 'pond' ? 'pond_cross' : given === 'island' ? 'lily_island' : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;

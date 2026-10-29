@@ -66,6 +66,15 @@ export {
   POND_CROSS_WALLS,
   POND_CROSS_WIDTH,
 } from './pondCrossArena';
+export {
+  LILY_ISLAND_ARENA,
+  LILY_ISLAND_BOOK_SPOTS,
+  LILY_ISLAND_GROUND,
+  LILY_ISLAND_HEIGHT,
+  LILY_ISLAND_SPAWNS,
+  LILY_ISLAND_WALLS,
+  LILY_ISLAND_WIDTH,
+} from './lilyIslandArena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';
