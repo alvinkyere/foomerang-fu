@@ -33,7 +33,7 @@ solid_wall = wall                                      # (the stones' own footpr
 # Outlines simplified to within 0.25 units: the data stays small.
 reach = cv2.dilate(bank | wall, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
 cs, _ = cv2.findContours(reach, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 1.0, True).reshape(-1, 2)]
+ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 2.5, True).reshape(-1, 2)]
           for k in cs if cv2.contourArea(k) > 20]
 # the walls as boxes: where a wall lies within 3 units of a bank (no one reaches the rest), rows of half a unit merged downward
 near = solid_wall
