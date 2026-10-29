@@ -9,7 +9,11 @@ import json, math
 import numpy as np, cv2
 
 CAM = json.load(open('art/sky_islands/camera.json'))
-Z = 1.12                 # this view's zoom against the plaza rig (the crates: ~32 px here, ~27 px at the gong islands' 0.9326)
+_SC = json.load(open('art/pond_cross/scale.json'))
+# the HQ's zoom against the plaza rig is 1.12 (the crates ~32 px here, ~27 px at the gong islands' 0.9326; the characters' rings
+# 1.09-1.17x the gong's). The owner (2026-10-29: "the arena is actually too small") asked for a bigger pond beside the characters:
+# reading the frame at hqZoom / scale puts every plan size `scale` times larger, and the game's camera is set to the same zoom.
+Z = _SC['hqZoom'] / _SC['scale']
 th = math.radians(CAM['pitchDeg'])
 R = np.array([[1, 0, 0], [0, -math.sin(th), -math.cos(th)], [0, math.cos(th), -math.sin(th)]])
 F, C = CAM['focalPx'], np.array(CAM['centre'])

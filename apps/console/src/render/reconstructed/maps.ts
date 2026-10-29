@@ -92,8 +92,8 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
         'banana',
         'carrot',
       ] as const),
-      arena: Object.freeze({ width: 1292, height: 1182 }),
-      background: '#78d2e7',
+      arena: Object.freeze({ width: 1841, height: 1649 }),
+      background: '#7da9be',
     }),
     // seats 1–2 are the shot's cast from the pack (S7: carrot, banana; its eggplant has no pack model yet); 3–6 are pack characters
     sky_islands: Object.freeze({

@@ -7,7 +7,7 @@ import {
   type FuArena,
   type FuEvent,
 } from '../src/rules';
-import { circleHitsWalls, onGround, turntableWalls } from '../src/rules/arena';
+import { circleHitsWalls, onGround, turntableGround, turntableWalls } from '../src/rules/arena';
 import { navGridFor } from '../src/cpu/nav';
 import { playMatch } from './support/cpuMatch';
 import { DT, NONE, R, at, make, place, player } from './support/fixtures';
@@ -125,6 +125,44 @@ describe('the cross pond', () => {
       });
       expect(fell, `seed ${seed}`).toBe(false);
     }
+  });
+
+  it('the raft, turning all the way round, never reaches more than half a unit into the banks (owner, 2026-10-29: it passed through the grass)', () => {
+    // how deep a point is inside a polygon: its distance to the nearest edge (0: outside)
+    type P = { x: number; y: number };
+    const depth = (p: P, poly: readonly P[]): number => {
+      let inside = false;
+      let near = Infinity;
+      for (let i = 0; i < poly.length; i += 1) {
+        const a = poly[i] as P;
+        const z = poly[(i + 1) % poly.length] as P;
+        if (a.y > p.y !== z.y > p.y && p.x < ((z.x - a.x) * (p.y - a.y)) / (z.y - a.y) + a.x)
+          inside = !inside;
+        const ex = z.x - a.x;
+        const ey = z.y - a.y;
+        const u = Math.max(
+          0,
+          Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1)),
+        );
+        near = Math.min(near, Math.hypot(p.x - a.x - u * ex, p.y - a.y - u * ey));
+      }
+      return inside ? near : 0;
+    };
+    const reachOverWater = 1 * 27.48; // (the ground reaches a unit out over the water: arena.py)
+    const allowed = reachOverWater + 0.5 * 27.48 + 6;
+    let deepest = 0;
+    for (let t = 0; t < 360 / POND_CROSS_RAFT.degreesPerSecond; t += 0.25)
+      for (const raft of turntableGround(POND_CROSS_ARENA, t))
+        for (let i = 0; i < raft.length; i += 1) {
+          const a = raft[i] as P;
+          const z = raft[(i + 1) % raft.length] as P;
+          for (let k = 0; k < 8; k += 1) {
+            const p = { x: a.x + ((z.x - a.x) * k) / 8, y: a.y + ((z.y - a.y) * k) / 8 };
+            for (const bank of POND_CROSS_ARENA.ground ?? [])
+              deepest = Math.max(deepest, depth(p, bank));
+          }
+        }
+    expect(deepest).toBeLessThanOrEqual(allowed);
   });
 
   it('a player who stands on the raft rides it a full turn and stays alive', () => {

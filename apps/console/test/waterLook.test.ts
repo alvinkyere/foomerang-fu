@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { WATER_LOOK, waterAt } from '../src/render/waterLook';
+import * as THREE from 'three';
+import { waterMaterial } from '../src/render/three/waterShader';
+import { WATER_GLSL, WATER_LOOK, waterAt, waterGlsl } from '../src/render/waterLook';
 
 // The fountain's water as the reference video shows it (art/physics_reference/README.md, "The water"): not a flat disc. A pale
 // glow hugs every edge, the basin's wall and the shell island alike; thin light foam lines are born at each edge and drift
@@ -63,5 +65,69 @@ describe('the fountain’s water', () => {
     let best = 0;
     for (let d = 0.15; d < 0.6; d += 0.002) best = Math.max(best, waterAt(d, 0.1, 4).foam);
     expect(best).toBe(0);
+  });
+});
+
+describe('a map’s own water shape (the cross pond: wider ribbons, reaching further from the bank)', () => {
+  it('the fountain’s shader is unchanged by default, and a map’s shape is written into its own', () => {
+    expect(waterGlsl()).toBe(WATER_GLSL);
+    const pond = waterGlsl({ ...WATER_LOOK, foamWidth: 0.16, foamSpacing: 1, foamReach: 1.15 });
+    expect(pond).not.toBe(WATER_GLSL);
+    expect(pond).toContain('0.1600');
+    expect(pond).toContain('1.1500');
+    expect(WATER_GLSL).toContain('0.0400'); // (the fountain’s thin line)
+  });
+});
+
+describe('the water shader of a map with a moving raft', () => {
+  const pond = {
+    base: '#74a2b3',
+    light: '#9bc5d1',
+    foam: '#a8deeb',
+    raft: { halfArm: 14.5, halfWidth: 4.45 },
+  };
+  const material = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, pond);
+
+  it('takes the raft’s place and facing as uniforms, so the foam gathers round wherever it has turned to', () => {
+    expect(material.uniforms['raftAt']).toBeDefined();
+    expect(material.uniforms['raftHalf']).toBeDefined();
+    expect(material.fragmentShader).toContain('boxDistance');
+  });
+
+  const cartoon = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, {
+    ...pond,
+    cartoon: {
+      fps: 1.5,
+      wobble: 0.3,
+      motion: 1.6,
+      glow: 0.3,
+      ribbons: [
+        { centre: 0.42, width: 0.34, sway: 0.1 },
+        { centre: 1.05, width: 0.2, sway: 0.15 },
+      ],
+    },
+  });
+
+  it('draws the cartoon water too: a ribbon for each entry, its outline morphing from one draw to the next', () => {
+    expect(cartoon.fragmentShader).toContain('floor(time * 1.5000)');
+    expect(cartoon.fragmentShader.match(/foamAmount = max/g)).toHaveLength(2);
+  });
+
+  it('names no reserved GLSL word (one did: `half`, and the whole water silently did not draw)', () => {
+    // identifiers (not words in comments) that GLSL ES reserves
+    for (const code of [material, cartoon].map((m) => m.fragmentShader.replace(/\/\/.*$/gm, '')))
+      for (const word of [
+        'half',
+        'fixed',
+        'long',
+        'short',
+        'double',
+        'input',
+        'output',
+        'sampler3D',
+      ])
+        expect(code, word).not.toMatch(
+          new RegExp(`\\b(float|vec2|vec3|vec4|int)\\s+${word}\\b|\\b${word}\\s*[,)=;]`),
+        );
   });
 });

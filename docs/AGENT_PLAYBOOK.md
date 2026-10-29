@@ -67,6 +67,15 @@ console title: every timing, size and colour is measured, not guessed; every mot
 - **Performance is part of the animation**: the owner plays on a TV browser. Merge static meshes by look, instance repeated
   shapes, keep flipbooks small, and re-measure FPS at 6x CPU throttle after any change to the plaza.
 
+### Measure the model against the reference, pixel by pixel
+
+When the owner says "not exactly like the HQ", do not tune by eye. Give the Blender preview the GAME's own light (so its colours equal
+the game's), render through the reference's camera so the two images are pixel-aligned, and compute: an overlap (IoU) of each object's
+silhouette against the reference's mask (`art/pond_cross/compare.py`), a fit of its free numbers by optimisation (`fit_raft.py` found the
+raft's deck 0.8 above the ground where it had been guessed at 0.18), and a heat map of the error over the whole frame. The first time
+this was done on the cross pond it exposed three bugs a day of looking had missed (footprints measured at one height and built at
+another; a mirrored angle; a deck at the wrong height).
+
 ## 3. Rules and engine: where things may live
 
 - Pure packages (`game-core`, `protocol`, `room-engine`, `games/foomerang-fu/src/rules`) take time and randomness by
@@ -121,7 +130,8 @@ console title: every timing, size and colour is measured, not guessed; every mot
 - **Code comments carry the source** ("HQ 4:27", "foomerang-fu physics hq.mp4 6:55.83-6:57.62"), so the next agent can re-check.
 - **Art folders are pipelines**: `art/<map>/README.md` or the script docstrings give the run order. Keep them accurate when you
   change a step. Known pipelines: `art/sky_islands` (layout, tops, objects, portals, Blender build, package, arena),
-  `art/pond_cross` (layout, Blender build, package, arena), `art/audio` (preview), the character tooling under
+  `art/pond_cross` (layout, stones, ground and its grass, props, wood, fit_raft, Blender build, package, arena, compare: every object its own model, the
+  grass and wood painted in the HQ's flat colours, the stones block by block with their measured heights), `art/audio` (preview), the character tooling under
   `art/reconstruction`.
 - **Tooling that is not in the repository** (a Python venv with OpenCV, NumPy, SciPy and Matplotlib; Blender at
   `/Applications/Blender.app`; macOS `afconvert` to extract a video's audio when there is no ffmpeg) is recreated on demand:

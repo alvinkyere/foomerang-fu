@@ -1,0 +1,9 @@
+{
+  "M": [
+    [1.02949, -0.07707, -0.00764],
+    [0.0876, 0.778, 0.06258],
+    [-0.03417, -0.0058, 0.96096]
+  ],
+  "b": [19.45, 22.09, 22.714],
+  "note": "RGB (0-255) of the HQ video as OpenCV decodes it -> as Chrome shows it; fitted on 4:27 (267.0 s) of foomerang-fu physics hq.mp4"
+}

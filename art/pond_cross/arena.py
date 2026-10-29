@@ -12,9 +12,11 @@ are the plaza's (27.48 a plan unit); x east from plan X X0, y south from plan Y 
 import json, math
 import numpy as np, cv2
 
-S, X0, Y1, Y0, X1 = 27.48, -24.0, 97.0, 54.0, 23.0
+S, X0, Y1, Y0, X1 = 27.48, -34.0, 107.0, 47.0, 33.0
 MIN_HALF = 18
 L = json.load(open('art/pond_cross/layout.json'))
+G = json.load(open('art/pond_cross/ground.json'))['polygons']      # (ground.py: the banks)
+STONES = json.load(open('art/pond_cross/stones.json'))               # (stones.py: each block's footprint)
 w = lambda X, Y: (round((X - X0) * S), round((Y1 - Y) * S))          # (whole world units)
 WIDTH, HEIGHT = round((X1 - X0) * S), round((Y1 - Y0) * S)
 # the plan rastered at CELL units: the banks, the walls
@@ -25,22 +27,18 @@ def raster(polys):
     for p in polys:
         cv2.fillPoly(m, [np.int32([((x - X0) / CELL, (Y1 - y) / CELL) for x, y in p])], 1)
     return m
-bank, wall = raster(L['banks']), raster(L['walls'])
-# the boulders (the wall pieces inside the ring: none as long as the ring's sides, ~37 units) are solid a unit in from
-# their outline: they stand tall, so the HQ's view shows them over the grass behind them and their measured outlines eat
-# into the banks (the corners pinched shut to a body)
-inner = [o for o in L['walls'] if max(max(x for x, _ in o) - min(x for x, _ in o), max(y for _, y in o) - min(y for _, y in o)) < 30]
-solid_wall = cv2.subtract(wall, raster(inner)) | cv2.erode(raster(inner), np.ones((9, 9), np.uint8))
-# the ground: the banks and under the stone wall and the boulders (solid all the same: no one falls at a wall's foot),
-# reaching a unit (~27 world units) out over the water: the rules drop a player whose middle leaves the ground, so
-# with most of a body over the water, as the HQ's players stand at a bank's edge (and the CPUs' plan, which wants ground a
-# body's radius all round, finds the narrow banks walkable). Outlines simplified to within 0.25 units: the data stays small.
+bank, wall = raster(G), raster([b['top'] for b in STONES])
+solid_wall = wall                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+# the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
+# water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
+# stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
+# Outlines simplified to within 0.25 units: the data stays small.
 reach = cv2.dilate(bank | wall, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
 cs, _ = cv2.findContours(reach, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 1.0, True).reshape(-1, 2)]
           for k in cs if cv2.contourArea(k) > 20]
 # the walls as boxes: where a wall lies within 3 units of a bank (no one reaches the rest), rows of half a unit merged downward
-near = cv2.dilate(bank, np.ones((25, 25), np.uint8)) & solid_wall & (1 - bank)
+near = solid_wall
 ROW = 2                                               # (half a unit: the boxes reach no further into the bank)
 runs = []
 for r0 in range(0, NY, ROW):
@@ -67,7 +65,7 @@ for k, (r0, r1, c0, c1) in enumerate(merged):
                       halfHeight=round(max(hh, MIN_HALF)), angle=0))
 
 # the raft: plan (Y north) to the rules (y south): its angle and its local v flip
-R_ = L['raft']
+R_ = json.load(open('art/pond_cross/raft.json'))                      # (ground.py: the raft trimmed to its pond)
 cx, cy = w(*R_['centre'])
 arm, wid = R_['arm'] * S, R_['width'] * S
 quad = lambda a, b: [(-a / 2, -b / 2), (a / 2, -b / 2), (a / 2, b / 2), (-a / 2, b / 2)]

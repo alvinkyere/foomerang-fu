@@ -57,7 +57,7 @@ import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
-import { waterMaterial } from './waterShader';
+import { waterMaterial, type WaterStyle } from './waterShader';
 import { batchPlaza } from './plazaBatch';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
@@ -88,6 +88,13 @@ interface Manifest {
   readonly camera: unknown;
   /** Another map whose character atlases this one shares (the gong islands: the plaza's). */
   readonly assetsFrom?: string;
+  /**
+   * A camera that stays where it is: the whole map in one frame, as the reference shows it (the cross pond: a small map, its
+   * camera fixed at zoom 1.12). Without it the camera follows the players, as the plaza's does.
+   */
+  readonly fixedFrame?: { readonly zoom: number; readonly u: number; readonly v: number };
+  /** The map's own water colours (the cross pond's pond: duller than the fountain's); the fountain's when absent. */
+  readonly water?: WaterStyle;
   /** The map's own light instead of the plaza's toon light (softLook.ts; the gong islands). */
   readonly look?: unknown;
   readonly characterScale?: number;
@@ -1153,6 +1160,8 @@ class Plaza {
     },
   ) {
     this.#waterField = floor.water;
+    if (manifest.fixedFrame !== undefined)
+      this.#camera = { frame: manifest.fixedFrame, velocity: { zoom: 0, u: 0, v: 0 } };
     this.#raft = gltf.getObjectByName('RAFT') ?? null;
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
@@ -1362,12 +1371,32 @@ class Plaza {
         this.#waterField,
         { x: c.x, z: c.z, half: ((box.max.x - box.min.x) / 2) * WATER_FIELD.margin },
         WATER_FIELD.far,
+        this.manifest.water,
       );
       water.material = material;
       this.#moving.push({
         object: water,
         motion: (t) => {
           (material.uniforms['time'] as { value: number }).value = t / 1000;
+          // round whatever moves in the water (the cross pond's raft): its edge, where it is now
+          const raft = this.#raft;
+          const shape = this.manifest.water?.raft;
+          if (raft !== null && shape !== undefined) {
+            raft.updateWorldMatrix(true, false);
+            const at = new THREE.Vector3().setFromMatrixPosition(raft.matrixWorld);
+            const turn = new THREE.Euler().setFromRotationMatrix(raft.matrixWorld, 'YXZ').y;
+            const k = new THREE.Vector3().setFromMatrixScale(raft.matrixWorld).x;
+            (material.uniforms['raftAt'] as { value: THREE.Vector4 }).value.set(
+              at.x,
+              at.z,
+              Math.cos(turn),
+              Math.sin(turn),
+            );
+            (material.uniforms['raftHalf'] as { value: THREE.Vector2 }).value.set(
+              shape.halfArm * k,
+              shape.halfWidth * k,
+            );
+          }
         },
       });
     }
@@ -1790,8 +1819,10 @@ class Plaza {
       p.project(rest);
       points.push({ u: p.x, v: p.y });
     }
-    this.#aim = frameTarget(points, this.#aim);
-    this.#camera = springCamera(this.#camera, this.#aim, dt);
+    if (this.manifest.fixedFrame === undefined) {
+      this.#aim = frameTarget(points, this.#aim);
+      this.#camera = springCamera(this.#camera, this.#aim, dt);
+    }
     const { zoom, u, v } = this.#camera.frame;
     const W = 1000 * this.camera.aspect;
     const H = 1000;

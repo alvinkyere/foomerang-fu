@@ -1,0 +1,15 @@
+{
+  "centre": [-0.06, 73.78],
+  "arm": 33.46,
+  "width": 7.62,
+  "degrees": -31.67,
+  "crates": [
+    [2.15, 10.11],
+    [-3.8, 4.53],
+    [-5.33, 3.67],
+    [12.5, -2.1]
+  ],
+  "crates_are": "local, along the arms at degrees",
+  "degreesPerSecond": 24,
+  "deck": 0.8
+}

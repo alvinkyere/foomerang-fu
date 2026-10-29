@@ -45,12 +45,24 @@ export function waterAt(d: number, piece: number, t: number): { glow: number; fo
 
 const f = (v: number) => v.toFixed(4);
 
-/** `waterAt` in GLSL: `vec2 waterAt(float d, float piece, float t)` → (glow, foam). */
-export const WATER_GLSL = `
+/** The shape of a water's glow and foam: the fountain's (WATER_LOOK), or a map's own (the cross pond's ribbons are wider). */
+export interface WaterShape {
+  readonly glowWidth: number;
+  readonly foamSpacing: number;
+  readonly foamWidth: number;
+  readonly drift: number;
+  readonly foamReach: number;
+}
+
+/** `waterAt` in GLSL: `vec2 waterAt(float d, float piece, float t)` → (glow, foam), for a water shaped `s`. */
+export const waterGlsl = (s: WaterShape = WATER_LOOK): string => `
 vec2 waterAt(float d, float piece, float t) {
-  float phase = d / ${f(WATER_LOOK.foamSpacing)} - t * ${f(WATER_LOOK.drift / WATER_LOOK.foamSpacing)};
+  float phase = d / ${f(s.foamSpacing)} - t * ${f(s.drift / s.foamSpacing)};
   float k = fract(phase);
-  float line = 1.0 - smoothstep(0.0, ${f(WATER_LOOK.foamWidth)}, min(k, 1.0 - k) * ${f(WATER_LOOK.foamSpacing)});
-  float fade = smoothstep(0.03, 0.12, d) * (1.0 - smoothstep(0.15, ${f(WATER_LOOK.foamReach)}, d));
-  return vec2(1.0 - smoothstep(0.0, ${f(WATER_LOOK.glowWidth)}, d), line * fade * smoothstep(0.45, 0.6, piece));
+  float line = 1.0 - smoothstep(0.0, ${f(s.foamWidth)}, min(k, 1.0 - k) * ${f(s.foamSpacing)});
+  float fade = smoothstep(0.03, 0.12, d) * (1.0 - smoothstep(0.15, ${f(s.foamReach)}, d));
+  return vec2(1.0 - smoothstep(0.0, ${f(s.glowWidth)}, d), line * fade * smoothstep(0.45, 0.6, piece));
 }`;
+
+/** The fountain's. */
+export const WATER_GLSL = waterGlsl();
