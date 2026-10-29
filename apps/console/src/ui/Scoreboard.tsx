@@ -78,15 +78,29 @@ function Board({
         </p>
       )}
       <ol className="sb__bands" aria-label="Scores">
-        {bySeat.map((entry) => (
-          <Band
-            key={entry.id}
-            entry={entry}
-            target={target}
-            leader={best > 0 && entry.kills === best}
-            winner={winnerId === undefined ? undefined : entry.id === winnerId}
-          />
-        ))}
+        {hud.teams !== undefined
+          ? ([0, 1] as const).map((side) => (
+              <TeamBand
+                key={side}
+                side={side}
+                kills={(hud.teams as NonNullable<HudView['teams']>).kills[side]}
+                target={target}
+                winner={
+                  winnerId === undefined
+                    ? undefined
+                    : (hud.teams as NonNullable<HudView['teams']>).winner === side
+                }
+              />
+            ))
+          : bySeat.map((entry) => (
+              <Band
+                key={entry.id}
+                entry={entry}
+                target={target}
+                leader={best > 0 && entry.kills === best}
+                winner={winnerId === undefined ? undefined : entry.id === winnerId}
+              />
+            ))}
       </ol>
       {showContinue && (
         <button type="button" className="sb__continue" onClick={onContinue} {...proceed}>
@@ -134,6 +148,43 @@ function Band({
       <span className="sb__dots" aria-hidden="true">
         {Array.from({ length: target }, (_, i) => (
           <span key={i} className="sb__dot" data-filled={i < entry.kills || undefined} />
+        ))}
+      </span>
+    </li>
+  );
+}
+
+/** Team Up's bar (ff physics hq 2.mp4 12:40): a red one with a skull and a blue one with a leaf wreath, the side's kills together. */
+function TeamBand({
+  side,
+  kills,
+  target,
+  winner,
+}: {
+  readonly side: 0 | 1;
+  readonly kills: number;
+  readonly target: number;
+  readonly winner: boolean | undefined;
+}) {
+  const style = {
+    '--band': side === 0 ? '#c9473f' : '#3f6fc4',
+    '--filled': '#ffffff',
+    '--empty': side === 0 ? '#a63a33' : '#3359a3',
+  } as CSSProperties;
+  return (
+    <li
+      className="sb__band sb__band--team"
+      data-winner={winner === true || undefined}
+      data-faded={winner === false || undefined}
+      style={style}
+      aria-label={`${side === 0 ? 'Red' : 'Blue'} team: ${kills} of ${target} kills`}
+    >
+      <span className="sb__badge sb__badge--team" aria-hidden="true">
+        {side === 0 ? '☠' : '❦'}
+      </span>
+      <span className="sb__dots" aria-hidden="true">
+        {Array.from({ length: target }, (_, i) => (
+          <span key={i} className="sb__dot" data-filled={i < kills || undefined} />
         ))}
       </span>
     </li>

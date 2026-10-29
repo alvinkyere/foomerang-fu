@@ -183,6 +183,7 @@ export function ConsoleApp({ model, actions, initial }: ConsoleAppProps) {
         startBlockedReason={room.startBlockedReason}
         launching={room.launching}
         onBegin={actions.start}
+        onHoverMode={actions.hoverMode}
         onStepBots={actions.stepBots}
         onCpuStep={actions.stepCpu}
         onCpuRemove={actions.removeCpu}

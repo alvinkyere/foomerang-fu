@@ -39,7 +39,11 @@ test('phones pick their characters on the TV, get READY, begin from a phone, and
   await expect(circle(2)).toHaveAccessibleName('Player 2: Bob, Milk, ready');
   await expect(host.startButton).toBeVisible();
 
-  await bob.ready(); // everyone is READY: a ready player's SELECT begins
+  await bob.ready(); // everyone is READY: a ready player's SELECT opens GAME MODE
+  await host.page.waitForTimeout(700);
+  await bob.tap('SELECT'); // Free For All: READY?
+  await host.page.waitForTimeout(700);
+  await bob.tap('SELECT'); // FIGHT!
   await expect(host.page.getByTestId('arena')).toBeVisible();
   const aliceId = await host.playerId('Alice');
   const bobId = await host.playerId('Bob');

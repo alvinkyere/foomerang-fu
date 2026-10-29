@@ -31,6 +31,8 @@ export interface MatchPlayer {
   readonly cpu?: Difficulty;
   /** The character they chose in character select (absent: their seat's own). */
   readonly character?: PackCharacter;
+  /** Team Up: the side they play on (0 red, 1 blue). Absent: Free For All. */
+  readonly side?: 0 | 1;
 }
 
 /**

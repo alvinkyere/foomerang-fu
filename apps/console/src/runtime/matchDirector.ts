@@ -7,6 +7,7 @@ import type { MatchPhase, MatchPlayer, MatchRuntime } from './matchRuntime';
 import type { PowerKind } from '@foomerang/foomerang-fu';
 import type { ArenaChoice, PowerupMode } from './powerupMode';
 import { CpuRoster, isCpuId, type CpuEntry } from './cpuRoster';
+import { MatchSetup } from './matchSetup';
 import { DEFAULT_MODE, ModeSelection, isStartableMode, type GameModeId } from './gameMode';
 import { MAX_PARTICIPANTS } from './cpuRoster';
 import { CharacterSelect, isPlayable } from './characterSelect';
@@ -56,6 +57,8 @@ export class MatchDirector {
   readonly mode = new ModeSelection();
   /** Character select (Foomerang Fu): every participant's character, and whether each person is READY on it. */
   readonly picks = new CharacterSelect();
+  /** Between character select and the first round: GAME MODE, PICK TEAMS, READY? (matchSetup.ts). */
+  readonly setup = new MatchSetup();
   #roster: readonly RosterEntry[] = [];
   #connected = new Set<string>();
   #inMatch = false;
@@ -106,6 +109,11 @@ export class MatchDirector {
         seated: r.seat === 'HELD',
       })),
     );
+    this.setup.sync(
+      [...this.#roster, ...this.#cpuRoster()].flatMap((r) =>
+        r.seat === 'HELD' ? [{ id: r.playerId, cpu: isCpuId(r.playerId) }] : [],
+      ),
+    );
     this.picks.sync(
       [...this.#roster, ...this.#cpuRoster()].flatMap((r) => {
         const slot = this.slots.slotOf(r.playerId);
@@ -130,7 +138,10 @@ export class MatchDirector {
     this.#syncSlots();
 
     if (roomState !== 'PLAYING') {
-      if (this.#inMatch) this.picks.unready(); // back in the lobby: everyone chooses again
+      if (this.#inMatch) {
+        this.picks.unready(); // back in the lobby: everyone chooses again
+        this.setup.reset();
+      }
       this.#inMatch = false;
       this.#warmUp(gameId);
       return;
@@ -148,16 +159,33 @@ export class MatchDirector {
     for (const r of this.#roster) {
       const slot = this.slots.slotOf(r.playerId);
       if (r.seat !== 'HELD' || slot === undefined || humans.size >= room) continue;
-      bodies.push({ playerId: r.playerId, slot, ...this.#character(r.playerId) });
+      bodies.push({
+        playerId: r.playerId,
+        slot,
+        ...this.#character(r.playerId),
+        ...this.#side(r.playerId),
+      });
       humans.add(r.playerId);
     }
     // CPUs join after the people, so a full table never turns a person away.
     for (const c of this.cpus.entries) {
       const slot = this.slots.slotOf(c.id);
       if (slot !== undefined)
-        bodies.push({ playerId: c.id, slot, cpu: c.difficulty, ...this.#character(c.id) });
+        bodies.push({
+          playerId: c.id,
+          slot,
+          cpu: c.difficulty,
+          ...this.#character(c.id),
+          ...this.#side(c.id),
+        });
     }
     return { bodies, humans };
+  }
+
+  /** Team Up: the side a participant picked (a latecomer, who picked nothing, is red). */
+  #side(id: string): Pick<MatchPlayer, 'side'> {
+    if (this.mode.id !== 'TEAM_UP') return {};
+    return { side: this.setup.sides().get(id) ?? 0 };
   }
 
   /** The character a participant chose (Foomerang Fu only; other games draw no characters). */
@@ -190,7 +218,10 @@ export class MatchDirector {
 
   /** The match is over for good: back to the lobby (the console tells the server). */
   returnToLobby(): void {
-    if (this.#inMatch) this.picks.unready();
+    if (this.#inMatch) {
+      this.picks.unready();
+      this.setup.reset();
+    }
     this.#inMatch = false;
     this.#matchHumans = new Set();
     this.#networkPaused = false;

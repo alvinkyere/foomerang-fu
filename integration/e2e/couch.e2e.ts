@@ -79,7 +79,9 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   await alice.flick('right');
   await expect(host.cpuSeat(1)).toBeVisible();
   await expect(host.startButton).not.toHaveAttribute('aria-disabled', 'true');
-  await alice.tap('SELECT');
+  await alice.tap('SELECT'); // GAME MODE
+  await alice.tap('SELECT'); // Free For All: READY?
+  await alice.tap('SELECT'); // FIGHT!
   await host.waitForDrawn(2);
   await host.autoContinue(alice); // between rounds her SELECT presses CONTINUE on the scoreboard
 

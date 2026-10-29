@@ -49,6 +49,8 @@ export interface SelectSeatView {
   /** The character under their cursor (or chosen, once READY). */
   readonly character?: CharacterView;
   readonly ready: boolean;
+  /** PICK TEAMS: the banner they stand on (undefined: still in the middle). */
+  readonly side?: 'RED' | 'BLUE';
 }
 
 /** A player's cursor on a grid tile: their badge (number, in their character's colour). */
@@ -72,6 +74,24 @@ export interface CharacterSelectView {
   readonly everyoneReady: boolean;
   readonly bots: number;
   readonly canAddBot: boolean;
+  /** What comes after READY on a character: GAME MODE, PICK TEAMS, READY? (runtime/matchSetup.ts). */
+  readonly setup?: SetupView;
+}
+
+export interface SetupView {
+  readonly stage: 'CHARACTERS' | 'MODE' | 'TEAMS' | 'READY';
+  /** The GAME MODE card under the cursor, and the cards. */
+  readonly hover: number;
+  readonly cards: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly caption: string;
+    readonly available: boolean;
+  }[];
+  /** The mode chosen (what READY? is for). */
+  readonly mode: string;
+  /** PICK TEAMS: both banners have someone and nobody is left in the middle: CONTINUE shows. */
+  readonly teamsValid: boolean;
 }
 
 /** 'none': no room. 'opening': asking for one. 'open': ready for phones. 'reconnecting': the room is kept, the line is down. 'closed': it ended. */
@@ -134,6 +154,8 @@ export interface ShellActions {
   /** Give the room up and go home. */
   closeRoom(): void;
   start(): void;
+  /** GAME MODE with the TV's pointer: the card at `index` becomes the one under the cursor. */
+  hoverMode(index: number): void;
   addCpu(): void;
   removeCpu(id: string): void;
   stepCpu(id: string, delta: 1 | -1): void;

@@ -297,6 +297,16 @@ export class Host {
   async start(): Promise<void> {
     await this.readyEveryone();
     await this.startButton.click();
+    // Foomerang Fu: GAME MODE (Free For All), then READY? (FIGHT!)
+    const mode = this.page.getByRole('option', { name: /FREE FOR ALL/ });
+    const opened = await mode
+      .waitFor({ state: 'visible', timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+    if (opened) {
+      await mode.click();
+      await this.page.getByRole('button', { name: /FIGHT/ }).click();
+    }
     await expect(this.page.getByTestId('arena')).toBeVisible();
     await this.waitForGo();
   }

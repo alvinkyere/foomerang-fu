@@ -124,7 +124,8 @@ export class FuRuntime implements MatchRuntime {
     this.#slowMo = slowMo;
     this.#targetKills = targetKills;
     this.#roundIntroSeconds = roundIntroSeconds;
-    if (mode !== 'FREE_FOR_ALL') throw new RangeError(`game mode ${mode} cannot be played yet`);
+    if (mode !== 'FREE_FOR_ALL' && mode !== 'TEAM_UP')
+      throw new RangeError(`game mode ${mode} cannot be played yet`);
     this.#mode = mode;
     this.#arena = arena;
     this.#enabled = enabled;
@@ -193,6 +194,14 @@ export class FuRuntime implements MatchRuntime {
         ...(this.#targetKills === undefined ? {} : { targetKills: this.#targetKills }),
         // first to 14 kills wins at once; nine rounds are regulation, then overtime; what players own lasts until the match ends
         ...(this.#powerups === undefined ? {} : { powerups: this.#powerups }),
+        // Team Up (art/..., ff physics hq 2.mp4 9:40): the sides the players picked
+        ...(this.#mode === 'TEAM_UP'
+          ? {
+              teams: Object.fromEntries(
+                players.flatMap((p) => (p.side === undefined ? [] : [[p.playerId, p.side]])),
+              ),
+            }
+          : {}),
       },
     );
     this.#stepper.start(nowMs);

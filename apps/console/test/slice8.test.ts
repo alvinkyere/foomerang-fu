@@ -38,9 +38,11 @@ const run = (d: MatchDirector, seconds: number, from = 0): number => {
 };
 
 describe('game modes', () => {
-  it('Free For All is available and selected; Hide & Seek is listed, says COMING SOON, and is not available', () => {
+  it('Free For All is selected; Team Up is available; Golden Boomerang and Hide & Seek are listed and not available', () => {
     expect(GAME_MODES.map((m) => [m.id, m.title, m.available])).toEqual([
       ['FREE_FOR_ALL', 'Free For All', true],
+      ['TEAM_UP', 'Team Up', true],
+      ['GOLDEN_BOOMERANG', 'Golden Boomerang', false],
       ['HIDE_AND_SEEK', 'Hide & Seek', false],
     ]);
     expect(new ModeSelection().id).toBe('FREE_FOR_ALL');
@@ -244,7 +246,9 @@ describe('host lifecycle', () => {
     runtime.startMatch(); // two now, but A is still choosing a character
     expect(network.last.of('MATCH_START')).toHaveLength(0);
     runtime.director.picks.select('a');
-    runtime.startMatch();
+    runtime.startMatch(); // GAME MODE
+    runtime.startMatch(); // Free For All → READY?
+    runtime.startMatch(); // FIGHT!
     expect(network.last.of('MATCH_START')).toHaveLength(1);
   });
 
@@ -261,7 +265,9 @@ describe('host lifecycle', () => {
     await settle();
     runtime.director.cpus.add('EASY', 0);
     runtime.director.cpus.add('EASY', 0);
-    runtime.startMatch();
+    runtime.startMatch(); // GAME MODE
+    runtime.startMatch(); // Free For All → READY?
+    runtime.startMatch(); // FIGHT!
     expect(network.last.of('MATCH_START')).toHaveLength(1);
   });
 

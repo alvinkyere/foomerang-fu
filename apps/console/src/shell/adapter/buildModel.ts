@@ -3,6 +3,7 @@ import type { HostState } from '../../host';
 import { MAX_PARTICIPANTS, type CpuEntry } from '../../runtime/cpuRoster';
 import { SELECT_GRID, type Pick } from '../../runtime/characterSelect';
 import { SLOT_STYLES } from '../../runtime/slots';
+import { GAME_MODES } from '../../runtime/gameMode';
 import { noticeCopy } from '../../ui/copy';
 import { CHARACTER_BY_SEAT } from '../components/Characters';
 import type { PlayerStatus } from '../components/PlayerTile';
@@ -27,6 +28,8 @@ export interface AdapterInput {
   readonly startBlock: StartBlock;
   /** Character select (Foomerang Fu): every participant's character and READY. */
   readonly picks?: ReadonlyMap<string, Pick>;
+  /** The stage after character select (GAME MODE, PICK TEAMS, READY?) and who stands on which banner. */
+  readonly setup?: SetupSnapshot;
   /** The game PLAY opens. */
   readonly gameId: string;
   readonly controllerBaseUrl: string;
@@ -60,11 +63,34 @@ const shortAddress = (base: string): string => {
 };
 
 /** The lobby's seats as character select draws them: each with their character and READY, and the grid with every cursor. */
+/** What the matchSetup says, as plain values (the runtime object itself never reaches the shell's model). */
+export interface SetupSnapshot {
+  readonly stage: 'CHARACTERS' | 'MODE' | 'TEAMS' | 'READY';
+  readonly hover: number;
+  readonly mode: string;
+  readonly teamsValid: boolean;
+  readonly sides: ReadonlyMap<string, 'RED' | 'BLUE'>;
+}
+const NO_SETUP: SetupSnapshot = {
+  stage: 'CHARACTERS',
+  hover: 0,
+  mode: 'FREE_FOR_ALL',
+  teamsValid: false,
+  sides: new Map(),
+};
+/** The line under the chosen card (ff physics hq 2.mp4 9:38, game-setting.mp4). */
+const MODE_CAPTION: Readonly<Record<string, string>> = {
+  FREE_FOR_ALL: 'EVERYONE IS AN ENEMY',
+  TEAM_UP: 'PLAY IN TEAMS',
+  GOLDEN_BOOMERANG: 'HOLD ONTO THE GOLDEN BOOMERANG',
+};
+
 function characterSelect(
   seats: readonly SeatView[],
   picks: ReadonlyMap<string, Pick>,
   bots: number,
   participants: number,
+  setup: SetupSnapshot,
 ): CharacterSelectView {
   const selectSeats = seats.map((seat): SelectSeatView => {
     const pick = seat.id === undefined ? undefined : picks.get(seat.id);
@@ -78,6 +104,9 @@ function characterSelect(
       ...(seat.detail !== undefined ? { detail: seat.detail } : {}),
       ...(pick !== undefined ? { character: characterView(pick.character) } : {}),
       ready: pick?.ready ?? false,
+      ...(seat.id !== undefined && setup.sides.get(seat.id) !== undefined
+        ? { side: setup.sides.get(seat.id) as 'RED' | 'BLUE' }
+        : {}),
     };
   });
   const grid = SELECT_GRID.map((row) =>
@@ -96,6 +125,18 @@ function characterSelect(
     everyoneReady: selectSeats.every((seat) => seat.kind !== 'phone' || seat.ready),
     bots,
     canAddBot: participants < MAX_PARTICIPANTS,
+    setup: {
+      stage: setup.stage,
+      hover: setup.hover,
+      cards: GAME_MODES.slice(0, 3).map((m) => ({
+        id: m.id,
+        title: m.title,
+        caption: MODE_CAPTION[m.id] ?? '',
+        available: m.available,
+      })),
+      mode: setup.mode,
+      teamsValid: setup.teamsValid,
+    },
   };
 }
 
@@ -188,7 +229,13 @@ export function buildShellModel(input: AdapterInput): ShellModel {
         notice: state.notice === undefined ? undefined : noticeCopy(state.notice),
         interrupted: state.matchInterrupted,
         select: isFu
-          ? characterSelect(seats, input.picks ?? new Map(), cpus.length, participants)
+          ? characterSelect(
+              seats,
+              input.picks ?? new Map(),
+              cpus.length,
+              participants,
+              input.setup ?? NO_SETUP,
+            )
           : undefined,
       }
     : { ...EMPTY_ROOM, phase };

@@ -129,7 +129,14 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
     await r.press('b', 'PRIMARY');
     expect(r.network.last.of('MATCH_START')).toHaveLength(0);
     r.setNow(500);
-    await r.press('a', 'PRIMARY');
+    await r.press('a', 'PRIMARY'); // GAME MODE
+    expect(r.network.last.of('MATCH_START')).toHaveLength(0);
+    await r.press('a', 'PRIMARY', 'released');
+    r.setNow(1000);
+    await r.press('a', 'PRIMARY'); // Free For All: READY?
+    await r.press('a', 'PRIMARY', 'released');
+    r.setNow(1500);
+    await r.press('a', 'PRIMARY'); // FIGHT!
     expect(r.network.last.of('MATCH_START')).toHaveLength(1);
   });
 

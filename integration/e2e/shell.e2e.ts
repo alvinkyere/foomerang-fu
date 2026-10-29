@@ -95,7 +95,9 @@ test('couch flow by keyboard: Home → Fu → PLAY → phone joins and gets READ
   await page.keyboard.press('ArrowRight');
   await expect(host.filledSeats).toHaveCount(3);
   await expect(page.getByTestId('bots')).toHaveText('2 BOTS');
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter'); // GAME MODE opens
+  await page.getByRole('option', { name: /FREE FOR ALL/ }).click();
+  await page.getByRole('button', { name: /FIGHT/ }).click();
   await expect(page.getByTestId('arena')).toBeVisible();
   await host.autoContinue(); // between rounds the TV presses CONTINUE
   await host.waitForDrawn(3);

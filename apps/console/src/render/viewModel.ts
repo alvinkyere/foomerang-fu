@@ -21,6 +21,8 @@ export interface CircleView {
   /** Calling a dropped boomerang home (THROW held): standing still in the calling pose, the aura on their hands. */
   readonly calling?: true;
   readonly color: string;
+  /** Team Up: their side (0 red, 1 blue): the character is tinted to it. */
+  readonly side?: 0 | 1;
   readonly shape: SlotStyle['shape'];
   readonly status: CircleStatus;
   /** Shown faded: away (reconnecting / disconnected / left) or dead. */
@@ -202,6 +204,8 @@ export interface ScoreEntryView {
   /** Holes filled (kills). */
   readonly kills: number;
   readonly cpu: boolean;
+  /** Team Up: their side (0 red, 1 blue). */
+  readonly side?: 0 | 1;
   /** The character they play (character select); absent: their seat's own. */
   readonly character?: PackCharacter;
 }
@@ -231,8 +235,13 @@ export interface HudView {
   readonly phase: 'PLAYING' | 'ROUND_OVER' | 'SCOREBOARD' | 'MATCH_OVER';
   /** In player order (stable: the same row for the same player all match). */
   readonly entries: readonly ScoreEntryView[];
-  /** Set once somebody has won. */
+  /** Set once somebody has won (in Team Up, the winning side's top scorer: see `teams.winner`). */
   readonly champion: ScoreEntryView | undefined;
+  /** Team Up: each side's kills together, and which side has won. Absent: Free For All. */
+  readonly teams?: {
+    readonly kills: readonly [number, number];
+    readonly winner: 0 | 1 | undefined;
+  };
   /** At the end of a round: who filled their meters together and will play a tiebreak. */
   readonly tiebreak: readonly string[];
   /** The meters that changed since the last view (delivered once, like the arena events). */

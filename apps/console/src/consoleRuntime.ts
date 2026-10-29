@@ -128,6 +128,10 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     session.getState().roster.filter((entry) => entry.seat === 'HELD').length;
   /** One phone's menu action on character select: its own cursor, its own READY, and (once everyone is) bots and begin. */
   const choose = (action: MenuAction, playerId: string): void => {
+    if (director.setup.stage !== 'CHARACTERS') {
+      setupChoose(action, playerId);
+      return;
+    }
     const picks = director.picks;
     const pick = picks.pick(playerId);
     if (pick === undefined) return;
@@ -140,7 +144,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       const result = picks.select(playerId);
       if (result === 'BEGIN') {
         soundHooks.emit('start');
-        startMatch();
+        advance();
       } else if (result === 'READY') soundHooks.emit('ready');
       else if (result === 'TAKEN' || result === 'COMING_SOON') soundHooks.emit('error');
     } else if (action === 'back') {
@@ -235,9 +239,47 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
           1000 / 60,
         );
 
+  /** GAME MODE, PICK TEAMS, READY?: one phone's menu action once everyone is READY on a character. */
+  function setupChoose(action: MenuAction, playerId: string): void {
+    const setup = director.setup;
+    if (action === 'left' || action === 'right') {
+      const before = [setup.hover, setup.sideOf(playerId)];
+      setup.move(playerId, action);
+      if (before[0] !== setup.hover || before[1] !== setup.sideOf(playerId))
+        soundHooks.emit('hover');
+    } else if (action === 'select') {
+      const result = setup.select();
+      if (result === 'ADVANCED') soundHooks.emit('ready');
+      else if (result === 'REFUSED') soundHooks.emit('error');
+      else if (result === 'BEGIN') {
+        soundHooks.emit('start');
+        startMatch();
+      }
+    } else if (action === 'back') {
+      if (setup.back(playerId)) soundHooks.emit('unready');
+    }
+  }
+
+  /** The begin bar (and a phone's last SELECT): everyone is READY on a character, so GAME MODE opens. */
+  function advance(): void {
+    if (director.startBlock() !== undefined) return;
+    director.setup.enter(director.mode.id);
+  }
+
   function startMatch(): void {
     const { gameId } = session.getState();
-    if (gameId === 'foomerang-fu' && director.startBlock() !== undefined) return;
+    if (gameId === 'foomerang-fu' && director.setup.stage === 'CHARACTERS') {
+      advance(); // (the TV's begin bar: the mode comes first)
+      return;
+    }
+    if (gameId === 'foomerang-fu' && director.setup.stage !== 'READY') {
+      director.setup.select(); // (the TV's own press on a card or CONTINUE)
+      return;
+    }
+    if (gameId === 'foomerang-fu') {
+      director.mode.select(director.setup.mode); // (the mode the host chose on GAME MODE)
+      if (director.startBlock() !== undefined) return;
+    }
     session.startMatch();
   }
 

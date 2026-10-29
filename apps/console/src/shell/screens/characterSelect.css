@@ -442,3 +442,209 @@
 :root[data-reduced-motion='true'] .cs * {
   animation: none !important;
 }
+
+/* ---- GAME MODE / PICK TEAMS / READY? (ff physics hq 2.mp4 9:38-9:50): the circles stay, the grid gives way ------------------ */
+.cs__setup {
+  position: absolute;
+  inset: 0;
+}
+.cs__divider--setup {
+  top: 30rem;
+}
+.cs__modes {
+  position: absolute;
+  top: 38rem;
+  right: 10rem;
+  left: 10rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.cs__mode {
+  display: grid;
+  justify-items: center;
+  row-gap: 1.2rem;
+  width: 34rem;
+  padding: 0;
+  border: 0;
+  color: var(--cs-faint);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.cs__mode-icon {
+  width: 11rem;
+  height: 11rem;
+  fill: #d4d1cd;
+}
+.cs__mode-eye {
+  fill: #fff;
+}
+.cs__mode-mouth,
+.cs__mode-spark {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.cs__mode-spark {
+  stroke: #d4d1cd;
+}
+.cs__mode-name {
+  padding: 0.5rem 1.6rem;
+  border-radius: 0.6rem;
+  color: #fff;
+  background: #c4c1bd;
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.cs__mode-caption {
+  min-height: 1.6rem;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.cs__mode[data-on] .cs__mode-icon {
+  fill: var(--cs-coral);
+}
+.cs__mode[data-on] .cs__mode-spark {
+  stroke: var(--cs-coral);
+}
+.cs__mode[data-on] .cs__mode-name {
+  background: var(--cs-coral);
+}
+.cs__mode[data-soon][data-on] .cs__mode-name {
+  background: #9c9894;
+}
+.cs__mode[data-soon][data-on] .cs__mode-icon {
+  fill: #b0aca7;
+}
+.cs__teams {
+  position: absolute;
+  top: 40rem;
+  right: 6rem;
+  left: 6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cs__team {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+.cs__banner {
+  width: 14rem;
+  height: 19.6rem;
+}
+.cs__banner--red .cs__banner-cloth {
+  fill: #ee3a2c;
+}
+.cs__banner--blue .cs__banner-cloth {
+  fill: #2f9bf0;
+}
+.cs__banner-mark {
+  fill: #fff;
+}
+.cs__banner-mark .cs__banner-hole {
+  fill: #ee3a2c;
+  stroke: none;
+}
+.cs__banner--blue .cs__banner-mark .cs__banner-hole {
+  fill: none;
+  stroke: #2f9bf0;
+  stroke-width: 2;
+}
+.cs__team-slots {
+  display: grid;
+  gap: 0.8rem;
+}
+.cs__team-slots--middle {
+  grid-template-columns: repeat(2, auto);
+}
+.cs__team-tile {
+  display: grid;
+  place-items: center;
+  width: 6.4rem;
+  height: 6.4rem;
+  border-radius: 0.6rem;
+  background: var(--cs-tile);
+}
+.cs__team--red .cs__team-tile {
+  background: #f7b8b1;
+}
+.cs__team--blue .cs__team-tile {
+  background: #b5d9fb;
+}
+.cs__team-tile img {
+  width: 5.4rem;
+  height: 5.4rem;
+  object-fit: contain;
+}
+.cs__team-middle {
+  display: flex;
+  align-items: center;
+  gap: 5rem;
+  color: #bdbab6;
+  font-size: 5rem;
+  font-weight: 900;
+}
+.cs__pill {
+  padding: 0.4rem 1.8rem;
+  border: 0;
+  border-radius: 0.6rem;
+  color: #fff;
+  background: #c4c1bd;
+  font: inherit;
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.cs__pill--go {
+  background: var(--cs-coral);
+  cursor: pointer;
+}
+.cs__pill--soon {
+  background: #b6b3af;
+}
+.cs__ready {
+  position: absolute;
+  top: 44rem;
+  right: 16rem;
+  left: 16rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.cs__fight {
+  display: grid;
+  justify-items: center;
+  row-gap: 0.6rem;
+}
+.cs__fight-caption {
+  color: var(--cs-faint);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.cs__confirm {
+  position: absolute;
+  right: 6rem;
+  bottom: 3.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0;
+  color: var(--cs-faint);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.cs__grid[hidden] {
+  display: none;
+}
+
+/* (the join card is for the lobby: it would sit on the cards) */
+.cs:not([data-stage='CHARACTERS']) .cs__join {
+  display: none;
+}

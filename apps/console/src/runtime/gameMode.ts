@@ -4,7 +4,7 @@
  * and one more rules configuration, not a rewrite. Deliberately not a framework: a list, a selection, a rule for
  * "can this start".
  */
-export type GameModeId = 'FREE_FOR_ALL' | 'HIDE_AND_SEEK';
+export type GameModeId = 'FREE_FOR_ALL' | 'TEAM_UP' | 'GOLDEN_BOOMERANG' | 'HIDE_AND_SEEK';
 
 export interface GameModeInfo {
   readonly id: GameModeId;
@@ -21,6 +21,18 @@ export const GAME_MODES: readonly GameModeInfo[] = Object.freeze([
     title: 'Free For All',
     summary: 'First to 14 kills wins',
     available: true,
+  },
+  {
+    id: 'TEAM_UP',
+    title: 'Team Up',
+    summary: 'Play in teams',
+    available: true,
+  },
+  {
+    id: 'GOLDEN_BOOMERANG',
+    title: 'Golden Boomerang',
+    summary: 'Hold onto the golden boomerang',
+    available: false,
   },
   {
     id: 'HIDE_AND_SEEK',

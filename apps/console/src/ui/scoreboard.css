@@ -208,3 +208,17 @@
     transform: scale(1);
   }
 }
+
+/* ---- Team Up: two bars (ff physics hq 2.mp4 12:40) --------------------------------------------------------------- */
+.sb__band--team .sb__dots {
+  flex: 1;
+  padding-right: calc(1.6 * var(--u));
+}
+.sb__badge--team {
+  margin-right: 0;
+  width: calc(4.17 * var(--u));
+  height: calc(4.17 * var(--u));
+  border-radius: 0;
+  background: var(--band);
+  font-size: calc(2.4 * var(--u));
+}

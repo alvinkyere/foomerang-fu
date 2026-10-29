@@ -106,13 +106,18 @@ function Results({
       }
     >
       <h2 className="rs__title" style={{ '--title': resultsColour(winner) } as CSSProperties}>
-        {characterName(winner).toUpperCase()} WINS!
+        {hud.teams?.winner === undefined
+          ? `${characterName(winner).toUpperCase()} WINS!`
+          : `${hud.teams.winner === 0 ? 'RED' : 'BLUE'} TEAM WINS!`}
       </h2>
       <ol className="rs__columns" aria-label="Results">
         {bySeat.map((entry, index) => {
           const character = characterOf(SEAT_ROSTER, entry);
           const place = places.get(entry.id) ?? bySeat.length;
-          const won = entry.id === champion.id;
+          const won =
+            hud.teams?.winner === undefined
+              ? entry.id === champion.id
+              : entry.side === hud.teams.winner;
           return (
             <li
               key={entry.id}

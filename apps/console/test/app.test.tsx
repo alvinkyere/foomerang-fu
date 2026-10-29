@@ -124,6 +124,11 @@ const code = () => screen.getByTestId('room-code').textContent;
 // Foomerang Fu's lobby is character select (game-setting.mp4): the begin bar shows once nobody is still choosing.
 const BEGIN = /^Begin/;
 const begin = () => button(BEGIN);
+/** After the begin bar: GAME MODE (Free For All's card), then READY?'s FIGHT! (the match begins). */
+const fightFreeForAll = async () => {
+  fireEvent.click(await screen.findByRole('option', { name: /FREE FOR ALL/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /FIGHT/ }));
+};
 const circle = (n: number) => screen.getByRole('listitem', { name: new RegExp(`^Player ${n}:`) });
 /** Every listed phone presses SELECT on its character: READY. */
 async function readyAll(ctx: Awaited<ReturnType<typeof inLobby>>, ...ids: string[]) {
@@ -292,10 +297,10 @@ describe('starting', () => {
     await readyAll(ctx, 'a', 'b');
     ctx.network.startError = 'INVALID_STATE';
     fireEvent.click(begin());
+    await fightFreeForAll();
     await flush();
     expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
     expect(document.body.textContent).toMatch(/cannot start right now/);
-    expect(begin()).toBeTruthy();
   });
 
   it('the arena renderer is NOT loaded while people are in the room', async () => {
@@ -312,6 +317,7 @@ describe('starting', () => {
     await flush();
     await readyAll(ctx, 'a', 'b');
     fireEvent.click(begin());
+    await fightFreeForAll();
     expect(network.last.of('MATCH_START')).toHaveLength(1);
     network.roomUpdated(network.last, 'PLAYING', twoPlayers);
     await flush();
@@ -518,6 +524,7 @@ describe('CPU players on character select (Foomerang Fu): the begin bar’s ‹ 
     addCpu();
     expect(isDisabled(begin())).toBe(false);
     fireEvent.click(begin());
+    await fightFreeForAll();
     expect(network.last.of('MATCH_START')).toHaveLength(1);
   });
 
@@ -820,7 +827,10 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     await alvin.tap(SELECT); // David is still choosing: nothing begins
     expect(ctx.network.last.of('MATCH_START')).toHaveLength(0);
     await david.tap(SELECT);
-    await alvin.tap(SELECT);
+    await alvin.tap(SELECT); // GAME MODE opens
+    expect(ctx.network.last.of('MATCH_START')).toHaveLength(0);
+    await alvin.tap(SELECT); // Free For All: READY?
+    await alvin.tap(SELECT); // FIGHT!
     expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
   });
 

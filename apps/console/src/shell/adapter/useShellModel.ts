@@ -25,6 +25,10 @@ export function useShellModel(source: ShellSource): { model: ShellModel; actions
     (listener) => runtime.director.picks.subscribe(listener),
     () => runtime.director.picks.version,
   );
+  const setupVersion = useSyncExternalStore(
+    (listener) => runtime.director.setup.subscribe(listener),
+    () => runtime.director.setup.version,
+  );
   const mode = useSyncExternalStore(
     (listener) => runtime.director.mode.subscribe(listener),
     () => runtime.director.mode.id,
@@ -38,6 +42,18 @@ export function useShellModel(source: ShellSource): { model: ShellModel; actions
         slotOf: (id) => runtime.director.slots.slotOf(id),
         startBlock: runtime.director.startBlock(),
         picks: runtime.director.picks.picks(),
+        setup: {
+          stage: runtime.director.setup.stage,
+          hover: runtime.director.setup.hover,
+          mode: runtime.director.setup.mode,
+          teamsValid: runtime.director.setup.teamsValid,
+          sides: new Map(
+            [...runtime.director.picks.picks().keys()].flatMap((id) => {
+              const side = runtime.director.setup.sideOf(id);
+              return side === undefined ? [] : [[id, side] as const];
+            }),
+          ),
+        },
         gameId: source.gameId,
         controllerBaseUrl: source.controllerBaseUrl,
         warnings: source.warnings,
@@ -51,6 +67,7 @@ export function useShellModel(source: ShellSource): { model: ShellModel; actions
       cpus,
       mode,
       picksVersion,
+      setupVersion,
       runtime,
       source.gameId,
       source.controllerBaseUrl,
@@ -65,6 +82,7 @@ export function useShellModel(source: ShellSource): { model: ShellModel; actions
       openRoom: () => runtime.session.createRoom(source.gameId),
       closeRoom: () => runtime.session.leave(),
       start: () => runtime.startMatch(),
+      hoverMode: (index) => runtime.director.setup.hoverTo(index),
       addCpu: () => void runtime.director.cpus.add('MEDIUM', humans()),
       removeCpu: (id) => runtime.director.cpus.remove(id),
       stepCpu: (id, delta) => {

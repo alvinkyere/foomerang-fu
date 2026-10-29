@@ -1284,3 +1284,39 @@ describe('a dropped boomerang, through the runtime (owner, 2026-10-19)', () => {
     runtime.receiveAction(press('a', 'event-0002', 'released'));
   });
 });
+
+describe('Team Up (ff physics hq 2.mp4 9:40+)', () => {
+  const four = [
+    { playerId: 'a', slot: 0, side: 0 as const },
+    { playerId: 'b', slot: 3, side: 1 as const },
+    { playerId: 'c', slot: 1, side: 0 as const },
+    { playerId: 'd', slot: 2, side: 1 as const },
+  ];
+  const full = four.map((p) => ({
+    playerId: p.playerId,
+    displayName: p.playerId.toUpperCase(),
+    seat: 'HELD',
+    connection: 'CONNECTED',
+  })) as unknown as RosterEntry[];
+
+  it('the sides the players picked become the rules’ teams, and the view says who is on which side', () => {
+    const runtime = new FuRuntime(OPEN, undefined, undefined, 'TEAM_UP');
+    runtime.start(four, 0);
+    expect(runtime.state?.config.teams).toEqual({ a: 0, b: 1, c: 0, d: 1 });
+    const view = runtime.view(full, slotsFor(full));
+    expect(view?.circles.map((c) => [c.id, c.side])).toEqual([
+      ['a', 0],
+      ['b', 1],
+      ['c', 0],
+      ['d', 1],
+    ]);
+    expect(view?.hud?.teams).toEqual({ kills: [0, 0], winner: undefined });
+  });
+
+  it('Free For All has no teams', () => {
+    const runtime = new FuRuntime(OPEN);
+    runtime.start(four, 0);
+    expect(runtime.state?.config.teams).toBeUndefined();
+    expect(runtime.view(full, slotsFor(full))?.hud?.teams).toBeUndefined();
+  });
+});

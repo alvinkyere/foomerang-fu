@@ -844,8 +844,10 @@ class Character {
   ): void {
     const material = this.sprite.material as THREE.SpriteMaterial;
     const out = c.outside;
+    // Team Up: the whole character takes its side's colour (ff physics hq 2.mp4: red and blue characters), here as a tint
+    const [tr, tg, tb] = c.side === 0 ? [1, 0.55, 0.5] : c.side === 1 ? [0.55, 0.7, 1] : [1, 1, 1];
     if (out === undefined || c.dead) {
-      material.color.setRGB(1, 1, 1);
+      material.color.setRGB(tr as number, tg as number, tb as number);
       this.#arrow.visible = false;
       return;
     }
@@ -853,7 +855,11 @@ class Character {
     const rate = 2 + 6 * k;
     const pulse = 0.5 + 0.5 * Math.sin((now / 1000) * rate * Math.PI * 2);
     const red = 0.25 + 0.55 * pulse;
-    material.color.setRGB(1, 1 - red * 0.75, 1 - red * 0.7);
+    material.color.setRGB(
+      tr as number,
+      (tg as number) * (1 - red * 0.75),
+      (tb as number) * (1 - red * 0.7),
+    );
     // the arrow: above the head, rotated to the screen direction of `toward`, nudged along it
     // (h is the atlas CELL's height; the character itself is about a third of it, standing on the anchor)
     const head = this.sprite.position.clone().add(new THREE.Vector3(0, h * 0.5, 0));

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { Suspense, lazy, useState, type CSSProperties } from 'react';
 import { arrivalSide, type ArrivalSide } from '../../characters/selectAnimation';
 import { SelectSprite } from '../components/SelectSprite';
 import { QrCode } from '../../ui/QrCode';
@@ -6,6 +6,9 @@ import { useFocusItem } from '../focus/FocusManager';
 import { FocusScope } from '../focus/FocusManager';
 import type { CharacterSelectView, JoinStatus, SelectSeatView, SelectTileView } from '../model';
 import './characterSelect.css';
+
+// GAME MODE, PICK TEAMS, READY? (the stages after everyone is READY) are fetched when they are first needed
+const SetupPanel = lazy(() => import('./SetupPanel').then((m) => ({ default: m.SetupPanel })));
 
 export interface CharacterSelectScreenProps {
   readonly select: CharacterSelectView;
@@ -23,6 +26,8 @@ export interface CharacterSelectScreenProps {
   readonly startBlockedReason?: string | undefined;
   readonly launching?: boolean;
   readonly onBegin: () => void;
+  /** The TV's pointer on a GAME MODE card. */
+  readonly onHoverMode?: (index: number) => void;
   readonly onStepBots: (delta: 1 | -1) => void;
   readonly onCpuStep: (id: string, delta: 1 | -1) => void;
   readonly onCpuRemove: (id: string) => void;
@@ -75,9 +80,10 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
   const code = props.roomCode ?? '';
   const order = select.grid.flat().map((tile) => tile.character.id);
   const cols = select.grid[0]?.length ?? 1;
+  const stage = select.setup?.stage ?? 'CHARACTERS';
   return (
     <FocusScope id="select" initialFocus="begin" remember={false} onBack={props.onBack}>
-      <div className="cs" data-testid="character-select">
+      <div className="cs" data-testid="character-select" data-stage={stage}>
         <Corners />
         <div className="cs__notices">
           {props.warnings?.map((warning) => (
@@ -114,12 +120,22 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
           ))}
         </ol>
 
-        {!select.everyoneReady && (
+        {stage !== 'CHARACTERS' && (
+          <Suspense fallback={null}>
+            <SetupPanel
+              select={select}
+              onPress={props.onBegin}
+              onHover={props.onHoverMode}
+              canStart={props.canStart}
+            />
+          </Suspense>
+        )}
+        {stage === 'CHARACTERS' && !select.everyoneReady && (
           <h1 className="cs__divider">
             <span>CHOOSE CHARACTERS</span>
           </h1>
         )}
-        {select.everyoneReady && (
+        {stage === 'CHARACTERS' && select.everyoneReady && (
           <BeginBar
             bots={select.bots}
             canAddBot={select.canAddBot}
@@ -131,7 +147,12 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
           />
         )}
 
-        <div className="cs__grid" role="grid" aria-label="Characters">
+        <div
+          className="cs__grid"
+          role="grid"
+          aria-label="Characters"
+          hidden={stage !== 'CHARACTERS'}
+        >
           {select.grid.map((row, r) => (
             <div key={r} className="cs__row" role="row">
               {row.map((tile) => (
@@ -209,9 +230,15 @@ function SeatCircle({
 }) {
   const ch = seat.character;
   const arrival = useArrival(ch?.id, order, cols);
+  // PICK TEAMS: a circle is its side's red or blue (ff physics hq 2.mp4 9:44)
   const style = {
     '--badge': ch?.color ?? '#c9c4bf',
-    '--tint': ch?.tint ?? 'transparent',
+    '--tint':
+      seat.side === 'RED'
+        ? '#f9b4ad'
+        : seat.side === 'BLUE'
+          ? '#b4d8fb'
+          : (ch?.tint ?? 'transparent'),
   } as CSSProperties;
   const label =
     seat.kind === 'empty'

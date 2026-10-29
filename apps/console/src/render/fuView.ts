@@ -63,6 +63,10 @@ export function buildFuView(
   const callers = new Set(
     [...state.boomerangs, ...state.extraBoomerangs].filter(called).map((b) => b.ownerId),
   );
+  const sideOf = (id: string): 0 | 1 | undefined => {
+    const side = state.config.teams?.[id];
+    return side === 0 || side === 1 ? side : undefined;
+  };
   const circles = state.world.bodies.map((body): CircleView => {
     const player = state.players.find((p) => p.id === body.id);
     const boomerang = state.boomerangs.find((b) => b.ownerId === body.id);
@@ -74,6 +78,7 @@ export function buildFuView(
       y: body.position.y,
       radius: body.radius,
       ...identity,
+      ...(sideOf(body.id) !== undefined ? { side: sideOf(body.id) as 0 | 1 } : {}),
       ...(characters.has(body.id) ? { character: characters.get(body.id) as PackCharacter } : {}),
       dimmed: identity.dimmed || dead,
       dead,
@@ -382,6 +387,8 @@ export function buildFuView(
         : `${identityOf(winnerId, roster, slots).label} is the last one standing`;
   }
 
+  const teamKills = (side: 0 | 1): number =>
+    state.players.reduce((n, p) => n + (sideOf(p.id) === side ? (state.scores[p.id] ?? 0) : 0), 0);
   const entryOf = (id: string): ScoreEntryView => {
     const identity = identityOf(id, roster, slots);
     const style = SLOT_STYLES.find((st) => st.number === identity.number);
@@ -393,6 +400,7 @@ export function buildFuView(
       color: identity.color,
       kills: state.scores[id] ?? 0,
       cpu: isCpuId(id),
+      ...(sideOf(id) !== undefined ? { side: sideOf(id) as 0 | 1 } : {}),
       ...(characters.has(id) ? { character: characters.get(id) as PackCharacter } : {}),
     };
   };
@@ -435,6 +443,17 @@ export function buildFuView(
         : [],
     scoreEvents,
     waiting: [],
+    ...(state.config.teams === undefined
+      ? {}
+      : {
+          teams: {
+            kills: [teamKills(0), teamKills(1)] as const,
+            winner:
+              state.matchOver?.winnerTeam === 0 || state.matchOver?.winnerTeam === 1
+                ? state.matchOver.winnerTeam
+                : undefined,
+          },
+        }),
   };
 
   return {
