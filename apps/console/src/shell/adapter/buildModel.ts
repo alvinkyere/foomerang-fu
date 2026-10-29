@@ -82,7 +82,7 @@ const NO_SETUP: SetupSnapshot = {
 const MODE_CAPTION: Readonly<Record<string, string>> = {
   FREE_FOR_ALL: 'EVERYONE IS AN ENEMY',
   TEAM_UP: 'PLAY IN TEAMS',
-  GOLDEN_BOOMERANG: 'HOLD ONTO THE GOLDEN BOOMERANG',
+  GOLDEN_BOOMERANG: 'COMING SOON',
 };
 
 function characterSelect(

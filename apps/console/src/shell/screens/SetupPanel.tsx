@@ -112,7 +112,9 @@ export function SetupPanel({
             >
               <ModeIcon id={card.id} />
               <span className="cs__mode-name">{card.title.toUpperCase()}</span>
-              <span className="cs__mode-caption">{i === setup.hover ? card.caption : ''}</span>
+              <span className="cs__mode-caption">
+                {i === setup.hover || !card.available ? card.caption : ''}
+              </span>
             </button>
           ))}
         </div>

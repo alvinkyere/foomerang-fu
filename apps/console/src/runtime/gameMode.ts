@@ -31,7 +31,7 @@ export const GAME_MODES: readonly GameModeInfo[] = Object.freeze([
   {
     id: 'GOLDEN_BOOMERANG',
     title: 'Golden Boomerang',
-    summary: 'Hold onto the golden boomerang',
+    summary: 'Coming soon',
     available: false,
   },
   {
