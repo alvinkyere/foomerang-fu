@@ -24,6 +24,7 @@ import type { ArenaView, BoomerangView, CircleView, ViewEvent, WallView } from '
 import { parseMapCamera, type MapCameraConfig } from '../reconstructed/mapCamera';
 import { parseMapLayers } from '../reconstructed/mapLayers';
 import { CHARACTER_COLOURS } from '../reconstructed/characterColours';
+import { TEAM_HANDS, recolourPixels } from '../../characters/teamRecolour';
 import {
   characterOf,
   headingFrame,
@@ -844,10 +845,8 @@ class Character {
   ): void {
     const material = this.sprite.material as THREE.SpriteMaterial;
     const out = c.outside;
-    // Team Up: the whole character takes its side's colour (ff physics hq 2.mp4: red and blue characters), here as a tint
-    const [tr, tg, tb] = c.side === 0 ? [1, 0.55, 0.5] : c.side === 1 ? [0.55, 0.7, 1] : [1, 1, 1];
     if (out === undefined || c.dead) {
-      material.color.setRGB(tr as number, tg as number, tb as number);
+      material.color.setRGB(1, 1, 1);
       this.#arrow.visible = false;
       return;
     }
@@ -855,11 +854,7 @@ class Character {
     const rate = 2 + 6 * k;
     const pulse = 0.5 + 0.5 * Math.sin((now / 1000) * rate * Math.PI * 2);
     const red = 0.25 + 0.55 * pulse;
-    material.color.setRGB(
-      tr as number,
-      (tg as number) * (1 - red * 0.75),
-      (tb as number) * (1 - red * 0.7),
-    );
+    material.color.setRGB(1, 1 - red * 0.75, 1 - red * 0.7);
     // the arrow: above the head, rotated to the screen direction of `toward`, nudged along it
     // (h is the atlas CELL's height; the character itself is about a third of it, standing on the anchor)
     const head = this.sprite.position.clone().add(new THREE.Vector3(0, h * 0.5, 0));
@@ -1122,6 +1117,33 @@ class Plaza {
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
   readonly #word = readyGoOverlay();
   readonly #atlases = new Map<string, THREE.Texture>();
+  /** Team Up: each character's atlas painted in a team's colours (teamRecolour.ts), made the first time a side needs it. */
+  readonly #teamAtlases = new Map<string, THREE.Texture>();
+  /** The side each drawn character was made for: a new match with other sides draws them again. */
+  readonly #sideOf = new Map<string, 0 | 1 | undefined>();
+
+  #teamAtlas(kind: PackCharacter, side: 0 | 1): THREE.Texture | undefined {
+    const key = `${kind}:${side}`;
+    const made = this.#teamAtlases.get(key);
+    if (made !== undefined) return made;
+    const source = this.#atlases.get(kind)?.image as
+      (CanvasImageSource & { width: number; height: number }) | undefined;
+    if (source === undefined) return undefined;
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (context === null) return undefined;
+    context.drawImage(source, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    recolourPixels(kind, side, pixels.data);
+    context.putImageData(pixels, 0, 0);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.LinearFilter;
+    this.#teamAtlases.set(key, texture);
+    return texture;
+  }
   /** The plaza's toon shading, for what the game draws itself (the characters' hands). */
   readonly #gradient = toonGradient();
   #view: ArenaView | undefined;
@@ -1542,12 +1564,27 @@ class Plaza {
     for (const c of view.circles) {
       present.add(c.id);
       let ch = this.#characters.get(c.id);
+      if (ch !== undefined && this.#sideOf.get(c.id) !== c.side) {
+        // another side than it was drawn for (a new match): drawn again in the right colours
+        ch.destroy(this.scene);
+        this.#characters.delete(c.id);
+        this.#kinds.delete(c.id);
+        ch = undefined;
+      }
       if (ch === undefined) {
         const kind = characterOf(this.map.roster, c, this.#hasArt);
         const meta = this.manifest.characters[kind];
-        const atlas = this.#atlases.get(kind);
+        const atlas =
+          c.side === undefined
+            ? this.#atlases.get(kind)
+            : (this.#teamAtlas(kind, c.side) ?? this.#atlases.get(kind));
         if (meta === undefined || atlas === undefined) continue;
-        const hands = parseHands(meta.hands);
+        this.#sideOf.set(c.id, c.side);
+        const plain = parseHands(meta.hands);
+        const hands =
+          plain === undefined || c.side === undefined
+            ? plain
+            : { ...plain, colour: TEAM_HANDS[c.side] };
         ch = new Character(
           this.scene,
           atlas,
@@ -2012,6 +2049,7 @@ class Plaza {
     this.#banner.remove();
     this.#word.root.remove();
     for (const t of this.#atlases.values()) t.dispose();
+    for (const t of this.#teamAtlases.values()) t.dispose();
   }
 }
 

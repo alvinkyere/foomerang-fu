@@ -1,3 +1,4 @@
+import { useTeamImage } from '../components/useTeamImage';
 import type { CharacterSelectView, SelectSeatView } from '../model';
 
 /** The video's GAME MODE card icons (a crowned robot, a heart with a face, a boomerang), drawn in the card's colour. */
@@ -54,6 +55,17 @@ function Banner({ side }: { readonly side: 'RED' | 'BLUE' }) {
   );
 }
 
+/** A player's tile on PICK TEAMS: their picture, in their side's colours once they stand on a banner. */
+function TeamTile({ seat }: { readonly seat: SelectSeatView }) {
+  const url = seat.character?.motion?.still ?? seat.character?.portrait ?? '';
+  const src = useTeamImage(url, seat.character?.id ?? '', seat.side);
+  return (
+    <span className="cs__team-tile" aria-label={`Player ${seat.number}`}>
+      <img src={src} alt="" draggable={false} />
+    </span>
+  );
+}
+
 /** GAME MODE, PICK TEAMS, READY? under the circles (ff physics hq 2.mp4 9:38-9:50; game-setting.mp4). */
 export function SetupPanel({
   select,
@@ -74,11 +86,7 @@ export function SetupPanel({
   const red = people.filter((s) => s.side === 'RED');
   const blue = people.filter((s) => s.side === 'BLUE');
   const middle = people.filter((s) => s.side === undefined);
-  const tile = (s: SelectSeatView) => (
-    <span key={s.slot} className="cs__team-tile" aria-label={`Player ${s.number}`}>
-      <img src={s.character?.motion?.still ?? s.character?.portrait} alt="" draggable={false} />
-    </span>
-  );
+  const tile = (s: SelectSeatView) => <TeamTile key={s.slot} seat={s} />;
   return (
     <section className="cs__setup" data-stage={setup.stage} aria-label={title}>
       <h1 className="cs__divider cs__divider--setup">

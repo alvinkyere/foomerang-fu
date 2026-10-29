@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState, type CSSProperties } from 'react';
 import { arrivalSide, type ArrivalSide } from '../../characters/selectAnimation';
 import { SelectSprite } from '../components/SelectSprite';
+import { useTeamImage } from '../components/useTeamImage';
 import { QrCode } from '../../ui/QrCode';
 import { useFocusItem } from '../focus/FocusManager';
 import { FocusScope } from '../focus/FocusManager';
@@ -230,6 +231,9 @@ function SeatCircle({
 }) {
   const ch = seat.character;
   const arrival = useArrival(ch?.id, order, cols);
+  // PICK TEAMS: the character itself takes its side's colours (teamRecolour.ts)
+  const sheet = useTeamImage(ch?.motion?.sheet ?? '', ch?.id ?? '', seat.side);
+  const still = useTeamImage(ch?.motion?.still ?? '', ch?.id ?? '', seat.side);
   // PICK TEAMS: a circle is its side's red or blue (ff physics hq 2.mp4 9:44)
   const style = {
     '--badge': ch?.color ?? '#c9c4bf',
@@ -261,9 +265,9 @@ function SeatCircle({
           <ComingSoon big />
         ) : ch?.motion !== undefined ? (
           <SelectSprite
-            key={ch.id}
-            sheet={ch.motion.sheet}
-            still={ch.motion.still}
+            key={`${ch.id}:${seat.side ?? ''}`}
+            sheet={sheet}
+            still={still}
             arrival={arrival}
             ready={seat.ready}
           />
