@@ -9,16 +9,17 @@
   position: fixed;
   inset: 0;
   z-index: 20;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(1.6 * var(--u));
   background: rgb(20 18 14 / 0.38);
   font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, sans-serif;
   font-weight: 800;
   animation: sb-in 260ms ease-out;
 }
 .sb__bands {
-  position: absolute;
-  top: calc(50% - 28.125 * var(--u) + 11.25 * var(--u) - 2.085 * var(--u));
-  left: calc(50% - 50 * var(--u) + 14.3 * var(--u));
   display: grid;
   row-gap: calc(1.4 * var(--u));
   margin: 0;
@@ -102,9 +103,7 @@
   background: var(--filled);
 }
 .sb__continue {
-  position: absolute;
-  right: calc(50% - 50 * var(--u) + 7 * var(--u));
-  bottom: calc(50% - 28.125 * var(--u) + 5.6 * var(--u));
+  margin-top: calc(0.8 * var(--u));
   padding: calc(0.5 * var(--u)) calc(1.4 * var(--u));
   border: 0;
   border-radius: calc(0.5 * var(--u));
@@ -121,13 +120,9 @@
   outline-offset: calc(0.6 * var(--u));
 }
 .sb__note {
-  position: absolute;
-  top: calc(50% - 28.125 * var(--u) + 4 * var(--u));
-  left: 50%;
   margin: 0;
   color: #fff;
   font-size: calc(1.6 * var(--u));
-  transform: translateX(-50%);
 }
 
 @keyframes sb-in {
@@ -150,14 +145,10 @@
 
 /* ---- the trophy heading every scoreboard, between two lines (the reference footage: #de9948 on #b8bdba lines) ------- */
 .sb__head {
-  position: absolute;
-  top: calc(50% - 28.125 * var(--u) + 3.4 * var(--u));
-  left: 50%;
   display: flex;
   align-items: center;
   gap: calc(1.2 * var(--u));
   margin: 0;
-  transform: translateX(-50%);
 }
 .sb__head::before,
 .sb__head::after {

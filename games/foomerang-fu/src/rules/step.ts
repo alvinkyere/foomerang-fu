@@ -770,7 +770,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   );
 
   // TELEKINESIS (the owner, 2026-10-22): with their boomerang flying and nothing in hand, holding THROW steers it with the
-  // joystick instead of walking: they stand still, it moves (the first of theirs that is flying).
+  // joystick instead of walking: they stand still, it moves (all of theirs that are flying).
   const steerOf: (number | undefined)[] = state.players.map((p, index) => {
     if (!p.alive || dashingAtStart[index] === true || frozenAtStart[index] === true)
       return undefined;
@@ -780,8 +780,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     return k < 0 ? undefined : k;
   });
   const steering = new Map<number, number>(); // boomerang → its steering thrower
+  // (the owner, 2026-10-30: "control multiple of them ... same as for extra boomerang"): ALL of their flying boomerangs move
+  // with the one stick: both of an EXTRA pair, every piece of a MULTI split
   steerOf.forEach((k, index) => {
-    if (k !== undefined) steering.set(k, index);
+    if (k === undefined) return;
+    startWeapons.forEach((w, j) => {
+      if (w.ownerId === state.players[index]?.id && FLYING.includes(w.state))
+        steering.set(j, index);
+    });
   });
 
   // 1a. Facing. A dashing player is committed: the thumb neither steers nor turns them.

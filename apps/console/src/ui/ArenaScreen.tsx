@@ -1,4 +1,12 @@
-import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { ConsoleRuntime } from '../consoleRuntime';
 import type { ArenaRenderer, ArenaRendererLoader } from '../render/renderer';
 import { FrameLoop } from '../runtime/frameLoop';
@@ -8,7 +16,7 @@ import { PauseMenu } from '../shell/screens/PauseMenu';
 import '../shell/tokens.css';
 import '../shell/components.css';
 import { DebugOverlay } from './DebugOverlay';
-import { ScoreStrip, ScoreToasts, type Pulse } from './Hud';
+import { ScoreToasts } from './Hud';
 
 /**
  * The scoreboard between rounds and the results at the end are fetched apart from the first download (its budget): the
@@ -58,7 +66,6 @@ export function ArenaScreen({
   const [waiting, setWaiting] = useState<readonly string[]>([]);
   const [toasts, setToasts] = useState<readonly ScoreEventView[]>([]);
   const toastState = useRef<ScoreToastState>({ toasts: [], serial: 0 });
-  const [pulses, setPulses] = useState<Readonly<Record<string, Pulse>>>({});
   const lastHud = useRef('');
   /** The renderer of this match, for where a player is on screen (the end of the match closes in on the winner). */
   const rendererRef = useRef<ArenaRenderer | undefined>(undefined);
@@ -108,26 +115,8 @@ export function ArenaScreen({
         const { added: fresh, ...kept } = addScoreToasts(toastState.current, next.scoreEvents);
         toastState.current = kept;
         setToasts(kept.toasts);
-        setPulses((old) => ({
-          ...old,
-          ...Object.fromEntries(
-            fresh.map((e) => [
-              e.playerId,
-              {
-                kind: e.delta > 0 ? 'fill' : e.delta < 0 ? 'drain' : 'penalty',
-                hole: e.delta > 0 ? e.kills - 1 : e.kills,
-                key: e.key,
-              } as Pulse,
-            ]),
-          ),
-        }));
         window.setTimeout(() => {
           setToasts((old) => old.filter((t) => !fresh.includes(t)));
-          setPulses((old) =>
-            Object.fromEntries(
-              Object.entries(old).filter(([, p]) => !fresh.some((e) => e.key === p.key)),
-            ),
-          );
         }, 2_200);
       }
     });
@@ -158,13 +147,25 @@ export function ArenaScreen({
     };
   }, [runtime, arena, loadRenderer, createLoop, now, onRenderer]);
 
+  const [fullscreen, setFullscreen] = useState(() => document.fullscreenElement !== null);
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => undefined);
+    else void document.documentElement.requestFullscreen().catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'd' || event.key === 'D') setDebugOpen((open) => !open);
+      if (event.key === 'f' || event.key === 'F') toggleFullscreen();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [toggleFullscreen]);
 
   return (
     // The phones (outside gameplay) and the TV's own keyboard / gamepad drive ONE focus system here
@@ -175,10 +176,7 @@ export function ArenaScreen({
         <FocusScope id="arena" onBack={() => runtime.pause()}>
           {null}
         </FocusScope>
-        {/* the scoreboard stands alone over the arena, as in the reference */}
-        {hud !== undefined && hud.phase !== 'SCOREBOARD' && hud.phase !== 'MATCH_OVER' && (
-          <ScoreStrip hud={hud} pulses={pulses} />
-        )}
+        {/* (no score strip over the match, owner 2026-10-30: the scoreboard shows between rounds) */}
         <div ref={containerRef} className="arena" data-testid="arena" />
         {hud?.phase !== 'SCOREBOARD' && hud?.phase !== 'MATCH_OVER' && (
           <ScoreToasts toasts={toasts} />
@@ -212,7 +210,16 @@ export function ArenaScreen({
             The arena could not be drawn in this browser.
           </p>
         )}
-        <p className="hint muted">Press D for debug</p>
+        <button
+          type="button"
+          className="fs-toggle"
+          aria-label={fullscreen ? 'Leave full screen' : 'Full screen'}
+          title={fullscreen ? 'Leave full screen (F)' : 'Full screen (F)'}
+          onClick={toggleFullscreen}
+        >
+          {fullscreen ? '⤡' : '⤢'}
+        </button>
+        <p className="hint muted">Press D for debug, F for full screen</p>
         {debugOpen && <DebugOverlay runtime={runtime} />}
       </main>
       <div className="fc fc--layer">

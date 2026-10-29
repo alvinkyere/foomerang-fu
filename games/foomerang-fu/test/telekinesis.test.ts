@@ -163,4 +163,33 @@ describe('TELEKINESIS', () => {
     );
     expect(boom(done.state, 'a').state).toBe('HELD');
   });
+
+  it('steers ALL her flying boomerangs at once: both of an EXTRA pair', () => {
+    let s = out('TELEKINESIS', 'EXTRA_BOOMERANG');
+    s = run(s, 1, TAP).state; // the twin goes too
+    s = run(s, 4).state;
+    const flying = s.boomerangs.concat(s.extraBoomerangs).filter((b) => b.ownerId === 'a');
+    expect(flying.every((b) => b.state !== 'HELD')).toBe(true);
+    const r = run(s, 30, steer(0, -1), { repeat: true });
+    const after = r.state.boomerangs
+      .concat(r.state.extraBoomerangs)
+      .filter((b) => b.ownerId === 'a');
+    expect(after).toHaveLength(2);
+    expect(after.every((b) => b.steered === true)).toBe(true);
+  });
+
+  it('steers EVERY piece of a MULTI split', () => {
+    let s = out('TELEKINESIS', 'MULTI_BOOMERANG');
+    for (
+      let i = 0;
+      i < 200 && s.extraBoomerangs.filter((b) => b.pieceOf !== undefined).length < 6;
+      i += 1
+    )
+      s = run(s, 1).state;
+    const pieces = s.extraBoomerangs.filter((b) => b.pieceOf !== undefined);
+    expect(pieces).toHaveLength(6);
+    const r = run(s, 10, steer(0, -1), { repeat: true });
+    const after = r.state.extraBoomerangs.filter((b) => b.pieceOf !== undefined);
+    expect(after.every((b) => b.steered === true)).toBe(true);
+  });
 });

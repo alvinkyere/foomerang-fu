@@ -9,11 +9,12 @@ export const MAP_POOL: readonly ReconstructedArena[] = Object.freeze(
   Object.keys(RECONSTRUCTED_MAPS) as ReconstructedArena[],
 );
 
-/** The maps the product plays (the owner, 2026-10-22): the plaza and the gong islands, a new one every round (the cross
- * pond is out of it while it is developed, 2026-10-27: `?arena=pond`). */
+/** The maps the product plays (the owner, 2026-10-22): the plaza and the gong islands, a new one every round; and the cross pond
+ * (out of it from 2026-10-27 while it was developed, in again on 2026-10-30: "also now add the pond in the rotation"). */
 export const PRODUCT_POOL: readonly ReconstructedArena[] = Object.freeze([
   'market_plaza',
   'gong_islands',
+  'pond_cross',
 ] as const);
 
 /**

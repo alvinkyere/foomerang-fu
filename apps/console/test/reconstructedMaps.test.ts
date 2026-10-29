@@ -42,7 +42,7 @@ describe('reconstructed maps', () => {
   });
 
   it('the product plays the rotation; a dev pin still picks a map', () => {
-    // the plaza and the gong islands in turn (the owner, 2026-10-27); the cross pond pinned for its development
+    // the plaza, the gong islands and the cross pond in turn (the owner, 2026-10-27, 2026-10-30); `?arena=pond` pins the pond
     expect(productArena('')).toBe('product');
     expect(productArena('?kills=3&powerups=off')).toBe('product');
     expect(productArena('?arena=garden')).toBe('product'); // unknown: the default

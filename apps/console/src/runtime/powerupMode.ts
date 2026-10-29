@@ -88,9 +88,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
 };
 
 /**
- * The map the product plays: the rotation (the market plaza and the gong islands, a new one every round: the owner,
- * 2026-10-27, "I don't see the rotation in effect"; from 2026-10-22 it had been the gong islands only; the cross pond is out
- * of it while it is developed: `?arena=pond`). Any `?arena=` map pins that map for development and tests;
+ * The map the product plays: the rotation (the market plaza, the gong islands and the cross pond, a new one every round:
+ * the owner, 2026-10-27, "I don't see the rotation in effect"; from 2026-10-22 it had been the gong islands only; the cross pond
+ * joined it on 2026-10-30). Any `?arena=` map pins that map for development and tests;
  * `?arena=product` is the rotation too. (The rotation of every
  * reconstructed map, `'rotate'`, stays available to the runtime.)
  */

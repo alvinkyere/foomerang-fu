@@ -1,9 +1,4 @@
-import { expect, test, type Host } from './support/fixtures';
-
-const holes = (host: Host, name: string) =>
-  host.page
-    .getByLabel('Kill race')
-    .getByRole('img', { name: new RegExp(`^${name}: \\d+ of \\d+ kills$`) });
+import { expect, test } from './support/fixtures';
 
 test('Game Settings names Free For All, and Hide & Seek is visible, says Coming soon and cannot be chosen', async ({
   hostAt,
@@ -31,9 +26,8 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
   await host.autoContinue(); // nobody on a phone: the TV presses CONTINUE between rounds
   await host.waitForDrawn(2);
 
-  // The race is on screen: a row for each, three holes each (the shortened test match), the round named.
-  await expect(host.page.getByLabel('Kill race')).toContainText('ROUND 1 / 9');
-  await expect(holes(host, 'CPU 1')).toHaveAttribute('aria-label', 'CPU 1: 0 of 3 kills');
+  // The race is on (no score strip over the match: the scoreboard shows between rounds): round 1, nobody has scored.
+  expect((await host.fu()).round).toBe(1);
 
   // A kill fills a hole, and what is drawn is what the rules say.
   await expect
@@ -41,14 +35,6 @@ test('a CPU-only Free For All (nobody on a phone) is a race: meters fill, the ma
       timeout: 60_000,
     })
     .toBeGreaterThan(0);
-  const scores = (await host.fu()).scores;
-  for (const [id, kills] of Object.entries(scores)) {
-    const name = id === 'cpu:1' ? 'CPU 1' : 'CPU 2';
-    await expect(holes(host, name)).toHaveAttribute(
-      'aria-label',
-      new RegExp(`^${name}: ${kills} of 3 kills$`),
-    );
-  }
 
   // The match ends the moment somebody fills the last hole — mid-round, with no waiting for anything else.
   await expect(host.page.getByRole('dialog', { name: 'Match over' })).toBeVisible({

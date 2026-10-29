@@ -139,8 +139,8 @@ describe('every match is on a different map, always', () => {
     expect(c.runtime.arena()).toBe('hedge_maze');
   });
 
-  it('the product rotates the plaza and the gong islands: every match the other one', async () => {
-    expect(PRODUCT_POOL).toEqual(['market_plaza', 'gong_islands']);
+  it('the product rotates the plaza, the gong islands and the cross pond: never the same map twice running', async () => {
+    expect(PRODUCT_POOL).toEqual(['market_plaza', 'gong_islands', 'pond_cross']);
     const c = await console('product');
     const seen: (string | undefined)[] = [];
     for (let i = 0; i < 6; i += 1) {
