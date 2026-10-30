@@ -343,8 +343,8 @@ button:focus-visible {
   background: repeating-linear-gradient(
     122deg,
     rgb(150 255 240 / 0) 0,
-    rgb(150 255 240 / 0.32) 4vw,
-    rgb(150 255 240 / 0.1) 9vw,
+    rgb(150 255 240 / 0.26) 4vw,
+    rgb(150 255 240 / 0.08) 9vw,
     rgb(150 255 240 / 0) 12vw
   );
   mask-image: linear-gradient(to bottom left, #000 10%, rgb(0 0 0 / 0.5) 45%, transparent 75%);
