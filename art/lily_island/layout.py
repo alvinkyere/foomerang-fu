@@ -35,8 +35,62 @@ grass = hud & (((h[..., 0] > 25) & (h[..., 0] < 55) & (h[..., 1] > 50) & (h[...,
 rock = hud & (h[..., 0] >= 104) & (h[..., 0] <= 125) & (h[..., 1] >= 55) & (h[..., 2] >= 140)
 k = lambda n: np.ones((n, n), np.uint8)
 clean = lambda m, n=7: cv2.morphologyEx(cv2.morphologyEx(m.astype(np.uint8) * 255, cv2.MORPH_CLOSE, k(n)), cv2.MORPH_OPEN, k(n))
-cs, _ = cv2.findContours(clean(grass, 11), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-banks = [plan(cv2.approxPolyDP(c, 1.5, True).reshape(-1, 2)) for c in cs if cv2.contourArea(c) > 20000]
+# the island is its grass, the soft green glow at its edge and the lavender kerb that runs round it (the kerb's outer edge is the land's edge)
+glow = hud & (h[..., 0] >= 55) & (h[..., 0] <= 100) & (h[..., 1] > 25) & (h[..., 2] >= 170)
+land = clean(grass, 11) > 0
+land = land | ((clean(rock | glow, 5) > 0) & (cv2.dilate(land.astype(np.uint8), k(27)) > 0))
+land = clean(land, 21) > 0
+# bamboo and the trees stand over the island's edge in the frame: their holes in the mask are closed (the legitimate bays are all wider)
+land = cv2.morphologyEx(land.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (51, 51))) > 0
+cs, _ = cv2.findContours(land.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+KERB_Z = 0.3      # (the outline is the kerb's: its top stands ~0.5 over the ground, its foot is on it: read half way)
+_Hk = cv2.findHomography(np.float32([ref(X, Y, KERB_Z) for X, Y in g]), np.float32(g))[0]
+plan_k = lambda pts: cv2.perspectiveTransform(np.float32(pts).reshape(-1, 1, 2), _Hk).reshape(-1, 2)
+def rectify(P, eps=0.9, tiny=1.1):
+    """The HQ's island is built of right angles in the plan (45 degrees in the picture): a traced outline is straightened to that. Find
+    the way its edges run, turn it square, replace each run of edges by one straight edge at its mean place, drop the wobbles
+    shorter than `tiny`, put the corners where neighbouring edges meet, and turn it back."""
+    d = np.diff(np.vstack([P, P[:1]]), axis=0)
+    ang = np.arctan2(d[:, 1], d[:, 0]); w = np.hypot(d[:, 0], d[:, 1])
+    th = np.angle(np.sum(w * np.exp(4j * ang))) / 4                     # (the grid's turn, from the edges' own directions)
+    c, s = np.cos(-th), np.sin(-th); Rm = np.array([[c, -s], [s, c]])
+    Q = P @ Rm.T
+    Q = cv2.approxPolyDP(np.float32(Q).reshape(-1, 1, 2), eps, True).reshape(-1, 2)
+    n = len(Q)
+    edges = []                                                          # [orientation 'h'|'v', coordinate, length]
+    for i in range(n):
+        a, b = Q[i], Q[(i + 1) % n]
+        horiz = abs(b[0] - a[0]) >= abs(b[1] - a[1])
+        edges.append([horiz, (a[1] + b[1]) / 2 if horiz else (a[0] + b[0]) / 2, float(np.hypot(*(b - a)))])
+    changed = True
+    while changed and len(edges) > 4:
+        changed = False
+        for i in range(len(edges)):
+            j = (i + 1) % len(edges)
+            if edges[i][0] == edges[j][0]:                              # two runs the same way: one edge
+                L = edges[i][2] + edges[j][2]
+                edges[i] = [edges[i][0], (edges[i][1] * edges[i][2] + edges[j][1] * edges[j][2]) / L, L]
+                del edges[j]; changed = True; break
+            if edges[i][2] < tiny:                                      # a wobble: its neighbours meet over it
+                k = (i - 1) % len(edges)
+                if edges[k][0] == edges[j][0]:
+                    L = edges[k][2] + edges[j][2]
+                    edges[k] = [edges[k][0], (edges[k][1] * edges[k][2] + edges[j][1] * edges[j][2]) / L, L]
+                    for idx in sorted({i, j}, reverse=True): del edges[idx]
+                    changed = True; break
+    out = []
+    for i in range(len(edges)):
+        a, b = edges[i - 1], edges[i]                                   # the corner between edge i-1 and edge i
+        out.append((b[1], a[1]) if b[0] is False or not b[0] else (a[1], b[1]))
+    pts = []
+    for i in range(len(edges)):
+        a, b = edges[i - 1], edges[i]
+        pts.append([a[1], b[1]] if a[0] is False or not a[0] else [b[1], a[1]])
+    pts = np.array(pts)                                                 # (x of the vertical edge, y of the horizontal one)
+    return pts @ Rm                                                     # (back from the square frame)
+
+
+banks = [rectify(plan_k(cv2.approxPolyDP(c, 2.0, True).reshape(-1, 2))) for c in cs if cv2.contourArea(c) > 20000]
 
 # props, read off the frame (pixel centres at the foot of each): [x, y] in the 1920x1080 reference
 PX = dict(
@@ -71,7 +125,7 @@ TREE_PX = [
 ]
 trees = []
 for t in TREE_PX:
-    height = 5.5      # (about two characters tall: the trunk LEANS, so the pixels it climbs are not all height)
+    height = 8.0      # (about three characters tall; the trunk LEANS, so the pixels it climbs are not all height)
     trees.append(dict(
         foot=_foot(*t['foot']), height=round(height, 2), top=unproject(t['top'][0], t['top'][1], height)[0],
         lumps=[dict(at=unproject(x, y, height)[0], r=round(rx / unproject(x, y, height)[1], 2), z=round(height, 2),

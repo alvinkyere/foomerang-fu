@@ -24,7 +24,8 @@ os.makedirs(OUT, exist_ok=True)
 shutil.copyfile(sys.argv[1], OUT + 'plaza.glb')
 gong = json.load(open('apps/console/public/maps/gong_islands/manifest.json'))
 camera = dict(gong['camera'])
-camera['world'] = dict(camera['world'], planOriginX=-0.21, planOriginY=0.92)      # (arena.py: x east from X -21, y south from Y 92)
+_A = json.load(open('art/lily_island/arena.json'))
+camera['world'] = dict(camera['world'], planOriginX=_A['X0'] / 100, planOriginY=_A['Y1'] / 100)      # (arena.py: x east from X -21, y south from Y 92)
 manifest = {
     'map': 'lily_island',
     'canvas': gong['canvas'],
@@ -65,10 +66,10 @@ cv2.imwrite(OUT + 'floor.webp', np.full((16, 16, 3), WATER, np.uint8), [cv2.IMWR
 L = json.load(open('art/lily_island/layout.json'))
 G = json.load(open('art/lily_island/ground.json'))
 STONES = json.load(open('art/lily_island/stones.json'))
-N, FAR, SS = 1024, 2.0, 4                   # (a texel 0.066 units: a ribbon 0.32 wide is five)
+N, FAR, SS = 1536, 2.0, 3                   # (a texel 0.066 units: a ribbon 0.32 wide is five)
 xs = [p[0] for b in G['polygons'] for p in b]; ys = [p[1] for b in G['polygons'] for p in b]
 cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
-half = (max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + 12) * 1.03     # (the sheet of blender/build.py: the same +12)
+half = (max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + 30) * 1.03     # (the sheet of blender/build.py: the same +12)
 dry = np.zeros((N * SS, N * SS), np.uint8)
 for p in G['polygons'] + [b['top'] for b in STONES]:
     cv2.fillPoly(dry, [np.int32([((x - cx + half) / (2 * half) * N * SS, (cy + half - y) / (2 * half) * N * SS) for x, y in p])], 1)

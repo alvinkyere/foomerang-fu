@@ -10,7 +10,14 @@ are the plaza's (27.48 a plan unit); x east from plan X X0, y south from plan Y 
 import json, math
 import numpy as np, cv2
 
-S, X0, Y1, Y0, X1 = 27.48, -21.0, 92.0, 54.0, 23.0
+S = 27.48
+_G0 = json.load(open('art/lily_island/ground.json'))['polygons']
+_S0 = json.load(open('art/lily_island/stones.json'))
+_pts = np.concatenate([np.array(p) for p in _G0] + [np.array(b['top']) for b in _S0])
+# the world: the island and its stones with 4 plan units of water round them (the camera and the water read the same box: arena.json)
+X0, Y0 = float(np.floor(_pts[:, 0].min() - 4)), float(np.floor(_pts[:, 1].min() - 4))
+X1, Y1 = float(np.ceil(_pts[:, 0].max() + 4)), float(np.ceil(_pts[:, 1].max() + 4))
+json.dump(dict(X0=X0, X1=X1, Y0=Y0, Y1=Y1, S=S), open('art/lily_island/arena.json', 'w'))
 MIN_HALF = 18
 L = json.load(open('art/lily_island/layout.json'))
 G = json.load(open('art/lily_island/ground.json'))['polygons']      # (ground.py: the banks)

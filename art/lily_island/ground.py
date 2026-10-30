@@ -20,7 +20,7 @@ th = math.radians(CAM['pitchDeg'])
 R = np.array([[1, 0, 0], [0, -math.sin(th), -math.cos(th)], [0, math.cos(th), -math.sin(th)]])
 F, C = CAM['focalPx'], np.array(CAM['centre'])
 PX = 28                                   # texture pixels a plan unit
-X0, X1, Y0, Y1 = -26.0, 26.0, 48.0, 102.0  # the box (plan units; the content well inside it: a closing spills at a border)
+X0, X1, Y0, Y1 = -50.0, 50.0, 20.0, 125.0  # the box (plan units; the content well inside it: a closing spills at a border)
 W, H_ = int((X1 - X0) * PX), int((Y1 - Y0) * PX)
 
 
@@ -110,7 +110,7 @@ shade_m = cv2.morphologyEx(shade_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5,
 pale_m = in_plan(rim) & (ground > 0) & (edge >= 1.3)
 pale_m = cv2.morphologyEx(pale_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
 G2 = json.load(open('art/lily_island/ground.json'))
-inner_m = cv2.morphologyEx((edge >= 0.55).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))   # (the lime: the ground less its pale edge stripe)
+inner_m = cv2.morphologyEx((edge >= 1.0).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))   # (the lime: the ground less its pale edge stripe)
 G2['shade'], G2['pale'], G2['lime'] = shapes(shade_m, 0.6), shapes(pale_m, 0.8), shapes(inner_m, 5.0)
 json.dump(G2, open('art/lily_island/ground.json', 'w'))
 tex = tex[:16, :16]                                                              # (flat lime: a small texture is all it is)

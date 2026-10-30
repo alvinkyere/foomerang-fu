@@ -17,8 +17,8 @@
     "centre": [0.0, 0.0, 1.1],
     "world": {
       "unitsPerPlanUnit": 2748,
-      "planOriginX": -0.21,
-      "planOriginY": 0.92
+      "planOriginX": -0.31,
+      "planOriginY": 1.05
     }
   },
   "occluders": [],
@@ -51,13 +51,13 @@
     }
   },
   "fixedFrame": {
-    "zoom": 1.4074,
+    "zoom": 0.9326,
     "u": 0,
     "v": 0
   },
   "followFrame": {
-    "minZoom": 1.4074,
-    "maxZoom": 1.8296
+    "minZoom": 0.9326,
+    "maxZoom": 1.2124
   },
   "water": {
     "base": "#7aa8bb",

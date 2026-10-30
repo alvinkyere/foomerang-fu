@@ -74,6 +74,11 @@ def image(path):
 # at ~92% of it, so the lavender sides are set a little brighter than they should appear (#7683be).
 GRASS = lit('pond_grass', image=image('art/lily_island/blender/grass.png'))      # (a flat pale-lime swatch: the island's rim colour)
 SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_slab_side', HQ.lit('#566aa6', 0.875))      # (the island's slabs: in the HQ they are darker than its boulders)
+# per block, as the HQ frame shows it (its trees and slabs throw shadows on the stones: the NW slab and the W boulder lie in them), in
+# the order of stones.json: (top, side)
+BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'),
+                 ('#707fb4', '#5a69a0'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
+BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
 LIP_SIDE = lit('pond_lip', HQ.lit('#909edf', 0.875))
 WATER = lit('pond_water', HQ.flat('#74a2b2'))
@@ -122,7 +127,7 @@ def rounded_rect(cx, cy, length, width, angle_deg, r, seg=6):
     return [(cx + u * ux - v * uy, cy + u * uy + v * ux) for u, v in pts]
 
 
-def body(name, outline, top_z, top_mat, side_mat, top_r=0.0, corner_r=0.0, bottom=STONE_BOTTOM, uv=None, parent=None, soft=False, top_seg=3, front_mat=None):
+def body(name, outline, top_z, top_mat, side_mat, top_r=0.0, corner_r=0.0, bottom=STONE_BOTTOM, uv=None, parent=None, soft=False, top_seg=3, front_mat=None, taper=1.0):
     """An outline extruded down to `bottom`: its vertical corners rounded by `corner_r`, its top edge by `top_r`; the flat top
     one material, the rest the other. Smooth across the rounds, sharp where faces meet squarely."""
     bm = bmesh.new()
@@ -131,6 +136,11 @@ def body(name, outline, top_z, top_mat, side_mat, top_r=0.0, corner_r=0.0, botto
     if face.normal.z < 0: face.normal_flip()
     ext = bmesh.ops.extrude_face_region(bm, geom=[face], use_keep_orig=True)
     bmesh.ops.translate(bm, verts=[g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)], vec=(0, 0, bottom - top_z))
+    if taper != 1.0:
+        # the HQ's rocks are broader at the foot than at the top: the top ring drawn in about its middle, the sides leaning
+        tops = [v for v in bm.verts if abs(v.co.z - top_z) < 1e-6]
+        cx = sum(v.co.x for v in tops) / len(tops); cy = sum(v.co.y for v in tops) / len(tops)
+        for v in tops: v.co.x, v.co.y = cx + taper * (v.co.x - cx), cy + taper * (v.co.y - cy)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.normal_update()
     if corner_r > 0:
         corners = [e for e in bm.edges if abs(e.verts[0].co.z - e.verts[1].co.z) > 0.05]
@@ -201,6 +211,23 @@ RIM_GRASS = lit('island_rim', HQ.lit('#e4f6a2', 0.98))
 SHADE_GRASS = lit('island_shade', HQ.lit('#cae996', 0.98))
 PALE_GRASS = lit('island_pale', HQ.lit('#e4f6a2', 0.98))
 LIME_GRASS = lit('island_lime', HQ.lit('#ddf293', 0.98))
+# the kerb: the lavender stone wall that runs round the island (the HQ's, ~1 unit thick, its top rounded), a run of straight pieces laid
+# along the outline, each drawn in half a unit
+KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#8095dc', 0.98)), lit('island_kerb_side', HQ.lit('#6378c2', 0.875))
+KERB_H, KERB_W = 0.8, 0.5
+for k, poly in enumerate(G['polygons']):
+    n = len(poly)
+    area = sum(poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1] for i in range(n))
+    sgn = 1.0 if area > 0 else -1.0                                   # (counter-clockwise: the inside is to the left)
+    for i in range(n):
+        (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
+        length = math.hypot(x1 - x0, y1 - y0)
+        if length < 0.6: continue
+        ux, uy = (x1 - x0) / length, (y1 - y0) / length
+        nx, ny = -uy * sgn, ux * sgn                                  # inward
+        mx, my = (x0 + x1) / 2 + nx * KERB_W * 0.5, (y0 + y1) / 2 + ny * KERB_W * 0.5
+        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + 1.3, KERB_W, math.degrees(math.atan2(uy, ux)), 0.4), KERB_H, KERB_TOP, KERB_SIDE,
+             top_r=0.22, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
@@ -211,9 +238,9 @@ def tuft(name, x, y, rot):
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     for i in range(3):
         bx = x + (i - 1) * 0.34 * math.cos(rot); by = y + (i - 1) * 0.34 * math.sin(rot)
-        lean = Vector((math.cos(rot + 1.57) * 0.12, math.sin(rot + 1.57) * 0.12, 0))
+        lean = Vector((math.cos(rot + 1.57) * 0.1, math.sin(rot + 1.57) * 0.1, 0))
         w = Vector((math.cos(rot), math.sin(rot), 0)) * 0.05
-        tip = Vector((bx, by, 0.75 - 0.12 * abs(i - 1))) + lean
+        tip = Vector((bx, by, 0.34 - 0.06 * abs(i - 1))) + lean
         f = bm.faces.new([bm.verts.new(Vector((bx, by, 0.02)) - w), bm.verts.new(Vector((bx, by, 0.02)) + w), bm.verts.new(tip)])
         for loop in f.loops: loop[col] = lin(HQ.flat('#9cc874'))
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -243,10 +270,10 @@ for k, b in enumerate(S):
         for j in range(n):
             mid = -rw / 2 + (j + 0.5) * piece
             outline = rounded_rect(cx + mid * ux, cy + mid * uy, piece + 2 * GROW_SLAB - (SEAM if n > 1 else 0), rh + 2 * GROW_SLAB, ang, CORNER_SLAB)
-            body(f'STONE_{k}_{j}', outline, H + rng.uniform(-0.03, 0.03), SLAB_TOP, SLAB_SIDE, top_r=ROLL, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS)
+            body(f'STONE_{k}_{j}', outline, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=0.93)
     else:
         pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
-        body(f'BOULDER_{k}', pts, H, STONE_TOP, STONE_SIDE, top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS)
+        body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=0.88)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
 PAD, PAD_DARK, FLOWER, FLOWER_HEART = '#62ad5e', '#4f9a52', '#f6dbda', '#e8a9b5'
@@ -322,7 +349,7 @@ for k, t in enumerate(L['trees']):
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.5, 0.36)
     for j, lump in enumerate(t['lumps']):
         r = lump['r']
-        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.3, lump.get('ry', r) * 1.3, r * 0.7), TREE, TREE_LOW)
+        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.12, lump.get('ry', r) * 1.12, r * 0.6), TREE, TREE_LOW)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
     a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)
@@ -332,7 +359,7 @@ for k, (x, y) in enumerate(L['petals']):
 
 # ---------------------------------------------------------------------------------------------------------------- water
 xs = [p[0] for g in G['polygons'] for p in g]; ys = [p[1] for g in G['polygons'] for p in g]
-cx, cy, half = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + 12      # (package.py's field covers the same square)
+cx, cy, half = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + 30      # (package.py's field covers the same square)
 me = bpy.data.meshes.new('FOUNTAIN_water')
 me.from_pydata([(cx - half, cy - half, WATER_Z), (cx + half, cy - half, WATER_Z), (cx + half, cy + half, WATER_Z), (cx - half, cy + half, WATER_Z)], [], [(0, 1, 2, 3)])
 water = bpy.data.objects.new('FOUNTAIN_water', me); sc.collection.objects.link(water); me.materials.append(WATER)

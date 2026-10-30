@@ -118,6 +118,20 @@ for b in blocks:
     b['size'] = [round(float(rw), 1), round(float(rh), 1)]
     del b['_c'], b['_poly']
 blocks.sort(key=lambda b: (b['centre_px'][1], b['centre_px'][0]))
+# the HQ fit (fit_stones.py): height, footprint size and place, so each block's silhouette covers the HQ's
+if os.path.exists('art/lily_island/stonefit.json'):
+    sf = json.load(open('art/lily_island/stonefit.json'))
+    for i, b in enumerate(blocks):
+        f = sf.get(str(i))
+        if f is None: continue
+        for key in ('top', 'clean'):
+            pts = np.float32(b[key]); c0 = pts.mean(0)
+            b[key] = [[round(float(x), 2), round(float(y), 2)] for x, y in c0 + f['s'] * (pts - c0) + np.float32([f['dx'], f['dy']])]
+        b['height'] = f['h']
+        (rx, ry), (rw, rh), ra = cv2.minAreaRect(np.float32(b['top']))
+        if rw < rh: rw, rh, ra = rh, rw, ra + 90
+        b['rect'] = [round(float(rx), 2), round(float(ry), 2), round(float(rw), 2), round(float(rh), 2), round(float(ra), 2)]
+        b['size'] = [round(float(rw), 1), round(float(rh), 1)]
 json.dump(blocks, open('art/lily_island/stones.json', 'w'))
 hs = np.array([b['height'] for b in blocks])
 print(len(blocks), 'blocks:', sum(b['kind'] == 'slab' for b in blocks), 'slabs at', slab_h, ',', sum(b['kind'] == 'boulder' for b in blocks), 'boulders')
