@@ -39,6 +39,7 @@ import {
   springCamera,
   type CameraFrame,
   type CameraMotion,
+  type FramingLimits,
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
@@ -94,6 +95,8 @@ interface Manifest {
    * camera fixed at zoom 1.12). Without it the camera follows the players, as the plaza's does.
    */
   readonly fixedFrame?: { readonly zoom: number; readonly u: number; readonly v: number };
+  /** The camera follows the players between these zooms (the lily island: the HQ's camera zooms in as the players come together). */
+  readonly followFrame?: { readonly minZoom: number; readonly maxZoom: number };
   /** The map's own water colours (the cross pond's pond: duller than the fountain's); the fountain's when absent. */
   readonly water?: WaterStyle;
   /** The map's own light instead of the plaza's toon light (softLook.ts; the gong islands). */
@@ -1111,6 +1114,8 @@ class Plaza {
   readonly #fadeable: { root: THREE.Object3D; materials: THREE.Material[]; opacity: number }[] = [];
   readonly #moving: { object: THREE.Object3D; motion: (t: number) => void }[] = [];
   readonly #waterField: THREE.Texture | null;
+  /** A following camera's limits (a map with `followFrame`); the plaza's own when it is undefined. */
+  #limits: FramingLimits | undefined;
   /** The cross pond's raft (pond_cross: RAFT), turned by the rules' turntable angle each frame; null elsewhere. */
   readonly #raft: THREE.Object3D | null;
   readonly #banner: HTMLDivElement;
@@ -1190,6 +1195,13 @@ class Plaza {
     this.#waterField = floor.water;
     if (manifest.fixedFrame !== undefined)
       this.#camera = { frame: manifest.fixedFrame, velocity: { zoom: 0, u: 0, v: 0 } };
+    if (manifest.followFrame !== undefined && manifest.fixedFrame !== undefined)
+      this.#limits = {
+        minZoom: manifest.followFrame.minZoom,
+        maxZoom: manifest.followFrame.maxZoom,
+        rest: manifest.fixedFrame,
+        clampToArt: false,
+      };
     this.#raft = gltf.getObjectByName('RAFT') ?? null;
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
@@ -1862,8 +1874,8 @@ class Plaza {
       p.project(rest);
       points.push({ u: p.x, v: p.y });
     }
-    if (this.manifest.fixedFrame === undefined) {
-      this.#aim = frameTarget(points, this.#aim);
+    if (this.manifest.fixedFrame === undefined || this.#limits !== undefined) {
+      this.#aim = frameTarget(points, this.#aim, this.#limits);
       this.#camera = springCamera(this.#camera, this.#aim, dt);
     }
     const { zoom, u, v } = this.#camera.frame;

@@ -55,6 +55,10 @@
     "u": 0,
     "v": 0
   },
+  "followFrame": {
+    "minZoom": 1.4074,
+    "maxZoom": 1.8296
+  },
   "water": {
     "base": "#7aa8bb",
     "light": "#9ac3d3",

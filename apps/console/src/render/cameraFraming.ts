@@ -45,13 +45,32 @@ export interface CameraFrame {
  * move about (1,292 px wide 2:22.5–2:24.5): it moves only once someone nears its edge, or they could all be framed clearly
  * closer.
  */
+export interface FramingLimits {
+  /** The widest view (what holds the whole map) and the closest, as zooms of the resting camera. */
+  readonly minZoom: number;
+  readonly maxZoom: number;
+  /** Where it rests (no players: between rounds). */
+  readonly rest: CameraFrame;
+  /** The plaza's camera never leaves what its video showed (`CAMERA_FRAMING.art`); other maps have no such limit. */
+  readonly clampToArt: boolean;
+}
+
+/** The plaza's: the reference video's own range. */
+export const PLAZA_LIMITS: FramingLimits = Object.freeze({
+  minZoom: CAMERA_FRAMING.minZoom,
+  maxZoom: CAMERA_FRAMING.maxZoom,
+  rest: CAMERA_FRAMING.rest,
+  clampToArt: true,
+});
+
 export function frameTarget(
   points: readonly { readonly u: number; readonly v: number }[],
   held?: CameraFrame,
+  limits: FramingLimits = PLAZA_LIMITS,
 ): CameraFrame {
-  if (points.length === 0) return CAMERA_FRAMING.rest;
-  const fresh = framing(points);
-  if (held === undefined || held === CAMERA_FRAMING.rest) return fresh;
+  if (points.length === 0) return limits.rest;
+  const fresh = framing(points, limits);
+  if (held === undefined || held === limits.rest) return fresh;
   const inside = points.every(
     (p) =>
       Math.abs(p.u - held.u) * held.zoom <= 1 - CAMERA_FRAMING.holdEdge &&
@@ -60,15 +79,19 @@ export function frameTarget(
   return inside && fresh.zoom <= held.zoom * CAMERA_FRAMING.holdCloser ? held : fresh;
 }
 
-function framing(points: readonly { readonly u: number; readonly v: number }[]): CameraFrame {
+function framing(
+  points: readonly { readonly u: number; readonly v: number }[],
+  limits: FramingLimits,
+): CameraFrame {
   const us = points.map((p) => p.u);
   const vs = points.map((p) => p.v);
   const [u0, u1, v0, v1] = [Math.min(...us), Math.max(...us), Math.min(...vs), Math.max(...vs)];
   const pad = CAMERA_FRAMING.padding;
   const zoom = Math.min(
-    CAMERA_FRAMING.maxZoom,
-    Math.max(CAMERA_FRAMING.minZoom, Math.min(2 / (u1 - u0 + 2 * pad), 2 / (v1 - v0 + 2 * pad))),
+    limits.maxZoom,
+    Math.max(limits.minZoom, Math.min(2 / (u1 - u0 + 2 * pad), 2 / (v1 - v0 + 2 * pad))),
   );
+  if (!limits.clampToArt) return { zoom, u: (u0 + u1) / 2, v: (v0 + v1) / 2 };
   // the view never leaves what the video showed: its centre stays where all of the view is inside that
   const half = 1 / zoom;
   const { art } = CAMERA_FRAMING;
