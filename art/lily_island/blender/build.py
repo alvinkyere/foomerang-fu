@@ -72,7 +72,7 @@ def image(path):
 
 # the HQ's colours (4:27, medians of each class). The game's soft light lands a top at about its base colour and a front face
 # at ~92% of it, so the lavender sides are set a little brighter than they should appear (#7683be).
-GRASS = lit('pond_grass', image=image('art/lily_island/blender/grass.png'))
+GRASS = lit('pond_grass', image=image('art/lily_island/blender/grass.png'))      # (a flat pale-lime swatch: the island's rim colour)
 SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_slab_side', HQ.lit('#566aa6', 0.875))      # (the island's slabs: in the HQ they are darker than its boulders)
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
 LIP_SIDE = lit('pond_lip', HQ.lit('#909edf', 0.875))
@@ -181,6 +181,48 @@ def flat(name, parts, parent=None, z=0.0):
 # ---------------------------------------------------------------------------------------------------------------- banks
 for k, poly in enumerate(G['polygons']):
     body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)
+
+
+def lit_flat(name, polys, material, z):
+    """Drawn shapes lying on the grass (the HQ's shadow green, its pale patches): flat lit meshes, crisp at any zoom."""
+    bm = bmesh.new()
+    for poly in polys:
+        try: face = bm.faces.new([bm.verts.new((x, y, z)) for x, y in poly])
+        except ValueError: continue
+        face.normal_update()
+        if face.normal.z < 0: face.normal_flip()
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(material)
+    return o
+
+
+# the pale stripe along the island's edge is the whole bank; the lime sits on it, the outline pulled in half a unit
+RIM_GRASS = lit('island_rim', HQ.lit('#e4f6a2', 0.98))
+SHADE_GRASS = lit('island_shade', HQ.lit('#cae996', 0.98))
+PALE_GRASS = lit('island_pale', HQ.lit('#e4f6a2', 0.98))
+LIME_GRASS = lit('island_lime', HQ.lit('#ddf293', 0.98))
+lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
+lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
+lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
+
+
+def tuft(name, x, y, rot):
+    """A few short strokes of darker green (the HQ's '///' marks in the grass): three thin leaning blades."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    for i in range(3):
+        bx = x + (i - 1) * 0.34 * math.cos(rot); by = y + (i - 1) * 0.34 * math.sin(rot)
+        lean = Vector((math.cos(rot + 1.57) * 0.12, math.sin(rot + 1.57) * 0.12, 0))
+        w = Vector((math.cos(rot), math.sin(rot), 0)) * 0.05
+        tip = Vector((bx, by, 0.75 - 0.12 * abs(i - 1))) + lean
+        f = bm.faces.new([bm.verts.new(Vector((bx, by, 0.02)) - w), bm.verts.new(Vector((bx, by, 0.02)) + w), bm.verts.new(tip)])
+        for loop in f.loops: loop[col] = lin(HQ.flat('#9cc874'))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
+    return o
+
+
+for k, (x, y) in enumerate(L['tufts']):
+    tuft(f'TUFT_{k}', x, y, rng.uniform(-0.5, 0.5))
 
 # ---------------------------------------------------------------------------------------------------------------- stones
 # The HQ's stones are soft: slabs with rounded ends and a rolled top edge, boulders with organic outlines, light running smoothly

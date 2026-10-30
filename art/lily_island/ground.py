@@ -91,14 +91,29 @@ sys.path.insert(0, 'art/lily_island')
 import colour as HQ                       # (the HQ's colours as the video looks in a browser)
 bgr = lambda h: tuple(int(h[i:i + 2], 16) for i in (5, 3, 1))
 LIME, RIM, SHADE = (bgr(HQ.lit(h, 0.98)) for h in ('#ddf293', '#e4f6a2', '#cae996'))
-tex[:] = LIME
+tex[:] = RIM
 edge = cv2.distanceTransform(ground, cv2.DIST_L2, 5) / PX                        # units from the ground's edge
-band = (edge < 0.55) & (ground > 0)
-tex[band] = RIM
-rim_seen = in_plan(rim) & (edge < 1.3)
-tex[rim_seen & (ground > 0)] = RIM
-tex[in_plan(shade) & (ground > 0) & (edge >= 0.15)] = SHADE
-tex[ground == 0] = RIM                                                           # (never seen: the sides are lavender)
+# The grass is flat lime; the HQ's shadow green and its pale patches (a spawn's lit circle) are DRAWN SHAPES, not texture: they are
+# kept as outlines (ground.json `shade`, `pale`) and built as flat meshes, so they stay crisp at any zoom (a texture's texels showed
+# as steps when the camera closed in). The pale stripe at the island's edge is built from the bank's outline pulled in.
+def shapes(mask, least):
+    cs2, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    out = []
+    for c in cs2:
+        if cv2.contourArea(c) < least * PX * PX: continue
+        if min(cv2.minAreaRect(c)[1]) < 0.9 * PX: continue                     # (a sliver is not a drawn shape)
+        c = cv2.approxPolyDP(c, 1.4, True).reshape(-1, 2)
+        out.append([[round(float(x / PX + X0), 2), round(float(Y1 - y / PX), 2)] for x, y in c])
+    return out
+shade_m = in_plan(shade) & (ground > 0) & (edge >= 0.15)
+shade_m = cv2.morphologyEx(shade_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+pale_m = in_plan(rim) & (ground > 0) & (edge >= 1.3)
+pale_m = cv2.morphologyEx(pale_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
+G2 = json.load(open('art/lily_island/ground.json'))
+inner_m = cv2.morphologyEx((edge >= 0.55).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))   # (the lime: the ground less its pale edge stripe)
+G2['shade'], G2['pale'], G2['lime'] = shapes(shade_m, 0.6), shapes(pale_m, 0.8), shapes(inner_m, 5.0)
+json.dump(G2, open('art/lily_island/ground.json', 'w'))
+tex = tex[:16, :16]                                                              # (flat lime: a small texture is all it is)
 cv2.imwrite('art/lily_island/blender/grass.png', tex)
 json.dump(dict(x0=X0, x1=X1, y0=Y0, y1=Y1), open('art/lily_island/blender/grass.json', 'w'))
-print('ground polygons', len(polys), 'texture', tex.shape[1], 'x', tex.shape[0], 'shade share %.2f' % ((tex == np.array(SHADE)).all(2).sum() / max(ground.sum(), 1)))
+print('ground polygons', len(polys), 'shade', len(G2['shade']), 'pale', len(G2['pale']))

@@ -57,6 +57,7 @@ import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
 import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
+import { InventoryBadges } from './inventoryBadges';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { waterMaterial, type WaterStyle } from './waterShader';
@@ -1170,6 +1171,8 @@ class Plaza {
   /** BATTLE_ROYALE: the border closing in (closingBorder.ts). */
   readonly #closing: ClosingBorder;
   #badges: PickupBadges | undefined;
+  /** The powers each player owns, a row of badges over their head all match long. */
+  #inventory: InventoryBadges | undefined;
   readonly #resize: ResizeObserver;
   /** Character.standPull for this map (0 but on 3D ground). */
   #standPull = 0;
@@ -1340,6 +1343,7 @@ class Plaza {
     container.appendChild(this.#banner);
     container.appendChild(this.#word.root);
     this.#badges = new PickupBadges(container, this.renderer.domElement);
+    this.#inventory = new InventoryBadges(container, this.renderer.domElement);
     this.#resize = new ResizeObserver(() => this.#fit());
     this.#resize.observe(container);
     this.#fit();
@@ -1390,6 +1394,32 @@ class Plaza {
           motion: (t) => {
             root.rotation.x = wave(0.025, 0.9 * k, t);
             root.rotation.z = wave(0.02, 0.9 * k + 1.7, t);
+          },
+        });
+      } else if (/^TUFT_\d+$/.test(root.name)) {
+        // the lily island's grass tufts lean this way and that in a breeze (the HQ's grass is alive)
+        box.setFromObject(root);
+        const foot = box.getCenter(new THREE.Vector3());
+        foot.y = box.min.y;
+        pivotAt(root, foot);
+        const k = this.#moving.length;
+        this.#moving.push({
+          object: root,
+          motion: (t) => {
+            root.rotation.x = wave(0.14, 0.8 * k, t, 1.6);
+            root.rotation.z = wave(0.1, 0.8 * k + 1.1, t, 1.3);
+          },
+        });
+      } else if (/^TREE_\d+_\d+$/.test(root.name)) {
+        // a canopy lump of the lily island's birches swells and settles, each at its own beat
+        box.setFromObject(root);
+        pivotAt(root, box.getCenter(new THREE.Vector3()));
+        const k = this.#moving.length;
+        this.#moving.push({
+          object: root,
+          motion: (t) => {
+            root.scale.setScalar(1 + wave(0.025, 0.7 * k, t, 0.8));
+            root.rotation.y = wave(0.03, 0.5 * k, t, 0.6);
           },
         });
       } else if (root.name.startsWith('TREE29_leaf')) {
@@ -1988,6 +2018,12 @@ class Plaza {
       // above the character's head: the top of its body
       return ch.sprite.position.clone().add(new THREE.Vector3(0, ch.sprite.scale.y * 0.42, 0));
     });
+    this.#inventory?.frame(this.camera, this.#view?.circles ?? [], (id) => {
+      const ch = this.#characters.get(id);
+      if (ch === undefined) return undefined;
+      // over the head, above where the Book's name bar hangs
+      return ch.sprite.position.clone().add(new THREE.Vector3(0, ch.sprite.scale.y * 0.5, 0));
+    });
     this.#blasts.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
@@ -2060,6 +2096,7 @@ class Plaza {
     this.renderer.domElement.remove();
     this.#banner.remove();
     this.#word.root.remove();
+    this.#inventory?.destroy();
     for (const t of this.#atlases.values()) t.dispose();
     for (const t of this.#teamAtlases.values()) t.dispose();
   }
