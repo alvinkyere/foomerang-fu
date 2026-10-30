@@ -46,7 +46,42 @@ PX = dict(
     trees=[(375, 440), (1435, 205)],
 )
 at = lambda pts: r1(plan(pts))
-out = dict(zoom=Z, banks=[r1(b) for b in banks], crates=at(PX['crates']), bamboo=at(PX['bamboo']), pads=at(PX['pads']), trees=at(PX['trees']))
+def homography_at(z):
+    g2 = [(X, Y) for X in np.linspace(-60, 60, 7) for Y in np.linspace(30, 130, 7)]
+    return cv2.findHomography(np.float32([ref(X, Y, z) for X, Y in g2]), np.float32(g2))[0]
+
+
+def unproject(px, py, z):
+    """A pixel of the frame, as the plan point under it when it is `z` high; and how many pixels a plan unit is there."""
+    Hz = homography_at(z)
+    a = cv2.perspectiveTransform(np.float32([[[px, py]]]), Hz)[0, 0]
+    b = cv2.perspectiveTransform(np.float32([[[px + 10, py]]]), Hz)[0, 0]
+    return [round(float(a[0]), 2), round(float(a[1]), 2)], 10 / float(np.hypot(*(b - a)))
+
+
+# The two orange trees (the HQ frame at 10:37, read off by eye): a slim leaning birch from the island's edge, and lumps of canopy
+# (centre pixel, half width and half height in pixels). The trunk is `H` units tall: the pixels it climbs over the pixels a unit of
+# height moves a point.
+_foot = lambda px, py: unproject(px, py, 0.0)[0]
+_dy = abs(ref(0, 77, 1.0)[1] - ref(0, 77, 0.0)[1])
+TREE_PX = [
+    dict(foot=(430, 560), top=(352, 300), lumps=[(250, 365, 80, 80), (372, 342, 48, 42), (432, 370, 62, 50), (335, 512, 85, 58)]),
+    dict(foot=(1405, 268), top=(1475, 108), lumps=[(1475, 68, 50, 38), (1380, 120, 55, 38), (1512, 131, 38, 40), (1365, 212, 60, 43), (1468, 190, 38, 35)]),
+]
+trees = []
+for t in TREE_PX:
+    height = 5.5      # (about two characters tall: the trunk LEANS, so the pixels it climbs are not all height)
+    trees.append(dict(
+        foot=_foot(*t['foot']), height=round(height, 2), top=unproject(t['top'][0], t['top'][1], height)[0],
+        lumps=[dict(at=unproject(x, y, height)[0], r=round(rx / unproject(x, y, height)[1], 2), z=round(height, 2),
+                    ry=round(ry / unproject(x, y, height)[1], 2)) for x, y, rx, ry in t['lumps']]))
+# fallen leaves: small red ovals lying on the grass by each tree's foot (pixel clusters of the frame)
+rng = np.random.default_rng(5)
+petals = []
+for (cx0, cy0, sx, sy, n) in ((440, 545, 80, 55, 34), (1375, 300, 60, 18, 14)):
+    for _ in range(n):
+        petals.append(_foot(float(cx0 + rng.normal(0, sx / 2)), float(cy0 + rng.normal(0, sy / 2))))
+out = dict(zoom=Z, trees=trees, petals=petals, banks=[r1(b) for b in banks], crates=at(PX['crates']), bamboo=at(PX['bamboo']), pads=at(PX['pads']))
 json.dump(out, open('art/lily_island/layout.json', 'w'))
 allp = np.concatenate(banks)
 print('banks', [len(b) for b in banks], 'bounds', allp.min(0).round(1), allp.max(0).round(1))

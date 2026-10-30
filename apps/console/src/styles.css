@@ -333,3 +333,19 @@ button:focus-visible {
 .fs-toggle:focus-visible {
   opacity: 1;
 }
+
+/* the lily island's light shafts: soft slanting bands, strongest at the top right and fading towards the lower left */
+.arena-shafts {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    122deg,
+    rgb(150 255 240 / 0) 0,
+    rgb(150 255 240 / 0.32) 4vw,
+    rgb(150 255 240 / 0.1) 9vw,
+    rgb(150 255 240 / 0) 12vw
+  );
+  mask-image: linear-gradient(to bottom left, #000 10%, rgb(0 0 0 / 0.5) 45%, transparent 75%);
+}

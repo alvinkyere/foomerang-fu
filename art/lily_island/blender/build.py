@@ -73,6 +73,7 @@ def image(path):
 # the HQ's colours (4:27, medians of each class). The game's soft light lands a top at about its base colour and a front face
 # at ~92% of it, so the lavender sides are set a little brighter than they should appear (#7683be).
 GRASS = lit('pond_grass', image=image('art/lily_island/blender/grass.png'))
+SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_slab_side', HQ.lit('#566aa6', 0.875))      # (the island's slabs: in the HQ they are darker than its boulders)
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
 LIP_SIDE = lit('pond_lip', HQ.lit('#909edf', 0.875))
 WATER = lit('pond_water', HQ.flat('#74a2b2'))
@@ -200,7 +201,7 @@ for k, b in enumerate(S):
         for j in range(n):
             mid = -rw / 2 + (j + 0.5) * piece
             outline = rounded_rect(cx + mid * ux, cy + mid * uy, piece + 2 * GROW_SLAB - (SEAM if n > 1 else 0), rh + 2 * GROW_SLAB, ang, CORNER_SLAB)
-            body(f'STONE_{k}_{j}', outline, H + rng.uniform(-0.03, 0.03), STONE_TOP, STONE_SIDE, top_r=ROLL, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS)
+            body(f'STONE_{k}_{j}', outline, H + rng.uniform(-0.03, 0.03), SLAB_TOP, SLAB_SIDE, top_r=ROLL, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS)
     else:
         pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, STONE_TOP, STONE_SIDE, top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS)
@@ -228,30 +229,64 @@ for k, (x, y) in enumerate(L['bamboo']):
     obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(2.6, 4.2)}, PAL, FLAT, None, 100 + k)
 
 
-def blob(name, c, radii, hex_, hex_low, sub=2):
-    """A soft lump (an ico-sphere stretched): lighter on top, darker underneath, in flat vertex colours."""
+def blob(name, c, radii, hex_, hex_low, sub=3, bumps=0.12):
+    """A soft lump (an ico-sphere stretched, its edge wavy like the HQ's leaf masses): lighter on top, darker underneath."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     bmesh.ops.create_icosphere(bm, subdivisions=sub, radius=1.0)
+    phase = [rng.uniform(0, 6.28) for _ in range(3)]
     for v in bm.verts:
         n = v.co.copy()
-        v.co = Vector((c[0] + n.x * radii[0], c[1] + n.y * radii[1], c[2] + n.z * radii[2]))
-        v.co += Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1))) * 0.07 * min(radii)
+        ang = math.atan2(n.y, n.x)
+        wave = 1 + bumps * (math.sin(5 * ang + phase[0]) * 0.6 + math.sin(9 * ang + phase[1]) * 0.4)   # (a scalloped rim)
+        v.co = Vector((c[0] + n.x * radii[0] * wave, c[1] + n.y * radii[1] * wave, c[2] + n.z * radii[2]))
     for f in bm.faces:
         t = (sum(v.co.z for v in f.verts) / 3 - (c[2] - radii[2])) / (2 * radii[2])
-        for loop in f.loops: loop[col] = lin(HQ.flat(hex_ if t > 0.45 else hex_low))
+        mid = Vector((sum(v.co.x for v in f.verts) / 3 - c[0], sum(v.co.y for v in f.verts) / 3 - c[1], 0)).length / max(radii[0], 1e-6)
+        pick = hex_ if (t > 0.45 and mid > 0.28) else hex_low if t <= 0.45 else hex_low        # (a darker heart, the HQ's rings)
+        for loop in f.loops: loop[col] = lin(HQ.flat(pick))
         f.smooth = True
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
     return o
 
 
-# the two orange trees: a slim pale trunk, canopies of three rounded lumps (the HQ's: red-orange #d96f55, darker under)
-TREE, TREE_LOW, TRUNK, TRUNK_DARK = '#e0694d', '#c4543f', '#dcdad8', '#4b4a5a'
-for k, (x, y) in enumerate(L['trees']):
-    big = 1.0 if k == 0 else 0.9
-    for j, (dx, dy, dz, rx, rz) in enumerate([(-1.3, 0.6, 3.4, 2.2, 1.6), (1.2, 0.9, 3.9, 2.0, 1.5), (0.0, -1.2, 3.0, 2.0, 1.4), (0.2, 0.5, 4.6, 1.5, 1.1)]):
-        blob(f'TREE_{k}_{j}', (x + dx * big, y + dy * big, dz * big), (rx * big, rx * big, rz * big), TREE, TREE_LOW)
-    blob(f'TRUNK_{k}', (x, y, 1.5), (0.32, 0.32, 1.7), TRUNK, TRUNK_DARK, sub=1)
+def trunk(name, foot, top, height, r0, r1):
+    """A slim leaning trunk, white birch with dark patches: a tapered tube from the foot (on the ground) to the top (`height` up)."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    rings, seg = 9, 8
+    a = Vector((foot[0], foot[1], 0.0)); b = Vector((top[0], top[1], height))
+    axis = (b - a).normalized(); side = axis.cross(Vector((0, 0, 1)))
+    side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0)); up = axis.cross(side).normalized()
+    grid = []
+    for i in range(rings):
+        t = i / (rings - 1); centre = a + (b - a) * t; r = r0 + (r1 - r0) * t
+        grid.append([bm.verts.new(centre + (side * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * r) for k in range(seg)])
+    for i in range(rings - 1):
+        dark = (i % 3 == 1)
+        for k in range(seg):
+            f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
+            patch = dark and k % 3 != 0 or (k == 2 and i % 2 == 0)
+            for loop in f.loops: loop[col] = lin(HQ.flat('#4d5a8e' if patch else '#e6e5f2'))
+            f.smooth = False
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
+    return o
+
+
+# the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
+# standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
+TREE, TREE_LOW = '#dd6a4c', '#cc5a3e'
+for k, t in enumerate(L['trees']):
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.5, 0.36)
+    for j, lump in enumerate(t['lumps']):
+        r = lump['r']
+        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.3, lump.get('ry', r) * 1.3, r * 0.7), TREE, TREE_LOW)
+# the fallen leaves: small red ovals on the grass by the trees' feet
+for k, (x, y) in enumerate(L['petals']):
+    a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)
+    pts = [(x + math.cos(i * math.pi / 5) * w * math.cos(a0) - math.sin(i * math.pi / 5) * h * math.sin(a0),
+            y + math.cos(i * math.pi / 5) * w * math.sin(a0) + math.sin(i * math.pi / 5) * h * math.cos(a0)) for i in range(10)]
+    flat(f'PETAL_{k}', [(pts, '#d95a38', 0)], z=0.06)
 
 # ---------------------------------------------------------------------------------------------------------------- water
 xs = [p[0] for g in G['polygons'] for p in g]; ys = [p[1] for g in G['polygons'] for p in g]

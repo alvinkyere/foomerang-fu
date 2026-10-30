@@ -62,6 +62,11 @@ for poly_px, px, kind in HAND:
     (X, Y), = plan([[cx, cy]], 0.0)
     dy = ref(X, Y, 1.0)[1] - ref(X, Y, 0.0)[1]            # pixels a plan unit of height moves a point (negative: up)
     height = round(abs(px / dy), 2) if dy else 0.0
+    if kind == 'slab':
+        # (the polygon read off the frame is a slab's whole silhouette, top and visible side: its top face is that, drawn in on itself and
+        # lifted by about half the side showing)
+        pts = np.float32(poly_px); mid = pts.mean(0)
+        poly_px = [(float(mid[0] + 0.86 * (x - mid[0])), float(mid[1] + 0.86 * (y - mid[1]) - 0.3 * px)) for x, y in pts]
     poly = np.int32(poly_px)
     blocks.append(dict(_kind=kind, _c=c, _poly=poly, height=height, side_px=px, area_px=int(cv2.contourArea(c)), centre_px=[round(cx), round(cy)],
                        top=[[round(float(a), 2), round(float(b), 2)] for a, b in plan(poly, height)],
