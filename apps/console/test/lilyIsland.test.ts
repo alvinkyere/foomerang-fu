@@ -18,6 +18,7 @@ const manifest = JSON.parse(
 describe('the lily island', () => {
   it('is chosen by ?arena=island and is not in the rotation', () => {
     expect(productArena('?arena=island')).toBe('lily_island');
+    expect(productArena('?arena=lily')).toBe('lily_island');
     expect(PRODUCT_POOL).not.toContain('lily_island');
   });
 
