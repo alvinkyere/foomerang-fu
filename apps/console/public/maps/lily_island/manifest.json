@@ -62,7 +62,7 @@
   "water": {
     "base": "#7aa8bb",
     "light": "#9ac3d3",
-    "foam": "#a9d5e6",
+    "foam": "#c2e8f4",
     "glowWidth": 0.25,
     "foamSpacing": 1.0,
     "foamWidth": 0.26,
@@ -73,18 +73,23 @@
       "wobble": 0.06,
       "scale": 0.95,
       "wobbleScale": 0.85,
-      "presence": [0.5, 0.75],
+      "presence": [0.12, 0.3],
       "motion": 0.5,
       "glow": 0.3,
       "ribbons": [
         {
-          "centre": 0.42,
-          "width": 0.23,
+          "centre": 0.55,
+          "width": 0.13,
           "sway": 0.02
         },
         {
           "centre": 1.05,
-          "width": 0.13,
+          "width": 0.12,
+          "sway": 0.02
+        },
+        {
+          "centre": 1.6,
+          "width": 0.1,
           "sway": 0.02
         }
       ]

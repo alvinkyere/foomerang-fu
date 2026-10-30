@@ -226,7 +226,7 @@ for k, poly in enumerate(G['polygons']):
         ux, uy = (x1 - x0) / length, (y1 - y0) / length
         nx, ny = -uy * sgn, ux * sgn                                  # inward
         mx, my = (x0 + x1) / 2 + nx * KERB_W * 0.5, (y0 + y1) / 2 + ny * KERB_W * 0.5
-        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + 1.3, KERB_W, math.degrees(math.atan2(uy, ux)), 0.4), KERB_H, KERB_TOP, KERB_SIDE,
+        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + KERB_W, KERB_W, math.degrees(math.atan2(uy, ux)), 0.15), KERB_H, KERB_TOP, KERB_SIDE,
              top_r=0.22, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)

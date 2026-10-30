@@ -45,8 +45,8 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
 - **Power badges** over players are done for all maps (render/three/inventoryBadges.ts).
 
 ### Still different from the HQ (next steps, biggest first)
-1. Water: HQ has teal depth gradient, hand-drawn foam outlines round every edge (several concentric ribbons), light shafts that are *in the scene*
-   (ours is a CSS overlay). Our water is flat and the foam is the fountain's.
+1. Water: foam is now three thin concentric outlines round every edge (package.py cartoon ribbons, as the HQ draws them at the SE kerb): done. Still
+   missing: the HQ's teal depth gradient (lighter toward the top right), light shafts *in the scene* (ours is a CSS overlay, `.arena-shafts`).
 2. Cast shadows (trees on grass and stones, slabs on grass): the HQ bakes dark blue-green shapes; ours has only the grass `shade` patches.
 3. Boulders: the HQ's are taller, more cube-like, with a second smaller rock beside the E boulder; ours are tapered prisms.
 4. Tree canopies: HQ lumps are softer, larger discs with darker rings and a mottled colour; ours have star-shaped facets. Trunks need the HQ's patches.
