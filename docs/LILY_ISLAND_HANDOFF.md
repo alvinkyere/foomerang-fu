@@ -49,7 +49,7 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
    missing: the HQ's teal depth gradient (lighter toward the top right), light shafts *in the scene* (ours is a CSS overlay, `.arena-shafts`).
 2. Cast shadows (trees on grass and stones, slabs on grass): the HQ bakes dark blue-green shapes; ours has only the grass `shade` patches.
 3. Boulders: the HQ's are taller, more cube-like, with a second smaller rock beside the E boulder; ours are tapered prisms.
-4. Tree canopies: HQ lumps are softer, larger discs with darker rings and a mottled colour; ours have star-shaped facets. Trunks need the HQ's patches.
+4. Tree canopies: now mottled soft discs with ragged edges (build.py blob()); the HQ's are puffier (more 3D) and the trunk is thicker and curved with big dark patches.
 5. Bamboo stands, lily pads (the HQ pads are bigger with a notch), the pink flowers, the green specks on the water by the notch.
 6. Characters' spawn glows, the HQ's pale spawn discs (we draw `pale` patches from the frame).
 7. The island is not yet in the rotation.

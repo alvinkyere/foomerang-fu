@@ -298,7 +298,7 @@ for k, (x, y) in enumerate(L['bamboo']):
     obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(2.6, 4.2)}, PAL, FLAT, None, 100 + k)
 
 
-def blob(name, c, radii, hex_, hex_low, sub=3, bumps=0.12):
+def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
     """A soft lump (an ico-sphere stretched, its edge wavy like the HQ's leaf masses): lighter on top, darker underneath."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     bmesh.ops.create_icosphere(bm, subdivisions=sub, radius=1.0)
@@ -306,14 +306,21 @@ def blob(name, c, radii, hex_, hex_low, sub=3, bumps=0.12):
     for v in bm.verts:
         n = v.co.copy()
         ang = math.atan2(n.y, n.x)
-        wave = 1 + bumps * (math.sin(5 * ang + phase[0]) * 0.6 + math.sin(9 * ang + phase[1]) * 0.4)   # (a scalloped rim)
+        wave = 1 + bumps * (math.sin(13 * ang + phase[0]) * 0.6 + math.sin(21 * ang + phase[1]) * 0.4)   # (a scalloped rim)
         v.co = Vector((c[0] + n.x * radii[0] * wave, c[1] + n.y * radii[1] * wave, c[2] + n.z * radii[2]))
+    # the HQ's canopies are mottled soft discs: a darker heart (rings), a lighter rim, softly blended (colour per vertex, no facets)
+    hi, lo = Vector(lin(HQ.flat(hex_))[:3]), Vector(lin(HQ.flat(hex_low))[:3])
+    ph = rng.uniform(0, 6.28)
     for f in bm.faces:
-        t = (sum(v.co.z for v in f.verts) / 3 - (c[2] - radii[2])) / (2 * radii[2])
-        mid = Vector((sum(v.co.x for v in f.verts) / 3 - c[0], sum(v.co.y for v in f.verts) / 3 - c[1], 0)).length / max(radii[0], 1e-6)
-        pick = hex_ if (t > 0.45 and mid > 0.28) else hex_low if t <= 0.45 else hex_low        # (a darker heart, the HQ's rings)
-        for loop in f.loops: loop[col] = lin(HQ.flat(pick))
         f.smooth = True
+        for loop in f.loops:
+            v = loop.vert.co
+            d = math.hypot(v.x - c[0], v.y - c[1]) / max(radii[0], 1e-6)
+            ring = 0.5 + 0.5 * math.sin(d * 9.0 + ph)                      # (soft rings from the middle)
+            up = max(0.0, min(1.0, (v.z - (c[2] - radii[2])) / (2 * radii[2])))
+            k = 0.85 * max(0.0, 1 - d) ** 1.3 + 0.22 * ring + (0.0 if up > 0.4 else 0.5)    # (darker towards the heart and underneath)
+            col_ = hi.lerp(lo, max(0.0, min(1.0, k)))
+            loop[col] = (col_.x, col_.y, col_.z, 1.0)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
     return o
@@ -344,7 +351,7 @@ def trunk(name, foot, top, height, r0, r1):
 
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
-TREE, TREE_LOW = '#dd6a4c', '#cc5a3e'
+TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.5, 0.36)
     for j, lump in enumerate(t['lumps']):
