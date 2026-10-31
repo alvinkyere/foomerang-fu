@@ -42,7 +42,7 @@ manifest = {
     'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * 1.3, 4)},
     # and its foam as measured (44 ribbons: 0.32 wide, within ~1 unit of the bank, 1.4-11 long, 4.6% of the water): one wide ribbon
     # at a time drifting off each edge, broken into long pieces (the field's noise, below)
-    'water': {'base': HQ.flat('#7aa8bb'), 'light': HQ.flat('#9ac3d3'), 'foam': HQ.flat('#c2e8f4'), 'glowWidth': 0.25, 'foamSpacing': 1.0,
+    'water': {'base': HQ.flat('#7aa8bb'), 'light': HQ.flat('#9ac3d3'), 'foam': HQ.flat('#c2e8f4'), 'glowWidth': 0.9, 'foamSpacing': 1.0,
               'foamWidth': 0.26, 'foamReach': 1.15, 'drift': 0.07,
               # the raft is in the water: its edges get the foam too, as it turns (the shader reads where it is now)
               # (owner, 2026-10-29, three times "too strong": the HQ's steady water, studied with the camera jitter and compression flicker removed,
@@ -51,9 +51,9 @@ manifest = {
               # drawn as the HQ draws it: ribbons with wavy outlines morphing from one drawing to the next (CartoonWater, waterShader.ts); the widths
               # are fitted so the foam covers the HQ's share of the water (4.9%: 6.7% with the first widths, 0.34 and 0.20), the second ribbon
               # thinner and farther out
-              'cartoon': {'fps': 0.17, 'wobble': 0.06, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.12, 0.3], 'motion': 0.5, 'glow': 0.3,
+              'cartoon': {'fps': 0.17, 'wobble': 0.06, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.3, 0.55], 'motion': 0.5, 'glow': 0.55,
                           # the HQ draws three thin pale outlines round every edge (10:37, the SE kerb), nearly continuous
-                          'ribbons': [{'centre': 0.55, 'width': 0.13, 'sway': 0.02}, {'centre': 1.05, 'width': 0.12, 'sway': 0.02}, {'centre': 1.6, 'width': 0.1, 'sway': 0.02}]},
+                          'ribbons': [{'centre': 0.5, 'width': 0.12, 'sway': 0.02}, {'centre': 1.1, 'width': 0.09, 'sway': 0.02}]},
               },
     'characters': gong['characters'],
     'provenance': 'art/lily_island (layout.py, arena.py, blender/build.py, package.py) from foomerang-fu physics hq.mp4 10:37',

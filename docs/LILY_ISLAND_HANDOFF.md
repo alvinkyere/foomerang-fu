@@ -65,3 +65,8 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
   bamboo taller (4.4-6.4), lily pads bigger with the HQ's rim ring / short dashes / bigger flower, birch trunk thick and banded, tree lumps placed
   at their own heights (layout.py). Trees are still the weakest object: the HQ's lumps are puffy domes with mottled colour and a bent S-shaped
   trunk; ours are flat-looking discs and a straight trunk. Cast shadows and in-scene shafts remain.
+- (session 2, last) Owner feedback on two screenshots (text only, the pictures were not attached; read as: first = HQ, second = ours): our foam read as a
+  topographic map extending far out -> now a soft wide glow at the coast + two sparse thin outlines (package.py cartoon: glowWidth 0.9, presence
+  [0.3,0.55], ribbons 0.5 / 1.1) + 16 short isolated horizontal ripple dashes in open water (build.py RIPPLE_*); the bottom-third shade overlay was removed
+  (the HQ measures uniform top to bottom at 10:37); trunk got more rings. NOT done, ask the owner / re-read the HQ: the E boulder 'floats' in the HQ
+  and ours sits low; four orange circular 'decals' in ours are the runners' dust puffs (game-wide, not this map); the HQ camera is panned up/right of ours.

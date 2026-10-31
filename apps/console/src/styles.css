@@ -340,16 +340,14 @@ button:focus-visible {
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  /* (and the HQ's water goes a little bluer and deeper toward the bottom of the frame: #7aa7bb at the top, #6ea3c0 low down) */
-  background:
-    linear-gradient(to bottom, rgb(110 163 200 / 0) 35%, rgb(100 150 215 / 0.14) 100%),
-    repeating-linear-gradient(
-      136deg,
-      rgb(125 235 225 / 0) 0,
-      rgb(125 235 225 / 0.2) 5vw,
-      rgb(125 235 225 / 0.17) 9vw,
-      rgb(125 235 225 / 0.05) 14vw,
-      rgb(125 235 225 / 0) 18vw
-    );
+  /* (no bottom shade: the HQ's water and grass measure the same from top to bottom, 2026-10-30) */
+  background: repeating-linear-gradient(
+    136deg,
+    rgb(125 235 225 / 0) 0,
+    rgb(125 235 225 / 0.2) 5vw,
+    rgb(125 235 225 / 0.17) 9vw,
+    rgb(125 235 225 / 0.05) 14vw,
+    rgb(125 235 225 / 0) 18vw
+  );
   mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 40%, transparent 85%);
 }

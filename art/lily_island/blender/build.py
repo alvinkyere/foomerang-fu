@@ -341,7 +341,7 @@ def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
 def trunk(name, foot, top, height, r0, r1, bend=0.0):
     """A slim leaning trunk, white birch with dark patches: a tapered tube from the foot (on the ground) to the top (`height` up)."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
-    rings, seg = 9, 8
+    rings, seg = 15, 10
     a = Vector((foot[0], foot[1], 0.0)); b = Vector((top[0], top[1], height))
     axis = (b - a).normalized(); side = axis.cross(Vector((0, 0, 1)))
     side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0)); up = axis.cross(side).normalized()
@@ -392,6 +392,19 @@ for k, (x, y) in enumerate(L['petals']):
             y + math.cos(i * math.pi / 5) * w * math.sin(a0) + math.sin(i * math.pi / 5) * h * math.cos(a0)) for i in range(10)]
     flat(f'PETAL_{k}', [(pts, '#d95a38', 0)], z=0.06)
 
+# short isolated horizontal white ripple dashes in the open water (the HQ's, away from the island), screen-horizontal = plan x
+_rp = random.Random(23)
+_land_wide = [[tuple(q) for q in offset_poly([tuple(r) for r in poly], 4.0)] for poly in G['polygons']]
+_stone_wide = [[tuple(q) for q in offset_poly([tuple(r) for r in blk['top']], 3.0)] for blk in S]
+_xs = [p[0] for g_ in G['polygons'] for p in g_]; _ys = [p[1] for g_ in G['polygons'] for p in g_]
+_n = 0
+for _try in range(600):
+    if _n >= 16: break
+    rx = _rp.uniform(min(_xs) - 14, max(_xs) + 14); ry = _rp.uniform(min(_ys) - 12, max(_ys) + 12)
+    if any(inside((rx, ry), w_) for w_ in _land_wide + _stone_wide): continue
+    ln = _rp.uniform(1.0, 2.2)
+    flat(f'RIPPLE_{_n}', [([(rx - ln / 2, ry - 0.05), (rx + ln / 2, ry - 0.05), (rx + ln / 2 + 0.08, ry), (rx + ln / 2, ry + 0.05), (rx - ln / 2, ry + 0.05), (rx - ln / 2 - 0.08, ry)], '#d9f0f8', 0)], z=WATER_Z + 0.08)
+    _n += 1
 # ---------------------------------------------------------------------------------------------------------------- water
 xs = [p[0] for g in G['polygons'] for p in g]; ys = [p[1] for g in G['polygons'] for p in g]
 cx, cy, half = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + 30      # (package.py's field covers the same square)
