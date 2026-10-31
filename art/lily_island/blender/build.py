@@ -216,7 +216,7 @@ PALE_GRASS = lit('island_pale', HQ.lit('#e9f69d', 0.98))
 LIME_GRASS = lit('island_lime', HQ.lit('#e2f28e', 0.98))
 # the kerb: the lavender stone wall that runs round the island (the HQ's, ~1 unit thick, its top rounded), a run of straight pieces laid
 # along the outline, each drawn in half a unit
-KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#98a2e8', 0.98)), lit('island_kerb_side', HQ.lit('#7f89d6', 0.875))
+KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#a5b3eb', 0.98)), lit('island_kerb_side', HQ.lit('#7e8fd4', 0.875))
 KERB_H, KERB_W = 0.6, 1.0
 def inside(pt, poly):
     x, y = pt; c = False
@@ -245,10 +245,10 @@ def kerb_ring(name, poly, top_mat, side_mat):
         n1 = (-e1[1] / l1 * sgn, e1[0] / l1 * sgn); n2 = (-e2[1] / l2 * sgn, e2[0] / l2 * sgn)
         bx, by = n1[0] + n2[0], n1[1] + n2[1]; bl = math.hypot(bx, by) or 1; bx, by = bx / bl, by / bl
         cosh = bx * n1[0] + by * n1[1]
-        miter = min(1.0 / max(0.45, cosh), 1.45)
+        miter = min(1.0 / max(0.45, cosh), 1.15)
         if cross_sign(e1, e2, sgn) < 0: miter = min(miter, 1.0)      # (a reflex corner: the inner edge would fold over: keep it plain)
         f = (1.0 + (n1[1] + n2[1]) / 2.0) / 2.0                      # (1: the outer face looks at the camera)
-        kw, kh = 0.12 + 1.68 * f * f, 0.03 + 0.09 * f      # (the lavender is the island's own flank, flush with the grass and sloping down to the water: the grass is the top of the rock, not a layer on it)      # (the back edges have next to no wall: the HQ's island is not encased all round)
+        kw, kh = 0.1 + 1.2 * f * f, 0.03 + 0.09 * f      # (the lavender is the island's own flank, flush with the grass and sloping down to the water: the grass is the top of the rock, not a layer on it)      # (the back edges have next to no wall: the HQ's island is not encased all round)
         inward.append((bx * miter, by * miter)); widths.append(kw); hts.append(kh)
     # profile: (fraction of the width inward, height as a fraction of kh), outer foot to the grass; z is relative to the grass (0)
     prof = [(0.0, None), (0.0, 0.3), (0.1, 0.6), (0.3, 0.9), (0.7, 1.0), (0.9, 0.9), (1.0, 0.55)]
