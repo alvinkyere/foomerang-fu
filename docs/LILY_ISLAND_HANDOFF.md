@@ -42,7 +42,7 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
   (BLOCK_COLOURS): the HQ's trees and slabs throw SHADOWS on the stones (NW slab, W boulder are in shade): our renderer has no cast shadows.
 - **Grass:** flat lime + drawn shapes (shade, pale, lime) from ground.py, tufts that sway, canopies that breathe (ThreePlaza.#animate).
 - **Camera:** `followFrame` (min = whole island, max = 1.3x) in the manifest; the HQ zooms in as players close up (measured only by eye).
-- **Power badges** over players are done for all maps (render/three/inventoryBadges.ts).
+- Power badges: the persistent row of icons over each player was REMOVED (owner, 2026-10-31: "what we had before was good"): only the name-bar badge on taking a Book remains.
 
 ### Still different from the HQ (next steps, biggest first)
 1. Water: foam is now three thin concentric outlines round every edge (package.py cartoon ribbons, as the HQ draws them at the SE kerb): done. Still

@@ -57,7 +57,6 @@ import { deathOf } from '../deathMotion';
 import { Blasts } from './blasts';
 import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
-import { InventoryBadges } from './inventoryBadges';
 import { DeathRemains, type Victim } from './deathRemains';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { waterMaterial, type WaterStyle } from './waterShader';
@@ -1177,8 +1176,6 @@ class Plaza {
   /** BATTLE_ROYALE: the border closing in (closingBorder.ts). */
   readonly #closing: ClosingBorder;
   #badges: PickupBadges | undefined;
-  /** The powers each player owns, a row of badges over their head all match long. */
-  #inventory: InventoryBadges | undefined;
   readonly #resize: ResizeObserver;
   /** Character.standPull for this map (0 but on 3D ground). */
   #standPull = 0;
@@ -1370,7 +1367,6 @@ class Plaza {
     container.appendChild(this.#banner);
     container.appendChild(this.#word.root);
     this.#badges = new PickupBadges(container, this.renderer.domElement);
-    this.#inventory = new InventoryBadges(container, this.renderer.domElement);
     this.#resize = new ResizeObserver(() => this.#fit());
     this.#resize.observe(container);
     this.#fit();
@@ -2056,12 +2052,6 @@ class Plaza {
       // above the character's head: the top of its body
       return ch.sprite.position.clone().add(new THREE.Vector3(0, ch.sprite.scale.y * 0.42, 0));
     });
-    this.#inventory?.frame(this.camera, this.#view?.circles ?? [], (id) => {
-      const ch = this.#characters.get(id);
-      if (ch === undefined) return undefined;
-      // over the head, above where the Book's name bar hangs
-      return ch.sprite.position.clone().add(new THREE.Vector3(0, ch.sprite.scale.y * 0.5, 0));
-    });
     this.#blasts.frame(time);
     for (let i = this.#bursts.length - 1; i >= 0; i -= 1) {
       const b = this.#bursts[i] as Burst;
@@ -2134,7 +2124,6 @@ class Plaza {
     this.renderer.domElement.remove();
     this.#banner.remove();
     this.#word.root.remove();
-    this.#inventory?.destroy();
     for (const t of this.#atlases.values()) t.dispose();
     for (const t of this.#teamAtlases.values()) t.dispose();
   }
