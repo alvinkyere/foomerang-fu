@@ -45,8 +45,7 @@ manifest = {
     'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'] * 1.3, 4)},
     # and its foam as measured (44 ribbons: 0.32 wide, within ~1 unit of the bank, 1.4-11 long, 4.6% of the water): one wide ribbon
     # at a time drifting off each edge, broken into long pieces (the field's noise, below)
-    'water': {'shafts': {'angle': 136.5, 'tint': '#aafff5', 'fade': [0.28, 0.72],
-                        'stops': [[0.3, 0.0], [0.35, 0.675], [0.4, 0.93], [0.48, 0.825], [0.52, 0.45], [0.55, 0.12], [0.565, 0.03], [0.59, 0.39], [0.62, 0.42], [0.66, 0.0]]},
+    'water': {'shafts': {'angle': 136.5, 'tint': '#aafff5', **json.load(open('art/lily_island/shafts.json'))},
               'base': HQ.flat('#7aa8bb'), 'light': HQ.flat('#9ac3d3'), 'foam': HQ.flat('#c2e8f4'), 'glowWidth': 0.9, 'foamSpacing': 1.0,
               'foamWidth': 0.26, 'foamReach': 1.15, 'drift': 0.07,
               # the raft is in the water: its edges get the foam too, as it turns (the shader reads where it is now)

@@ -117,3 +117,6 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
 - (2026-10-31) Foam outlines now three thick wobbly ribbons (0.22/0.17/0.12 wide, wobble 0.22, presence 0.22-0.5): ragged and several, as the HQ's. Corner posts enlarged (3.6 wide, only
   between two walls >= 4.5 long). NOTE the shoot script needs the validation worktree: if `shoot_hq.sh` says "not a git repository", write
   `gitdir: <repo>/.git/worktrees/mine2` into `$TMPDIR/foomerang-validate/.git` and reinstall node_modules (`pnpm install --frozen-lockfile --offline`).
+- (2026-10-31) `fit_shafts.py` solves the shaft strengths bin by bin along the bands' normal from the HQ's water (fade 0.10-0.50, bands over t 0.15-0.70), writes `shafts.json`,
+  which package.py reads; water green error 11.5 -> 7.0 levels, whole-frame >12 figure 43.6% -> 41.7%. A smoothed (σ6) difference map says the large-scale gap is spread over
+  every region (top row 60-98% of cells, left trees, lower-left) so low-frequency colour is as important as edges: the next fits are per-object colour/shade (canopies, grass patches, stones' shaded sides).
