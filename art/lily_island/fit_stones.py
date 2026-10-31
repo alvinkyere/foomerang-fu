@@ -35,7 +35,7 @@ stone[:, :215] = 0; stone[300:400, 1255:1470] = 0
 # the two blocks under the light shafts (the small NE boulder, the blue slab) are paler and bluer: a wider cut inside their own boxes
 shaft_stone = ((h[..., 0] >= 106) & (h[..., 0] <= 135) & (h[..., 1] >= 35) & (h[..., 2] >= 170)).astype(np.uint8)
 SHAFTED = {0, 1}
-MANUAL = {5: dict(h=3.6, s=0.9), 1: dict(h=2.0, s=1.0), 2: dict(h=2.0, s=1.0), 6: dict(h=2.0, s=1.0), 3: dict(h=6.4, s=1.0), 4: dict(h=1.0, s=1.0)}      # the E cube (its side shows ~85 px) and the low rock under its corner
+MANUAL = {7: dict(h=4.6, s=0.95), 5: dict(h=3.6, s=0.9), 1: dict(h=2.0, s=1.0), 2: dict(h=2.0, s=1.0), 6: dict(h=2.0, s=1.0), 3: dict(h=6.4, s=1.0), 4: dict(h=1.0, s=1.0)}      # the E cube (its side shows ~85 px) and the low rock under its corner
 CUBES = {3, 4}        # (the E boulder and the low rock beside it: straight-sided, not tapered; build.py BLOCK_TAPER)
 blocks = json.load(open('art/lily_island/stones.json'))
 old = json.load(open('art/lily_island/stonefit.json')) if os.path.exists('art/lily_island/stonefit.json') else {}

@@ -76,10 +76,10 @@ GRASS = lit('pond_grass', image=image('art/lily_island/blender/grass.png'))     
 SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_slab_side', HQ.lit('#566aa6', 0.875))      # (the island's slabs: in the HQ they are darker than its boulders)
 # per block, as the HQ frame shows it (its trees and slabs throw shadows on the stones: the NW slab and the W boulder lie in them), in
 # the order of stones.json: (top, side)
-BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#7d96e0', '#5a74c4'),
-                 ('#707fb4', '#5a69a0'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
+BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#82a1e2', '#617cb9'),
+                 ('#a4b3ea', '#6a79ab'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
 CUBE_LIKE = {0, 3, 5, 7}
-BLOCK_TAPER = {3: 1.0, 4: 1.0}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
+BLOCK_TAPER = {3: 1.0, 4: 1.0, 7: 0.82}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
 LIP_SIDE = lit('pond_lip', HQ.lit('#909edf', 0.875))

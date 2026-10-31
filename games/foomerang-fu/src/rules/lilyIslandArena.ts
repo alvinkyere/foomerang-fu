@@ -10,18 +10,18 @@ import type { FuArena, Solid } from './arena';
  */
 
 export const LILY_ISLAND_WIDTH = 1786;
-export const LILY_ISLAND_HEIGHT = 1594;
+export const LILY_ISLAND_HEIGHT = 1649;
 
 export type LilyIslandWall = Solid & { readonly id: string; readonly kind: 'WALL' };
 
 export const LILY_ISLAND_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
   Object.freeze([
-    { x: 247, y: 1367 },
-    { x: 261, y: 1498 },
-    { x: 467, y: 1498 },
-    { x: 467, y: 1395 },
-    { x: 440, y: 1340 },
-    { x: 344, y: 1298 },
+    { x: 275, y: 1401 },
+    { x: 289, y: 1532 },
+    { x: 481, y: 1532 },
+    { x: 481, y: 1429 },
+    { x: 447, y: 1367 },
+    { x: 364, y: 1333 },
   ]),
   Object.freeze([
     { x: 158, y: 1010 },
@@ -313,8 +313,8 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     id: 'WALL_23',
     kind: 'WALL',
     shape: 'box',
-    x: 350,
-    y: 1326,
+    x: 374,
+    y: 1367,
     halfWidth: 18,
     halfHeight: 18,
     angle: 0,
@@ -323,9 +323,9 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     id: 'WALL_24',
     kind: 'WALL',
     shape: 'box',
-    x: 354,
-    y: 1340,
-    halfWidth: 31,
+    x: 381,
+    y: 1388,
+    halfWidth: 38,
     halfHeight: 18,
     angle: 0,
   }),
@@ -333,20 +333,10 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     id: 'WALL_25',
     kind: 'WALL',
     shape: 'box',
-    x: 361,
-    y: 1360,
-    halfWidth: 52,
-    halfHeight: 18,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_26',
-    kind: 'WALL',
-    shape: 'box',
-    x: 357,
-    y: 1429,
-    halfWidth: 76,
-    halfHeight: 55,
+    x: 378,
+    y: 1463,
+    halfWidth: 69,
+    halfHeight: 62,
     angle: 0,
   }),
   Object.freeze({
