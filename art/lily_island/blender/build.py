@@ -214,8 +214,8 @@ PALE_GRASS = lit('island_pale', HQ.lit('#e9f69d', 0.98))
 LIME_GRASS = lit('island_lime', HQ.lit('#e2f28e', 0.98))
 # the kerb: the lavender stone wall that runs round the island (the HQ's, ~1 unit thick, its top rounded), a run of straight pieces laid
 # along the outline, each drawn in half a unit
-KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#8095dc', 0.98)), lit('island_kerb_side', HQ.lit('#6378c2', 0.875))
-KERB_H, KERB_W = 0.8, 0.5
+KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#98a2e8', 0.98)), lit('island_kerb_side', HQ.lit('#7f89d6', 0.875))
+KERB_H, KERB_W = 0.6, 1.0
 def inside(pt, poly):
     x, y = pt; c = False
     for i in range(len(poly)):
@@ -237,8 +237,8 @@ for k, poly in enumerate(G['polygons']):
         ux, uy = (x1 - x0) / length, (y1 - y0) / length
         nx, ny = -uy * sgn, ux * sgn                                  # inward
         mx, my = (x0 + x1) / 2 + nx * KERB_W * 0.5, (y0 + y1) / 2 + ny * KERB_W * 0.5
-        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + KERB_W, KERB_W, math.degrees(math.atan2(uy, ux)), 0.15), KERB_H, KERB_TOP, KERB_SIDE,
-             top_r=0.22, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
+        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + KERB_W * 0.6, KERB_W, math.degrees(math.atan2(uy, ux)), 0.3), KERB_H, KERB_TOP, KERB_SIDE,
+             top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
@@ -367,8 +367,8 @@ TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7, bend=1.4 if k == 0 else -1.2)
     for j, lump in enumerate(t['lumps']):
-        r = lump['r']
-        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', r)
+        r = lump['r'] * 0.84
+        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 0.84
         blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.95, ry * 0.95, r * 0.8), TREE, TREE_LOW)
         for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: small domes round and over the big one)
             a = 2 * math.pi * m / 9 + rng.uniform(-0.2, 0.2); d = rng.uniform(0.55, 0.78)
