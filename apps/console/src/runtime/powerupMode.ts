@@ -76,6 +76,7 @@ export const ARENA_CHOICES = [
   'cross_pond',
   'pond_cross',
   'lily_island',
+  'bridge_islands',
   'diamond_walls',
 ] as const;
 export type ArenaChoice = (typeof ARENA_CHOICES)[number];
@@ -88,7 +89,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
       ? 'pond_cross'
       : given === 'island' || given === 'lily'
         ? 'lily_island'
-        : given;
+        : given === 'bridge'
+          ? 'bridge_islands'
+          : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;

@@ -10,6 +10,7 @@ export const rendererKindFor = (arena: ArenaChoice): RendererKind =>
   arena === 'market_plaza' ||
   arena === 'gong_islands' ||
   arena === 'pond_cross' ||
-  arena === 'lily_island'
+  arena === 'lily_island' ||
+  arena === 'bridge_islands'
     ? 'three'
     : 'phaser';

@@ -245,3 +245,12 @@ export {
   type SliderSpec,
   type SliderState,
 } from './sliders';
+export {
+  BRIDGE_ISLANDS_ARENA,
+  BRIDGE_ISLANDS_BOOK_SPOTS,
+  BRIDGE_ISLANDS_GROUND,
+  BRIDGE_ISLANDS_HEIGHT,
+  BRIDGE_ISLANDS_SPAWNS,
+  BRIDGE_ISLANDS_WALLS,
+  BRIDGE_ISLANDS_WIDTH,
+} from './bridgeIslandsArena';
