@@ -368,7 +368,13 @@ for k, t in enumerate(L['trees']):
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7)
     for j, lump in enumerate(t['lumps']):
         r = lump['r']
-        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.1, lump.get('ry', r) * 1.1, r * 0.85), TREE, TREE_LOW)
+        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', r)
+        blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.95, ry * 0.95, r * 0.8), TREE, TREE_LOW)
+        for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: small domes round and over the big one)
+            a = 2 * math.pi * m / 9 + rng.uniform(-0.2, 0.2); d = rng.uniform(0.55, 0.78)
+            pr = rng.uniform(0.3, 0.42)
+            blob(f'TREE_{k}_{j}_p{m}', (cx + math.cos(a) * r * d, cy + math.sin(a) * ry * d, cz + rng.uniform(-0.1, 0.25) * r),
+                 (r * pr, ry * pr, r * pr * 0.9), TREE, TREE_LOW, sub=3, bumps=0.05)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
     a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)
