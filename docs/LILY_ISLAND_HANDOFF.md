@@ -110,3 +110,6 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
 - (2026-10-31, owner: "it looks like the rock ground is on the grass, not the grass on the rock ground") The kerb is no longer a wall standing above the grass: the lavender is the island's own
   flank, flush with the grass and sloping down to the water (kerb_ring heights 0.03-0.12), the island outline is rounded (chaikin x2) and the traced outline smoothed more (layout.py
   rectify tiny 2.2). Still missing: the HQ's grass edge has a green-teal glow bleeding over the lavender top and the rounded corner blocks.
+- (2026-10-31) IMPORTANT: build.py used ground.json's polygon (166 vertices, traced and jagged: it is the RULES ground) for the island body and kerb. It now draws from
+  `layout.json banks` (30 vertices, straightened by layout.py rectify) with chaikin x2, so the edge is clean. Corner posts (`corner_blocks`) stand at convex front corners.
+  The island body's outline (rectified) and the rules ground (traced) are two different outlines a hair apart: unify later (generate the rules ground from the rectified one).

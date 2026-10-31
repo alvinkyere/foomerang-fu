@@ -191,8 +191,9 @@ def flat(name, parts, parent=None, z=0.0):
 
 
 # ---------------------------------------------------------------------------------------------------------------- banks
-for k, poly in enumerate(G['polygons']):
-    poly = chaikin([tuple(q) for q in poly], 2)      # (the HQ's island has soft rounded corners)
+RENDER_OUTLINES = [[tuple(q) for q in poly] for poly in L['banks']]      # (layout.py's straightened outline: the traced ground.json one is jagged)
+for k, poly in enumerate(RENDER_OUTLINES):
+    poly = chaikin(poly, 2)      # (the HQ's island has soft rounded corners)
     body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)
 
 
@@ -275,8 +276,27 @@ def kerb_ring(name, poly, top_mat, side_mat):
     return o
 
 
-for k, poly in enumerate(G['polygons']):
-    kerb_ring(f'KERB_{k}', chaikin([tuple(p) for p in poly], 2), KERB_TOP, KERB_SIDE)
+def corner_blocks(poly):
+    """The HQ's front corners carry a rounded block standing out of the wall (a corner post): at every convex corner whose two edges face the camera."""
+    n = len(poly)
+    area = sum(poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1] for i in range(n))
+    sgn = 1.0 if area > 0 else -1.0
+    for i in range(n):
+        (x0, y0), (x1, y1), (x2, y2) = poly[i - 1], poly[i], poly[(i + 1) % n]
+        e1 = (x1 - x0, y1 - y0); e2 = (x2 - x1, y2 - y1)
+        if min(math.hypot(*e1), math.hypot(*e2)) < 2.5: continue          # (a corner between two real walls, not a wobble)
+        if cross_sign(e1, e2, sgn) <= 0: continue                            # (convex only)
+        l1 = math.hypot(*e1); l2 = math.hypot(*e2)
+        n1 = (-e1[1] / l1 * sgn, e1[0] / l1 * sgn); n2 = (-e2[1] / l2 * sgn, e2[0] / l2 * sgn)
+        if min(n1[1], n2[1]) < 0.35: continue                                # (both outer faces look towards the camera)
+        bx, by = n1[0] + n2[0], n1[1] + n2[1]; bl = math.hypot(bx, by) or 1; bx, by = bx / bl, by / bl
+        ang = math.degrees(math.atan2(by, bx)) + 45.0
+        body(f'CORNER_{i}', rounded_rect(x1 - bx * 0.55, y1 - by * 0.55, 2.3, 2.3, ang, 0.8), 1.05, KERB_TOP, KERB_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
+
+
+for k, poly in enumerate(RENDER_OUTLINES):
+    corner_blocks(poly)
+    kerb_ring(f'KERB_{k}', chaikin(poly, 2), KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
