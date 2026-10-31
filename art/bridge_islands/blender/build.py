@@ -78,7 +78,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#82a1e2', '#617cb9'),
                  ('#a4b3ea', '#6a79ab'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
-BRICK_WALLS = {6, 11}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
+BRICK_WALLS = {3, 6, 11}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
 CUBE_LIKE = {0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14}
 BLOCK_TAPER = {}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_COLOURS = [('#a5b3ea', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
@@ -353,11 +353,11 @@ for k, b in enumerate(S):
         ux_, uy_ = math.cos(a_), math.sin(a_)
         ts_ = [(q[0] - cx_) * ux_ + (q[1] - cy_) * uy_ for q in pts_]
         t0_, t1_ = min(ts_), max(ts_); rw_ = t1_ - t0_
-        n_ = max(2, round(rw_ / 4.6)); piece_ = rw_ / n_
+        n_ = max(2, round(rw_ / (6.0 if k == 3 else 4.6))); piece_ = rw_ / n_
         for j_ in range(n_):
             mid_ = t0_ + (j_ + 0.5) * piece_
             cap_ = (j_ == n_ - 1)
-            body(f'STONE_{k}_{j_}', rounded_rect(cx_ + mid_ * ux_, cy_ + mid_ * uy_, piece_ - 0.15 + (0.8 if cap_ else 0), 2.3 + (0.8 if cap_ else 0), math.degrees(a_), 0.55),
+            body(f'STONE_{k}_{j_}', rounded_rect(cx_ + mid_ * ux_, cy_ + mid_ * uy_, piece_ - 0.15 + (0.8 if cap_ else 0), (4.2 if k == 3 else 2.3) + (0.8 if cap_ else 0), math.degrees(a_), 0.55),
                  H + (0.6 if cap_ else 0) + rng.uniform(-0.15, 0.15), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=0.3, corner_r=0.5, bottom=STONE_BOTTOM, soft=True, top_seg=3)
     elif b['kind'] == 'slab':
         # the HQ's slabs are fat rounded barrels with chamfered corners, not boxes: the traced outline, grown a little, its corners rounded

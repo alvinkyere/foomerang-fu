@@ -31,5 +31,5 @@ then prettier on the json; `hqcompare.py`, `fit_stones.py`, `fit_trees.py`, `fit
 pixels. Start of the pass: 49-99% differ per object (all of them). Done so far: the bridge's walls are chains of fat rounded bricks with a taller cap (`BRICK_WALLS` = stones.json
 indices 6 and 11, sorted by y; check them after any re-sort), the deck has offset brick courses (the HQ's are scalloped, with tan grass-blade streaks across: not built), the gate is
 placed from the HQ's posts (still hidden under the back wall in the game: the back wall block 3 is too tall/wide there), the trees take the HQ's two colours, bush size from measure.
-Next, in order: the gate and back wall (the HQ's wall is a row of big rounded blocks like the bridge walls, not one slab: use BRICK_WALLS for index 3 too, h ~2.6), trees (trunk + lump
+Back wall now a row of blocks (BRICK_WALLS has 3) and the gate shows; the HQ wall is smoother, taller and wider (one long soft slab). Next, in order: trees (trunk + lump
 shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), the islets' outlines, pads, crates, bamboo, lanterns, the aloe pot.
