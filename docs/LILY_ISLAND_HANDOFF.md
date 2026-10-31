@@ -70,3 +70,12 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
   [0.3,0.55], ribbons 0.5 / 1.1) + 16 short isolated horizontal ripple dashes in open water (build.py RIPPLE_*); the bottom-third shade overlay was removed
   (the HQ measures uniform top to bottom at 10:37); trunk got more rings. NOT done, ask the owner / re-read the HQ: the E boulder 'floats' in the HQ
   and ours sits low; four orange circular 'decals' in ours are the runners' dust puffs (game-wide, not this map); the HQ camera is panned up/right of ours.
+
+### Compare the game with the HQ (the owner, 2026-10-30: "the screenshot is the HQ at 10:37, compared with a scene in our game: ensure it is the same")
+The game has a developer view, `?arena=lily&frame=hq`, that pins the camera to the HQ's 10:37 frame (manifest `hqFrame`; `&fu=&fv=&fz=` nudge it).
+1. `art/lily_island/shoot_hq.sh NAME 1500` shoots it at 1920x1080 (to `$TMPDIR/NAME.png`; copy to `art/lily_island/output/`).
+2. `python art/lily_island/hqcompare.py <shot.png>` lays the game's grass over the HQ's (scale + shift search), prints the grass IoU and what `fz/fu/fv` would
+   change, and writes `output/hqcmp.jpg` (HQ | game | difference).
+Status: scale 1.000, shift ~(-4, 4) px, grass IoU 0.82, grass colour #dcf295 vs HQ #ddf295, water median identical (#7aa9bc), 39% of pixels still differ by >12 levels
+(shafts, foam, canopies, stones, the players' dust and the HUD names). `scale.json gameZoomFit 0.965`: the game's camera needs that factor over
+hqZoom/scale to show the island as big as the HQ does (the Blender preview and the game's camera do not share one zoom convention).

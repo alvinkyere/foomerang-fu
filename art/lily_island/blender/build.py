@@ -208,10 +208,10 @@ def lit_flat(name, polys, material, z):
 
 
 # the pale stripe along the island's edge is the whole bank; the lime sits on it, the outline pulled in half a unit
-RIM_GRASS = lit('island_rim', HQ.lit('#e4f6a2', 0.98))
-SHADE_GRASS = lit('island_shade', HQ.lit('#cae996', 0.98))
-PALE_GRASS = lit('island_pale', HQ.lit('#e4f6a2', 0.98))
-LIME_GRASS = lit('island_lime', HQ.lit('#ddf293', 0.98))
+RIM_GRASS = lit('island_rim', HQ.lit('#e9f69d', 0.98))
+SHADE_GRASS = lit('island_shade', HQ.lit('#cfe991', 0.98))
+PALE_GRASS = lit('island_pale', HQ.lit('#e9f69d', 0.98))
+LIME_GRASS = lit('island_lime', HQ.lit('#e2f28e', 0.98))
 # the kerb: the lavender stone wall that runs round the island (the HQ's, ~1 unit thick, its top rounded), a run of straight pieces laid
 # along the outline, each drawn in half a unit
 KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#8095dc', 0.98)), lit('island_kerb_side', HQ.lit('#6378c2', 0.875))

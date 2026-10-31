@@ -98,6 +98,8 @@ interface Manifest {
   readonly fixedFrame?: { readonly zoom: number; readonly u: number; readonly v: number };
   /** The camera follows the players between these zooms (the lily island: the HQ's camera zooms in as the players come together). */
   readonly followFrame?: { readonly minZoom: number; readonly maxZoom: number };
+  /** The HQ frame this map was built from (the camera pinned to it, `?frame=hq`, to compare the game with the video's frame). */
+  readonly hqFrame?: { readonly zoom: number; readonly u: number; readonly v: number };
   /** The map's own water colours (the cross pond's pond: duller than the fountain's); the fountain's when absent. */
   readonly water?: WaterStyle;
   /** The map's own light instead of the plaza's toon light (softLook.ts; the gong islands). */
@@ -1117,6 +1119,7 @@ class Plaza {
   readonly #waterField: THREE.Texture | null;
   /** A following camera's limits (a map with `followFrame`); the plaza's own when it is undefined. */
   #limits: FramingLimits | undefined;
+  #pinnedCamera = false;
   /** The cross pond's raft (pond_cross: RAFT), turned by the rules' turntable angle each frame; null elsewhere. */
   readonly #raft: THREE.Object3D | null;
   readonly #banner: HTMLDivElement;
@@ -1196,9 +1199,28 @@ class Plaza {
     },
   ) {
     this.#waterField = floor.water;
-    if (manifest.fixedFrame !== undefined)
+    // `?frame=hq` (a developer's check): the camera pinned to the HQ frame the map was built from, nothing following; `&fu=&fv=&fz=` nudge it
+    const pinned =
+      manifest.hqFrame !== undefined &&
+      new URLSearchParams(globalThis.location?.search ?? '').get('frame') === 'hq';
+    if (pinned && manifest.hqFrame !== undefined) {
+      const q = new URLSearchParams(globalThis.location.search);
+      const num = (k: string, d: number): number =>
+        Number.isFinite(Number(q.get(k) ?? NaN)) ? Number(q.get(k)) : d;
+      const f = {
+        zoom: num('fz', manifest.hqFrame.zoom),
+        u: num('fu', manifest.hqFrame.u),
+        v: num('fv', manifest.hqFrame.v),
+      };
+      this.#camera = { frame: f, velocity: { zoom: 0, u: 0, v: 0 } };
+      this.#pinnedCamera = true;
+    } else if (manifest.fixedFrame !== undefined)
       this.#camera = { frame: manifest.fixedFrame, velocity: { zoom: 0, u: 0, v: 0 } };
-    if (manifest.followFrame !== undefined && manifest.fixedFrame !== undefined)
+    if (
+      manifest.followFrame !== undefined &&
+      manifest.fixedFrame !== undefined &&
+      !this.#pinnedCamera
+    )
       this.#limits = {
         minZoom: manifest.followFrame.minZoom,
         maxZoom: manifest.followFrame.maxZoom,

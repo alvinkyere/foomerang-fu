@@ -51,13 +51,18 @@
     }
   },
   "fixedFrame": {
-    "zoom": 0.9326,
+    "zoom": 0.9,
     "u": 0,
     "v": 0
   },
+  "hqFrame": {
+    "zoom": 0.9,
+    "u": 0.0174,
+    "v": 0.0274
+  },
   "followFrame": {
-    "minZoom": 0.9326,
-    "maxZoom": 1.2124
+    "minZoom": 0.9,
+    "maxZoom": 1.17
   },
   "water": {
     "base": "#7aa8bb",

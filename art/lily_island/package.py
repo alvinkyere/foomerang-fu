@@ -36,10 +36,13 @@ manifest = {
     'look': dict(gong['look'], sky=[{'at': 0.0, 'colour': HQ.flat('#7aa8bb')}, {'at': 1.0, 'colour': HQ.flat('#7aa8bb')}]),
     # the pond's own water (4:27: base, the glow along an edge, the foam streaks), driven by the fountain's animation
     # the HQ's camera on this map does not follow: the whole pond in one frame, at the zoom the frame was measured at
-    'fixedFrame': {'zoom': round(SC['hqZoom'] / SC['scale'], 4), 'u': 0, 'v': 0},
+    # (the game's camera needs gameZoomFit x the zoom the frame was read at to show the island as big as the HQ does: measured with
+    # hqcompare.py / the grass masks, 2026-10-30)
+    'fixedFrame': {'zoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'u': 0, 'v': 0},
     # ...but, as the HQ's camera on this map does (10:37-10:44: it closes in as the players come together), it follows them, from the
     # whole island to 1.3 times closer (the plaza's own closest)
-    'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * 1.3, 4)},
+    'hqFrame': {'zoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'u': 0.0174, 'v': 0.0274},       # (calibrated against the HQ frame: art/lily_island/hqcompare.py)
+    'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'] * 1.3, 4)},
     # and its foam as measured (44 ribbons: 0.32 wide, within ~1 unit of the bank, 1.4-11 long, 4.6% of the water): one wide ribbon
     # at a time drifting off each edge, broken into long pieces (the field's noise, below)
     'water': {'base': HQ.flat('#7aa8bb'), 'light': HQ.flat('#9ac3d3'), 'foam': HQ.flat('#c2e8f4'), 'glowWidth': 0.9, 'foamSpacing': 1.0,
