@@ -87,3 +87,8 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   between them); the left tree's trunk is too short/thin and the HQ lumps are bigger and overlapping. The mask fit only matches centre+area, not each lump: next, fit each
   lump separately (split the mask into components) and lower the right tree. Pixel difference is still ~40%: it is spread over the whole frame (boulder shading,
   canopy mottling, shafts, foam), so there is no single fix to bring it to 10%.
+- (2026-10-31) Where the ~40% of differing pixels sits (HQ-class masks, `hqcompare` shot): water 47% of it (HQ water covers half the frame, a third differs), grass 18%, stones 15%,
+  trees 8%. In the water the gap is the shafts: HQ's top-centre water is +60 in G over plain water, ours ~+10 (cells.py-style grid of mean G difference). A stronger CSS
+  overlay (one broad band, alpha 0.6, shifted -8% to line up) fixed the top-centre cells but made the whole-frame figure WORSE (46.6% vs 40.1%) because an overlay also tints
+  grass, rocks and trees, which the HQ's shafts barely touch. Reverted. The fix is shafts drawn ONLY on the water (in the water shader: add the band as a
+  brightness term on the water sheet, so land is untouched), then the same grid to tune it.
