@@ -225,23 +225,57 @@ def inside(pt, poly):
     return c
 
 
-UNDER_STONES = [[tuple(p) for p in offset_poly([tuple(q) for q in blk['top']], 0.4)] for blk in S]      # (the kerb runs under a stone, never over it)
-for k, poly in enumerate(G['polygons']):
+def cross_sign(e1, e2, sgn):
+    return (e1[0] * e2[1] - e1[1] * e2[0]) * sgn
+
+
+def kerb_ring(name, poly, top_mat, side_mat):
+    """One continuous kerb round the island (the HQ's is a single soft slab, not pieces): the outline is the wall's outer foot; the wall comes
+    in by a width that is thick where its outer face looks at the camera and thin on the back edges; the profile rounds from the foot up
+    over a soft shoulder to the flat top and down into the grass. Corners are mitred, the shading smooth round them."""
     n = len(poly)
     area = sum(poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1] for i in range(n))
-    sgn = 1.0 if area > 0 else -1.0                                   # (counter-clockwise: the inside is to the left)
+    sgn = 1.0 if area > 0 else -1.0
+    inward, widths, hts = [], [], []
     for i in range(n):
-        (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
-        length = math.hypot(x1 - x0, y1 - y0)
-        if length < 0.6: continue
-        if any(inside(((x0 + x1) / 2, (y0 + y1) / 2), u) or inside((x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25), u) or inside((x0 + (x1 - x0) * 0.75, y0 + (y1 - y0) * 0.75), u) for u in UNDER_STONES): continue
-        ux, uy = (x1 - x0) / length, (y1 - y0) / length
-        nx, ny = -uy * sgn, ux * sgn                                  # inward
-        f = (1.0 + ny) / 2.0                   # (1: the wall's outer face looks at the camera (south), 0: it faces away: the HQ's front kerb is thick, its back one a soft glow)
-        kw, kh = 0.4 + 0.7 * f, 0.25 + 0.45 * f
-        mx, my = (x0 + x1) / 2 + nx * kw * 0.5, (y0 + y1) / 2 + ny * kw * 0.5
-        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + kw * 0.6, kw, math.degrees(math.atan2(uy, ux)), 0.3), kh, KERB_TOP, KERB_SIDE,
-             top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
+        (x0, y0), (x1, y1), (x2, y2) = poly[i - 1], poly[i], poly[(i + 1) % n]
+        e1 = (x1 - x0, y1 - y0); e2 = (x2 - x1, y2 - y1)
+        l1 = math.hypot(*e1) or 1; l2 = math.hypot(*e2) or 1
+        n1 = (-e1[1] / l1 * sgn, e1[0] / l1 * sgn); n2 = (-e2[1] / l2 * sgn, e2[0] / l2 * sgn)
+        bx, by = n1[0] + n2[0], n1[1] + n2[1]; bl = math.hypot(bx, by) or 1; bx, by = bx / bl, by / bl
+        cosh = bx * n1[0] + by * n1[1]
+        miter = min(1.0 / max(0.45, cosh), 1.45)
+        if cross_sign(e1, e2, sgn) < 0: miter = min(miter, 1.0)      # (a reflex corner: the inner edge would fold over: keep it plain)
+        f = (1.0 + (n1[1] + n2[1]) / 2.0) / 2.0                      # (1: the outer face looks at the camera)
+        kw, kh = 0.8 + 1.0 * f, 0.35 + 0.5 * f
+        inward.append((bx * miter, by * miter)); widths.append(kw); hts.append(kh)
+    # profile: (fraction of the width inward, height as a fraction of kh), outer foot to the grass; z is relative to the grass (0)
+    prof = [(0.0, None), (0.0, 0.62), (0.08, 0.9), (0.2, 1.0), (0.72, 1.0), (0.9, 0.8), (1.0, 0.0)]
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    rows = []
+    for fr, hz in prof:
+        row = []
+        for i in range(n):
+            x, y = poly[i]; dx, dy = inward[i]
+            z = (WATER_Z - DEPTH) if hz is None else hts[i] * hz
+            row.append(bm.verts.new((x + dx * widths[i] * fr, y + dy * widths[i] * fr, z)))
+        rows.append(row)
+    for r in range(len(prof) - 1):
+        top = prof[r + 1][1] is not None and prof[r][1] is not None and prof[r][1] >= 0.8 and prof[r + 1][1] >= 0.0 and r >= 2
+        for i in range(n):
+            j = (i + 1) % n
+            f = bm.faces.new([rows[r][i], rows[r][j], rows[r + 1][j], rows[r + 1][i]])
+            f.smooth = True; f.material_index = 1 if r >= 2 else 0
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if sum(f.normal.z for f in bm.faces if f.material_index == 1) < 0: bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    me.materials.append(side_mat); me.materials.append(top_mat)
+    return o
+
+
+for k, poly in enumerate(G['polygons']):
+    kerb_ring(f'KERB_{k}', [tuple(p) for p in poly], KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
@@ -396,7 +430,7 @@ for k, t in enumerate(L['trees']):
         if on_land: flat(f'SHADOW_{k}_{j}', [(pts, SHADOW_GRASS, 0)], z=0.03)      # (the HQ's water shows none under its trees)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
-    a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.3, 0.46), rng.uniform(0.17, 0.26)      # (the HQ's leaves are plump ovals, ~14 x 8 px)
+    a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.22, 0.34), rng.uniform(0.12, 0.19)      # (the HQ's leaves are plump ovals, ~14 x 8 px)
     pts = [(x + math.cos(i * math.pi / 5) * w * math.cos(a0) - math.sin(i * math.pi / 5) * h * math.sin(a0),
             y + math.cos(i * math.pi / 5) * w * math.sin(a0) + math.sin(i * math.pi / 5) * h * math.cos(a0)) for i in range(10)]
     flat(f'PETAL_{k}', [(pts, '#d95a38', 0)], z=0.06)

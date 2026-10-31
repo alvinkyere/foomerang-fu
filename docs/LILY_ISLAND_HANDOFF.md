@@ -96,3 +96,10 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   `.arena-shafts` CSS are gone. Mean green of the top water cells now matches the HQ (difference 0 +-12 instead of -50). The whole-frame >12-level figure did NOT
   move (41%): it is set by high-frequency differences (foam outlines, stone/kerb edges, canopy texture, grass patches), not by smooth brightness. `cells.py`-style
   grids of mean difference are blind to those; use per-object masks of the difference image for them.
+- (2026-10-31, owner: "look at the edges of the island") Zoomed crops of the island's edge vs the HQ show: (1) the HQ kerb is ONE soft slab, ~2x thicker than ours was, with
+  a rounded outer face and a green-teal glow bleeding from the grass into its top; ours was a chain of separate pieces with ridges -> now `kerb_ring()` in build.py
+  (one continuous mitred ring, per-vertex width 0.8-1.8 / height 0.35-0.85 by how much the outer face looks at the camera, a rounded profile). (2) At each corner the HQ has a
+  distinct rounded block standing out of the kerb: NOT built. (3) The HQ's foam is thick rough hand-drawn strokes (several, wrapping each corner, ~0.2 wide, ragged);
+  ours are smooth thin lines: widths raised to 0.15/0.11 and wobble 0.12, still too smooth. (4) the fallen leaves were too big (reduced). The edge-map overlay
+  (Canny of both, dilated 5 px) gives ~45% of HQ edge pixels matched by ours: use it as the measure for edge work (script in the session log: edges of `hqcompare` shots).
+  `hqcompare.py`'s grass-IoU scale search now reads 1.04 because the thicker kerb hides grass: do NOT re-tune `gameZoomFit` from it.
