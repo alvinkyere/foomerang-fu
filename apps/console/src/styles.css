@@ -333,21 +333,3 @@ button:focus-visible {
 .fs-toggle:focus-visible {
   opacity: 1;
 }
-
-/* the lily island's light shafts: soft slanting bands, strongest at the top right and fading towards the lower left */
-.arena-shafts {
-  position: fixed;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  /* (no bottom shade: the HQ's water and grass measure the same from top to bottom, 2026-10-30) */
-  background: repeating-linear-gradient(
-    136deg,
-    rgb(125 235 225 / 0) 0,
-    rgb(125 235 225 / 0.2) 5vw,
-    rgb(125 235 225 / 0.17) 9vw,
-    rgb(125 235 225 / 0.05) 14vw,
-    rgb(125 235 225 / 0) 18vw
-  );
-  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 40%, transparent 85%);
-}

@@ -178,8 +178,6 @@ export function ArenaScreen({
         </FocusScope>
         {/* (no score strip over the match, owner 2026-10-30: the scoreboard shows between rounds) */}
         <div ref={containerRef} className="arena" data-testid="arena" />
-        {/* the lily island's light shafts (the HQ, 10:37): slanting bands of light across the upper right, over everything on the map */}
-        {arena === 'lily_island' && <div className="arena-shafts" aria-hidden="true" />}
         {hud?.phase !== 'SCOREBOARD' && hud?.phase !== 'MATCH_OVER' && (
           <ScoreToasts toasts={toasts} />
         )}

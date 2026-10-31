@@ -43,6 +43,17 @@ export type WaterStyle = {
   readonly raft?: { readonly halfArm: number; readonly halfWidth: number };
   /** If present, the water is drawn as a cartoon (its ribbons), not by the fountain's smooth lines. */
   readonly cartoon?: CartoonWater;
+  /**
+   * Light shafts falling through the water (the lily island, the HQ 10:37): slanting bands that only brighten the WATER (an overlay on the
+   * page tinted the land too). The band's coordinate runs across the screen at `angle` degrees (CSS convention) from 0 to 1; `stops` are
+   * [position, strength] pairs (linear between them); `fade` the screen heights (0 top, 1 bottom) where they are full and gone.
+   */
+  readonly shafts?: {
+    readonly angle: number;
+    readonly stops: readonly (readonly [number, number])[];
+    readonly tint: string;
+    readonly fade: readonly [number, number];
+  };
 } & Partial<WaterShape>;
 
 /**
@@ -64,7 +75,9 @@ export function waterMaterial(
   const rgb = (c: string) =>
     new THREE.Vector3(...[1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255));
   const fragment =
-    style.cartoon === undefined ? fountainFragment(glsl, far) : cartoonFragment(style.cartoon, far);
+    style.cartoon === undefined
+      ? fountainFragment(glsl, far)
+      : cartoonFragment(style.cartoon, far, style.shafts);
   return new THREE.ShaderMaterial({
     uniforms: {
       field: { value: field },
@@ -77,14 +90,39 @@ export function waterMaterial(
       light: { value: rgb(colours.light) },
       foam: { value: rgb(colours.foam) },
     },
-    vertexShader: `varying vec2 at;
+    vertexShader: `varying vec2 at; varying vec2 ndc;
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
   at = w.xz;
   gl_Position = projectionMatrix * viewMatrix * w;
+  ndc = gl_Position.xy / gl_Position.w;
 }`,
     fragmentShader: fragment,
   });
+}
+
+/** GLSL adding a map's light shafts to `col` (waterShader `shafts`), from the fragment's place on the canvas (`ndc`). */
+function shaftsGlsl(sh: NonNullable<WaterStyle['shafts']>): string {
+  const a = (sh.angle * Math.PI) / 180;
+  const stops = sh.stops;
+  let prof = '0.0';
+  for (let i = stops.length - 1; i > 0; i -= 1) {
+    const [t0, v0] = stops[i - 1] as readonly [number, number];
+    const [t1, v1] = stops[i] as readonly [number, number];
+    prof = `(t < ${FLOAT(t1)} ? mix(${FLOAT(v0)}, ${FLOAT(v1)}, clamp((t - ${FLOAT(t0)}) / ${FLOAT(t1 - t0)}, 0.0, 1.0)) : ${prof})`;
+  }
+  const first = (stops[0] as readonly [number, number])[0];
+  const tint = [1, 3, 5]
+    .map((i) => (parseInt(sh.tint.slice(i, i + 2), 16) / 255).toFixed(4))
+    .join(', ');
+  return `  {
+    vec2 px = vec2((ndc.x + 1.0) * 0.5 * 1920.0, (1.0 - ndc.y) * 0.5 * 1080.0);
+    float t = ((px.x - 960.0) * ${FLOAT(Math.sin(a))} + (px.y - 540.0) * ${FLOAT(-Math.cos(a))}) / ${FLOAT(1920 * Math.abs(Math.sin(a)) + 1080 * Math.abs(Math.cos(a)))} + 0.5;
+    float strength = t < ${FLOAT(first)} ? 0.0 : ${prof};
+    float down = 1.0 - smoothstep(${FLOAT(sh.fade[0])}, ${FLOAT(sh.fade[1])}, (1.0 - ndc.y) * 0.5);
+    col = mix(col, vec3(${tint}), strength * down);
+  }
+`;
 }
 
 const FLOAT = (x: number) => x.toFixed(4);
@@ -92,7 +130,7 @@ const FLOAT = (x: number) => x.toFixed(4);
 /** The fountain's water: glow along an edge, thin lines drifting off it, broken by the field's noise. */
 function fountainFragment(glsl: string, far: number): string {
   return `uniform sampler2D field; uniform vec3 box; uniform float time; uniform vec3 base, light, foam; uniform vec4 raftAt; uniform vec2 raftHalf;
-varying vec2 at;
+varying vec2 at; varying vec2 ndc;
 float boxDistance(vec2 p, vec2 size) {
   vec2 a = abs(p) - size;
   return length(max(a, 0.0)) + min(max(a.x, a.y), 0.0);
@@ -120,7 +158,7 @@ void main() {
  * falls away); its outline is pushed in and out by the fine noise, which is looked up somewhere new every 1/fps second: the outline
  * is re-drawn in steps, as the HQ's is, while the ribbons themselves drift slowly along the edge.
  */
-function cartoonFragment(c: CartoonWater, far: number): string {
+function cartoonFragment(c: CartoonWater, far: number, shafts?: WaterStyle['shafts']): string {
   const ribbons = c.ribbons
     .map((r, i) => {
       const k = i + 1;
@@ -139,7 +177,7 @@ function cartoonFragment(c: CartoonWater, far: number): string {
     .join('\n');
   const raft = c.raftFoam ?? { width: 1, presenceShift: 0 };
   return `uniform sampler2D field; uniform vec3 box; uniform float time; uniform vec3 base, light, foam; uniform vec4 raftAt; uniform vec2 raftHalf;
-varying vec2 at;
+varying vec2 at; varying vec2 ndc;
 float boxDistance(vec2 p, vec2 size) {
   vec2 a = abs(p) - size;
   return length(max(a, 0.0)) + min(max(a.x, a.y), 0.0);
@@ -173,6 +211,6 @@ void main() {
   }
   float glow = 1.0 - smoothstep(0.0, ${FLOAT(c.glow)}, dBank);
   vec3 col = mix(base, light, glow * 0.85);
-  gl_FragColor = vec4(mix(col, foam, foamAmount), 1.0);
+${shafts === undefined ? '' : shaftsGlsl(shafts)}  gl_FragColor = vec4(mix(col, foam, foamAmount), 1.0);
 }`;
 }

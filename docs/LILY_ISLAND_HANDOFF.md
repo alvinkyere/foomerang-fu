@@ -92,3 +92,7 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   overlay (one broad band, alpha 0.6, shifted -8% to line up) fixed the top-centre cells but made the whole-frame figure WORSE (46.6% vs 40.1%) because an overlay also tints
   grass, rocks and trees, which the HQ's shafts barely touch. Reverted. The fix is shafts drawn ONLY on the water (in the water shader: add the band as a
   brightness term on the water sheet, so land is untouched), then the same grid to tune it.
+- (2026-10-31) Shafts moved into the water shader (waterShader.ts `shafts`, manifest water.shafts: angle 136.5, stops scaled x1.5, fade 0.28-0.72); the page overlay and
+  `.arena-shafts` CSS are gone. Mean green of the top water cells now matches the HQ (difference 0 +-12 instead of -50). The whole-frame >12-level figure did NOT
+  move (41%): it is set by high-frequency differences (foam outlines, stone/kerb edges, canopy texture, grass patches), not by smooth brightness. `cells.py`-style
+  grids of mean difference are blind to those; use per-object masks of the difference image for them.
