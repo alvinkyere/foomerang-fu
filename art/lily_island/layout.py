@@ -136,7 +136,7 @@ for t in TREE_PX:
 # fallen leaves: small red ovals lying on the grass by each tree's foot (pixel clusters of the frame)
 rng = np.random.default_rng(5)
 petals = []
-for (cx0, cy0, sx, sy, n) in ((440, 545, 80, 55, 34), (1375, 300, 60, 18, 14)):
+for (cx0, cy0, sx, sy, n) in ((440, 548, 90, 60, 46), (1375, 300, 70, 20, 18)):
     for _ in range(n):
         petals.append(_foot(float(cx0 + rng.normal(0, sx / 2)), float(cy0 + rng.normal(0, sy / 2))))
 out = dict(zoom=Z, trees=trees, petals=petals, tufts=at(PX['tufts']), banks=[r1(b) for b in banks], crates=at(PX['crates']), bamboo=at(PX['bamboo']), pads=at(PX['pads']))

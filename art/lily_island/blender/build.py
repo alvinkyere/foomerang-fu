@@ -389,7 +389,7 @@ for k, t in enumerate(L['trees']):
         if on_land: flat(f'SHADOW_{k}_{j}', [(pts, SHADOW_GRASS, 0)], z=0.03)      # (the HQ's water shows none under its trees)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
-    a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)
+    a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.3, 0.46), rng.uniform(0.17, 0.26)      # (the HQ's leaves are plump ovals, ~14 x 8 px)
     pts = [(x + math.cos(i * math.pi / 5) * w * math.cos(a0) - math.sin(i * math.pi / 5) * h * math.sin(a0),
             y + math.cos(i * math.pi / 5) * w * math.sin(a0) + math.sin(i * math.pi / 5) * h * math.cos(a0)) for i in range(10)]
     flat(f'PETAL_{k}', [(pts, '#d95a38', 0)], z=0.06)
