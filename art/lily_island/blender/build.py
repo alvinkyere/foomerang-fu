@@ -338,7 +338,7 @@ def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
     return o
 
 
-def trunk(name, foot, top, height, r0, r1):
+def trunk(name, foot, top, height, r0, r1, bend=0.0):
     """A slim leaning trunk, white birch with dark patches: a tapered tube from the foot (on the ground) to the top (`height` up)."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     rings, seg = 9, 8
@@ -347,7 +347,7 @@ def trunk(name, foot, top, height, r0, r1):
     side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0)); up = axis.cross(side).normalized()
     grid = []
     for i in range(rings):
-        t = i / (rings - 1); centre = a + (b - a) * t; r = r0 + (r1 - r0) * t
+        t = i / (rings - 1); centre = a + (b - a) * t + side * (bend * math.sin(math.pi * t) * (1 if t < 0.5 else 1)); r = r0 + (r1 - r0) * t
         grid.append([bm.verts.new(centre + (side * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * r) for k in range(seg)])
     for i in range(rings - 1):
         dark = (i % 3 == 1)
@@ -365,7 +365,7 @@ def trunk(name, foot, top, height, r0, r1):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7, bend=1.4 if k == 0 else -1.2)
     for j, lump in enumerate(t['lumps']):
         r = lump['r']
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', r)
@@ -375,6 +375,16 @@ for k, t in enumerate(L['trees']):
             pr = rng.uniform(0.3, 0.42)
             blob(f'TREE_{k}_{j}_p{m}', (cx + math.cos(a) * r * d, cy + math.sin(a) * ry * d, cz + rng.uniform(-0.1, 0.25) * r),
                  (r * pr, ry * pr, r * pr * 0.9), TREE, TREE_LOW, sub=3, bumps=0.05)
+# cast shadows of the canopies (the HQ bakes them as dark flat shapes): each lump's footprint shifted along the light (east 0.10, north 0.44 per
+# unit of height, the game's sun), dark green on the grass and dark teal on the water
+SHADOW_GRASS, SHADOW_WATER = '#9fcf8c', '#5b8a9f'
+for k, t in enumerate(L['trees']):
+    for j, lump in enumerate(t['lumps']):
+        zc = lump['z']; cx, cy = lump['at'][0] + 0.10 * zc, lump['at'][1] + 0.44 * zc
+        r, ry = lump['r'] * 1.05, lump.get('ry', lump['r']) * 1.05
+        pts = [(cx + math.cos(i * math.pi / 12) * r, cy + math.sin(i * math.pi / 12) * ry) for i in range(24)]
+        on_land = any(inside((cx, cy), [tuple(q) for q in poly]) for poly in G['polygons'])
+        if on_land: flat(f'SHADOW_{k}_{j}', [(pts, SHADOW_GRASS, 0)], z=0.03)      # (the HQ's water shows none under its trees)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
     a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)
