@@ -373,7 +373,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.55, 0.45, bend=0.5 if k == 0 else -0.4)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
