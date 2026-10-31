@@ -214,7 +214,7 @@ def lit_flat(name, polys, material, z):
 RIM_GRASS = lit('island_rim', HQ.lit('#e9f69d', 0.98))
 SHADE_GRASS = lit('island_shade', HQ.lit('#cfe991', 0.98))
 PALE_GRASS = lit('island_pale', HQ.lit('#e9f69d', 0.98))
-LIME_GRASS = lit('island_lime', HQ.lit('#e2f28e', 0.98))
+LIME_GRASS = lit('island_lime', HQ.lit('#dcf296', 0.98))
 # the kerb: the lavender stone wall that runs round the island (the HQ's, ~1 unit thick, its top rounded), a run of straight pieces laid
 # along the outline, each drawn in half a unit
 KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#a5b3eb', 0.98)), lit('island_kerb_side', HQ.lit('#7e8fd4', 0.875))
@@ -439,7 +439,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
-TREE, TREE_LOW = '#e5714f', '#b94d33'
+TREE, TREE_LOW = '#e78270', '#bd5a44'
 for k, t in enumerate(L['trees']):
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
