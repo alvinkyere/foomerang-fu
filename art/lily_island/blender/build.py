@@ -318,7 +318,7 @@ for k, (x, y) in enumerate(L['bamboo']):
     obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
-def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
+def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
     """A soft lump (an ico-sphere stretched, its edge wavy like the HQ's leaf masses): lighter on top, darker underneath."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     bmesh.ops.create_icosphere(bm, subdivisions=sub, radius=1.0)
@@ -326,7 +326,7 @@ def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
     for v in bm.verts:
         n = v.co.copy()
         ang = math.atan2(n.y, n.x)
-        wave = 1 + bumps * (math.sin(13 * ang + phase[0]) * 0.6 + math.sin(21 * ang + phase[1]) * 0.4)   # (a scalloped rim)
+        wave = 1 + bumps * (math.sin(17 * ang + phase[0]) * 0.5 + math.sin(29 * ang + phase[1]) * 0.35 + math.sin(41 * ang + phase[2]) * 0.3) * (0.4 + 0.6 * max(0.0, 1 - abs(n.z)))      # (a feathery rim, strongest round the equator)   # (a scalloped rim)
         v.co = Vector((c[0] + n.x * radii[0] * wave, c[1] + n.y * radii[1] * wave, c[2] + n.z * radii[2]))
     # the HQ's canopies are mottled soft discs: a darker heart (rings), a lighter rim, softly blended (colour per vertex, no facets)
     hi, lo = Vector(lin(HQ.flat(hex_))[:3]), Vector(lin(HQ.flat(hex_low))[:3])
@@ -338,7 +338,8 @@ def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
             d = math.hypot(v.x - c[0], v.y - c[1]) / max(radii[0], 1e-6)
             ring = 0.5 + 0.5 * math.sin(d * 9.0 + ph)                      # (soft rings from the middle)
             up = max(0.0, min(1.0, (v.z - (c[2] - radii[2])) / (2 * radii[2])))
-            k = 0.85 * max(0.0, 1 - d) ** 1.3 + 0.22 * ring + (0.0 if up > 0.4 else 0.5)    # (darker towards the heart and underneath)
+            mott = 0.14 * math.sin(7.3 * v.x + 3 * v.y + ph) * math.sin(6.1 * v.y - 2 * v.x + ph * 1.7)      # (soft mottling)
+            k = 0.85 * max(0.0, 1 - d) ** 1.3 + 0.22 * ring + mott + (0.0 if up > 0.4 else 0.5)    # (darker towards the heart and underneath)
             col_ = hi.lerp(lo, max(0.0, min(1.0, k)))
             loop[col] = (col_.x, col_.y, col_.z, 1.0)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
