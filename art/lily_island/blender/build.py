@@ -78,6 +78,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#7d96e0', '#5a74c4'),
                  ('#98a4e6', '#6f80cf'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
+CUBE_LIKE = {0, 3, 5, 7}
 BLOCK_TAPER = {3: 1.0, 4: 1.0}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
@@ -280,7 +281,12 @@ for k, b in enumerate(S):
         body(f'STONE_{k}_0', pts, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER,
              bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.93))
     else:
-        pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
+        if k in CUBE_LIKE:
+            # the HQ's boulders are soft cubes: the footprint's own rectangle with generous rounded corners, not a many-sided hull
+            cx_, cy_, rw_, rh_, ang_ = b['rect']
+            pts = rounded_rect(cx_, cy_, rw_ + 2 * GROW, rh_ + 2 * GROW, -ang_, 0.9)
+        else:
+            pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
 
 # ---------------------------------------------------------------------------------------------------------------- island life
