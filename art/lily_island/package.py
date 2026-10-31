@@ -56,7 +56,7 @@ manifest = {
               # thinner and farther out
               'cartoon': {'fps': 0.17, 'wobble': 0.06, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.3, 0.55], 'motion': 0.5, 'glow': 0.55,
                           # the HQ draws three thin pale outlines round every edge (10:37, the SE kerb), nearly continuous
-                          'ribbons': [{'centre': 0.5, 'width': 0.12, 'sway': 0.02}, {'centre': 1.1, 'width': 0.09, 'sway': 0.02}]},
+                          'ribbons': [{'centre': 0.55, 'width': 0.09, 'sway': 0.02}, {'centre': 1.05, 'width': 0.07, 'sway': 0.02}]},
               },
     'characters': gong['characters'],
     'provenance': 'art/lily_island (layout.py, arena.py, blender/build.py, package.py) from foomerang-fu physics hq.mp4 10:37',

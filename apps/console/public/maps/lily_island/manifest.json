@@ -83,13 +83,13 @@
       "glow": 0.55,
       "ribbons": [
         {
-          "centre": 0.5,
-          "width": 0.12,
+          "centre": 0.55,
+          "width": 0.09,
           "sway": 0.02
         },
         {
-          "centre": 1.1,
-          "width": 0.09,
+          "centre": 1.05,
+          "width": 0.07,
           "sway": 0.02
         }
       ]
