@@ -247,7 +247,7 @@ def kerb_ring(name, poly, top_mat, side_mat):
         miter = min(1.0 / max(0.45, cosh), 1.45)
         if cross_sign(e1, e2, sgn) < 0: miter = min(miter, 1.0)      # (a reflex corner: the inner edge would fold over: keep it plain)
         f = (1.0 + (n1[1] + n2[1]) / 2.0) / 2.0                      # (1: the outer face looks at the camera)
-        kw, kh = 0.8 + 1.0 * f, 0.35 + 0.5 * f
+        kw, kh = 0.12 + 1.68 * f * f, 0.08 + 0.77 * f * f      # (the back edges have next to no wall: the HQ's island is not encased all round)
         inward.append((bx * miter, by * miter)); widths.append(kw); hts.append(kh)
     # profile: (fraction of the width inward, height as a fraction of kh), outer foot to the grass; z is relative to the grass (0)
     prof = [(0.0, None), (0.0, 0.62), (0.08, 0.9), (0.2, 1.0), (0.72, 1.0), (0.9, 0.8), (1.0, 0.0)]
@@ -299,6 +299,18 @@ def tuft(name, x, y, rot):
 for k, (x, y) in enumerate(L['tufts']):
     tuft(f'TUFT_{k}', x, y, rng.uniform(-0.5, 0.5))
 
+# ---------------------------------------------------------------------------------------------------------------- levers
+# the lever set into the side of the NE and SW slabs (the HQ): a rounded tan housing, a short pink stem, a cyan ball for a knob
+for k, lv in enumerate(L['levers']):
+    hx, hy = lv['housing']; kx, ky = lv['knob']; z = lv['z']
+    ang = math.atan2(ky - hy, kx - hx); ln = math.hypot(kx - hx, ky - hy)
+    body(f'LEVER_{k}_housing', rounded_rect(hx, hy, 1.2, 0.8, math.degrees(ang), 0.3), z + 0.85, lit(f'lever_h{k}', HQ.lit('#f0dfa8', 0.98)), lit(f'lever_hs{k}', HQ.lit('#d8c48a', 0.875)),
+         top_r=0.12, bottom=z - 0.3, soft=True, top_seg=3)
+    body(f'LEVER_{k}_stem', rounded_rect((hx + kx) / 2, (hy + ky) / 2, ln, 0.2, math.degrees(ang), 0.1), z + 0.75, lit(f'lever_s{k}', HQ.lit('#e9b8c4', 0.98)), lit(f'lever_ss{k}', HQ.lit('#c898a6', 0.875)),
+         top_r=0.06, bottom=z + 0.45, soft=True, top_seg=2)
+    knob = bpy.ops.mesh.primitive_uv_sphere_add(radius=0.34, location=(kx, ky, z + 0.62), segments=24, ring_count=12)
+    ko = bpy.context.active_object; ko.name = f'LEVER_{k}_knob'
+    ko.data.materials.append(lit(f'lever_k{k}', HQ.lit('#5fd6f6', 0.98))); bpy.ops.object.shade_smooth()
 # ---------------------------------------------------------------------------------------------------------------- stones
 # The HQ's stones are soft: slabs with rounded ends and a rolled top edge, boulders with organic outlines, light running smoothly
 # over every round, no creases. Each footprint is the HQ's flat top grown by GROW (the roll takes it back), its sides rounded by

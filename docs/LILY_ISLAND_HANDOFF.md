@@ -103,3 +103,7 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   ours are smooth thin lines: widths raised to 0.15/0.11 and wobble 0.12, still too smooth. (4) the fallen leaves were too big (reduced). The edge-map overlay
   (Canny of both, dilated 5 px) gives ~45% of HQ edge pixels matched by ours: use it as the measure for edge work (script in the session log: edges of `hqcompare` shots).
   `hqcompare.py`'s grass-IoU scale search now reads 1.04 because the thicker kerb hides grass: do NOT re-tune `gameZoomFit` from it.
+- (2026-10-31, owner: "no encompassing like ours; no levers on the NE and SW stones") Levers added (layout.py `levers`, build.py LEVER_*): a tan rounded housing hugging the slab's
+  side on the grass, a pink stem, a cyan ball knob (positions read off the HQ frame, unprojected at z 0.3). The kerb is now almost absent on the back (away-facing) edges
+  (width 0.12 + 1.68 f^2): the HQ's island is not walled all round. The wall is still too continuous on the left/right ends; the HQ has the rounded corner blocks and a
+  glow there instead.

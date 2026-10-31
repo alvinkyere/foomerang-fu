@@ -98,6 +98,7 @@ PX = dict(
     bamboo=[(762, 215), (845, 245), (880, 225), (913, 232), (1050, 752), (1102, 742), (870, 985), (925, 965)],
     pads=[(640, 258), (497, 303), (50, 700), (1617, 580), (1280, 18)],
     trees=[(375, 440), (1435, 205)],
+    levers=[((620, 777), (650, 771), 0.3), ((1275, 245), (1247, 260), 0.3)],
     tufts=[(1112, 182), (602, 456), (562, 630), (832, 790), (1334, 622), (985, 842), (692, 508), (1024, 372), (1206, 330)],
 )
 at = lambda pts: r1(plan(pts))
@@ -146,7 +147,7 @@ petals = []
 for (cx0, cy0, sx, sy, n) in ((440, 548, 90, 60, 46), (1375, 300, 70, 20, 18)):
     for _ in range(n):
         petals.append(_foot(float(cx0 + rng.normal(0, sx / 2)), float(cy0 + rng.normal(0, sy / 2))))
-out = dict(zoom=Z, trees=trees, petals=petals, tufts=at(PX['tufts']), banks=[r1(b) for b in banks], crates=at(PX['crates']), bamboo=at(PX['bamboo']), pads=at(PX['pads']))
+out = dict(zoom=Z, trees=trees, petals=petals, levers=[dict(housing=unproject(a[0], a[1], z)[0], knob=unproject(b[0], b[1], z)[0], z=z) for a, b, z in PX['levers']], tufts=at(PX['tufts']), banks=[r1(b) for b in banks], crates=at(PX['crates']), bamboo=at(PX['bamboo']), pads=at(PX['pads']))
 json.dump(out, open('art/lily_island/layout.json', 'w'))
 allp = np.concatenate(banks)
 print('banks', [len(b) for b in banks], 'bounds', allp.min(0).round(1), allp.max(0).round(1))
