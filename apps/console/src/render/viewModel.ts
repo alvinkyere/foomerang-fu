@@ -96,6 +96,7 @@ export interface ViewEvent {
     | 'SLASHED'
     | 'DEFLECTED'
     | 'DASHED'
+    | 'LEVER'
     | 'FATIGUED'
     | 'RECOVERED'
     | 'SPAWNED'
@@ -265,6 +266,11 @@ export interface ArenaView {
   readonly systems: SystemsViewModel;
   /** Each turntable's angle now, radians clockwise on screen (the cross pond's raft; rules: turntableAngle). */
   readonly turntables?: readonly number[];
+  /** Each slider's place now (rules sliders.ts): how far along its run it is (0 home … 1 far end) and the run itself, world units. */
+  readonly sliders?: readonly {
+    readonly progress: number;
+    readonly by: { readonly x: number; readonly y: number };
+  }[];
   /** The ids of the arena's breakable props broken this round (none at a round's start). */
   readonly broken: readonly string[];
   readonly events: readonly ViewEvent[];

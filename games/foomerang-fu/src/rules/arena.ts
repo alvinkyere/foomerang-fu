@@ -1,5 +1,6 @@
 import type { Vec2 } from '@foomerang/game-core';
 import type { ArenaPortal } from './portals';
+import type { SliderSpec } from './sliders';
 import type { GateSpec, HazardSpec, PlatformSpec } from './systems';
 
 /**
@@ -78,6 +79,8 @@ export interface FuArena<W extends Solid = Solid> {
   readonly portals?: readonly ArenaPortal[];
   /** Turntables (the cross pond's raft): ground and walls that turn about a centre, carrying whoever stands on them. */
   readonly turntables?: readonly Turntable[];
+  /** Rocks that levers move (sliders.ts: the lily island's). Absent: none. */
+  readonly sliders?: readonly SliderSpec[];
 }
 
 /**

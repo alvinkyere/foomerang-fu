@@ -57,6 +57,7 @@ import {
   type DeathCause,
   type ScoreChange,
 } from './scoring';
+import { SLIDER_HOME, advanceSlider, sliderBox, toggleSlider, type SliderState } from './sliders';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import {
   awardPool,
@@ -99,6 +100,14 @@ export type FuInputs = ReadonlyMap<string, FuPlayerInput>;
 
 /** What happened this step, for presentation (sound, flashes, trails). Never read back by the rules. */
 export type FuEvent =
+  /** A lever was struck (sliders.ts): the rock `slider` is now going `dir` (1 far end, -1 home, 0 halted). */
+  | {
+      readonly type: 'LEVER';
+      readonly slider: number;
+      readonly lever: number;
+      readonly position: Vec2;
+      readonly dir: -1 | 0 | 1;
+    }
   | {
       readonly type: 'THROWN';
       readonly playerId: string;
@@ -734,9 +743,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const platforms = platformsOf(config.arena);
   const hazards = hazardsOf(config.arena);
   const gatesShut: boolean[] = [...state.gatesShut];
+  const sliderSpecs = config.arena.sliders ?? [];
+  let sliders: SliderState[] = sliderSpecs.map((_, k) => state.sliders?.[k] ?? SLIDER_HOME);
+  const sliderWalls = (): Solid[] =>
+    sliderSpecs.map((spec, k) => sliderBox(spec, (sliders[k] as SliderState).progress));
   let walls: readonly Solid[] = [
     ...solidNow(staticWalls, gates, gatesShut),
     ...turntableWalls(config.arena, state.roundTime),
+    ...sliderWalls(),
   ];
   // Breakables: solid to bodies while standing (as at the start of the step); boomerangs fly through them. Fences: solid to
   // bodies always; boomerangs fly over them
@@ -971,6 +985,49 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // Move in sub-steps no longer than the fixed step, separating living players after each, so that no
   // supported dt can carry one player through another or through a wall. (dt = the fixed step is exactly
   // one sub-step.)
+  // LEVERS (sliders.ts): a flying boomerang over a lever, or a slash's reach on it, works its rock: counted once, as the touch begins
+  const hotNow: boolean[] = [];
+  sliderSpecs.forEach((spec) => {
+    spec.levers.forEach((lever) => {
+      const at: Vec2 = { x: lever.x, y: lever.y };
+      const byBoomerang = startWeapons.some(
+        (w) =>
+          (w.state === 'THROWN' || w.state === 'RETURNING' || w.state === 'DEFLECTED') &&
+          distanceSquared(w.position, at) < (lever.radius + config.boomerangRadius) ** 2,
+      );
+      const bySlash = state.players.some(
+        (p) =>
+          p.alive &&
+          p.slash.phase === 'ACTIVE' &&
+          inSlashRegion(
+            (state.world.bodies.find((b) => b.id === p.id) ?? { position: at }).position,
+            p.slash.direction,
+            at,
+            config,
+          ),
+      );
+      hotNow.push(byBoomerang || bySlash);
+    });
+  });
+  {
+    let at = 0;
+    sliderSpecs.forEach((spec, k) => {
+      spec.levers.forEach((lever, j) => {
+        const was = state.leverHot?.[at] === true;
+        if (hotNow[at] === true && !was) {
+          sliders[k] = toggleSlider(sliders[k] as SliderState);
+          events.push({
+            type: 'LEVER',
+            slider: k,
+            lever: j,
+            position: { x: lever.x, y: lever.y },
+            dir: (sliders[k] as SliderState).dir,
+          });
+        }
+        at += 1;
+      });
+    });
+  }
   const solid = new Set(state.players.filter((p) => p.alive).map((p) => p.id));
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
   const h = dt / subSteps;
@@ -1000,7 +1057,14 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         if (!busy) gatesShut[k] = true;
       }
     });
-    walls = [...solidNow(staticWalls, gates, gatesShut), ...turntableWalls(config.arena, tEnd)];
+    sliders = sliders.map((st, k) =>
+      advanceSlider(sliderSpecs[k] as (typeof sliderSpecs)[number], st, h),
+    );
+    walls = [
+      ...solidNow(staticWalls, gates, gatesShut),
+      ...turntableWalls(config.arena, tEnd),
+      ...sliderWalls(),
+    ];
     bodyWalls = forBodies(walls);
     // Riders (standing on a platform at the start of the sub-step, not mid-dash) are carried with it.
     const rides = new Map<string, Vec2>();
@@ -2334,6 +2398,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       elapsed: state.elapsed + dt,
       roundTime: tFinal,
       gatesShut: Object.freeze(gatesShut),
+      ...(sliderSpecs.length === 0
+        ? {}
+        : { sliders: Object.freeze(sliders), leverHot: Object.freeze(hotNow) }),
       broken: brokenNow.length === state.broken.length ? state.broken : Object.freeze(brokenNow),
       world,
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.

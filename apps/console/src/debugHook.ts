@@ -1,4 +1,5 @@
 import type { ConsoleRuntime } from './consoleRuntime';
+import { toggleSlider, type FuState } from '@foomerang/foomerang-fu';
 import type { ArenaRenderer } from './render/renderer';
 import type { WallView } from './render/viewModel';
 
@@ -50,7 +51,7 @@ export interface DebugSnapshot {
 
 declare global {
   interface Window {
-    __FOOMERANG__?: { snapshot(): DebugSnapshot };
+    __FOOMERANG__?: { snapshot(): DebugSnapshot; hitLever?(slider: number): void };
   }
 }
 
@@ -59,6 +60,18 @@ export function installDebugHook(
   getRenderer: () => ArenaRenderer | undefined,
 ): void {
   window.__FOOMERANG__ = {
+    // (a developer's check of the lever-driven rock: the same toggle a boomerang or a slash on its lever makes)
+    hitLever(slider: number): void {
+      const lazy = runtime.director.runtime as unknown as {
+        debugPatch?: (c: (s: FuState) => FuState) => void;
+      };
+      lazy.debugPatch?.((state) => ({
+        ...state,
+        ...(state.sliders === undefined
+          ? {}
+          : { sliders: state.sliders.map((st, k) => (k === slider ? toggleSlider(st) : st)) }),
+      }));
+    },
     snapshot(): DebugSnapshot {
       const state = runtime.session.getState();
       const slots: Record<string, number> = {};

@@ -236,3 +236,12 @@ export {
   zoneOf,
 } from './battleRoyale';
 export { EXPLOSIVE_FUSE } from './explosive';
+export {
+  SLIDER_HOME,
+  advanceSlider,
+  sliderBox,
+  toggleSlider,
+  type LeverSpec,
+  type SliderSpec,
+  type SliderState,
+} from './sliders';

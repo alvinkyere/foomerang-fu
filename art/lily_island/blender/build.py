@@ -345,7 +345,7 @@ for k, b in enumerate(S):
     if b['kind'] == 'slab':
         # the HQ's slabs are fat rounded barrels with chamfered corners, not boxes: the traced outline, grown a little, its corners rounded
         pts = offset_poly([tuple(p) for p in b['clean']], GROW_SLAB)
-        body(f'STONE_{k}_0', pts, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER,
+        body(f'SLIDER_0' if k == 2 else f'STONE_{k}_0', pts, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER,
              bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.93))
     else:
         if k in CUBE_LIKE:

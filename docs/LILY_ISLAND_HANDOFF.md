@@ -120,3 +120,13 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
 - (2026-10-31) `fit_shafts.py` solves the shaft strengths bin by bin along the bands' normal from the HQ's water (fade 0.10-0.50, bands over t 0.15-0.70), writes `shafts.json`,
   which package.py reads; water green error 11.5 -> 7.0 levels, whole-frame >12 figure 43.6% -> 41.7%. A smoothed (σ6) difference map says the large-scale gap is spread over
   every region (top row 60-98% of cells, left trees, lower-left) so low-frequency colour is as important as edges: the next fits are per-object colour/shade (canopies, grass patches, stones' shaded sides).
+
+### The lever-driven rock (owner, 2026-10-31)
+The NW slab (stones.json block 2, glTF node `SLIDER_0`) is a rock on rails; the two levers (NE slab, SW slab) work it. Rules: `games/foomerang-fu/src/rules/sliders.ts`
+(pure; `FuArena.sliders`, `FuState.sliders` / `leverHot`, event `LEVER`), tests `test/sliders.test.ts` (written first). A flying boomerang over a lever or an ACTIVE slash on it
+toggles (counted once as the touch begins): at home -> runs to the far end; moving -> HALTS where it is; halted -> goes back the way it came; at the far end -> goes home. It is
+solid throughout and shoves players (the normal body push-out); one shoved off the ground falls and dies. A new round puts it home. `arena.py` derives home = the slab's place, run =
+along the island's long diagonal (screen top-left to bottom-right) until its centre reaches the edge (~556 units), speed 330 u/s (a guess: the HQ's takes about 2-3 s), levers at the
+lever models' midpoints (radius ~36). Renderer: `view.sliders` moves `SLIDER_0` (ThreePlaza `show`; the node is excluded from batching). Check: the e2e-style script
+`shoot_lever.sh` pattern (dev hook `__FOOMERANG__.hitLever(0)`) shows the rock sliding across and halting.
+NOT checked against the HQ: the rock's real speed and exact end point, and whether the HQ levers are struck by boomerangs, slashes or both; CPUs do not know about the rock.

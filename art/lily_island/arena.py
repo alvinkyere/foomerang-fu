@@ -32,8 +32,9 @@ def raster(polys):
     for p in polys:
         cv2.fillPoly(m, [np.int32([((x - X0) / CELL, (Y1 - y) / CELL) for x, y in p])], 1)
     return m
+SLIDER_BLOCK = 2          # the NW slab: the lever-driven rock (the HQ, 10:37-10:48): a solid on rails, not a wall (sliders.ts)
 bank, wall = raster(G), raster([b['top'] for b in STONES])
-solid_wall = wall                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i != SLIDER_BLOCK])                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
 # the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
 # water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
 # stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
@@ -74,12 +75,35 @@ for k, (X, Y) in enumerate(L['crates']):
     cx, cy = w(X, Y)
     walls.append(dict(id=f'CRATE_{k}', kind='WALL', shape='box', x=cx, y=cy, halfWidth=round(CRATE, 1), halfHeight=round(CRATE, 1), angle=0))
 
+# the sliding rock and its levers (rules sliders.ts): home = the slab's place; it runs along the island's long diagonal (screen top-left to
+# bottom-right: plan +x, -y) until its centre reaches the island's edge: "all the way to the edge", where a player in its way is shoved off
+SB = STONES[SLIDER_BLOCK]
+rx, ry, rw_, rh_, ra_ = SB['rect']
+home = w(rx, ry)
+dx, dy = 1 / math.sqrt(2), 1 / math.sqrt(2)                      # (world: x east, y south: south-east is +x, +y)
+px, py = float(home[0]), float(home[1]); end = (px, py); entered = False
+for _ in range(2000):
+    c_, r_ = int(px / S / CELL), int(py / S / CELL)
+    on = 0 <= c_ < NX and 0 <= r_ < NY and bool(bank[r_, c_])
+    if on: entered = True; end = (px, py)
+    elif entered: break
+    px += dx * 0.25 * S; py += dy * 0.25 * S
+slider = dict(wall=dict(shape='box', x=home[0], y=home[1], halfWidth=round((rw_ + 0.5) / 2 * S, 1), halfHeight=round((rh_ + 0.5) / 2 * S, 1),
+                        angle=round(math.radians(ra_), 4)),
+              by=dict(x=round(end[0] - home[0]), y=round(end[1] - home[1])), speed=330,
+              levers=[dict(x=w((lv['housing'][0] + lv['knob'][0]) / 2, (lv['housing'][1] + lv['knob'][1]) / 2)[0],
+                           y=w((lv['housing'][0] + lv['knob'][0]) / 2, (lv['housing'][1] + lv['knob'][1]) / 2)[1], radius=round(1.3 * S)) for lv in L['levers']])
+print('slider home', home, 'by', slider['by'], 'length', round(math.hypot(slider['by']['x'], slider['by']['y'])))
+
 # spawns and Book spots: open bank, clear of every wall and the water by more than a player's radius, spread far apart
-solid = wall.copy()                                   # (the wall boxes as the rules have them, a little widened)
+solid = wall.copy()                                   # (the wall boxes as the rules have them, a little widened; the sliding rock's whole run too)
 for o in walls:
     c0, r0 = int((o['x'] - o['halfWidth']) / S / CELL), int((o['y'] - o['halfHeight']) / S / CELL)
     c1, r1 = int((o['x'] + o['halfWidth']) / S / CELL) + 1, int((o['y'] + o['halfHeight']) / S / CELL) + 1
     solid[max(r0, 0):r1, max(c0, 0):c1] = 1
+for t_ in np.linspace(0, 1, 40):
+    cc, rr = int((home[0] + (end[0] - home[0]) * t_) / S / CELL), int((home[1] + (end[1] - home[1]) * t_) / S / CELL)
+    solid[max(rr - 14, 0):rr + 15, max(cc - 14, 0):cc + 15] = 1
 CLEAR = int(40 / S / CELL) + 1                        # a player's radius (36) and more, from any wall and the water
 free = cv2.erode(bank, np.ones((2 * CLEAR + 1,) * 2, np.uint8)) & (1 - cv2.dilate(solid, np.ones((2 * CLEAR + 1,) * 2, np.uint8)))
 ys, xs = np.nonzero(free)
@@ -99,6 +123,7 @@ def pts(poly):
     return 'Object.freeze([' + ', '.join(f'{{ x: {x}, y: {y} }}' for x, y in poly) + '])'
 ts = f"""import type {{ Vec2 }} from '@foomerang/game-core';
 import type {{ FuArena, Solid }} from './arena';
+import type {{ SliderSpec }} from './sliders';
 
 /**
  * THE LILY ISLAND (`lily_island`): the HQ's lime island in the water (foomerang-fu physics hq.mp4 10:37), measured from it
@@ -119,6 +144,13 @@ export const LILY_ISLAND_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
 export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
 {''.join('  Object.freeze(' + obj(o) + '),\n' for o in walls)}]);
 
+export const LILY_ISLAND_SLIDER: SliderSpec = Object.freeze({{
+  wall: {json.dumps(slider['wall']).replace('"box"', "'box' as const")},
+  by: {json.dumps(slider['by'])},
+  speed: {slider['speed']},
+  levers: {json.dumps(slider['levers'])},
+}});
+
 export const LILY_ISLAND_SPAWNS: readonly Vec2[] = Object.freeze([
 {''.join('  ' + obj(o) + ',\n' for o in spawns)}]);
 
@@ -130,6 +162,7 @@ export const LILY_ISLAND_ARENA: FuArena = Object.freeze({{
   height: LILY_ISLAND_HEIGHT,
   ground: LILY_ISLAND_GROUND,
   walls: LILY_ISLAND_WALLS,
+  sliders: Object.freeze([LILY_ISLAND_SLIDER]),
   spawns: LILY_ISLAND_SPAWNS,
 }});
 """

@@ -268,6 +268,8 @@ export function buildFuView(
             color: styleOf(event.playerId, slots).color,
           },
         ];
+      case 'LEVER': // a lever was struck: where it is (a click of the rock's lever)
+        return [{ type: 'LEVER', ...event.position, color: '#ffffff' }];
       case 'FATIGUED':
       case 'RECOVERED': // where the player is now: the tired ring starts / the full-mobility flash
         return [
@@ -480,6 +482,14 @@ export function buildFuView(
       ? {}
       : {
           turntables: state.config.arena.turntables.map((t) => turntableAngle(t, state.roundTime)),
+        }),
+    ...(state.config.arena.sliders === undefined
+      ? {}
+      : {
+          sliders: state.config.arena.sliders.map((spec, k) => ({
+            progress: state.sliders?.[k]?.progress ?? 0,
+            by: spec.by,
+          })),
         }),
     broken: state.broken,
     events: viewEvents,

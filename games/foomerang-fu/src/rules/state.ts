@@ -1,3 +1,4 @@
+import { SLIDER_HOME, type SliderState } from './sliders';
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
 import { DASH_READY, RESTED, type DashState, type Fatigue } from './dash';
@@ -89,6 +90,10 @@ export interface FuState {
   readonly intro?: number;
   /** Slice 6: per timed gate, whether it has actually SHUT (a gate scheduled to close waits until nothing is in it). */
   readonly gatesShut: readonly boolean[];
+  /** Each of the arena's sliders: where it is and which way it is going (sliders.ts). Absent: the arena has none. */
+  readonly sliders?: readonly SliderState[];
+  /** Per lever (every slider's, in order): whether something touched it on the last step, so a hit counts once as it begins. */
+  readonly leverHot?: readonly boolean[];
   /** BATTLE_ROYALE: the round time it was taken at; the border has been closing in since (battleRoyale.ts). Absent: it is not. */
   readonly closingSince?: number;
   /** The ids of the arena's breakables broken this round, in the order they broke (a new round starts with none). */
@@ -230,6 +235,12 @@ export function startRound(
     roundTime: 0,
     ...((config.roundIntroSeconds ?? 0) > 0 ? { intro: config.roundIntroSeconds } : {}),
     gatesShut: Object.freeze((config.arena.gates ?? []).map(() => false)),
+    ...(config.arena.sliders === undefined
+      ? {}
+      : {
+          sliders: Object.freeze(config.arena.sliders.map(() => SLIDER_HOME)),
+          leverHot: Object.freeze(config.arena.sliders.flatMap((s) => s.levers.map(() => false))),
+        }),
     broken: Object.freeze([]),
     world,
     players: Object.freeze(players),

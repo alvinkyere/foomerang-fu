@@ -85,6 +85,14 @@ export class LazyFuRuntime implements MatchRuntime {
     return this.#real?.state;
   }
 
+  /** A developer's check (debugHook.ts): replaces the real runtime's state. Nothing in the game calls it. */
+  debugPatch(
+    change: (state: NonNullable<FuRuntime['state']>) => NonNullable<FuRuntime['state']>,
+  ): void {
+    const real = this.#real;
+    if (real?.state !== undefined) real.state = change(real.state);
+  }
+
   get world(): WorldState | undefined {
     return this.#real?.world;
   }

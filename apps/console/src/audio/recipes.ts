@@ -196,6 +196,14 @@ const EVENT_RAW: Readonly<Record<ViewEvent['type'], Recipe>> = {
     ],
   },
   // through a portal: a warp up and back
+  // a lever thrown: a short wooden clack and a low rumble as the rock sets off (the lily island)
+  LEVER: {
+    voices: [
+      tone('square', 520, 260, 0.08, 0.35),
+      tone('sine', 110, 70, 0.4, 0.35, { at: 0.05 }),
+      puff('lowpass', 500, 200, 0.35, 0.2),
+    ],
+  },
   PORTAL: {
     voices: [
       tone('sine', 360, 1700, 0.24, 0.4),
@@ -292,6 +300,7 @@ export const EVENT_SOUNDS = leveled(EVENT_RAW, {
   SPLIT: 2.8,
   ROUND_START: 2.3,
   PORTAL: 2.0,
+  LEVER: 2.4,
 });
 export const EXTRA_SOUNDS = leveled(EXTRA_RAW, { return: 4, recall: 1.8, win: 1.5 });
 export const CUE_SOUNDS = leveled(CUE_RAW, {

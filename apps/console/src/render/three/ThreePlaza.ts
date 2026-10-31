@@ -1122,6 +1122,9 @@ class Plaza {
   #pinnedCamera = false;
   /** The cross pond's raft (pond_cross: RAFT), turned by the rules' turntable angle each frame; null elsewhere. */
   readonly #raft: THREE.Object3D | null;
+  /** The lily island's lever-driven rock (the glTF node SLIDER_0) and where its model stands at home. */
+  readonly #slider: THREE.Object3D | null;
+  readonly #sliderHome = new THREE.Vector3();
   readonly #banner: HTMLDivElement;
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
   readonly #word = readyGoOverlay();
@@ -1228,6 +1231,8 @@ class Plaza {
         clampToArt: false,
       };
     this.#raft = gltf.getObjectByName('RAFT') ?? null;
+    this.#slider = gltf.getObjectByName('SLIDER_0') ?? null;
+    if (this.#slider !== null) this.#sliderHome.copy(this.#slider.position);
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1323,7 +1328,7 @@ class Plaza {
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$|^SLIDER_/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1621,6 +1626,17 @@ class Plaza {
     // the raft turns by the rules' angle (clockwise on screen when positive): about the scene's up, the other way round (scene z is the rules' y)
     const turned = view.turntables?.[0];
     if (this.#raft !== null && turned !== undefined) this.#raft.rotation.set(0, -turned, 0);
+    // the lever-driven rock rides its rails by the rules' progress (sliders.ts): its node moves by the run, in scene units
+    const slid = view.sliders?.[0];
+    if (this.#slider !== null && slid !== undefined) {
+      const a = this.#space.toScene(0, 0);
+      const b = this.#space.toScene(slid.by.x, slid.by.y);
+      this.#slider.position.set(
+        this.#sliderHome.x + (b.x - a.x) * slid.progress,
+        this.#sliderHome.y,
+        this.#sliderHome.z + (b.z - a.z) * slid.progress,
+      );
+    }
     const now = this.#virtual ?? performance.now();
     const present = new Set<string>();
     this.#circles = [];

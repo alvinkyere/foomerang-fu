@@ -1,5 +1,6 @@
 import type { Vec2 } from '@foomerang/game-core';
 import type { FuArena, Solid } from './arena';
+import type { SliderSpec } from './sliders';
 
 /**
  * THE LILY ISLAND (`lily_island`): the HQ's lime island in the water (foomerang-fu physics hq.mp4 10:37), measured from it
@@ -143,26 +144,6 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     id: 'WALL_6',
     kind: 'WALL',
     shape: 'box',
-    x: 649,
-    y: 502,
-    halfWidth: 31,
-    halfHeight: 18,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_7',
-    kind: 'WALL',
-    shape: 'box',
-    x: 639,
-    y: 529,
-    halfWidth: 48,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_8',
-    kind: 'WALL',
-    shape: 'box',
     x: 1264,
     y: 543,
     halfWidth: 18,
@@ -170,27 +151,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_9',
-    kind: 'WALL',
-    shape: 'box',
-    x: 635,
-    y: 570,
-    halfWidth: 72,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_10',
-    kind: 'WALL',
-    shape: 'box',
-    x: 608,
-    y: 646,
-    halfWidth: 31,
-    halfHeight: 55,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_11',
+    id: 'WALL_7',
     kind: 'WALL',
     shape: 'box',
     x: 1535,
@@ -200,7 +161,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_12',
+    id: 'WALL_8',
     kind: 'WALL',
     shape: 'box',
     x: 1577,
@@ -210,7 +171,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_13',
+    id: 'WALL_9',
     kind: 'WALL',
     shape: 'box',
     x: 1553,
@@ -220,7 +181,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_14',
+    id: 'WALL_10',
     kind: 'WALL',
     shape: 'box',
     x: 1563,
@@ -230,7 +191,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_15',
+    id: 'WALL_11',
     kind: 'WALL',
     shape: 'box',
     x: 1580,
@@ -240,7 +201,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_16',
+    id: 'WALL_12',
     kind: 'WALL',
     shape: 'box',
     x: 1594,
@@ -250,7 +211,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_17',
+    id: 'WALL_13',
     kind: 'WALL',
     shape: 'box',
     x: 161,
@@ -260,7 +221,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_18',
+    id: 'WALL_14',
     kind: 'WALL',
     shape: 'box',
     x: 175,
@@ -270,7 +231,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_19',
+    id: 'WALL_15',
     kind: 'WALL',
     shape: 'box',
     x: 471,
@@ -280,7 +241,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_20',
+    id: 'WALL_16',
     kind: 'WALL',
     shape: 'box',
     x: 474,
@@ -290,7 +251,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_21',
+    id: 'WALL_17',
     kind: 'WALL',
     shape: 'box',
     x: 519,
@@ -300,7 +261,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_22',
+    id: 'WALL_18',
     kind: 'WALL',
     shape: 'box',
     x: 543,
@@ -310,7 +271,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_23',
+    id: 'WALL_19',
     kind: 'WALL',
     shape: 'box',
     x: 374,
@@ -320,7 +281,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_24',
+    id: 'WALL_20',
     kind: 'WALL',
     shape: 'box',
     x: 381,
@@ -330,7 +291,7 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_25',
+    id: 'WALL_21',
     kind: 'WALL',
     shape: 'box',
     x: 378,
@@ -381,22 +342,39 @@ export const LILY_ISLAND_WALLS: readonly LilyIslandWall[] = Object.freeze([
   }),
 ]);
 
+export const LILY_ISLAND_SLIDER: SliderSpec = Object.freeze({
+  wall: {
+    shape: 'box' as const,
+    x: 622,
+    y: 593,
+    halfWidth: 111.7,
+    halfHeight: 73.8,
+    angle: 0.9414,
+  },
+  by: { x: 393, y: 393 },
+  speed: 330,
+  levers: [
+    { x: 538, y: 1137, radius: 36 },
+    { x: 1172, y: 497, radius: 36 },
+  ],
+});
+
 export const LILY_ISLAND_SPAWNS: readonly Vec2[] = Object.freeze([
-  { x: 704.2, y: 436.2 },
+  { x: 697.3, y: 443.1 },
   { x: 663.0, y: 1356.8 },
   { x: 1329.3, y: 848.4 },
-  { x: 353.8, y: 882.8 },
-  { x: 841.6, y: 903.4 },
+  { x: 353.8, y: 889.7 },
   { x: 1116.4, y: 346.9 },
+  { x: 731.7, y: 979.0 },
 ]);
 
 export const LILY_ISLAND_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
-  { x: 759.1, y: 704.2 },
-  { x: 1137.0, y: 546.2 },
-  { x: 951.5, y: 972.1 },
-  { x: 608.0, y: 999.6 },
-  { x: 745.4, y: 401.9 },
-  { x: 463.7, y: 731.7 },
+  { x: 937.8, y: 628.6 },
+  { x: 656.1, y: 910.3 },
+  { x: 697.3, y: 443.1 },
+  { x: 1233.2, y: 608.0 },
+  { x: 443.1, y: 745.4 },
+  { x: 580.5, y: 1143.9 },
 ]);
 
 export const LILY_ISLAND_ARENA: FuArena = Object.freeze({
@@ -404,5 +382,6 @@ export const LILY_ISLAND_ARENA: FuArena = Object.freeze({
   height: LILY_ISLAND_HEIGHT,
   ground: LILY_ISLAND_GROUND,
   walls: LILY_ISLAND_WALLS,
+  sliders: Object.freeze([LILY_ISLAND_SLIDER]),
   spawns: LILY_ISLAND_SPAWNS,
 });
