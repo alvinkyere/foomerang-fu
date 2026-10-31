@@ -236,8 +236,10 @@ for k, poly in enumerate(G['polygons']):
         if any(inside(((x0 + x1) / 2, (y0 + y1) / 2), u) or inside((x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25), u) or inside((x0 + (x1 - x0) * 0.75, y0 + (y1 - y0) * 0.75), u) for u in UNDER_STONES): continue
         ux, uy = (x1 - x0) / length, (y1 - y0) / length
         nx, ny = -uy * sgn, ux * sgn                                  # inward
-        mx, my = (x0 + x1) / 2 + nx * KERB_W * 0.5, (y0 + y1) / 2 + ny * KERB_W * 0.5
-        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + KERB_W * 0.6, KERB_W, math.degrees(math.atan2(uy, ux)), 0.3), KERB_H, KERB_TOP, KERB_SIDE,
+        f = (1.0 + ny) / 2.0                   # (1: the wall's outer face looks at the camera (south), 0: it faces away: the HQ's front kerb is thick, its back one a soft glow)
+        kw, kh = 0.4 + 0.7 * f, 0.25 + 0.45 * f
+        mx, my = (x0 + x1) / 2 + nx * kw * 0.5, (y0 + y1) / 2 + ny * kw * 0.5
+        body(f'KERB_{k}_{i}', rounded_rect(mx, my, length + kw * 0.6, kw, math.degrees(math.atan2(uy, ux)), 0.3), kh, KERB_TOP, KERB_SIDE,
              top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)

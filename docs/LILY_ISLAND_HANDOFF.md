@@ -80,3 +80,4 @@ Status: scale 1.000, shift ~(-4, 4) px, grass IoU 0.82, grass colour #dcf295 vs 
 (shafts, foam, canopies, stones, the players' dust and the HUD names). `scale.json gameZoomFit 0.965`: the game's camera needs that factor over
 hqZoom/scale to show the island as big as the HQ does (the Blender preview and the game's camera do not share one zoom convention).
 - Kerb widened to 1.0 x 0.6 in a lighter lavender (#98a2e8 / #7f89d6) after a crop-by-crop look with hqcompare; tree lumps shrunk x0.84. The HQ's kerb is thick on the front (south/east) edges and almost only a soft glow on the back (north/west) edges: ours is one thickness all round (next fix).
+- Kerb now thick on the camera-facing edges and thin on the back ones (build.py `f`). The player names ASH/RIK/JAS/PRICE at the left of the HQ frame are NOT to be built (owner, 2026-10-30): they are masked out of every comparison (x < 215).
