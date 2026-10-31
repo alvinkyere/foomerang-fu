@@ -107,3 +107,6 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   side on the grass, a pink stem, a cyan ball knob (positions read off the HQ frame, unprojected at z 0.3). The kerb is now almost absent on the back (away-facing) edges
   (width 0.12 + 1.68 f^2): the HQ's island is not walled all round. The wall is still too continuous on the left/right ends; the HQ has the rounded corner blocks and a
   glow there instead.
+- (2026-10-31, owner: "it looks like the rock ground is on the grass, not the grass on the rock ground") The kerb is no longer a wall standing above the grass: the lavender is the island's own
+  flank, flush with the grass and sloping down to the water (kerb_ring heights 0.03-0.12), the island outline is rounded (chaikin x2) and the traced outline smoothed more (layout.py
+  rectify tiny 2.2). Still missing: the HQ's grass edge has a green-teal glow bleeding over the lavender top and the rounded corner blocks.

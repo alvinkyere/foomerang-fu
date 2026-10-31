@@ -192,6 +192,7 @@ def flat(name, parts, parent=None, z=0.0):
 
 # ---------------------------------------------------------------------------------------------------------------- banks
 for k, poly in enumerate(G['polygons']):
+    poly = chaikin([tuple(q) for q in poly], 2)      # (the HQ's island has soft rounded corners)
     body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)
 
 
@@ -247,10 +248,10 @@ def kerb_ring(name, poly, top_mat, side_mat):
         miter = min(1.0 / max(0.45, cosh), 1.45)
         if cross_sign(e1, e2, sgn) < 0: miter = min(miter, 1.0)      # (a reflex corner: the inner edge would fold over: keep it plain)
         f = (1.0 + (n1[1] + n2[1]) / 2.0) / 2.0                      # (1: the outer face looks at the camera)
-        kw, kh = 0.12 + 1.68 * f * f, 0.08 + 0.77 * f * f      # (the back edges have next to no wall: the HQ's island is not encased all round)
+        kw, kh = 0.12 + 1.68 * f * f, 0.03 + 0.09 * f      # (the lavender is the island's own flank, flush with the grass and sloping down to the water: the grass is the top of the rock, not a layer on it)      # (the back edges have next to no wall: the HQ's island is not encased all round)
         inward.append((bx * miter, by * miter)); widths.append(kw); hts.append(kh)
     # profile: (fraction of the width inward, height as a fraction of kh), outer foot to the grass; z is relative to the grass (0)
-    prof = [(0.0, None), (0.0, 0.62), (0.08, 0.9), (0.2, 1.0), (0.72, 1.0), (0.9, 0.8), (1.0, 0.0)]
+    prof = [(0.0, None), (0.0, 0.3), (0.1, 0.6), (0.3, 0.9), (0.7, 1.0), (0.9, 0.9), (1.0, 0.55)]
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     rows = []
     for fr, hz in prof:
@@ -275,7 +276,7 @@ def kerb_ring(name, poly, top_mat, side_mat):
 
 
 for k, poly in enumerate(G['polygons']):
-    kerb_ring(f'KERB_{k}', [tuple(p) for p in poly], KERB_TOP, KERB_SIDE)
+    kerb_ring(f'KERB_{k}', chaikin([tuple(p) for p in poly], 2), KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)

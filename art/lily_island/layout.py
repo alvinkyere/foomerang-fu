@@ -46,7 +46,7 @@ cs, _ = cv2.findContours(land.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHA
 KERB_Z = 0.3      # (the outline is the kerb's: its top stands ~0.5 over the ground, its foot is on it: read half way)
 _Hk = cv2.findHomography(np.float32([ref(X, Y, KERB_Z) for X, Y in g]), np.float32(g))[0]
 plan_k = lambda pts: cv2.perspectiveTransform(np.float32(pts).reshape(-1, 1, 2), _Hk).reshape(-1, 2)
-def rectify(P, eps=0.9, tiny=1.1):
+def rectify(P, eps=1.2, tiny=2.2):
     """The HQ's island is built of right angles in the plan (45 degrees in the picture): a traced outline is straightened to that. Find
     the way its edges run, turn it square, replace each run of edges by one straight edge at its mean place, drop the wobbles
     shorter than `tiny`, put the corners where neighbouring edges meet, and turn it back."""
