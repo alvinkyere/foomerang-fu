@@ -78,7 +78,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#82a1e2', '#617cb9'),
                  ('#a4b3ea', '#6a79ab'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
-CUBE_LIKE = {0, 1, 2, 5, 7, 8, 9, 10, 12, 13, 14}
+CUBE_LIKE = {0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14}
 BLOCK_TAPER = {}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_COLOURS = [('#a5b3ea', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
 BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
@@ -496,37 +496,21 @@ if L['bridge']:
         y = by0 + (by1 - by0) * t
         lines.append(([(bx0, y - 0.05), (bx1, y - 0.05), (bx1, y + 0.05), (bx0, y + 0.05)], '#8a6f9e', 0.0))
     flat('BRIDGE_seams', lines, z=0.135)
-# hex bushes: low flat-topped clumps of pale green hexagons with trailing vines (a disc of hexagon tiles)
+# hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
-    cx, cy = bu['at']; r = bu['r']
-    parts = []
-    hexr = max(0.55, r / 3.2)
-    for i in range(-5, 6):
-        for j in range(-5, 6):
-            hx = cx + (i + 0.5 * (j % 2)) * hexr * 1.74; hy = cy + j * hexr * 1.5
-            if math.hypot(hx - cx, hy - cy) > r - hexr * 0.6: continue
-            col = '#7ec9a0' if (i + j) % 3 else '#97d6b0'
-            parts.append(([(hx + math.cos(a) * hexr * 0.92, hy + math.sin(a) * hexr * 0.92) for a in [math.pi / 6 + t * math.pi / 3 for t in range(6)]], col, 0.02 * ((i + j) % 2)))
-    flat(f'BUSH_{k}', parts, z=1.0)
-    for m in range(14):                                          # vines hanging off the front
-        a = rng.uniform(0.15, math.pi - 0.15) + math.pi; vx, vy = cx + math.cos(a) * r * 0.85, cy + math.sin(a) * r * 0.85
-        flat(f'VINE_{k}_{m}', [([(vx - 0.07, vy), (vx + 0.07, vy), (vx + 0.03, vy - rng.uniform(0.5, 1.0)), (vx - 0.03, vy - rng.uniform(0.5, 1.0))], '#6fb88d', 0.0)], z=0.9)
-# pots: brown clay jars
+    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 2.0}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['pots']):
-    body(f'POT_{k}', rounded_rect(x, y, 0.9, 0.9, 0, 0.4), 0.9, lit(f'pot_t{k}', HQ.lit('#c98a5e', 0.98)), lit(f'pot_s{k}', HQ.lit('#a96a45', 0.875)), top_r=0.15, bottom=-0.1, soft=True, top_seg=2)
+    obj_models.pot({'x': x, 'y': y, 'width': 1.15, 'height': 1.25}, PAL, FLAT, None, k)
 # stone lanterns: a small pale-lavender post with a cap
 for k, (x, y) in enumerate(L['lanterns']):
     body(f'LANTERN_{k}', rounded_rect(x, y, 0.8, 0.8, 0, 0.2), 2.0, KERB_TOP, KERB_SIDE, top_r=0.2, bottom=0, soft=True, top_seg=2)
     body(f'LANTERN_cap_{k}', rounded_rect(x, y, 1.5, 1.5, 0, 0.3), 2.6, KERB_TOP, KERB_SIDE, top_r=0.2, bottom=2.0, soft=True, top_seg=2)
-# the gong gate: two dark navy posts and a lintel, a golden disc hanging between them
-G_POST, G_GOLD = lit('gate_post', HQ.lit('#2b3566', 0.98)), lit('gate_gold', HQ.lit('#e8c84a', 0.98))
-gl, gr, gg = L['gate']['left'], L['gate']['right'], L['gate']['gong']
-ang_g = math.degrees(math.atan2(gr[1] - gl[1], gr[0] - gl[0]))
-for nm, p in (('L', gl), ('R', gr)):
-    body(f'GATE_post_{nm}', rounded_rect(p[0], p[1], 0.7, 0.7, 0, 0.2), 4.4, G_POST, G_POST, top_r=0.1, bottom=0, soft=True, top_seg=2)
-body('GATE_lintel', rounded_rect((gl[0] + gr[0]) / 2, (gl[1] + gr[1]) / 2, math.hypot(gr[0] - gl[0], gr[1] - gl[1]) + 1.2, 0.6, ang_g, 0.2), 4.9, G_POST, G_POST, top_r=0.1, bottom=4.2, soft=True, top_seg=2)
-bpy.ops.mesh.primitive_uv_sphere_add(radius=1.1, location=(gg[0], gg[1], 2.6), segments=24, ring_count=12)
-go = bpy.context.active_object; go.name = 'GATE_gong'; go.scale = (1.0, 0.35, 1.0); go.data.materials.append(G_GOLD); bpy.ops.object.shade_smooth()
+# the gong gate: the gong islands' model, turned to the gate's own way (its posts stand along the plan diagonal in the HQ frame here)
+gl, gr = L['gate']['left'], L['gate']['right']
+gate_root = bpy.data.objects.new('GATE', None); sc.collection.objects.link(gate_root)
+gate_root.location = ((gl[0] + gr[0]) / 2, (gl[1] + gr[1]) / 2, 0.0)
+gate_root.rotation_euler = (0, 0, math.atan2(gr[1] - gl[1], gr[0] - gl[0]))
+obj_models.gong({'x': 0.0, 'y': 0.0, 'width': math.hypot(gr[0] - gl[0], gr[1] - gl[1]) / 0.8, 'height': 4.9}, PAL, FLAT, gate_root)
 
 # ---------------------------------------------------------------------------------------------------------------- water
 xs = [p[0] for g in G['polygons'] for p in g]; ys = [p[1] for g in G['polygons'] for p in g]

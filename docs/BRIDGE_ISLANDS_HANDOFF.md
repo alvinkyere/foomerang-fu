@@ -15,3 +15,13 @@ then prettier on the json; `hqcompare.py`, `fit_stones.py`, `fit_trees.py`, `fit
   are merged/rough; the big stone wall along the top right; the red bunting along the back; arena.py has no slider/levers logic; CPUs untested; the model is 3.6 MB (bushes are many small
   hexagons: merge them).
 - The camera: manifest `fixedFrame`/`followFrame` copied from lily (zoom ~0.93 x 0.965); `?frame=hq` pin and `hqFrame` untested here.
+
+## Update (same day, second pass)
+- Borrowed models: the gong gate (`objects.gong`, turned along the gate's own axis), the hex bushes (`objects.hexplant`), the pots (`objects.pot`), bamboo and crates, all from
+  `art/sky_islands/blender/objects.py` (the gong islands' own, as they are). The trees stay this pipeline's own cauliflower blobs (the HQ's here are puffy S-trunk trees like the
+  lily island's; sky_islands' `maple` is the umbrella type: not borrowed). Also available there and not yet used: `aloe` (the HQ's flowerpot plant at about (1400, 350) px), `tuft`.
+- Stones: `fit_stones.py` runs (indices re-sorted by y: 0 NW islet block, 3 bridge NW wall, 4 SE wall..., 9 the tall block in the water, 11 the back wall); `MANUAL` in it holds
+  hand-set heights for blocks the mask cannot fit. Many fits are weak (IoU 0.2-0.6): the stones are covered by vines and the shafts tint them.
+- Camera: `?frame=hq` pins `hqFrame` (u 0.0465, v 0.0137, zoom as lily); the grass overlay (hqcompare / `output/grassov.png`) shows the game's land a few px up-left of the HQ's at the SE and S ends:
+  the kerb eats the grass edge there, thin it or move the outline out ~0.5 unit. Grass and water colours already match the HQ frame (#ddf195 vs #dcf296, #7aa6bb vs #7aa8bb).
+- Colours are the lily island's; the HQ frame here has a stronger teal cast from the shafts (top right).

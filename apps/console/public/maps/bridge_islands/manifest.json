@@ -18,7 +18,7 @@
     "world": {
       "unitsPerPlanUnit": 2748,
       "planOriginX": -0.29,
-      "planOriginY": 1.03
+      "planOriginY": 1.04
     }
   },
   "occluders": [],
@@ -57,8 +57,8 @@
   },
   "hqFrame": {
     "zoom": 0.9,
-    "u": 0.0185,
-    "v": 0.0394
+    "u": 0.0465,
+    "v": 0.0137
   },
   "followFrame": {
     "minZoom": 0.9,
