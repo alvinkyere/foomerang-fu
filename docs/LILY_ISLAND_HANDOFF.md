@@ -46,7 +46,7 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
 
 ### Still different from the HQ (next steps, biggest first)
 1. Water: foam is now three thin concentric outlines round every edge (package.py cartoon ribbons, as the HQ draws them at the SE kerb): done. Still
-   missing: the HQ's teal depth gradient (lighter toward the top right), light shafts *in the scene* (ours is a CSS overlay, `.arena-shafts`).
+   the HQ's bluer-toward-the-bottom shade is now a CSS gradient layer in `.arena-shafts` (2026-10-30, session 2); still missing: light shafts *in the scene* (ours is a CSS overlay, `.arena-shafts`).
 2. Cast shadows (trees on grass and stones, slabs on grass): the HQ bakes dark blue-green shapes; ours has only the grass `shade` patches.
 3. Boulders: the HQ's are taller, more cube-like, with a second smaller rock beside the E boulder; ours are tapered prisms.
 4. Tree canopies: now mottled soft discs with ragged edges (build.py blob()); the HQ's are puffier (more 3D) and the trunk is thicker and curved with big dark patches.

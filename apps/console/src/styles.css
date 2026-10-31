@@ -340,12 +340,15 @@ button:focus-visible {
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    122deg,
-    rgb(150 255 240 / 0) 0,
-    rgb(150 255 240 / 0.26) 4vw,
-    rgb(150 255 240 / 0.08) 9vw,
-    rgb(150 255 240 / 0) 12vw
-  );
+  /* (and the HQ's water goes a little bluer and deeper toward the bottom of the frame: #7aa7bb at the top, #6ea3c0 low down) */
+  background:
+    linear-gradient(to bottom, rgb(110 163 200 / 0) 35%, rgb(100 150 215 / 0.14) 100%),
+    repeating-linear-gradient(
+      122deg,
+      rgb(150 255 240 / 0) 0,
+      rgb(150 255 240 / 0.26) 4vw,
+      rgb(150 255 240 / 0.08) 9vw,
+      rgb(150 255 240 / 0) 12vw
+    );
   mask-image: linear-gradient(to bottom left, #000 10%, rgb(0 0 0 / 0.5) 45%, transparent 75%);
 }
