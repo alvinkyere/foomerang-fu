@@ -50,7 +50,8 @@ HAND = [
     ([(645, 318), (715, 238), (795, 225), (835, 262), (830, 310), (750, 395), (690, 400), (640, 345)], 40, 'slab'),   # by the NW crates
     ([(1235, 185), (1290, 152), (1350, 175), (1395, 240), (1375, 285), (1330, 270), (1240, 225)], 40, 'slab'),       # blue, under the NE tree
     ([(1568, 215), (1620, 182), (1655, 212), (1608, 262)], 40, 'boulder'),                                            # small, NE
-    ([(1630, 352), (1738, 312), (1782, 362), (1705, 430), (1640, 416)], 75, 'boulder'),                               # big, E
+    ([(1640, 365), (1692, 318), (1775, 358), (1778, 382), (1712, 420), (1636, 396)], 75, 'boulder'),                  # big, E
+    ([(1598, 418), (1625, 400), (1680, 440), (1680, 468), (1722, 488), (1738, 468), (1742, 500), (1702, 530), (1640, 515), (1590, 480)], 40, 'rock'),   # the low rock beside it
     ([(205, 662), (240, 636), (276, 666), (286, 726), (240, 760), (206, 730)], 55, 'boulder'),                        # small, W
     ([(490, 790), (545, 742), (600, 765), (665, 835), (640, 895), (570, 880)], 40, 'slab'),                           # SW
     ([(335, 985), (420, 925), (500, 960), (520, 1010), (520, 1080), (340, 1080)], 70, 'boulder'),                     # S (cut by the frame)
@@ -116,6 +117,7 @@ for b in blocks:
     if rw < rh: rw, rh, ra = rh, rw, ra + 90
     b['rect'] = [round(float(rx), 2), round(float(ry), 2), round(float(rw), 2), round(float(rh), 2), round(float(ra), 2)]
     b['size'] = [round(float(rw), 1), round(float(rh), 1)]
+    b['px'] = b['_poly'].reshape(-1, 2).tolist()      # (the outline as the frame shows it: fit_stones.py re-reads it at each height it tries)
     del b['_c'], b['_poly']
 blocks.sort(key=lambda b: (b['centre_px'][1], b['centre_px'][0]))
 # the HQ fit (fit_stones.py): height, footprint size and place, so each block's silhouette covers the HQ's
@@ -124,10 +126,12 @@ if os.path.exists('art/lily_island/stonefit.json'):
     for i, b in enumerate(blocks):
         f = sf.get(str(i))
         if f is None: continue
-        for key in ('top', 'clean'):
-            pts = np.float32(b[key]); c0 = pts.mean(0)
-            b[key] = [[round(float(x), 2), round(float(y), 2)] for x, y in c0 + f['s'] * (pts - c0) + np.float32([f['dx'], f['dy']])]
+        # the footprint is the outline in the frame read at the fitted height (a top seen at a pixel stands over another spot at each height)
         b['height'] = f['h']
+        px = np.float32(b['px'])
+        for key, src in (('top', px), ('clean', px)):
+            pts = plan(src, f['h']); c0 = pts.mean(0)
+            b[key] = [[round(float(x), 2), round(float(y), 2)] for x, y in c0 + f['s'] * (pts - c0) + np.float32([f['dx'], f['dy']])]
         (rx, ry), (rw, rh), ra = cv2.minAreaRect(np.float32(b['top']))
         if rw < rh: rw, rh, ra = rh, rw, ra + 90
         b['rect'] = [round(float(rx), 2), round(float(ry), 2), round(float(rw), 2), round(float(rh), 2), round(float(ra), 2)]

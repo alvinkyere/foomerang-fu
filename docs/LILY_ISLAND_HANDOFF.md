@@ -48,7 +48,7 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
 1. Water: foam is now three thin concentric outlines round every edge (package.py cartoon ribbons, as the HQ draws them at the SE kerb): done. Still
    the HQ's bluer-toward-the-bottom shade is now a CSS gradient layer in `.arena-shafts` (2026-10-30, session 2); still missing: light shafts *in the scene* (ours is a CSS overlay, `.arena-shafts`).
 2. Cast shadows (trees on grass and stones, slabs on grass): the HQ bakes dark blue-green shapes; ours has only the grass `shade` patches.
-3. Boulders: the HQ's are taller, more cube-like, with a second smaller rock beside the E boulder; ours are tapered prisms.
+3. Boulders: the E cube now straight-sided (6.4 tall) with the low rock beside it (both hand-set in fit_stones.py MANUAL: touching blocks share one mask so a fit merges them); the other boulders are still tapered prisms. `stones.json` now keeps each outline's pixels (`px`) and stones.py/fit_stones.py re-read them at each height tried.
 4. Tree canopies: now mottled soft discs with ragged edges (build.py blob()); the HQ's are puffier (more 3D) and the trunk is thicker and curved with big dark patches.
 5. Bamboo stands, lily pads (the HQ pads are bigger with a notch), the pink flowers, the green specks on the water by the notch.
 6. Characters' spawn glows, the HQ's pale spawn discs (we draw `pale` patches from the frame).
