@@ -113,3 +113,4 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
 - (2026-10-31) IMPORTANT: build.py used ground.json's polygon (166 vertices, traced and jagged: it is the RULES ground) for the island body and kerb. It now draws from
   `layout.json banks` (30 vertices, straightened by layout.py rectify) with chaikin x2, so the edge is clean. Corner posts (`corner_blocks`) stand at convex front corners.
   The island body's outline (rectified) and the rules ground (traced) are two different outlines a hair apart: unify later (generate the rules ground from the rectified one).
+- (2026-10-31) ground.py now writes `ground.json polygons` = layout.py's straightened outline, so the rules' walkable ground (arena.py), the drawn island and the water field are one outline.
