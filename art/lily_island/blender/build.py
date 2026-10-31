@@ -216,6 +216,15 @@ LIME_GRASS = lit('island_lime', HQ.lit('#ddf293', 0.98))
 # along the outline, each drawn in half a unit
 KERB_TOP, KERB_SIDE = lit('island_kerb_top', HQ.lit('#8095dc', 0.98)), lit('island_kerb_side', HQ.lit('#6378c2', 0.875))
 KERB_H, KERB_W = 0.8, 0.5
+def inside(pt, poly):
+    x, y = pt; c = False
+    for i in range(len(poly)):
+        (x0, y0), (x1, y1) = poly[i - 1], poly[i]
+        if (y0 > y) != (y1 > y) and x < (x1 - x0) * (y - y0) / (y1 - y0) + x0: c = not c
+    return c
+
+
+UNDER_STONES = [[tuple(p) for p in offset_poly([tuple(q) for q in blk['top']], 0.4)] for blk in S]      # (the kerb runs under a stone, never over it)
 for k, poly in enumerate(G['polygons']):
     n = len(poly)
     area = sum(poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1] for i in range(n))
@@ -224,6 +233,7 @@ for k, poly in enumerate(G['polygons']):
         (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
         length = math.hypot(x1 - x0, y1 - y0)
         if length < 0.6: continue
+        if any(inside(((x0 + x1) / 2, (y0 + y1) / 2), u) or inside((x0 + (x1 - x0) * 0.25, y0 + (y1 - y0) * 0.25), u) or inside((x0 + (x1 - x0) * 0.75, y0 + (y1 - y0) * 0.75), u) for u in UNDER_STONES): continue
         ux, uy = (x1 - x0) / length, (y1 - y0) / length
         nx, ny = -uy * sgn, ux * sgn                                  # inward
         mx, my = (x0 + x1) / 2 + nx * KERB_W * 0.5, (y0 + y1) / 2 + ny * KERB_W * 0.5
@@ -263,40 +273,41 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 for k, b in enumerate(S):
     H = b['height']
     if b['kind'] == 'slab':
-        cx, cy, rw, rh, ang = b['rect']
-        ang = -ang    # (OpenCV's angle is for y down, the plan's y is north: the turn is mirrored)
-        # (stones.py already separates the blocks along their visible seams: a run is one block; only one over 12 is cut in two)
-        n = max(1, math.ceil(rw / 12.0)); piece = rw / n
-        a = math.radians(ang); ux, uy = math.cos(a), math.sin(a)
-        for j in range(n):
-            mid = -rw / 2 + (j + 0.5) * piece
-            outline = rounded_rect(cx + mid * ux, cy + mid * uy, piece + 2 * GROW_SLAB - (SEAM if n > 1 else 0), rh + 2 * GROW_SLAB, ang, CORNER_SLAB)
-            body(f'STONE_{k}_{j}', outline, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.93))
+        # the HQ's slabs are fat rounded barrels with chamfered corners, not boxes: the traced outline, grown a little, its corners rounded
+        pts = offset_poly([tuple(p) for p in b['clean']], GROW_SLAB)
+        body(f'STONE_{k}_0', pts, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER,
+             bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.93))
     else:
         pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
 
 # ---------------------------------------------------------------------------------------------------------------- island life
-PAD, PAD_DARK, FLOWER, FLOWER_HEART = '#62ad5e', '#4f9a52', '#f6dbda', '#e8a9b5'
+PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#76b668', '#8cc47c', '#5b9a55', '#fbe3e3', '#f2b4c0'
 for k, (x, y) in enumerate(L['pads']):
-    r = (1.55 if k == 2 else 1.1) * 0.8; z = WATER_Z + 0.06       # (the big one at the west edge of the frame is half again as wide)
-    notch = math.radians(38); a0 = rng.uniform(0, 2 * math.pi)
-    disc = [(x, y)] + [(x + math.cos(a0 + notch / 2 + t * (2 * math.pi - notch) / 24) * r, y + math.sin(a0 + notch / 2 + t * (2 * math.pi - notch) / 24) * r) for t in range(25)]
+    r = (2.5 if k == 2 else 1.9) * 0.8; z = WATER_Z + 0.06       # (the HQ's pads are large; the big one at the west edge of the frame is half again as wide)
+    notch = math.radians(62); a0 = rng.uniform(0, 2 * math.pi)
+    steps = 28
+    rim = [(x + math.cos(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r, y + math.sin(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r) for t in range(steps + 1)]
+    inner = [(x + (px - x) * 0.92, y + (py - y) * 0.92) for px, py in rim]
     parts = []
-    for i in range(1, 25):
-        parts.append(([disc[0], disc[i], disc[i + 1] if i < 24 else disc[24]], PAD, 0))
-    for j in range(7):                                             # the veins
-        a = a0 + notch / 2 + (j + 0.5) * (2 * math.pi - notch) / 7
-        parts.append(([(x, y), (x + math.cos(a - 0.07) * r * 0.78, y + math.sin(a - 0.07) * r * 0.78), (x + math.cos(a + 0.07) * r * 0.78, y + math.sin(a + 0.07) * r * 0.78)], PAD_DARK, 0.01))
-    if k in (1, 3):                                                # (two of them carry a flower)
-        star = [(x + math.cos(i * math.pi / 8) * r * (0.42 if i % 2 == 0 else 0.2), y + math.sin(i * math.pi / 8) * r * (0.42 if i % 2 == 0 else 0.2)) for i in range(16)]
+    for i in range(steps):                                          # (a lighter ring round the edge, the body a shade darker)
+        parts.append(([(x, y), rim[i], rim[i + 1]], PAD_RIM, 0))
+        parts.append(([(x, y), inner[i], inner[i + 1]], PAD, 0.005))
+    for j in range(6):                                             # (short dark dashes: the HQ's veins)
+        a = a0 + notch / 2 + (j + 0.5) * (2 * math.pi - notch) / 6
+        c0, c1 = 0.4 * r, 0.58 * r
+        d = Vector((math.cos(a), math.sin(a), 0)); n = Vector((-d.y, d.x, 0)) * 0.09
+        p0, p1 = Vector((x, y, 0)) + d * c0, Vector((x, y, 0)) + d * c1
+        parts.append(([(p0.x - n.x, p0.y - n.y), (p0.x + n.x, p0.y + n.y), (p1.x + n.x, p1.y + n.y), (p1.x - n.x, p1.y - n.y)], PAD_DARK, 0.01))
+    if k in (1, 3):                                                # (two of them carry a flower: pale petals round a pink heart)
+        star = [(x + math.cos(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26), y + math.sin(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26)) for i in range(16)]
         parts.append((star, FLOWER, 0.03))
-        parts.append(([(x + math.cos(a) * r * 0.1, y + math.sin(a) * r * 0.1) for a in [i * math.pi / 4 for i in range(8)]], FLOWER_HEART, 0.04))
+        parts.append(([(x + math.cos(a) * r * 0.14, y + math.sin(a) * r * 0.14) for a in [i * math.pi / 4 for i in range(8)]], FLOWER_HEART, 0.04))
     flat(f'PAD_{k}', parts, z=z)
 for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
-    obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(2.6, 4.2)}, PAL, FLAT, None, 100 + k)
+    obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
 def blob(name, c, radii, hex_, hex_low, sub=4, bumps=0.08):
@@ -342,8 +353,8 @@ def trunk(name, foot, top, height, r0, r1):
         dark = (i % 3 == 1)
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            patch = dark and k % 3 != 0 or (k == 2 and i % 2 == 0)
-            for loop in f.loops: loop[col] = lin(HQ.flat('#4d5a8e' if patch else '#e6e5f2'))
+            patch = (dark and k % 4 != 1) or (k == 2 and i % 3 == 0)      # (wide dark bands round the trunk, with pale gaps and the odd dot)
+            for loop in f.loops: loop[col] = lin(HQ.flat('#586398' if patch else '#c9cdea'))
             f.smooth = False
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
@@ -354,10 +365,10 @@ def trunk(name, foot, top, height, r0, r1):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.5, 0.36)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7)
     for j, lump in enumerate(t['lumps']):
         r = lump['r']
-        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.12, lump.get('ry', r) * 1.12, r * 0.6), TREE, TREE_LOW)
+        blob(f'TREE_{k}_{j}', (lump['at'][0], lump['at'][1], lump['z']), (r * 1.1, lump.get('ry', r) * 1.1, r * 0.85), TREE, TREE_LOW)
 # the fallen leaves: small red ovals on the grass by the trees' feet
 for k, (x, y) in enumerate(L['petals']):
     a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.16, 0.26), rng.uniform(0.09, 0.14)

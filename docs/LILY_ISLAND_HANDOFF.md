@@ -61,3 +61,7 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
   the water shader) is the next step for them.
 - Measured with `measure.py` on the Blender render (which has no overlay): water px differing >12 levels 46% (mostly the shafts and the foam),
   grass 18%. Whole frame ~49%. This number is NOT a pass mark; use blend images (`output/blendN.jpg`) region by region.
+- (session 2, later) Slabs rebuilt from their traced outlines (fat rounded barrels, h 2.0, hand-set in fit_stones.py MANUAL), kerb pieces skip stones,
+  bamboo taller (4.4-6.4), lily pads bigger with the HQ's rim ring / short dashes / bigger flower, birch trunk thick and banded, tree lumps placed
+  at their own heights (layout.py). Trees are still the weakest object: the HQ's lumps are puffy domes with mottled colour and a bent S-shaped
+  trunk; ours are flat-looking discs and a straight trunk. Cast shadows and in-scene shafts remain.

@@ -125,11 +125,14 @@ TREE_PX = [
 ]
 trees = []
 for t in TREE_PX:
-    height = 8.0      # (about three characters tall; the trunk LEANS, so the pixels it climbs are not all height)
-    trees.append(dict(
-        foot=_foot(*t['foot']), height=round(height, 2), top=unproject(t['top'][0], t['top'][1], height)[0],
-        lumps=[dict(at=unproject(x, y, height)[0], r=round(rx / unproject(x, y, height)[1], 2), z=round(height, 2),
-                    ry=round(ry / unproject(x, y, height)[1], 2)) for x, y, rx, ry in t['lumps']]))
+    height = 5.2      # (a bent birch about as tall as two and a half characters; its lumps sit from low to high with how high they are in the frame)
+    span = max(t['foot'][1] - t['top'][1], 1)
+    lumps = []
+    for x, y, rx, ry in t['lumps']:
+        z = float(np.clip(2.2 + 3.4 * (t['foot'][1] - y) / span, 2.2, 5.6))
+        spot, ppu = unproject(x, y, z)
+        lumps.append(dict(at=spot, r=round(rx / ppu, 2), ry=round(ry / ppu, 2), z=round(z, 2)))
+    trees.append(dict(foot=_foot(*t['foot']), height=round(height, 2), top=unproject(t['top'][0], t['top'][1], height)[0], lumps=lumps))
 # fallen leaves: small red ovals lying on the grass by each tree's foot (pixel clusters of the frame)
 rng = np.random.default_rng(5)
 petals = []
