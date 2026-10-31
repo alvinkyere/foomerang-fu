@@ -25,3 +25,11 @@ then prettier on the json; `hqcompare.py`, `fit_stones.py`, `fit_trees.py`, `fit
 - Camera: `?frame=hq` pins `hqFrame` (u 0.0465, v 0.0137, zoom as lily); the grass overlay (hqcompare / `output/grassov.png`) shows the game's land a few px up-left of the HQ's at the SE and S ends:
   the kerb eats the grass edge there, thin it or move the outline out ~0.5 unit. Grass and water colours already match the HQ frame (#ddf195 vs #dcf296, #7aa6bb vs #7aa8bb).
 - Colours are the lily island's; the HQ frame here has a stronger teal cast from the shafts (top right).
+
+## Object-by-object (2026-10-31, owner: "every object, perfect down to the last pixel")
+`art/bridge_islands/objcmp.py <shot>` lists every object of the map (box in the reference frame) and writes `output/obj_<name>.png` (HQ | game, 3x) with the share of differing
+pixels. Start of the pass: 49-99% differ per object (all of them). Done so far: the bridge's walls are chains of fat rounded bricks with a taller cap (`BRICK_WALLS` = stones.json
+indices 6 and 11, sorted by y; check them after any re-sort), the deck has offset brick courses (the HQ's are scalloped, with tan grass-blade streaks across: not built), the gate is
+placed from the HQ's posts (still hidden under the back wall in the game: the back wall block 3 is too tall/wide there), the trees take the HQ's two colours, bush size from measure.
+Next, in order: the gate and back wall (the HQ's wall is a row of big rounded blocks like the bridge walls, not one slab: use BRICK_WALLS for index 3 too, h ~2.6), trees (trunk + lump
+shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), the islets' outlines, pads, crates, bamboo, lanterns, the aloe pot.

@@ -78,6 +78,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#82a1e2', '#617cb9'),
                  ('#a4b3ea', '#6a79ab'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
+BRICK_WALLS = {6, 11}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
 CUBE_LIKE = {0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14}
 BLOCK_TAPER = {}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_COLOURS = [('#a5b3ea', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
@@ -343,7 +344,22 @@ GROW_SLAB = float(os.environ.get('POND_GROW_SLAB', 0.22))     # (the margin of a
 GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW', 0.35)), float(os.environ.get('POND_CORNER_SLAB', 0.35)), float(os.environ.get('POND_CORNER', 0.4)), float(os.environ.get('POND_ROLL', 0.22)), 4
 for k, b in enumerate(S):
     H = b['height']
-    if b['kind'] == 'slab':
+    if k in BRICK_WALLS:
+        # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
+        pts_ = [tuple(q) for q in b['top']]
+        cx_ = sum(q[0] for q in pts_) / len(pts_); cy_ = sum(q[1] for q in pts_) / len(pts_)
+        sxx = sum((q[0] - cx_) ** 2 for q in pts_); syy = sum((q[1] - cy_) ** 2 for q in pts_); sxy = sum((q[0] - cx_) * (q[1] - cy_) for q in pts_)
+        a_ = 0.5 * math.atan2(2 * sxy, sxx - syy)                          # (the polygon's long axis, in the plan)
+        ux_, uy_ = math.cos(a_), math.sin(a_)
+        ts_ = [(q[0] - cx_) * ux_ + (q[1] - cy_) * uy_ for q in pts_]
+        t0_, t1_ = min(ts_), max(ts_); rw_ = t1_ - t0_
+        n_ = max(2, round(rw_ / 4.6)); piece_ = rw_ / n_
+        for j_ in range(n_):
+            mid_ = t0_ + (j_ + 0.5) * piece_
+            cap_ = (j_ == n_ - 1)
+            body(f'STONE_{k}_{j_}', rounded_rect(cx_ + mid_ * ux_, cy_ + mid_ * uy_, piece_ - 0.15 + (0.8 if cap_ else 0), 2.3 + (0.8 if cap_ else 0), math.degrees(a_), 0.55),
+                 H + (0.6 if cap_ else 0) + rng.uniform(-0.15, 0.15), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=0.3, corner_r=0.5, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+    elif b['kind'] == 'slab':
         # the HQ's slabs are fat rounded barrels with chamfered corners, not boxes: the traced outline, grown a little, its corners rounded
         pts = offset_poly([tuple(p) for p in b['clean']], GROW_SLAB)
         body(f'SLIDER_0' if k == 2 else f'STONE_{k}_0', pts, H + rng.uniform(-0.03, 0.03), BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER,
@@ -489,16 +505,33 @@ BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#a68aa6', 0.98)), lit('bridg
 if L['bridge']:
     body('BRIDGE', [tuple(p) for p in L['bridge']], 0.12, BRIDGE_TOP, BRIDGE_SIDE, top_r=0.1, bottom=WATER_Z - 0.5, soft=True, top_seg=2)
     bp = [tuple(p) for p in L['bridge']]
-    bx0, by0 = min(p[0] for p in bp), min(p[1] for p in bp); bx1, by1 = max(p[0] for p in bp), max(p[1] for p in bp)
-    lines = []
-    for i in range(1, 12):                                         # (the brick courses: dark seams across the deck)
-        t = i / 12.0
-        y = by0 + (by1 - by0) * t
-        lines.append(([(bx0, y - 0.05), (bx1, y - 0.05), (bx1, y + 0.05), (bx0, y + 0.05)], '#8a6f9e', 0.0))
-    flat('BRIDGE_seams', lines, z=0.135)
+    # the deck's own axes (its long sides run NE-SW on screen): courses of bricks across it, each course offset half a brick from the last
+    pts_ = np.array(bp) if False else bp
+    cxb = sum(p[0] for p in bp) / len(bp); cyb = sum(p[1] for p in bp) / len(bp)
+    best_ = None
+    for deg in range(0, 180, 3):
+        t_ = math.radians(deg); c_, s_ = math.cos(t_), math.sin(t_)
+        us = [(p[0] - cxb) * c_ + (p[1] - cyb) * s_ for p in bp]; vs = [-(p[0] - cxb) * s_ + (p[1] - cyb) * c_ for p in bp]
+        area_ = (max(us) - min(us)) * (max(vs) - min(vs))
+        if best_ is None or area_ < best_[0]: best_ = (area_, t_, min(us), max(us), min(vs), max(vs))
+    _, t_, u0, u1, v0, v1 = best_
+    c_, s_ = math.cos(t_), math.sin(t_)
+    to_xy = lambda u, v: (cxb + u * c_ - v * s_, cyb + u * s_ + v * c_)
+    seams = []
+    course = 1.7
+    n_courses = int((u1 - u0) / course)
+    for i in range(1, n_courses):
+        u = u0 + i * course
+        seams.append(([to_xy(u - 0.04, v0), to_xy(u + 0.04, v0), to_xy(u + 0.04, v1), to_xy(u - 0.04, v1)], '#8a6aa0', 0.0))
+        off = 0.0 if i % 2 else 1.1
+        v = v0 + off + 2.2
+        while v < v1 - 0.3:
+            seams.append(([to_xy(u - course, v - 0.04), to_xy(u, v - 0.04), to_xy(u, v + 0.04), to_xy(u - course, v + 0.04)], '#8a6aa0', 0.0))
+            v += 2.2
+    flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
-    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 2.0}, PAL, FLAT, None, k)
+    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.15}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['pots']):
     obj_models.pot({'x': x, 'y': y, 'width': 1.15, 'height': 1.25}, PAL, FLAT, None, k)
 # stone lanterns: a small pale-lavender post with a cap
