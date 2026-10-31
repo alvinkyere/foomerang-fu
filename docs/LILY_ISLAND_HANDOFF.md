@@ -53,3 +53,11 @@ game's light; compare it with `output/reference.png` (blend 50/50, IoU of masks,
 5. Bamboo stands, lily pads (the HQ pads are bigger with a notch), the pink flowers, the green specks on the water by the notch.
 6. Characters' spawn glows, the HQ's pale spawn discs (we draw `pale` patches from the frame).
 7. The island is not yet in the rotation.
+
+### 2026-10-30 (session 2)
+- Light shafts re-fitted to the HQ (structure tensor of the water's green excess over the top 420 px): bands run at 136.5 deg (CSS `136deg`),
+  period ~18vw, strength +26 G / +14 B over plain water; `.arena-shafts` in styles.css is now that, plus the bluer-toward-the-bottom gradient.
+  Still an overlay (it also tints canopies and grass a little, the HQ's shafts do too but less): moving them into the scene (a lit plane or
+  the water shader) is the next step for them.
+- Measured with `measure.py` on the Blender render (which has no overlay): water px differing >12 levels 46% (mostly the shafts and the foam),
+  grass 18%. Whole frame ~49%. This number is NOT a pass mark; use blend images (`output/blendN.jpg`) region by region.
