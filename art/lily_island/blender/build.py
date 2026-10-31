@@ -353,7 +353,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
     a = Vector((foot[0], foot[1], 0.0)); b = Vector((top[0], top[1], height))
     axis = (b - a).normalized(); side = axis.cross(Vector((0, 0, 1)))
     side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0)); up = axis.cross(side).normalized()
-    grid = []
+    grid = []; blot = {}
     for i in range(rings):
         t = i / (rings - 1); centre = a + (b - a) * t + side * (bend * math.sin(math.pi * t) * (1 if t < 0.5 else 1)); r = r0 + (r1 - r0) * t
         grid.append([bm.verts.new(centre + (side * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * r) for k in range(seg)])
@@ -361,8 +361,8 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
         dark = (i % 3 == 1)
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            patch = (dark and k % 4 != 1) or (k == 2 and i % 3 == 0)      # (wide dark bands round the trunk, with pale gaps and the odd dot)
-            for loop in f.loops: loop[col] = lin(HQ.flat('#586398' if patch else '#c9cdea'))
+            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < 0.45)      # (random blotches of dark navy on pale lavender, uneven like the HQ's)
+            for loop in f.loops: loop[col] = lin(HQ.flat('#4f5a93' if patch else '#c4c9e9'))
             f.smooth = False
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
@@ -373,7 +373,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 TREE, TREE_LOW = '#e5714f', '#b94d33'
 for k, t in enumerate(L['trees']):
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.85, 0.7, bend=1.4 if k == 0 else -1.2)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.55, 0.45, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 0.84
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 0.84

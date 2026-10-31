@@ -6,7 +6,7 @@ read off the frame (pixel centres below) and unprojected the same way.
 
   python art/lily_island/layout.py       (from the repository root; the Python of art/audio/output/venv)
 """
-import json, math
+import json, math, os
 import numpy as np, cv2
 
 CAM = json.load(open('art/sky_islands/camera.json'))
@@ -120,18 +120,25 @@ def unproject(px, py, z):
 _foot = lambda px, py: unproject(px, py, 0.0)[0]
 _dy = abs(ref(0, 77, 1.0)[1] - ref(0, 77, 0.0)[1])
 TREE_PX = [
-    dict(foot=(430, 560), top=(352, 300), lumps=[(250, 365, 80, 80), (372, 342, 48, 42), (432, 370, 62, 50), (335, 512, 85, 58)]),
-    dict(foot=(1405, 268), top=(1475, 108), lumps=[(1475, 68, 50, 38), (1380, 120, 55, 38), (1512, 131, 38, 40), (1365, 212, 60, 43), (1468, 190, 38, 35)]),
+    dict(foot=(430, 560), top=(345, 402), lumps=[(250, 365, 80, 80), (372, 342, 48, 42), (432, 370, 62, 50), (335, 512, 85, 58)]),
+    dict(foot=(1405, 268), top=(1470, 165), lumps=[(1475, 68, 50, 38), (1380, 120, 55, 38), (1512, 131, 38, 40), (1365, 212, 60, 43), (1468, 190, 38, 35)]),
 ]
 trees = []
 for t in TREE_PX:
-    height = 5.2      # (a bent birch about as tall as two and a half characters; its lumps sit from low to high with how high they are in the frame)
+    height = 3.4      # (a bent birch about as tall as two and a half characters; its lumps sit from low to high with how high they are in the frame)
     span = max(t['foot'][1] - t['top'][1], 1)
     lumps = []
     for x, y, rx, ry in t['lumps']:
         z = float(np.clip(2.2 + 3.4 * (t['foot'][1] - y) / span, 2.2, 5.6))
         spot, ppu = unproject(x, y, z)
         lumps.append(dict(at=spot, r=round(rx / ppu, 2), ry=round(ry / ppu, 2), z=round(z, 2)))
+    # the fit against the game's own view (fit_trees.py): the canopy moved and scaled as a whole
+    tf = json.load(open('art/lily_island/treefit.json')).get(str(len(trees)), dict(dx=0.0, dy=0.0, s=1.0)) if os.path.exists('art/lily_island/treefit.json') else dict(dx=0.0, dy=0.0, s=1.0)
+    if lumps:
+        mx = float(np.mean([l['at'][0] for l in lumps])); my = float(np.mean([l['at'][1] for l in lumps]))
+        for l in lumps:
+            l['at'] = [round(mx + tf['s'] * (l['at'][0] - mx) + tf['dx'], 2), round(my + tf['s'] * (l['at'][1] - my) + tf['dy'], 2)]
+            l['r'] = round(l['r'] * tf['s'], 2); l['ry'] = round(l['ry'] * tf['s'], 2)
     trees.append(dict(foot=_foot(*t['foot']), height=round(height, 2), top=unproject(t['top'][0], t['top'][1], height)[0], lumps=lumps))
 # fallen leaves: small red ovals lying on the grass by each tree's foot (pixel clusters of the frame)
 rng = np.random.default_rng(5)

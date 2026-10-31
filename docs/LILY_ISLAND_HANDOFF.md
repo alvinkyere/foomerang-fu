@@ -81,3 +81,9 @@ Status: scale 1.000, shift ~(-4, 4) px, grass IoU 0.82, grass colour #dcf295 vs 
 hqZoom/scale to show the island as big as the HQ does (the Blender preview and the game's camera do not share one zoom convention).
 - Kerb widened to 1.0 x 0.6 in a lighter lavender (#98a2e8 / #7f89d6) after a crop-by-crop look with hqcompare; tree lumps shrunk x0.84. The HQ's kerb is thick on the front (south/east) edges and almost only a soft glow on the back (north/west) edges: ours is one thickness all round (next fix).
 - Kerb now thick on the camera-facing edges and thin on the back ones (build.py `f`). The player names ASH/RIK/JAS/PRICE at the left of the HQ frame are NOT to be built (owner, 2026-10-30): they are masked out of every comparison (x < 215).
+- (2026-10-31) Trees: `fit_trees.py <game shot>` moves/scales each canopy in the GAME's view until its orange mask sits on the HQ's (residual now ~1 px; results in
+  treefit.json, applied by layout.py; rerun layout->...->package, shoot, fit until ~0). Trunk heights/tops re-read from the frame (3.4 tall), thinner, blotched.
+  STILL WRONG: the right tree's canopies are small and float high above the north-east slab in ours (the HQ's sit lower, bigger, overlapping the slab, trunk visible
+  between them); the left tree's trunk is too short/thin and the HQ lumps are bigger and overlapping. The mask fit only matches centre+area, not each lump: next, fit each
+  lump separately (split the mask into components) and lower the right tree. Pixel difference is still ~40%: it is spread over the whole frame (boulder shading,
+  canopy mottling, shafts, foam), so there is no single fix to bring it to 10%.
