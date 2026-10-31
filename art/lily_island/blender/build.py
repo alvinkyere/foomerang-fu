@@ -77,7 +77,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # per block, as the HQ frame shows it (its trees and slabs throw shadows on the stones: the NW slab and the W boulder lie in them), in
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#7d96e0', '#5a74c4'),
-                 ('#98a4e6', '#6f80cf'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
+                 ('#707fb4', '#5a69a0'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
 CUBE_LIKE = {0, 3, 5, 7}
 BLOCK_TAPER = {3: 1.0, 4: 1.0}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
