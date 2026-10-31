@@ -114,3 +114,6 @@ hqZoom/scale to show the island as big as the HQ does (the Blender preview and t
   `layout.json banks` (30 vertices, straightened by layout.py rectify) with chaikin x2, so the edge is clean. Corner posts (`corner_blocks`) stand at convex front corners.
   The island body's outline (rectified) and the rules ground (traced) are two different outlines a hair apart: unify later (generate the rules ground from the rectified one).
 - (2026-10-31) ground.py now writes `ground.json polygons` = layout.py's straightened outline, so the rules' walkable ground (arena.py), the drawn island and the water field are one outline.
+- (2026-10-31) Foam outlines now three thick wobbly ribbons (0.22/0.17/0.12 wide, wobble 0.22, presence 0.22-0.5): ragged and several, as the HQ's. Corner posts enlarged (3.6 wide, only
+  between two walls >= 4.5 long). NOTE the shoot script needs the validation worktree: if `shoot_hq.sh` says "not a git repository", write
+  `gitdir: <repo>/.git/worktrees/mine2` into `$TMPDIR/foomerang-validate/.git` and reinstall node_modules (`pnpm install --frozen-lockfile --offline`).

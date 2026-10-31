@@ -284,14 +284,14 @@ def corner_blocks(poly):
     for i in range(n):
         (x0, y0), (x1, y1), (x2, y2) = poly[i - 1], poly[i], poly[(i + 1) % n]
         e1 = (x1 - x0, y1 - y0); e2 = (x2 - x1, y2 - y1)
-        if min(math.hypot(*e1), math.hypot(*e2)) < 2.5: continue          # (a corner between two real walls, not a wobble)
+        if min(math.hypot(*e1), math.hypot(*e2)) < 4.5: continue          # (a corner between two real walls, not a wobble)
         if cross_sign(e1, e2, sgn) <= 0: continue                            # (convex only)
         l1 = math.hypot(*e1); l2 = math.hypot(*e2)
         n1 = (-e1[1] / l1 * sgn, e1[0] / l1 * sgn); n2 = (-e2[1] / l2 * sgn, e2[0] / l2 * sgn)
         if min(n1[1], n2[1]) < 0.35: continue                                # (both outer faces look towards the camera)
         bx, by = n1[0] + n2[0], n1[1] + n2[1]; bl = math.hypot(bx, by) or 1; bx, by = bx / bl, by / bl
         ang = math.degrees(math.atan2(by, bx)) + 45.0
-        body(f'CORNER_{i}', rounded_rect(x1 - bx * 0.55, y1 - by * 0.55, 2.3, 2.3, ang, 0.8), 1.05, KERB_TOP, KERB_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
+        body(f'CORNER_{i}', rounded_rect(x1 + bx * 0.9, y1 + by * 0.9, 3.6, 3.6, ang, 1.2), 0.7, KERB_TOP, KERB_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 
 
 for k, poly in enumerate(RENDER_OUTLINES):
