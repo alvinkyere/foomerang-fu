@@ -423,7 +423,7 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
 SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
-    if k in SW_SKIP or k in (0, 2, 3, 5, 7): continue          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
+    if k in SW_SKIP or k in (0, 2, 3, 5, 7, 9): continue      # (9: the SE wall's run onto the east island, built with the wall)          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -546,7 +546,7 @@ for k, sp in enumerate(L.get('small_pads', [])):                   # (the small 
 for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
-    obj_models.bamboo({'x': x, 'y': y, 'width': 0.7, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
+    obj_models.bamboo({'x': x, 'y': y, 'width': 0.55, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
 def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
@@ -699,7 +699,7 @@ if len(bq) == 4:
     for tag, p0, p1, outward in (('NW', A, B_, (-1, 1)), ('SE', D_, C_, (1, -1))):
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]; ln0 = math.hypot(dx, dy); ux, uy = dx / ln0, dy / ln0
         # (how far each wall runs past the deck's corners, and how wide it is, measured: the NW wall runs on onto the east island, ~3.7 units past B)
-        e0, e1, wid, off = (0.9, 4.6, 1.8, 0.8) if tag == 'NW' else (0.9, 0.9, 1.3, 0.5)
+        e0, e1, wid, off = (0.9, 4.6, 1.8, 0.8) if tag == 'NW' else (0.9, 4.2, 1.3, 0.5)      # (the SE wall too runs on onto the east island, behind the crates: to (1180, 500))
         p0 = (p0[0] - ux * e0, p0[1] - uy * e0); p1 = (p1[0] + ux * e1, p1[1] + uy * e1); ln = ln0 + e0 + e1
         nx, ny = -uy, ux
         # which side is outward: away from the deck's centre

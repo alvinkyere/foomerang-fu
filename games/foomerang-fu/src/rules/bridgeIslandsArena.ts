@@ -491,16 +491,6 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     id: 'WALL_39',
     kind: 'WALL',
     shape: 'box',
-    x: 979,
-    y: 886,
-    halfWidth: 18,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_40',
-    kind: 'WALL',
-    shape: 'box',
     x: 189,
     y: 969,
     halfWidth: 18,
@@ -508,7 +498,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_41',
+    id: 'WALL_40',
     kind: 'WALL',
     shape: 'box',
     x: 855,
@@ -518,7 +508,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_42',
+    id: 'WALL_41',
     kind: 'WALL',
     shape: 'box',
     x: 835,
@@ -528,7 +518,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_43',
+    id: 'WALL_42',
     kind: 'WALL',
     shape: 'box',
     x: 811,
@@ -538,7 +528,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_44',
+    id: 'WALL_43',
     kind: 'WALL',
     shape: 'box',
     x: 773,
@@ -548,7 +538,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_45',
+    id: 'WALL_44',
     kind: 'WALL',
     shape: 'box',
     x: 721,
@@ -558,7 +548,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_46',
+    id: 'WALL_45',
     kind: 'WALL',
     shape: 'box',
     x: 1082,
@@ -568,7 +558,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_47',
+    id: 'WALL_46',
     kind: 'WALL',
     shape: 'box',
     x: 1075,
@@ -578,7 +568,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_48',
+    id: 'WALL_47',
     kind: 'WALL',
     shape: 'box',
     x: 550,
@@ -588,7 +578,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_49',
+    id: 'WALL_48',
     kind: 'WALL',
     shape: 'box',
     x: 1065,

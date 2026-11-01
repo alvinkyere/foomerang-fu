@@ -39,7 +39,7 @@ def _islet_e():
     return [(e['centre'][0] + e['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), e['centre'][1] + e['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
 
 
-solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 7)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 7, 9)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
 # the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
 # water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
 # stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
