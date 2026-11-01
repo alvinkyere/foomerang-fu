@@ -354,6 +354,7 @@ def flank(name, inner, z_in, outer, z_out, rows):
     return o
 
 
+EAST_K = max(MEASURED, key=lambda k: len(L['banks'][k])) if MEASURED else -1      # (the east island: the measured island with the most corners)
 for _k_, _water in MEASURED.items():
     _in = RENDER_OUTLINES[_k_]
     _out = [tuple(q) for q in _water]
@@ -363,7 +364,11 @@ for _k_, _water in MEASURED.items():
         # the thin pale foam line where the side meets the water, then the darker water hugging it (the HQ: #a8daf5 ~4 px, then #689dba)
         _cx = sum(q[0] for q in _out) / len(_out); _cy = sum(q[1] for q in _out) / len(_out)
         _grow = lambda P, d: [(x + (x - _cx) / math.hypot(x - _cx, y - _cy) * d, y + (y - _cy) / math.hypot(x - _cx, y - _cy) * d) for x, y in P]
-        flank(f'FOAM_{_k_}', _out, WATER_Z + 0.012, _grow(_out, 0.22), WATER_Z + 0.012, [(0.0, '#a8daf5'), (1.0, '#a8daf5')])
+        # (the HQ: the water hugging the flank is darker than the open water, ~15 px, then eases into it; the south-west island also shows a thin
+        # pale foam line at its foot, the east island none)
+        _o2 = _grow(_out, 0.22) if _k_ != EAST_K else _out
+        if _k_ != EAST_K: flank(f'FOAM_{_k_}', _out, WATER_Z + 0.012, _o2, WATER_Z + 0.012, [(0.0, '#a8daf5'), (1.0, '#a8daf5')])
+        flank(f'DARK_{_k_}', _o2, WATER_Z + 0.011, _grow(_o2, 0.7), WATER_Z + 0.011, [(0.0, '#6c9abe'), (0.6, '#719fbd'), (1.0, '#77a4bd')])
 for k, poly in enumerate(RENDER_OUTLINES):
     if k in MEASURED: continue
     corner_blocks(poly)

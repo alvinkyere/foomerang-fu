@@ -55,9 +55,9 @@ manifest = {
               # drawn as the HQ draws it: ribbons with wavy outlines morphing from one drawing to the next (CartoonWater, waterShader.ts); the widths
               # are fitted so the foam covers the HQ's share of the water (4.9%: 6.7% with the first widths, 0.34 and 0.20), the second ribbon
               # thinner and farther out
-              'cartoon': {'fps': 0.17, 'wobble': 0.22, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.65, 0.88], 'motion': 0.5, 'glow': 0.4,
+              'cartoon': {'fps': 0.17, 'wobble': 0.22, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.74, 0.93], 'motion': 0.5, 'glow': 0.4,
                           # the HQ draws three thin pale outlines round every edge (10:37, the SE kerb), nearly continuous
-                          'ribbons': [{'centre': 0.55, 'width': 0.22, 'sway': 0.04}, {'centre': 1.0, 'width': 0.17, 'sway': 0.04}, {'centre': 1.5, 'width': 0.12, 'sway': 0.04}]},
+                          'ribbons': [{'centre': 0.55, 'width': 0.22, 'sway': 0.04}, {'centre': 1.0, 'width': 0.17, 'sway': 0.04}]},
               },
     # the light shafts: drawn on the water only, by the water shader (waterShader.ts `shafts`): one broad bright band and a narrower one,
     # across the screen at the angle measured from the HQ frame (the water's green excess), strongest at the top and gone by 72% down
