@@ -731,7 +731,7 @@ if L['bridge']:
                     seams.append(([to_xy(a_, vj), to_xy(b_, vj), to_xy(b_, vj + 0.1), to_xy(a_, vj + 0.1)], STREAK, 0.002))
                 uu += l_ + rr_.uniform(0.5, 2.5)
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
-WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#8190d2', 0.98)), lit('wall_side', HQ.lit('#5f6cae', 0.875))
+WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#828fc3', 0.98)), lit('wall_side', HQ.lit('#5f6ca3', 0.875))      # (the HQ walls' bright and dark medians, measured)
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
 bq = [tuple(p) for p in L['bridge']]
 if len(bq) == 4:
