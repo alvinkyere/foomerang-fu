@@ -368,7 +368,7 @@ for k, b in enumerate(S):
         if k in CUBE_LIKE:
             # the HQ's boulders are soft cubes: the footprint's own rectangle with generous rounded corners, not a many-sided hull
             cx_, cy_, rw_, rh_, ang_ = b['rect']
-            pts = rounded_rect(cx_, cy_, rw_ + 2 * GROW, rh_ + 2 * GROW, -ang_, 0.9)
+            pts = rounded_rect(cx_, cy_, rw_ * 0.68 + 2 * GROW, rh_ * 0.68 + 2 * GROW, -ang_, 0.9)      # (the hand outlines took in each block's side as well as its top: ~0.68 of them is the top)
         else:
             pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
@@ -533,7 +533,7 @@ if L['bridge']:
 for k, bu in enumerate(L['bushes']):
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.15}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['pots']):
-    obj_models.pot({'x': x, 'y': y, 'width': 1.15, 'height': 1.25}, PAL, FLAT, None, k)
+    obj_models.pot({'x': x, 'y': y, 'width': 0.8, 'height': 0.9}, PAL, FLAT, None, k)
 # stone lanterns: a small pale-lavender post with a cap
 for k, (x, y) in enumerate(L['lanterns']):
     body(f'LANTERN_{k}', rounded_rect(x, y, 0.8, 0.8, 0, 0.2), 2.0, KERB_TOP, KERB_SIDE, top_r=0.2, bottom=0, soft=True, top_seg=2)
