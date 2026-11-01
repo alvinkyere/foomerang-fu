@@ -187,14 +187,16 @@ for t in TREES:
     tree_out.append(dict(foot=unproject(*t['foot'], base)[0], base=base, height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, base + height)[0], lumps=lumps))
 _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/bridge_islands/props.json') else {}
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
-BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_mv('bush2', (1345, 420)), 68)]
-POTS = [(1060, 190), (1085, 180), (1130, 288), (1165, 402), (1135, 782), (1105, 800), (545, 345), (1150, 600), (890, 180)]
+BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_mv('bush2', (1360, 468)), 70)]
+# pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
+POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 782, 0.8, 0.9, 0.0),
+        (1105, 800, 0.8, 0.9, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
-BAMBOO = [(1400, 330), (1395, 270), (1360, 560), (1372, 595), (1420, 615), (365, 500), (860, 120)]
+BAMBOO = [(1400, 355), (1225, 280), (1268, 255), (1360, 560), (1372, 595), (1420, 615), (365, 500), (860, 120)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
 LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
-GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
+GATE = dict(left=(1273, 250), right=(1352, 290), gong=(1310, 235))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
 # the cube standing in the water by the wall's end (the HQ: its top a diamond, corners (1600, 73) (1642, 112) (1597, 140) (1558, 103); its left side
 # 70 px tall down to the water): each corner unprojected at the top's height, the water's plus 4.3
@@ -204,9 +206,15 @@ CUBE_TOP = WATER_Z + 4.3
 raised = [dict(grass=r1([unproject(x, y, WATER_Z + 3.7)[0] for x, y in [(1495, 340), (1630, 325), (1635, 410), (1525, 415)]]), z=WATER_Z + 3.7),
           dict(grass=r1([unproject(x, y, WATER_Z + 5.8)[0] for x, y in [(1495, 245), (1575, 250), (1565, 305), (1490, 300)]]), z=WATER_Z + 5.8)]
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
+# the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small
+# cube by the urns, the round boulder the pot and the lever stand on, the block before the hex bush
+for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
+                ([(1090, 295), (1120, 283), (1165, 285), (1185, 305), (1182, 335), (1150, 348), (1105, 346), (1083, 325)], 2.8),
+                ([(1305, 330), (1345, 322), (1370, 340), (1360, 365), (1315, 368)], 2.0)):
+    cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
 out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
-           pots=at(POTS), crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
+           pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
            gate=dict(left=unproject(*GATE['left'], 0.0)[0], right=unproject(*GATE['right'], 0.0)[0], gong=unproject(*GATE['gong'], 0.0)[0]),
            petals=[[*unproject(float(x), float(y), 0.0)[0], '#e6a93a'] for x, y in [(455, 525), (470, 540), (428, 548), (498, 515), (405, 520), (490, 545), (445, 560), (515, 535), (418, 538), (478, 505), (460, 500)]], tufts=[])

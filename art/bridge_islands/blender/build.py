@@ -419,7 +419,7 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
 SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
-    if k in SW_SKIP or k in (0, 3, 7): continue          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
+    if k in SW_SKIP or k in (0, 2, 3, 5, 7): continue          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -708,12 +708,15 @@ if len(bq) == 4:
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)
-for k, (x, y) in enumerate(L['pots']):
-    obj_models.pot({'x': x, 'y': y, 'width': 0.8, 'height': 0.9}, PAL, FLAT, None, k)
+for k, po in enumerate(L['pots']):
+    _before = set(bpy.data.objects.keys())
+    obj_models.pot({'x': po['at'][0], 'y': po['at'][1], 'width': po['w'], 'height': po['h']}, PAL, FLAT, None, k)
+    for n_ in set(bpy.data.objects.keys()) - _before: bpy.data.objects[n_].location.z += po['z']
 # stone lanterns: a small pale-lavender post with a cap
 for k, (x, y) in enumerate(L['lanterns']):
-    body(f'LANTERN_{k}', rounded_rect(x, y, 0.8, 0.8, 0, 0.2), 2.0, KERB_TOP, KERB_SIDE, top_r=0.2, bottom=0, soft=True, top_seg=2)
-    body(f'LANTERN_cap_{k}', rounded_rect(x, y, 1.5, 1.5, 0, 0.3), 2.6, KERB_TOP, KERB_SIDE, top_r=0.2, bottom=2.0, soft=True, top_seg=2)
+    # (the HQ's lanterns are grey-green stone, stacked: a base, a post, a lit box, a roof)
+    for j_, (w_, z0, z1) in enumerate(((1.4, 0.0, 0.5), (0.8, 0.5, 1.7), (1.3, 1.7, 2.5), (1.7, 2.5, 2.9), (0.6, 2.9, 3.3))):
+        paint_flat(body(f'LANTERN_{k}_{j_}', rounded_rect(x, y, w_, w_, 0, 0.15), z1, FLAT, FLAT, top_r=0.08, bottom=z0, soft=True, top_seg=1), '#b4c4bb', '#7f948d', '#97aaa2')
 # the gong gate: the gong islands' model, turned to the gate's own way (its posts stand along the plan diagonal in the HQ frame here)
 gl, gr = L['gate']['left'], L['gate']['right']
 gate_root = bpy.data.objects.new('GATE', None); sc.collection.objects.link(gate_root)
