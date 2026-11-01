@@ -193,7 +193,17 @@ def flat(name, parts, parent=None, z=0.0):
 
 
 # ---------------------------------------------------------------------------------------------------------------- banks
-RENDER_OUTLINES = [[tuple(q) for q in poly] for poly in L['banks']]      # (layout.py's straightened outline: the traced ground.json one is jagged)
+def _soft_rect(poly):
+    """A four-cornered outline (the south-west island: the HQ's is a plain rectangle with generously rounded corners) as a rounded rectangle."""
+    if len(poly) != 4: return [tuple(q) for q in poly]
+    P = [tuple(q) for q in poly]
+    cx = sum(q[0] for q in P) / 4; cy = sum(q[1] for q in P) / 4
+    e0 = (P[1][0] - P[0][0], P[1][1] - P[0][1]); e1 = (P[2][0] - P[1][0], P[2][1] - P[1][1])
+    l0, l1 = math.hypot(*e0), math.hypot(*e1)
+    if max(l0, l1) < 12: return P                                  # (a small islet stays as drawn: hexagons are 6-cornered, so only rectangles get here)
+    a = math.degrees(math.atan2(e0[1], e0[0])) if l0 >= l1 else math.degrees(math.atan2(e1[1], e1[0]))
+    return rounded_rect(cx, cy, max(l0, l1), min(l0, l1), a, 1.9, seg=8)
+RENDER_OUTLINES = [_soft_rect(poly) for poly in L['banks']]      # (layout.py's straightened outline: the traced ground.json one is jagged)
 for k, poly in enumerate(RENDER_OUTLINES):
     poly = chaikin(poly, 2)      # (the HQ's island has soft rounded corners)
     body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)

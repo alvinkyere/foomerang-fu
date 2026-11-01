@@ -47,3 +47,6 @@ shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), 
   search limits, props.json removed). Tree colours matched (red #d97b69 vs HQ #d67b6a), canopy IoU 0.52 / 0.37. Where the rest is: grass 25% of bad (its edge band: HQ's is a 6 px darker-green
   glow, now narrowed), water 32% (foam outlines + shafts: the HQ's shafts here are a different pattern from lily's, `fit_shafts.py` fit gave no gain and is not wired), stones 18%, trees 9%,
   other 17% (vines, bamboo, pots). 30% is NOT reached; each remaining item is worth ~1% and needs per-object modelling.
+- (2026-11-01, owner: the south-west island "kerb rectangular, rounded edges, fix it once and for all") The drawn grass came from the TRACED mask (a blob with prop holes) while the kerb came from
+  the straightened outline: two shapes. `ground.py` now rasterises `layout.json banks` + the bridge as THE ground (grass, lime/shade/pale shapes, walkable ground and kerb are one shape) and
+  build.py `_soft_rect` draws any four-cornered bank as a rounded rectangle (corner 1.9, long enough to be an island). Whole frame 46.5% differing.

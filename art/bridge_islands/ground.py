@@ -66,14 +66,11 @@ def raster(polys):
 
 
 # the ground: where grass is seen, the banks' own outlines, the stones that stand on them, and the strip a wall hides
-seen = in_plan(grass)
-bank = (raster(L['banks']) > 0) | seen
-slabs = raster([b['top'] for b in S if b['kind'] == 'slab']) > 0      # (a boulder overhangs the water: it must not bend the bank's edge)
-ground = (bank | slabs).astype(np.uint8)
-K = 2 * int(1.4 * PX) + 1                 # close gaps under 2.8 units: the strip behind a slab
-ground = cv2.morphologyEx(ground, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (K, K)))
-ground = (cv2.GaussianBlur(ground.astype(np.float32), (0, 0), 0.15 * PX) > 0.5).astype(np.uint8)   # the HQ's edges are smooth
-ground = (cv2.GaussianBlur(ground.astype(np.float32), (0, 0), 0.25 * PX) > 0.5).astype(np.uint8)
+# the ground IS the straightened outlines (layout.py `banks`, the south-west island a rectangle) and the bridge: the drawn grass, the kerb and the walkable
+# ground must be one shape (the traced mask of the frame is a blob, with the props' holes in it)
+slabs = np.zeros((H_, W), np.uint8)
+ground = (raster(L['banks'] + ([[(float(x), float(y)) for x, y in L['bridge']]] if L['bridge'] else [])) > 0).astype(np.uint8)
+ground = (cv2.GaussianBlur(ground.astype(np.float32), (0, 0), 0.3 * PX) > 0.5).astype(np.uint8)
 cs, _ = cv2.findContours(ground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 polys = []
 for c in cs:
