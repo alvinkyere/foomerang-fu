@@ -17,7 +17,7 @@
     "centre": [0.0, 0.0, 1.1],
     "world": {
       "unitsPerPlanUnit": 2748,
-      "planOriginX": -0.3,
+      "planOriginX": -0.29,
       "planOriginY": 1.03
     }
   },

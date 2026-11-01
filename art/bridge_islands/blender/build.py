@@ -33,7 +33,7 @@ import objects as obj_models                                       # the gong is
 PAL = J('art/sky_islands/objects.json')['palettes']
 rng = random.Random(11)
 
-WATER_Z, DEPTH = -0.7, 2.4
+WATER_Z, DEPTH = L['water_z'], 2.4      # (layout.py: the water's height, which edges.py's water lines were unprojected at)
 STONE_BOTTOM = WATER_Z - DEPTH
 
 
@@ -203,10 +203,30 @@ def _soft_rect(poly):
     if max(l0, l1) < 12: return P                                  # (a small islet stays as drawn: hexagons are 6-cornered, so only rectangles get here)
     a = math.degrees(math.atan2(e0[1], e0[0])) if l0 >= l1 else math.degrees(math.atan2(e1[1], e1[0]))
     return rounded_rect(cx, cy, max(l0, l1), min(l0, l1), a, 1.9, seg=8)
-RENDER_OUTLINES = [_soft_rect(poly) for poly in L['banks']]      # (layout.py's straightened outline: the traced ground.json one is jagged)
+def fillet(P, r, seg=7):
+    """A polygon with each corner replaced by a circular arc of radius r tangent to its two sides."""
+    P = [tuple(q) for q in P]; n = len(P); out = []
+    area = sum(P[i][0] * P[(i + 1) % n][1] - P[(i + 1) % n][0] * P[i][1] for i in range(n)); sg = 1 if area > 0 else -1
+    for i in range(n):
+        p0, p1, p2 = Vector((*P[i - 1], 0)), Vector((*P[i], 0)), Vector((*P[(i + 1) % n], 0))
+        a, b = (p0 - p1).normalized(), (p2 - p1).normalized()
+        half = math.acos(max(-1.0, min(1.0, a.dot(b)))) / 2
+        d = min(r / math.tan(half), (p0 - p1).length * 0.45, (p2 - p1).length * 0.45); rr = d * math.tan(half)
+        t0, t1 = p1 + a * d, p1 + b * d
+        c = p1 + (a + b).normalized() * (rr / math.sin(half))
+        a0, a1 = math.atan2(t0.y - c.y, t0.x - c.x), math.atan2(t1.y - c.y, t1.x - c.x)
+        da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+        out += [(c.x + rr * math.cos(a0 + da * j / seg), c.y + rr * math.sin(a0 + da * j / seg)) for j in range(seg + 1)]
+    return out
+
+
+MEASURED = {m['index']: m['water'] for m in L.get('measured', [])}      # (layout.py: the islands edges.py measured side by side, with their water lines)
+SWI = -99
+SW_R = 1.3          # (the HQ's south-west island: its corners rounded about 1.3 units on the grass, the water line's by as much more as the flank is wide)
+RENDER_OUTLINES = [[tuple(q) for q in poly] if k in MEASURED else _soft_rect(poly) for k, poly in enumerate(L['banks'])]      # (the south-west island comes rounded from layout.py)      # (layout.py's straightened outline: the traced ground.json one is jagged)
 for k, poly in enumerate(RENDER_OUTLINES):
-    poly = chaikin(poly, 1 if len(poly) <= 6 else 2)      # (the HQ's island has soft rounded corners)
-    body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)
+    if k not in MEASURED: poly = chaikin(poly, 1 if len(poly) <= 6 else 2)      # (the HQ's island has soft rounded corners)
+    body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.0 if k in MEASURED else 0.3, bottom=WATER_Z - DEPTH)
 
 
 def lit_flat(name, polys, material, z):
@@ -306,7 +326,33 @@ def corner_blocks(poly):
         body(f'CORNER_{i}', rounded_rect(x1 + bx * 0.9, y1 + by * 0.9, 3.6, 3.6, ang, 1.2), 0.7, KERB_TOP, KERB_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH, soft=True, top_seg=3)
 
 
+def flank(name, inner, z_in, outer, z_out, rows):
+    """The island's side as the HQ shows it: a band from the grass outline (z_in) down to the water line (z_out), drawn unlit in the colours the HQ
+    shows across it (rows: fraction of the way out, colour; read off the frame by probes across the south-west and south-east sides)."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col'); n = len(inner)
+    ring = [[bm.verts.new((inner[i][0] + (outer[i][0] - inner[i][0]) * fr, inner[i][1] + (outer[i][1] - inner[i][1]) * fr, z_in + (z_out - z_in) * fr)) for i in range(n)] for fr, _ in rows]
+    for r in range(len(rows) - 1):
+        for i in range(n):
+            j = (i + 1) % n
+            f = bm.faces.new([ring[r][i], ring[r][j], ring[r + 1][j], ring[r + 1][i]])
+            for lp in f.loops: lp[col] = lin(HQ.flat(rows[r if lp.vert in (ring[r][i], ring[r][j]) else r + 1][1]))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
+    return o
+
+
+for _k_, _water in MEASURED.items():
+    _in = RENDER_OUTLINES[_k_]
+    _out = [tuple(q) for q in _water]
+    if len(_out) == len(_in):
+        # (edges.py's probes, from the grass's edge out: a pale blend, the lavender lit then darker down the side, the darkest at the foot)
+        flank(f'FLANK_{_k_}', _in, 0.0, _out, WATER_Z + 0.01, [(0.0, '#b2ccc6'), (0.12, '#a7b8dc'), (0.3, '#a3b1ea'), (0.48, '#8c9ad5'), (0.64, '#8797cf'), (0.8, '#7c96c6'), (1.0, '#7399c0')])
+        # the thin pale foam line where the side meets the water, then the darker water hugging it (the HQ: #a8daf5 ~4 px, then #689dba)
+        _cx = sum(q[0] for q in _out) / len(_out); _cy = sum(q[1] for q in _out) / len(_out)
+        _grow = lambda P, d: [(x + (x - _cx) / math.hypot(x - _cx, y - _cy) * d, y + (y - _cy) / math.hypot(x - _cx, y - _cy) * d) for x, y in P]
+        flank(f'FOAM_{_k_}', _out, WATER_Z + 0.012, _grow(_out, 0.22), WATER_Z + 0.012, [(0.0, '#a8daf5'), (1.0, '#a8daf5')])
 for k, poly in enumerate(RENDER_OUTLINES):
+    if k in MEASURED: continue
     corner_blocks(poly)
     kerb_ring(f'KERB_{k}', chaikin(poly, 1 if len(poly) <= 6 else 2), KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)

@@ -110,8 +110,10 @@ _sw = plan_k(np.float32(SW_PX))
 _east = plan_k(np.float32(EAST_PX))
 _k = max(range(len(banks)), key=lambda i: cv2.contourArea(np.float32(banks[i])))
 banks[_k] = _east
+EAST_INDEX = _k
 _k2 = [i for i in range(len(banks)) if len(banks[i]) == 4 and cv2.contourArea(np.float32(banks[i])) > 120]
 if _k2: banks[_k2[0]] = _sw
+SW_INDEX = _k2[0] if _k2 else -1
 # the bridge's own outline (its bricks), for the walkable ground and its model
 bcs, _ = cv2.findContours(bridge_m.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 bridge_poly = plan(cv2.approxPolyDP(max(bcs, key=cv2.contourArea), 6.0, True).reshape(-1, 2)) if bcs else []
@@ -131,6 +133,32 @@ def unproject(px, py, z):
 
 BRIDGE_PX = [(660, 550), (850, 405), (1080, 580), (890, 750)]      # the deck's corners in the frame: the NW wall along A-B, the SE wall along C-D, open ends B-C and D-A
 bridge_poly = np.array([unproject(x, y, 0.12)[0] for x, y in BRIDGE_PX])
+# the south-west island measured side by side (edges.py): its grass outline (the top, at the grass's height) and its water line (the flank's foot,
+# at the water's height): the island is the grass, the flank slopes from it down to that line
+WATER_Z = -0.7
+_EDGES = json.load(open('art/bridge_islands/edges.json'))
+def fillet(P, r, seg=7):
+    """A polygon with each corner replaced by a circular arc of radius r tangent to its two sides (seg + 1 points a corner)."""
+    P = np.array(P, float); n = len(P); out = []
+    for i in range(n):
+        p0, p1, p2 = P[i - 1], P[i], P[(i + 1) % n]
+        a, b = (p0 - p1) / np.linalg.norm(p0 - p1), (p2 - p1) / np.linalg.norm(p2 - p1)
+        half = math.acos(float(np.clip(a @ b, -1, 1))) / 2
+        d = min(r / math.tan(half), np.linalg.norm(p0 - p1) * 0.45, np.linalg.norm(p2 - p1) * 0.45); rr = d * math.tan(half)
+        t0, t1 = p1 + a * d, p1 + b * d; c = p1 + (a + b) / np.linalg.norm(a + b) * (rr / math.sin(half))
+        a0, a1 = math.atan2(*(t0 - c)[::-1]), math.atan2(*(t1 - c)[::-1]); da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+        out += [c + rr * np.array([math.cos(a0 + da * j / seg), math.sin(a0 + da * j / seg)]) for j in range(seg + 1)]
+    return np.array(out)
+
+
+ISLAND_R = 1.3          # (the HQ's islands: their grass corners rounded ~1.3 units; the water line's by as much more as the flank is wide)
+measured = []
+for _name, _idx in (('sw', SW_INDEX), ('east', EAST_INDEX)):
+    if _idx < 0 or _name not in _EDGES: continue
+    _g = np.array([unproject(x, y, 0.0)[0] for x, y in _EDGES[_name]['grass']]); _wl = np.array([unproject(x, y, WATER_Z)[0] for x, y in _EDGES[_name]['water']])
+    _fw = float(np.mean(np.linalg.norm(_wl - _g, axis=1)))
+    banks[_idx] = fillet(_g, ISLAND_R)
+    measured.append(dict(index=_idx, water=r1(fillet(_wl, ISLAND_R + _fw))))
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry), colour
@@ -164,7 +192,7 @@ LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
 GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
-out = dict(zoom=Z, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=at(POTS), crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
