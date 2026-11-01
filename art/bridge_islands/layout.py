@@ -142,12 +142,14 @@ for t in TREES:
         l['at'] = [round(mx + tf['s'] * (l['at'][0] - mx) + tf['dx'], 2), round(my + tf['s'] * (l['at'][1] - my) + tf['dy'], 2)]
         l['r'] = round(l['r'] * tf['s'], 2); l['ry'] = round(l['ry'] * tf['s'], 2)
     tree_out.append(dict(foot=unproject(*t['foot'], 0.0)[0], height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, height)[0], lumps=lumps))
-BUSHES = [(860, 205, 78), (775, 865, 72), (1345, 420, 68)]
+_PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/bridge_islands/props.json') else {}
+_mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
+BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_mv('bush2', (1345, 420)), 68)]
 POTS = [(1060, 190), (1085, 180), (1130, 288), (1165, 402), (1135, 782), (1105, 800), (545, 345), (1150, 600), (890, 180)]
-CRATES = [(1130, 605), (1175, 635)]
+CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1400, 330), (1395, 270), (1360, 560), (1372, 595), (1420, 615), (365, 500), (860, 120)]
-PADS = [(125, 790, 45), (290, 915, 72), (1565, 825, 52), (1690, 900, 66), (1520, 960, 62), (380, 1065, 55)]
-LANTERNS = [(1025, 60), (1495, 410)]
+PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
+LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((560, 572), (547, 580)), ((1075, 375), (1063, 380)), ((835, 825), (825, 822))]
 GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]

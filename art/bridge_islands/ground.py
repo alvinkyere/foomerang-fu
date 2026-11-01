@@ -92,7 +92,7 @@ import sys
 sys.path.insert(0, 'art/bridge_islands')
 import colour as HQ                       # (the HQ's colours as the video looks in a browser)
 bgr = lambda h: tuple(int(h[i:i + 2], 16) for i in (5, 3, 1))
-LIME, RIM, SHADE = (bgr(HQ.lit(h, 0.98)) for h in ('#ddf293', '#cfec99', '#cae996'))
+LIME, RIM, SHADE = (bgr(HQ.lit(h, 0.98)) for h in ('#ddf293', '#c4e99c', '#cae996'))
 tex[:] = RIM
 edge = cv2.distanceTransform(ground, cv2.DIST_L2, 5) / PX                        # units from the ground's edge
 # The grass is flat lime; the HQ's shadow green and its pale patches (a spawn's lit circle) are DRAWN SHAPES, not texture: they are
@@ -112,7 +112,7 @@ shade_m = cv2.morphologyEx(shade_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5,
 pale_m = in_plan(rim) & (ground > 0) & (edge >= 1.3)
 pale_m = cv2.morphologyEx(pale_m.astype(np.uint8), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
 G2 = json.load(open('art/bridge_islands/ground.json'))
-inner_m = cv2.morphologyEx((cv2.GaussianBlur((edge >= 1.7).astype(np.float32), (0, 0), 0.6 * PX) > 0.5).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))   # (the lime: the ground less its pale edge stripe)
+inner_m = cv2.morphologyEx((cv2.GaussianBlur((edge >= 0.5).astype(np.float32), (0, 0), 0.6 * PX) > 0.5).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))   # (the lime: the ground less its pale edge stripe)
 G2['shade'], G2['pale'], G2['lime'] = shapes(shade_m, 0.6), shapes(pale_m, 0.8), shapes(inner_m, 5.0)
 json.dump(G2, open('art/bridge_islands/ground.json', 'w'))
 tex = tex[:16, :16]                                                              # (flat lime: a small texture is all it is)

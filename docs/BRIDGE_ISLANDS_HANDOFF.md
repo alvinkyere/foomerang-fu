@@ -42,3 +42,8 @@ shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), 
   on this outline, hand-fit two rotated rectangles with minAreaRect instead), tree trunks absent, the east islet (a big round rock with a grass top), vines, light shafts, the back wall's softness.
 - (later) LESSON: fit the CAMERA first with the land (grass closed over its props, scale+shift search: see the snippet in the log: IoU 0.50 -> 0.66 once u,v = -0.0014, 0.0166), THEN the props in the game view
   (fit_trees.py): fitting props first just hides a camera error inside the props. Now: whole frame 50% differing as shot, grass (closed) IoU 0.66, canopies within 2 px.
+- (2026-10-31, owner asked for 30%) Whole frame 50.4% -> 47.0% differing (>12 levels). Tools added: `fit_stones_game.py` (nudges each stone block in the game's view),
+  `grade.py` + waterShader `grade` (a 9x6 screen-space RGB grid fitted to the HQ's water, damped 0.5, converges to ~1 level in 5 shots), `fit_props.py` (UNRELIABLE: it pushes props to the
+  search limits, props.json removed). Tree colours matched (red #d97b69 vs HQ #d67b6a), canopy IoU 0.52 / 0.37. Where the rest is: grass 25% of bad (its edge band: HQ's is a 6 px darker-green
+  glow, now narrowed), water 32% (foam outlines + shafts: the HQ's shafts here are a different pattern from lily's, `fit_shafts.py` fit gave no gain and is not wired), stones 18%, trees 9%,
+  other 17% (vines, bamboo, pots). 30% is NOT reached; each remaining item is worth ~1% and needs per-object modelling.
