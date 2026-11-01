@@ -18,8 +18,8 @@ export const AUTUMN_GLADE_WALLS: readonly AutumnGladeWall[] = Object.freeze([
   Object.freeze({ id: 'LOG_0', kind: 'WALL', shape: 'box', x: 733, y: 840, halfWidth: 103, halfHeight: 21, angle: -1.9765 }),
   Object.freeze({ id: 'LOG_1', kind: 'WALL', shape: 'box', x: 1481, y: 1087, halfWidth: 77, halfHeight: 21, angle: -0.7118 }),
   Object.freeze({ id: 'LOG_2', kind: 'WALL', shape: 'box', x: 1782, y: 361, halfWidth: 93, halfHeight: 21, angle: 1.0408 }),
-  Object.freeze({ id: 'ROCK_0', kind: 'WALL', shape: 'box', x: 343, y: 624, halfWidth: 43, halfHeight: 87, angle: 0 }),
-  Object.freeze({ id: 'ROCK_1', kind: 'WALL', shape: 'box', x: 1884, y: 625, halfWidth: 65, halfHeight: 105, angle: 0 }),
+  Object.freeze({ id: 'ROCK_W', kind: 'WALL', shape: 'box', x: 349, y: 641, halfWidth: 44, halfHeight: 87, angle: 0 }),
+  Object.freeze({ id: 'ROCK_E', kind: 'WALL', shape: 'box', x: 1878, y: 628, halfWidth: 57, halfHeight: 101, angle: 0 }),
 ]);
 
 export const AUTUMN_GLADE_SAFE_ZONE: Rect = Object.freeze({x: 346, y: 338, width: 1528, height: 1082});

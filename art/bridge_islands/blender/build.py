@@ -205,7 +205,7 @@ def _soft_rect(poly):
     return rounded_rect(cx, cy, max(l0, l1), min(l0, l1), a, 1.9, seg=8)
 RENDER_OUTLINES = [_soft_rect(poly) for poly in L['banks']]      # (layout.py's straightened outline: the traced ground.json one is jagged)
 for k, poly in enumerate(RENDER_OUTLINES):
-    poly = chaikin(poly, 2)      # (the HQ's island has soft rounded corners)
+    poly = chaikin(poly, 1 if len(poly) <= 6 else 2)      # (the HQ's island has soft rounded corners)
     body(f'BANK_{k}', poly, 0.0, GRASS, LIP_SIDE, top_r=0.3, bottom=WATER_Z - DEPTH)
 
 
@@ -308,7 +308,7 @@ def corner_blocks(poly):
 
 for k, poly in enumerate(RENDER_OUTLINES):
     corner_blocks(poly)
-    kerb_ring(f'KERB_{k}', chaikin(poly, 2), KERB_TOP, KERB_SIDE)
+    kerb_ring(f'KERB_{k}', chaikin(poly, 1 if len(poly) <= 6 else 2), KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
 lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
 lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)

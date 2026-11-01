@@ -51,7 +51,7 @@ banks = [plan_k(cv2.approxPolyDP(c, 3.0, True).reshape(-1, 2)) for c in cs if cv
 def _hex(poly):
     P = np.array(poly); n = len(P)
     area = abs(sum(P[i][0] * P[(i + 1) % n][1] - P[(i + 1) % n][0] * P[i][1] for i in range(n))) / 2
-    c = P.mean(0); r = math.sqrt(2 * area / (3 * math.sqrt(3)))
+    c = P.mean(0); r = 1.2 * math.sqrt(2 * area / (3 * math.sqrt(3)))
     return np.array([[c[0] + r * math.cos(math.pi / 6 + i * math.pi / 3), c[1] + r * math.sin(math.pi / 6 + i * math.pi / 3)] for i in range(6)])
 def rectify(P, eps=1.2, tiny=2.2):
     """The HQ's island is built of right angles in the plan (45 degrees in the picture): a traced outline is straightened to that. Find
