@@ -75,6 +75,15 @@ export {
   LILY_ISLAND_WALLS,
   LILY_ISLAND_WIDTH,
 } from './lilyIslandArena';
+export {
+  AUTUMN_GLADE_ARENA,
+  AUTUMN_GLADE_BOOK_SPOTS,
+  AUTUMN_GLADE_HEIGHT,
+  AUTUMN_GLADE_SAFE_ZONE,
+  AUTUMN_GLADE_SPAWNS,
+  AUTUMN_GLADE_WALLS,
+  AUTUMN_GLADE_WIDTH,
+} from './autumnGladeArena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';

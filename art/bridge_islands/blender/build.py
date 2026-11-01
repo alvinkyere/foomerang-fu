@@ -496,7 +496,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
         dark = (i % 3 == 1)
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < 0.45)      # (random blotches of dark navy on pale lavender, uneven like the HQ's)
+            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < 0.72)      # (random blotches of dark navy on pale lavender, uneven like the HQ's)
             for loop in f.loops: loop[col] = lin(HQ.flat('#4f5a93' if patch else '#c4c9e9'))
             f.smooth = False
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -508,7 +508,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.9) for i in (1, 3, 5))
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.6, 0.5, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12

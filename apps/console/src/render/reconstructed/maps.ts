@@ -35,6 +35,7 @@ export type ReconstructedArena = Extract<
   | 'gong_islands'
   | 'pond_cross'
   | 'lily_island'
+  | 'autumn_glade'
   | 'bridge_islands'
   | 'harbour_fort'
   | 'sky_islands'
@@ -70,6 +71,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 1209, height: 1044 }),
       background: '#7aa8bb',
+    }),
+    // the HQ's autumn glade (art/autumn_glade, ff physics hq 2.mp4 10:26): the plaza's camera and characters, its own clearing
+    autumn_glade: Object.freeze({
+      id: 'autumn_glade',
+      assetDir: 'maps/autumn_glade/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 2226, height: 1759 }),
+      background: '#f9e589',
     }),
     // the HQ's two islands and their brick bridge (art/bridge_islands, HQ1 10:37): the plaza's camera and characters, its own islands
     bridge_islands: Object.freeze({

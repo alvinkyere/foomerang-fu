@@ -138,9 +138,9 @@
       "wobble": 0.22,
       "scale": 0.95,
       "wobbleScale": 0.85,
-      "presence": [0.22, 0.5],
+      "presence": [0.65, 0.88],
       "motion": 0.5,
-      "glow": 0.55,
+      "glow": 0.4,
       "ribbons": [
         {
           "centre": 0.55,
