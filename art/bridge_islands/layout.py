@@ -112,6 +112,7 @@ for _was, _now, _sc in _ISLET_FIX:
         if len(_b) == 6 and np.linalg.norm(_c - _w) < 4.0: banks[_i] = (np.array(_b, float) - _c) * _sc + _n
 # the east islet (islet_e.py: a tall round rock, fitted): the red tree stands on its top; the hex islet traced there is its grass, not an island
 ISLET_E = json.load(open('art/bridge_islands/islet_e.json'))
+ISLET_NW = json.load(open('art/bridge_islands/islet_nw.json'))      # (the red tree's islet, north-west: a raised hexagonal platform; its bank stays walkable)
 banks = [b for b in banks if np.linalg.norm(np.mean(np.array(b, float), 0) - np.array(ISLET_E['centre'])) > ISLET_E['radius'] + 3.0]
 # the east island, as its corners stand in the frame (a big plain island with its south-west side along the bridge): five corners, unprojected where the kerb is
 EAST_PX = [(640, 205), (1125, 20), (1585, 330), (1592, 585), (1350, 792)]
@@ -172,7 +173,7 @@ for _name, _idx in (('sw', SW_INDEX), ('east', EAST_INDEX)):
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ's canopy), colour
-    dict(foot=(570, 340), colour='#d87b6a', lumps=[(514, 185, 32, 41), (566, 188, 39, 34), (533, 278, 31, 24), (592, 281, 30, 35)]),
+    dict(foot=(570, 330), base='islet_nw', colour='#d87b6a', lumps=[(514, 185, 32, 41), (566, 188, 39, 34), (533, 278, 31, 24), (592, 281, 30, 35)]),
     dict(foot=(440, 535), colour='#d3b66d', lumps=[(458, 378, 30, 28), (490, 407, 28, 26), (400, 432, 34, 22), (484, 446, 20, 25), (431, 489, 21, 31), (410, 495, 26, 30)]),
     dict(foot=(1215, 610), colour='#d3b66d', lumps=[(1242, 500, 31, 30), (1217, 503, 25, 30), (1170, 546, 33, 31), (1245, 576, 33, 25), (1214, 586, 25, 29)]),
     dict(foot=(1795, 335), top=(1835, 210), base='islet_e', colour='#d87b6a', lumps=[(1810, 189, 51, 46), (1786, 193, 37, 39), (1883, 271, 39, 49), (1761, 297, 37, 42), (1839, 349, 41, 39), (1795, 370, 29, 51), (1852, 418, 38, 47), (1879, 435, 64, 51)]),
@@ -180,7 +181,7 @@ TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ'
 tree_out = []
 for t in TREES:
     height = 3.4
-    base = ISLET_E['height'] if t.get('base') == 'islet_e' else 0.0
+    base = {'islet_e': ISLET_E['height'], 'islet_nw': ISLET_NW['height']}.get(t.get('base'), 0.0)
     lumps = []
     for x, y, rx, ry in t['lumps']:
         z = base + float(np.clip(2.0 + 3.0 * (t['foot'][1] - y) / 260.0, 2.0, 5.2))
@@ -232,7 +233,7 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 # the tall block in the water south of the east island (its front face 57 px down to the water)
                 ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
-out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],

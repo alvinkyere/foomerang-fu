@@ -23,14 +23,20 @@ f = cv2.imread('art/bridge_islands/output/reference.png'); x = cv2.cvtColor(f, c
 H_, S_, V_ = x[..., 0], x[..., 1], x[..., 2]
 rock = (((H_ >= 104) & (H_ <= 128) & (S_ >= 40) & (V_ >= 120)) | ((H_ >= 25) & (H_ <= 55) & (S_ > 50) & (V_ > 180)))
 red = ((H_ <= 12) | (H_ >= 170)) & (S_ > 90) & (V_ > 150)
-box = (1640, 300, 1920, 600)
+import sys
+NAME = sys.argv[1] if len(sys.argv) > 1 else 'e'
+# per islet: its box in the frame, its sides, a start (plan centre), and the rows hidden by something in front (the bunting's)
+CFG = {'e': dict(box=(1640, 300, 1920, 600), sides=8, start=None, skip_top=40),
+       'nw': dict(box=(470, 230, 680, 440), sides=6, start=(-14.7, 82.8), skip_top=0)}[NAME]
+box = CFG['box']
 want = rock[box[1]:box[3], box[0]:box[2]]; hide = cv2.dilate(red.astype(np.uint8), np.ones((5, 5), np.uint8))[box[1]:box[3], box[0]:box[2]] > 0
 care = ~hide
-care[:40, :] = False                    # (the bunting's row)
+care[:CFG['skip_top'], :] = False
 
 
 def octagon(cx, cy, r):
-    return [(cx + r * math.cos(math.pi / 8 + i * math.pi / 4), cy + r * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
+    n = CFG['sides']
+    return [(cx + r * math.cos(math.pi / n + i * 2 * math.pi / n), cy + r * math.sin(math.pi / n + i * 2 * math.pi / n)) for i in range(n)]
 
 
 def silhouette(p):
@@ -46,15 +52,14 @@ def cost(p):
     return 1 - inter / max(uni, 1)
 
 
-# a start: the stones.py boulder there (its plan centre), radius 4, height 5
 S = json.load(open('art/bridge_islands/stones.json'))
-c0 = S[7]['rect'][:2]
+c0 = CFG['start'] or S[7]['rect'][:2]
 best = None
-for h0 in (3.0, 5.0, 7.0):
-    r_ = minimize(cost, [c0[0], c0[1], 4.0, h0], method='Nelder-Mead', options=dict(xatol=0.02, fatol=1e-4, maxiter=600, initial_simplex=None))
-    if best is None or r_.fun < best.fun: best = r_
+for h0 in (1.0, 2.0, 3.0, 5.0):
+    for r0 in (2.0, 3.0, 4.0):
+        r_ = minimize(cost, [c0[0], c0[1], r0, h0], method='Nelder-Mead', options=dict(xatol=0.02, fatol=1e-4, maxiter=600))
+        if best is None or r_.fun < best.fun: best = r_
 cx, cy, r, h = best.x
-print('islet_e: centre (%.2f, %.2f) radius %.2f height %.2f, IoU %.3f' % (cx, cy, r, h, 1 - best.fun))
-top_px = [ref(X, Y, h) for X, Y in octagon(cx, cy, r)]
-print('top px', np.round(top_px).astype(int).tolist())
-json.dump(dict(centre=[round(cx, 2), round(cy, 2)], radius=round(r, 2), height=round(h, 2), iou=round(1 - best.fun, 3)), open('art/bridge_islands/islet_e.json', 'w'))
+print('islet_%s: centre (%.2f, %.2f) radius %.2f height %.2f, IoU %.3f' % (NAME, cx, cy, r, h, 1 - best.fun))
+json.dump(dict(centre=[round(cx, 2), round(cy, 2)], radius=round(r, 2), height=round(h, 2), sides=CFG['sides'], iou=round(1 - best.fun, 3)),
+          open('art/bridge_islands/islet_%s.json' % NAME, 'w'))

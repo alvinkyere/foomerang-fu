@@ -482,6 +482,12 @@ body('ISLET_E', offset_poly(_oct, 0.0), IE['height'], lit('ie_top', HQ.lit('#a7b
 _cap = [(IE['centre'][0] + (x - IE['centre'][0]) * 0.5 - 0.8, IE['centre'][1] + (y - IE['centre'][1]) * 0.5 + 1.0) for x, y in _oct]
 flat('ISLET_E_grass', [(chaikin(_cap, 2), '#c4ea9c', 0)], z=IE['height'] + 0.02)
 
+# the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
+INW = L['islet_nw']
+_hx = [(INW['centre'][0] + INW['radius'] * math.cos(math.pi / 6 + i * math.pi / 3), INW['centre'][1] + INW['radius'] * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]
+paint_flat(body('ISLET_NW', _hx, INW['height'], FLAT, FLAT, top_r=0.25, corner_r=0.5, bottom=STONE_BOTTOM, soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
+flat('ISLET_NW_grass', [(chaikin([(INW['centre'][0] + (x - INW['centre'][0]) * 0.78, INW['centre'][1] + (y - INW['centre'][1]) * 0.78) for x, y in _hx], 2), '#c4ea9c', 0)], z=INW['height'] + 0.02)
+
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two
 SW_TOP, SW_SIDE = lit('sw_top', HQ.lit('#a9b5ec', 0.98)), lit('sw_side', HQ.lit('#7480c4', 0.875))
