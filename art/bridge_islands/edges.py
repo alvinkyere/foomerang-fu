@@ -124,7 +124,11 @@ for key in ('grass', 'water'):
     # the island's north corner stays where the HQ shows it (500, 452), and the north-east side bends there to run under the deck from its A
     # corner: five corners (the HQ: water beyond the north corner, grass to the deck)
     a_under = (np.array([650.0, 539.0]) - np.array([dd[1], -dd[0]]) * 12.0).round(1).tolist()
-    lines[key] = [lines[key][0], [500.0, 452.0], a_under, lines[key][2], lines[key][3]]
+    d_under = (np.array([880.0, 739.0]) - np.array([dd[1], -dd[0]]) * 12.0).round(1).tolist()
+    # the east corner: where the measured south-east side meets the outline's own north-east line (the HQ's corner, not the deck's line run on)
+    a1, b1 = np.array(SW_PX[1], float), np.array(SW_PX[2], float)
+    east = meet((a1, (b1 - a1) / np.linalg.norm(b1 - a1)), L_[2]).round(1).tolist()
+    lines[key] = [lines[key][0], [500.0, 452.0], a_under, d_under, east, lines[key][3]]
     print('  %s corners' % key, lines[key])
 res['sw'] = lines
 # the east island: its north-west side (a back side), its east, south-east and south-west sides measured; its north-east side runs under the

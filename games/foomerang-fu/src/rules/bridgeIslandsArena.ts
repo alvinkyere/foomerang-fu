@@ -57,7 +57,7 @@ export const BRIDGE_ISLANDS_GROUND: readonly (readonly Vec2[])[] = Object.freeze
     { x: 103, y: 1003 },
     { x: 618, y: 1498 },
     { x: 673, y: 1491 },
-    { x: 879, y: 1292 },
+    { x: 866, y: 1285 },
     { x: 948, y: 1326 },
     { x: 1017, y: 1292 },
     { x: 1058, y: 1333 },
