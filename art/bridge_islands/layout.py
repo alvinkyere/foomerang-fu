@@ -192,11 +192,11 @@ BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_m
 POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 782, 0.8, 0.9, 0.0),
         (1105, 800, 0.8, 0.9, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
-BAMBOO = [(1400, 355), (1225, 280), (1268, 255), (1360, 560), (1372, 595), (1420, 615), (365, 500), (860, 120)]
+BAMBOO = [(1400, 355), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500), (860, 120)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
 LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
-GATE = dict(left=(1273, 250), right=(1352, 290), gong=(1310, 235))
+GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
 # the cube standing in the water by the wall's end (the HQ: its top a diamond, corners (1600, 73) (1642, 112) (1597, 140) (1558, 103); its left side
 # 70 px tall down to the water): each corner unprojected at the top's height, the water's plus 4.3
@@ -210,7 +210,9 @@ cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (164
 # cube by the urns, the round boulder the pot and the lever stand on, the block before the hex bush
 for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 ([(1090, 295), (1120, 283), (1165, 285), (1185, 305), (1182, 335), (1150, 348), (1105, 346), (1083, 325)], 2.8),
-                ([(1305, 330), (1345, 322), (1370, 340), (1360, 365), (1315, 368)], 2.0)):
+                ([(1305, 330), (1345, 322), (1370, 340), (1360, 365), (1315, 368)], 2.0),
+                # the gong's stepped stone base, two slabs
+                ([(1203, 262), (1258, 250), (1292, 280), (1235, 296)], 0.5), ([(1218, 240), (1262, 232), (1280, 258), (1235, 268)], 1.0)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
 out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
