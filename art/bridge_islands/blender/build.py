@@ -78,7 +78,7 @@ SLAB_TOP, SLAB_SIDE = lit('pond_slab_top', HQ.lit('#818cc1', 0.98)), lit('pond_s
 # the order of stones.json: (top, side)
 BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5162a2'), ('#a6baef', '#5e78b9'), ('#82a1e2', '#617cb9'),
                  ('#a4b3ea', '#6a79ab'), ('#a5b3ea', '#7388cf'), ('#a3b4ea', '#6a7cb5')]
-BRICK_WALLS = {3, 6, 11}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
+BRICK_WALLS = {3}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
 CUBE_LIKE = {0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14}
 BLOCK_TAPER = {}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
 BLOCK_COLOURS = [('#97a6e0', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
@@ -352,7 +352,10 @@ SEAM = 0.1
 GROW_SLAB = float(os.environ.get('POND_GROW_SLAB', 0.22))     # (the margin of a wall slab and of a boulder are fitted apart)
 # (the HQ's facets are straight with small rounded corners and a narrow soft edge: not pillows)
 GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW', 0.35)), float(os.environ.get('POND_CORNER_SLAB', 0.35)), float(os.environ.get('POND_CORNER', 0.4)), float(os.environ.get('POND_ROLL', 0.22)), 4
+SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
+SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
+    if k in SW_SKIP: continue
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -382,6 +385,42 @@ for k, b in enumerate(S):
         else:
             pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
+
+# ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
+# (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two
+SW_TOP, SW_SIDE = lit('sw_top', HQ.lit('#a9b5ec', 0.98)), lit('sw_side', HQ.lit('#8793d0', 0.875))
+IVY = '#6fae82'
+
+
+def grow(poly, c, k):
+    return [(c[0] + k * (x - c[0]), c[1] + k * (y - c[1])) for x, y in poly]
+
+
+def ivy(name, cx, cy, z, r, n=7, seed=0):
+    """A ragged patch of dark green ivy lying over a block's edge: a few overlapping jagged leaves."""
+    rr = random.Random(seed); parts = []
+    for i in range(n):
+        a = rr.uniform(0, 2 * math.pi); d = rr.uniform(0, r * 0.7); px, py = cx + math.cos(a) * d, cy + math.sin(a) * d
+        pts = []
+        for j in range(10):
+            t = j * 2 * math.pi / 10; rad = r * rr.uniform(0.28, 0.5) * (1.0 if j % 2 == 0 else 0.55)
+            pts.append((px + math.cos(t) * rad, py + math.sin(t) * rad))
+        parts.append((pts, IVY if i % 3 else '#5f9e75', 0.0))
+    flat(name, parts, z=z)
+
+
+for n, blk in SWB.items():
+    top = [tuple(p) for p in blk['top']]; foot = [tuple(p) for p in blk['foot']]
+    c = (sum(p[0] for p in top) / len(top), sum(p[1] for p in top) / len(top))
+    cf = (sum(p[0] for p in foot) / len(foot), sum(p[1] for p in foot) / len(foot))
+    H = blk['height']
+    if n == 'w':
+        body('SW_w_low', grow(top, c, 1.5), H * 0.42, SW_TOP, SW_SIDE, top_r=0.35, corner_r=0.7, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+        body('SW_w_up', grow(top, c, 1.25), H, SW_TOP, SW_SIDE, top_r=0.45, corner_r=0.9, bottom=H * 0.3, soft=True, top_seg=3)
+        ivy('SW_w_ivy', c[0] - 1.2, c[1] - 0.6, H + 0.05, 0.8, n=3, seed=1)
+    else:
+        body(f'SW_{n}', grow(top, c, 1.75 if n != 's' else 1.9), H, SW_TOP, SW_SIDE, top_r=0.45, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+        if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 2.0, n=10, seed=hash(n) % 97)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
 PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#5fb066', '#6dbb70', '#4f9a5a', '#fbe8ec', '#f4c4d0'
@@ -511,7 +550,7 @@ for _try in range(600):
     _n += 1
 # ---------------------------------------------------------------------------------------------------------------- the bridge, bushes, pots, gate, lanterns
 # the bridge: a purple-brown brick deck between the islands (the HQ, 1:15), planks laid across it, a hair above the grass
-BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#a68aa6', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
+BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#8d6c8e', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
 if L['bridge']:
     body('BRIDGE', [tuple(p) for p in L['bridge']], 0.12, BRIDGE_TOP, BRIDGE_SIDE, top_r=0.1, bottom=WATER_Z - 0.5, soft=True, top_seg=2)
     bp = [tuple(p) for p in L['bridge']]
@@ -528,20 +567,45 @@ if L['bridge']:
     c_, s_ = math.cos(t_), math.sin(t_)
     to_xy = lambda u, v: (cxb + u * c_ - v * s_, cyb + u * s_ + v * c_)
     seams = []
-    course = 1.7
+    course, brick = 1.7, 2.3
     n_courses = int((u1 - u0) / course)
-    for i in range(1, n_courses):
-        u = u0 + i * course
-        seams.append(([to_xy(u - 0.04, v0), to_xy(u + 0.04, v0), to_xy(u + 0.04, v1), to_xy(u - 0.04, v1)], '#8a6aa0', 0.0))
-        off = 0.0 if i % 2 else 1.1
-        v = v0 + off + 2.2
-        while v < v1 - 0.3:
-            seams.append(([to_xy(u - course, v - 0.04), to_xy(u, v - 0.04), to_xy(u, v + 0.04), to_xy(u - course, v + 0.04)], '#8a6aa0', 0.0))
-            v += 2.2
+    rr_ = random.Random(5)
+    for i in range(n_courses + 1):
+        uc = u0 + (i + 0.5) * course
+        off = 0.0 if i % 2 else brick / 2
+        v = v0 - off + brick / 2
+        while v < v1 + brick / 2:
+            v_lo, v_hi = max(v - brick / 2 + 0.1, v0), min(v + brick / 2 - 0.1, v1)
+            if v_hi - v_lo > 0.5 and uc - course / 2 >= u0 - 0.1 and uc + course / 2 <= u1 + 0.1:
+                # a rounded brick (a soft cushion in the HQ: lighter in the middle, a darker gap round it)
+                pts_ = rounded_rect(0, 0, course - 0.2, v_hi - v_lo, 0, 0.4, seg=3)
+                cu, cv_ = uc, (v_lo + v_hi) / 2
+                col = ['#ad8fae', '#a68aa8', '#b095b1'][rr_.randrange(3)]
+                seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
+            v += brick
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
+WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#8190d2', 0.98)), lit('wall_side', HQ.lit('#5f6cae', 0.875))
+# the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
+bq = [tuple(p) for p in L['bridge']]
+if len(bq) == 4:
+    A, B_, C_, D_ = bq
+    for tag, p0, p1, outward in (('NW', A, B_, (-1, 1)), ('SE', D_, C_, (1, -1))):
+        dx, dy = p1[0] - p0[0], p1[1] - p0[1]; ln0 = math.hypot(dx, dy); ux, uy = dx / ln0, dy / ln0
+        p0 = (p0[0] - ux * 1.4, p0[1] - uy * 1.4); p1 = (p1[0] + ux * 1.4, p1[1] + uy * 1.4); ln = ln0 + 2.8
+        nx, ny = -uy, ux
+        # which side is outward: away from the deck's centre
+        cxd = sum(q[0] for q in bq) / 4; cyd = sum(q[1] for q in bq) / 4
+        if (((p0[0] + p1[0]) / 2 - cxd) * nx + ((p0[1] + p1[1]) / 2 - cyd) * ny) < 0: nx, ny = -nx, -ny
+        n_w = max(3, round(ln / 4.4)); piece = ln / n_w
+        for j in range(n_w):
+            mid = (j + 0.5) * piece
+            cap = (j == n_w - 1) if tag == 'NW' else (j == 0)
+            cxw, cyw = p0[0] + ux * mid + nx * 0.8, p0[1] + uy * mid + ny * 0.8
+            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.7 if cap else 0), 1.8 + (0.7 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
+                 1.0 + (0.5 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
-    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.15}, PAL, FLAT, None, k)
+    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 2.1}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['pots']):
     obj_models.pot({'x': x, 'y': y, 'width': 0.8, 'height': 0.9}, PAL, FLAT, None, k)
 # stone lanterns: a small pale-lavender post with a cap

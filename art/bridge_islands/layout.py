@@ -105,9 +105,13 @@ def _rect(b):
 banks = [_rect(b) for b in banks]
 # the east island, as its corners stand in the frame (a big plain island with its south-west side along the bridge): five corners, unprojected where the kerb is
 EAST_PX = [(640, 205), (1125, 20), (1585, 330), (1592, 585), (1350, 792)]
+SW_PX = [(255, 612), (495, 452), (1020, 905), (885, 1080)]      # the south-west island's four corners in the frame (kerb's outer edge)
+_sw = plan_k(np.float32(SW_PX))
 _east = plan_k(np.float32(EAST_PX))
 _k = max(range(len(banks)), key=lambda i: cv2.contourArea(np.float32(banks[i])))
 banks[_k] = _east
+_k2 = [i for i in range(len(banks)) if len(banks[i]) == 4 and cv2.contourArea(np.float32(banks[i])) > 120]
+if _k2: banks[_k2[0]] = _sw
 # the bridge's own outline (its bricks), for the walkable ground and its model
 bcs, _ = cv2.findContours(bridge_m.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 bridge_poly = plan(cv2.approxPolyDP(max(bcs, key=cv2.contourArea), 6.0, True).reshape(-1, 2)) if bcs else []
@@ -125,6 +129,8 @@ def unproject(px, py, z):
     return [round(float(a[0]), 2), round(float(a[1]), 2)], 10 / float(np.hypot(*(b - a)))
 
 
+BRIDGE_PX = [(660, 550), (850, 405), (1080, 580), (890, 750)]      # the deck's corners in the frame: the NW wall along A-B, the SE wall along C-D, open ends B-C and D-A
+bridge_poly = np.array([unproject(x, y, 0.12)[0] for x, y in BRIDGE_PX])
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry), colour

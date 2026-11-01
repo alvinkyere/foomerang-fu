@@ -50,3 +50,8 @@ shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), 
 - (2026-11-01, owner: the south-west island "kerb rectangular, rounded edges, fix it once and for all") The drawn grass came from the TRACED mask (a blob with prop holes) while the kerb came from
   the straightened outline: two shapes. `ground.py` now rasterises `layout.json banks` + the bridge as THE ground (grass, lime/shade/pale shapes, walkable ground and kerb are one shape) and
   build.py `_soft_rect` draws any four-cornered bank as a rounded rectangle (corner 1.9, long enough to be an island). Whole frame 46.5% differing.
+- (2026-11-01, SW section) `sw_blocks.py` MEASURES the four south-west stone blocks (top = V>=225 stone pixels, side px -> height, unprojected) into sw_blocks.json; build.py draws them as soft
+  cushions (the west one a two-tier stack) with ivy patches (`ivy()`); stones.json blocks 8/10/12/13 (+6/11, the bridge walls) are skipped there (`SW_SKIP`) but still collide. The SW island is the
+  four corners read from the frame (layout.py SW_PX) drawn as a rounded rectangle; the east island five corners (EAST_PX); the bridge deck four corners (BRIDGE_PX) with offset rounded brick
+  courses, its two walls chains of bricks along A-B and C-D with a taller cap at one end (`BWALL_*`). Still open here: the HQ's bridge bricks are scalloped with tan streaks, the walls a darker
+  blue, the ivy shapes, the hex bush's exact size/colour, the tree trunk/bamboo at the island's north corner, the ivy on the bridge walls' ends.
