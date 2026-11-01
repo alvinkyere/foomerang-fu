@@ -103,6 +103,11 @@ def _rect(b):
     if cv2.contourArea(P) / max(w * h, 1e-6) < 0.9 or w * h < 120: return b
     return cv2.boxPoints(((cx, cy), (w, h), a))
 banks = [_rect(b) for b in banks]
+# the east island, as its corners stand in the frame (a big plain island with its south-west side along the bridge): five corners, unprojected where the kerb is
+EAST_PX = [(640, 205), (1125, 20), (1585, 330), (1592, 585), (1350, 792)]
+_east = plan_k(np.float32(EAST_PX))
+_k = max(range(len(banks)), key=lambda i: cv2.contourArea(np.float32(banks[i])))
+banks[_k] = _east
 # the bridge's own outline (its bricks), for the walkable ground and its model
 bcs, _ = cv2.findContours(bridge_m.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 bridge_poly = plan(cv2.approxPolyDP(max(bcs, key=cv2.contourArea), 6.0, True).reshape(-1, 2)) if bcs else []
