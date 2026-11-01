@@ -40,6 +40,7 @@ for H in np.arange(0.5, 10.0, 0.05):
 H = round(float(best[1]), 2)
 fp = plan(box, H)
 # the wall runs on out of the frame to the north-west: lengthen it 8 units that way so its end is never seen
-d = fp[1] - fp[0] if np.linalg.norm(fp[1] - fp[0]) > np.linalg.norm(fp[2] - fp[1]) else fp[2] - fp[1]
+# the corners run SE end (0, 3) to NW end (1, 2): the NW end is lengthened 4 units (the HQ's wall runs on past the frame's top edge, x ~1000)
+u = (fp[1] - fp[0]) / np.linalg.norm(fp[1] - fp[0]); fp[1] += u * 4.0; fp[2] += u * 4.0
 print('top face box px', np.round(box).tolist(), 'height', H, 'footprint', np.round(fp, 2).tolist())
 json.dump(dict(height=H, footprint=np.round(fp, 2).tolist(), box_px=np.round(box).tolist()), open('art/bridge_islands/ne_wall.json', 'w'))

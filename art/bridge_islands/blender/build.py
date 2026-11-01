@@ -466,7 +466,7 @@ paint_flat(body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['heigh
 # the cube in the water by the wall's end (layout.py `cubes`: its top's corners from the HQ): a soft box down into the water, unlit in the HQ's colours
 for k, cu in enumerate(L.get('cubes', [])):
     paint_flat(body(f'CUBE_{k}', [tuple(q) for q in cu['top']], cu['z'], FLAT, FLAT, top_r=0.2, corner_r=0.25, bottom=STONE_BOTTOM,
-                    soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
+                    soft=True, top_seg=2), '#a6c4ea', '#7198bb', '#8cafd3')      # (the HQ's colours there less the beams' light: the overlay adds it back)
 # the raised grass-topped blocks at the wall's end (layout.py `raised`): a lavender block with a rim round its grass, unlit in the HQ's colours
 for k, rb in enumerate(L.get('raised', [])):
     g_ = [tuple(q) for q in rb['grass']]

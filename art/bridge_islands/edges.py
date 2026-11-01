@@ -128,7 +128,7 @@ for i, sd in enumerate(sides):
     if i == 1:
         # the north-east side: the wall stands in the water beyond it (a channel lit by the beams between); the grass's top edge read column by
         # column where nothing stands on it (x 1150 and 1400-1450): a back side, grass and water lines the same
-        c_ = np.array([1150.0, 182.0]); d_ = np.array([300.0, 201.0]); d_ /= np.linalg.norm(d_)
+        c_ = np.array([1150.0, 141.0]); d_ = np.array([450.0, 363.0]); d_ /= np.linalg.norm(d_)
         fits[1] = {'grass': (c_, d_), 'water': (c_, d_)}; continue
     if i == 0:
         # the north-west side: a back side, its grass's top edge read column by column (x 640-840: y 212 171 141 111 83 51; the probes along the
