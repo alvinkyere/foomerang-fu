@@ -624,7 +624,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
         dark = (i % 3 == 1)
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < (0.35 if i > rings * 0.55 else 0.05))      # (pale lavender bark, dark navy blotches gathered near the top where the canopy starts, as the HQ's)
+            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < (0.55 if i > rings * 0.4 else 0.06))      # (pale lavender bark, dark navy blotches gathered near the top where the canopy starts, as the HQ's)
             for loop in f.loops: loop[col] = lin(HQ.flat('#4f5a93' if patch else '#c4c9e9'))
             f.smooth = False
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -636,7 +636,9 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.86) for i in (1, 3, 5))
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.7, 0.55, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
+    # (the HQ's trunk runs up between the canopy's tiers to its highest lump: seen in the gaps, pale bark with navy patches up there)
+    _hi = max(t['lumps'], key=lambda l: l['z'])
+    trunk(f'TRUNK_{k}', t['foot'], _hi['at'], _hi['z'] - t.get('base', 0.0) - 0.4, 0.7, 0.5, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
