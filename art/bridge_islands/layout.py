@@ -104,7 +104,7 @@ def _rect(b):
     return cv2.boxPoints(((cx, cy), (w, h), a))
 banks = [_rect(b) for b in banks]
 # islets put where the HQ shows them (their traced blob's hexagon moved to the HQ's centre in the frame and scaled): the pots' islet, south
-_ISLET_FIX = [((1150, 830), (1110, 818), 1.08)]      # (the islet's kerb, thick on its camera-facing sides, carries it ~17 px right and 10 down of its own centre)
+_ISLET_FIX = [((1150, 830), (1123, 838), 0.88)]      # (the islet's kerb, thick on its camera-facing sides, carries it ~17 px right and 10 down of its own centre)
 for _was, _now, _sc in _ISLET_FIX:
     _w = plan_k([_was])[0]; _n = plan([_now])[0]      # (the traced blobs are in plan_k's plane; the islet's grass is at the ground's)
     for _i, _b in enumerate(banks):
