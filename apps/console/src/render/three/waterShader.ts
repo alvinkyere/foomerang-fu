@@ -48,6 +48,15 @@ export type WaterStyle = {
    * page tinted the land too). The band's coordinate runs across the screen at `angle` degrees (CSS convention) from 0 to 1; `stops` are
    * [position, strength] pairs (linear between them); `fade` the screen heights (0 top, 1 bottom) where they are full and gone.
    */
+  /**
+   * A map's own screen-space colour grade for its water (fitted to the HQ frame: art/<map>/grade.py): a grid of RGB offsets (0..255 scale, rows top to bottom,
+   * columns left to right) interpolated over the canvas and added to the water's colour, so its haze and the tint of its light come out as the video's.
+   */
+  readonly grade?: {
+    readonly cols: number;
+    readonly rows: number;
+    readonly offsets: readonly (readonly [number, number, number])[];
+  };
   readonly shafts?: {
     readonly angle: number;
     readonly stops: readonly (readonly [number, number])[];
@@ -77,7 +86,7 @@ export function waterMaterial(
   const fragment =
     style.cartoon === undefined
       ? fountainFragment(glsl, far)
-      : cartoonFragment(style.cartoon, far, style.shafts);
+      : cartoonFragment(style.cartoon, far, style.shafts, style.grade);
   return new THREE.ShaderMaterial({
     uniforms: {
       field: { value: field },
@@ -99,6 +108,33 @@ void main() {
 }`,
     fragmentShader: fragment,
   });
+}
+
+/** GLSL adding a map's colour grade (a bilinear grid of offsets over the canvas) to `col`. */
+function gradeGlsl(g: NonNullable<WaterStyle['grade']>): string {
+  const at = (r: number, c: number): string => {
+    const o = g.offsets[
+      Math.min(g.rows - 1, Math.max(0, r)) * g.cols + Math.min(g.cols - 1, Math.max(0, c))
+    ] as readonly [number, number, number];
+    return `vec3(${o.map((v) => (v / 255).toFixed(4)).join(', ')})`;
+  };
+  const rows = Array.from({ length: g.rows }, (_, r) => {
+    const row = Array.from({ length: g.cols }, (_, c) => at(r, c)).join(', ');
+    return `vec3 gr${r}[${g.cols}] = vec3[${g.cols}](${row});`;
+  }).join('\n  ');
+  return `  {
+  ${rows}
+    float gx = clamp((ndc.x + 1.0) * 0.5, 0.0, 1.0) * ${(g.cols - 1).toFixed(1)};
+    float gy = clamp((1.0 - ndc.y) * 0.5, 0.0, 1.0) * ${(g.rows - 1).toFixed(1)};
+    int x0 = int(min(floor(gx), ${(g.cols - 2).toFixed(1)}));
+    int y0 = int(min(floor(gy), ${(g.rows - 2).toFixed(1)}));
+    float fx = gx - float(x0);
+    float fy = gy - float(y0);
+    vec3 acc = vec3(0.0);
+${Array.from({ length: g.rows - 1 }, (_, r) => `    if (y0 == ${r}) { vec3 top = mix(gr${r}[x0], gr${r}[x0 + 1], fx); vec3 bot = mix(gr${r + 1}[x0], gr${r + 1}[x0 + 1], fx); acc = mix(top, bot, fy); }`).join('\n')}
+    col += acc;
+  }
+`;
 }
 
 /** GLSL adding a map's light shafts to `col` (waterShader `shafts`), from the fragment's place on the canvas (`ndc`). */
@@ -158,7 +194,12 @@ void main() {
  * falls away); its outline is pushed in and out by the fine noise, which is looked up somewhere new every 1/fps second: the outline
  * is re-drawn in steps, as the HQ's is, while the ribbons themselves drift slowly along the edge.
  */
-function cartoonFragment(c: CartoonWater, far: number, shafts?: WaterStyle['shafts']): string {
+function cartoonFragment(
+  c: CartoonWater,
+  far: number,
+  shafts?: WaterStyle['shafts'],
+  grade?: WaterStyle['grade'],
+): string {
   const ribbons = c.ribbons
     .map((r, i) => {
       const k = i + 1;
@@ -211,6 +252,6 @@ void main() {
   }
   float glow = 1.0 - smoothstep(0.0, ${FLOAT(c.glow)}, dBank);
   vec3 col = mix(base, light, glow * 0.85);
-${shafts === undefined ? '' : shaftsGlsl(shafts)}  gl_FragColor = vec4(mix(col, foam, foamAmount), 1.0);
+${shafts === undefined ? '' : shaftsGlsl(shafts)}${grade === undefined ? '' : gradeGlsl(grade)}  gl_FragColor = vec4(mix(col, foam, foamAmount), 1.0);
 }`;
 }

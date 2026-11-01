@@ -123,10 +123,10 @@ def unproject(px, py, z):
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry), colour
-    dict(foot=(570, 340), colour='#e9795a', lumps=[(545, 190, 62, 50), (575, 285, 55, 45)]),
-    dict(foot=(440, 540), colour='#e8b050', lumps=[(470, 405, 62, 52), (400, 440, 60, 50), (430, 500, 48, 40)]),
-    dict(foot=(1215, 610), colour='#e8b050', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
-    dict(foot=(1750, 480), colour='#e9795a', lumps=[(1810, 210, 62, 50), (1760, 290, 56, 46), (1855, 300, 50, 45), (1850, 405, 62, 50), (1775, 375, 46, 40)]),
+    dict(foot=(570, 340), colour='#e98471', lumps=[(545, 190, 62, 50), (575, 285, 55, 45)]),
+    dict(foot=(440, 540), colour='#d8bc78', lumps=[(470, 405, 62, 52), (400, 440, 60, 50), (430, 500, 48, 40)]),
+    dict(foot=(1215, 610), colour='#d8bc78', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
+    dict(foot=(1750, 480), colour='#e98471', lumps=[(1810, 210, 62, 50), (1760, 290, 56, 46), (1855, 300, 50, 45), (1850, 405, 62, 50), (1775, 375, 46, 40)]),
 ]
 tree_out = []
 for t in TREES:

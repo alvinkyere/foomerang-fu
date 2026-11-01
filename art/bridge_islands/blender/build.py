@@ -81,7 +81,7 @@ BLOCK_COLOURS = [('#9fbff0', '#6f8fd8'), ('#7aa6e8', '#4f78c8'), ('#818cc1', '#5
 BRICK_WALLS = {3, 6, 11}      # (stones.json indices of the bridge's two walls: sorted by y, 3 = the NW wall, 6 = the SE one)
 CUBE_LIKE = {0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14}
 BLOCK_TAPER = {}      # (the E cube and its low rock have straight sides; the other rocks are broader at the foot)
-BLOCK_COLOURS = [('#a5b3ea', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
+BLOCK_COLOURS = [('#97a6e0', '#6a79ab')] * 24      # (every block alike for now: tops #a5b3ea, sides #6a79ab as the HQ's stones measure)
 BLOCK_MATERIALS = [(lit(f'island_top_{i}', HQ.lit(t, 0.98)), lit(f'island_side_{i}', HQ.lit(sd, 0.875))) for i, (t, sd) in enumerate(BLOCK_COLOURS)]
 STONE_TOP, STONE_SIDE = lit('pond_stone_top', HQ.lit('#a6b4e9', 0.98)), lit('pond_stone_side', HQ.lit('#909edf', 0.875))
 LIP_SIDE = lit('pond_lip', HQ.lit('#909edf', 0.875))
@@ -368,7 +368,7 @@ for k, b in enumerate(S):
         if k in CUBE_LIKE:
             # the HQ's boulders are soft cubes: the footprint's own rectangle with generous rounded corners, not a many-sided hull
             cx_, cy_, rw_, rh_, ang_ = b['rect']
-            pts = rounded_rect(cx_, cy_, rw_ * 0.68 + 2 * GROW, rh_ * 0.68 + 2 * GROW, -ang_, 0.9)      # (the hand outlines took in each block's side as well as its top: ~0.68 of them is the top)
+            pts = rounded_rect(cx_, cy_, rw_ * 0.5 + 2 * GROW, rh_ * 0.5 + 2 * GROW, -ang_, 0.9)      # (the hand outlines took in each block's side as well as its top: ~0.68 of them is the top)
         else:
             pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
