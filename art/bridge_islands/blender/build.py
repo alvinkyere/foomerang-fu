@@ -361,7 +361,10 @@ for _k_, _water in MEASURED.items():
     _out = [tuple(q) for q in _water]
     if len(_out) == len(_in):
         # (edges.py's probes, from the grass's edge out: a pale blend, the lavender lit then darker down the side, the darkest at the foot)
-        flank(f'FLANK_{_k_}', _in, 0.0, _out, WATER_Z + 0.01, [(0.0, '#b2ccc6'), (0.12, '#a7b8dc'), (0.3, '#a3b1ea'), (0.48, '#8c9ad5'), (0.64, '#8797cf'), (0.8, '#7c96c6'), (1.0, '#7399c0')])
+        rows_ = ([(0.0, '#a9c1cd'), (0.12, '#99abd9'), (0.25, '#8699d1'), (0.4, '#8197cd'), (0.55, '#7c98c8'), (0.7, '#749ac1'), (0.85, '#709bc0'), (1.0, '#6d9abf')]
+                 if _k_ == EAST_K else      # (the east island's south-east side: darker sooner)
+                 [(0.0, '#b2ccc6'), (0.12, '#a7b8dc'), (0.3, '#a3b1ea'), (0.48, '#8c9ad5'), (0.64, '#8797cf'), (0.8, '#7c96c6'), (1.0, '#7399c0')])
+        flank(f'FLANK_{_k_}', _in, 0.0, _out, WATER_Z + 0.01, rows_)
         # the thin pale foam line where the side meets the water, then the darker water hugging it (the HQ: #a8daf5 ~4 px, then #689dba)
         _cx = sum(q[0] for q in _out) / len(_out); _cy = sum(q[1] for q in _out) / len(_out)
         _grow = lambda P, d: [(x + (x - _cx) / math.hypot(x - _cx, y - _cy) * d, y + (y - _cy) / math.hypot(x - _cx, y - _cy) * d) for x, y in P]

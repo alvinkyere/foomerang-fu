@@ -94,6 +94,9 @@ spec = importlib.util.spec_from_file_location('lay', 'art/bridge_islands/layout.
 src = open('art/bridge_islands/layout.py').read()
 SW_PX = eval(src.split('SW_PX = ')[1].split('#')[0]); EAST_PX = eval(src.split('EAST_PX = ')[1].split('\n')[0])
 res = {}
+# the game's grass edge lands this many pixels further out than the line it was built from (probes of a game shot against the HQ, 2026-11-01: the
+# flank started 6 px late on the east island's south-east side, 3 px on the south-west island's): the front sides' grass lines are pulled in by it
+INSET = {'sw': 3.0, 'east': 6.0}
 # the south-west island: its south-east and south-west sides face the camera and are measured; its north-west side is under the tree and the
 # bamboo and its north-east side along the bridge and the blocks, so those two keep the outline's own lines (the back sides show next to no flank:
 # grass and water lines the same there)
@@ -106,7 +109,9 @@ for key in ('grass', 'water'):
         a_, b_ = np.array(SW_PX[i], float), np.array(SW_PX[(i + 1) % 4], float)
         if i in (2, 3) and sd['n'] >= 8:
             pts = sd[key]; c, d = line(pts); r_ = np.abs((pts - c) @ np.array([d[1], -d[0]]))
-            keep = r_ < max(3.0, np.percentile(r_, 70) * 1.5); L_.append(line(pts[keep]))
+            keep = r_ < max(3.0, np.percentile(r_, 70) * 1.5); c_, d_ = line(pts[keep])
+            if key == 'grass': c_ = c_ - sd['normal'] * INSET['sw']      # (the game draws the grass's edge a little further out than the line: see INSET)
+            L_.append((c_, d_))
             print(' ', key, 'side', i, 'kept', int(keep.sum()), 'of', sd['n'], 'rms %.1f px' % float(np.sqrt((r_[keep] ** 2).mean())))
         else:
             L_.append((a_, (b_ - a_) / np.linalg.norm(b_ - a_)))
@@ -134,7 +139,9 @@ for i, sd in enumerate(sides):
     fits[i] = {}
     for key in ('grass', 'water'):
         pts = sd[key]; c, d = line(pts); r_ = np.abs((pts - c) @ np.array([d[1], -d[0]]))
-        keep = r_ < max(3.0, np.percentile(r_, 70) * 1.5); fits[i][key] = line(pts[keep])
+        keep = r_ < max(3.0, np.percentile(r_, 70) * 1.5); c_, d_ = line(pts[keep])
+        if key == 'grass': c_ = c_ - sd['normal'] * INSET['east']
+        fits[i][key] = (c_, d_)
     dg, dw = fits[i]['grass'][1], fits[i]['water'][1]
     if dg @ dw < 0: dw = -dw
     dm = (dg + dw) / np.linalg.norm(dg + dw); fits[i] = {k: (v[0], dm) for k, v in fits[i].items()}
