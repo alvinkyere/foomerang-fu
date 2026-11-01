@@ -548,7 +548,8 @@ for k, sp in enumerate(L.get('small_pads', [])):                   # (the small 
 for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
-    obj_models.bamboo({'x': x, 'y': y, 'width': 0.55, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
+    # (the HQ's bamboo by the gate and the potted one by the wall are thick, ~20 px: 1.1 units; the rest thinner)
+    obj_models.bamboo({'x': x, 'y': y, 'width': 1.1 if k in (0, 1, 2) else 0.7, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
 def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
