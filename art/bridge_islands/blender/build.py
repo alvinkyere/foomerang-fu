@@ -374,11 +374,11 @@ for k, b in enumerate(S):
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
 
 # ---------------------------------------------------------------------------------------------------------------- island life
-PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#76b668', '#8cc47c', '#5b9a55', '#fbe3e3', '#f2b4c0'
+PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#5fb066', '#6dbb70', '#4f9a5a', '#fbe8ec', '#f4c4d0'
 for k, pad in enumerate(L['pads']):
     x, y = pad['at']
     r = pad['r'] * 0.8; z = WATER_Z + 0.06       # (the HQ's pads: measured radii)
-    notch = math.radians(62); a0 = rng.uniform(0, 2 * math.pi)
+    notch = math.radians(40); a0 = rng.uniform(0, 2 * math.pi)
     steps = 28
     rim = [(x + math.cos(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r, y + math.sin(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r) for t in range(steps + 1)]
     inner = [(x + (px - x) * 0.92, y + (py - y) * 0.92) for px, py in rim]
@@ -461,8 +461,8 @@ for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.78) for i in (1, 3, 5))
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
-        r = lump['r'] * 1.12
-        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
+        r = lump['r'] * 0.74
+        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 0.74
         blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.95, ry * 0.95, r * 0.8), TREE, TREE_LOW)
         for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: small domes round and over the big one)
             a = 2 * math.pi * m / 9 + rng.uniform(-0.2, 0.2); d = rng.uniform(0.55, 0.78)
