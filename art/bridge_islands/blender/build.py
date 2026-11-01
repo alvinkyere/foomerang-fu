@@ -503,6 +503,18 @@ for st in L.get('bunting', []):
         t += 1.25
 _flat3d('BUNTING', _tris)
 
+# leafy ferns (layout.py `ferns`): pointed leaves fanning out from the middle and arching down, two greens, unlit as the HQ's flat leaves
+_tris = []
+for k, fe in enumerate(L.get('ferns', [])):
+    cx, cy = fe['at']; r = fe['r']; z = fe['z']; a0 = rng.uniform(0, 6.28)
+    for j in range(9):
+        a = a0 + j * 2 * math.pi / 9 + rng.uniform(-0.2, 0.2); ln = r * rng.uniform(0.8, 1.1)
+        d = Vector((math.cos(a), math.sin(a), 0)); n = Vector((-d.y, d.x, 0))
+        base = Vector((cx, cy, z + 0.5)); mid = base + d * ln * 0.5 + Vector((0, 0, 0.35)); tip = base + d * ln + Vector((0, 0, -0.35))
+        col = '#78b88c' if j % 2 else '#66a67c'      # (the HQ's fern greens, #7ab98f median)
+        _tris.append(([base - n * 0.12, mid - n * ln * 0.24, mid + n * ln * 0.24], col)); _tris.append(([mid - n * ln * 0.24, tip, mid + n * ln * 0.24], col))
+_flat3d('FERNS', _tris)
+
 # the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
 INW = L['islet_nw']
 _hx = [(INW['centre'][0] + INW['radius'] * math.cos(math.pi / 6 + i * math.pi / 3), INW['centre'][1] + INW['radius'] * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]

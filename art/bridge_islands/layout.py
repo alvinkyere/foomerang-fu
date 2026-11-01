@@ -197,13 +197,16 @@ _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/br
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
 # pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
-POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1148, 822, 1.35, 1.75, 0.0),
+POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 150, 1.3, 1.1, 0.0), (1148, 822, 1.35, 1.75, 0.0),
         (1075, 812, 1.2, 1.25, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1400, 355), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
 LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
+# leafy ferns (the HQ's dark green tufts by the gate, the boulder and the bridge's east end): (x, y) of the tuft's middle in the frame, its radius in px,
+# the height it grows from (the potted one on its pot)
+FERNS = [(1186, 222, 26, 0.0), (1316, 303, 26, 0.0), (1080, 305, 22, 0.0), (1128, 405, 28, 0.0), (1098, 572, 30, 0.0), (1135, 128, 22, 1.1), (835, 335, 18, 0.0)]
 GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
 # the lily pads (fit_pads.py: each pad's ellipse, notch and flower measured on the HQ frame), lying on the water: unprojected at the water's height;
@@ -237,7 +240,7 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 # the tall block in the water south of the east island (its front face 57 px down to the water)
                 ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
-out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bunting=bunting, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bunting=bunting, ferns=[dict(at=unproject(x_, y_, z_)[0], r=round(r_ / unproject(x_, y_, z_)[1], 2), z=z_) for x_, y_, r_, z_ in FERNS], cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
