@@ -23,9 +23,9 @@ describe('the autumn glade', () => {
     expect(RECONSTRUCTED_MAPS.autumn_glade.assetDir).toBe('maps/autumn_glade/');
   });
 
-  it('has a dashed border, three logs and two rocks as walls, and six spawns inside the border', () => {
+  it('has a dashed border, three logs and two rocks (two blocks each) as walls, and six spawns inside the border', () => {
     const { walls, safeZone, spawns } = AUTUMN_GLADE_ARENA;
-    expect(walls).toHaveLength(5);
+    expect(walls).toHaveLength(7);
     expect(spawns).toHaveLength(6);
     if (safeZone === undefined) throw new Error('no border');
     for (const s of spawns ?? []) {
@@ -33,6 +33,31 @@ describe('the autumn glade', () => {
       expect(s.x).toBeLessThan(safeZone.x + safeZone.width);
       expect(s.y).toBeGreaterThan(safeZone.y);
       expect(s.y).toBeLessThan(safeZone.y + safeZone.height);
+    }
+  });
+
+  it('has one pair of portals, each pad on open sand inside the border and pointing at the other', () => {
+    const { portals, walls, safeZone } = AUTUMN_GLADE_ARENA;
+    expect(portals).toHaveLength(2);
+    if (portals === undefined || safeZone === undefined) throw new Error('no portals or border');
+    const [a, b] = portals;
+    if (a === undefined || b === undefined) throw new Error('no pair');
+    expect(a.to).toBe(b.id);
+    expect(b.to).toBe(a.id);
+    for (const p of portals) {
+      expect(p.x).toBeGreaterThan(safeZone.x);
+      expect(p.x).toBeLessThan(safeZone.x + safeZone.width);
+      for (const w of walls ?? []) {
+        if (!('angle' in w)) continue; // (the glade's walls are all turned boxes)
+        const c = Math.cos(w.angle);
+        const s = Math.sin(w.angle);
+        const dx = p.x - w.x;
+        const dy = p.y - w.y;
+        const inside =
+          Math.abs(dx * c + dy * s) < w.halfWidth + p.radius &&
+          Math.abs(-dx * s + dy * c) < w.halfHeight + p.radius;
+        expect(inside, `${p.id} overlaps ${JSON.stringify(w)}`).toBe(false);
+      }
     }
   });
 

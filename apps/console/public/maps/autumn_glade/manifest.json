@@ -51,18 +51,18 @@
     }
   },
   "fixedFrame": {
-    "zoom": 0.9144,
-    "u": -0.00125,
-    "v": 0.0425
+    "zoom": 0.9326,
+    "u": 0,
+    "v": 0
   },
   "hqFrame": {
-    "zoom": 0.9144,
-    "u": -0.00125,
-    "v": 0.0425
+    "zoom": 0.9326,
+    "u": 0,
+    "v": 0
   },
   "followFrame": {
-    "minZoom": 0.9144,
-    "maxZoom": 1.1887
+    "minZoom": 0.9326,
+    "maxZoom": 1.2123
   },
   "characters": {
     "bread": {
