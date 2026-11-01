@@ -125,6 +125,11 @@ for i, sd in enumerate(sides):
         # column where nothing stands on it (x 1150 and 1400-1450): a back side, grass and water lines the same
         c_ = np.array([1150.0, 182.0]); d_ = np.array([300.0, 201.0]); d_ /= np.linalg.norm(d_)
         fits[1] = {'grass': (c_, d_), 'water': (c_, d_)}; continue
+    if i == 0:
+        # the north-west side: a back side, its grass's top edge read column by column (x 640-840: y 212 171 141 111 83 51; the probes along the
+        # first outline caught the bunting and the leaves there)
+        c_ = np.array([740.0, 128.0]); d_ = np.array([200.0, -161.0]); d_ /= np.linalg.norm(d_)
+        fits[0] = {'grass': (c_, d_), 'water': (c_, d_)}; continue
     if sd['n'] < 8: continue
     fits[i] = {}
     for key in ('grass', 'water'):
