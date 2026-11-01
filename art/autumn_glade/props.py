@@ -142,7 +142,7 @@ print('logs lifted to z', LOG_R)
 # ---- beyond the frame: the frame's footprint on the sand (the outskirts' trees keep out of it) and the big foreground foliage at its corners
 # (centre pixel, height of the foliage over the sand, radius in pixels, colour read at the centre), put on the plan at that height
 L['frame'] = [[round(float(v), 2) for v in p_] for p_ in plan([(0, 0), (1920, 0), (1920, 1080), (0, 1080)])]
-FG = [((12, 1050), 12.0, 85), ((6, 12), 12.0, 70)]
+FG = [((10, 1055), 12.0, 55), ((4, 6), 12.0, 40)]
 fg = []
 for (px_, py_), z_, r_ in FG:
     p_ = plan_at([(px_, py_)], z_)[0]

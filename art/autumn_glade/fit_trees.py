@@ -13,7 +13,7 @@ from measure import ref, Yc
 SC = 0.5                                        # fit at half resolution
 f = cv2.imread('art/autumn_glade/output/reference.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H, S, V = h[..., 0], h[..., 1], h[..., 2]
-valid = np.ones(H.shape, bool); valid[:, :215] = False; valid[470:620, 740:1190] = False       # (HUD, the READY text)
+valid = np.ones(H.shape, bool); valid[95:375, :215] = False; valid[470:620, 740:1190] = False       # (the players' names, the READY text)
 red = valid & (((H <= 8) | (H >= 172)) & (S > 120) & (V > 150))
 gold = valid & ((H >= 17) & (H <= 27) & (S > 125) & (V > 165) & (V < 232))
 K = lambda n: np.ones((n, n), np.uint8)

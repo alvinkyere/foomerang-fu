@@ -201,7 +201,7 @@ def umbrella(name, c, r, hi, mid, lo, scallops=7):
         for j in range(seg):
             th = 2 * math.pi * j / seg
             lobe = 1 + 0.13 * abs(math.sin(scallops * th / 2 + ph)) ** 0.7 + 0.04 * math.sin(13 * th + ph * 2)
-            if i >= rings: lobe *= 1 + 0.07 * (tips[j] - 0.5) * (1 if j % 2 else -0.4)          # (ragged leaf tips at the rim)
+            if i >= rings: lobe *= 1 + 0.12 * (tips[j] - 0.35) * (1 if j % 2 else -0.5)         # (ragged leaf tips at the rim)
             rr = r * rho * (lobe if rho > 0.6 else 1.0) if i <= rings else r * lobe * 0.97
             zz = c[2] + 0.5 * r * (1 - rho ** 2) - 0.2 * r - (sk if i > rings else 0)
             row.append(bm.verts.new((c[0] + math.cos(th) * rr, c[1] + math.sin(th) * rr, zz)))
@@ -209,12 +209,13 @@ def umbrella(name, c, r, hi, mid, lo, scallops=7):
     for i in range(rings + 1):
         for j in range(seg):
             f = bm.faces.new([grid[i][j], grid[i][(j + 1) % seg], grid[i + 1][(j + 1) % seg], grid[i + 1][j]]); f.smooth = True
-            wedge = 0.08 * math.sin(scallops * 2 * math.pi * j / seg + ph) + rng.uniform(-0.03, 0.03)
             for loop in f.loops:
                 v = loop.vert.co
                 north = (v.y - c[1]) / r                                   # (-1 the camera's side .. +1 the far side)
                 rho_ = math.hypot(v.x - c[0], v.y - c[1]) / (r * 1.1)
-                t = max(0.0, min(1.0, 0.45 - 0.4 * north + 0.35 * rho_ ** 2 + wedge))
+                # soft mottling in the plan (blobs ~0.4 units, as the frame's leaf masses), not wedges: the frame's clumps have no star
+                mott = 0.11 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph * 1.3) + 0.6 * math.sin(4.1 * v.x - 3.7 * v.y + ph * 0.7))
+                t = max(0.0, min(1.0, 0.45 - 0.4 * north + 0.35 * rho_ ** 2 + mott))
                 base = ch.lerp(cm, t / 0.5) if t < 0.5 else cm.lerp(cl, (t - 0.5) / 0.5)
                 loop[col] = lit_up(list(base * (0.72 if i > rings else 1.0)), v)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()

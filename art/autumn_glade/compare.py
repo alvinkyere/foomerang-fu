@@ -8,7 +8,7 @@ import numpy as np, cv2
 
 def masks(path):
     f = cv2.imread(path); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int); H, S, V = h[..., 0], h[..., 1], h[..., 2]
-    hud = np.arange(1920)[None, :] > 215
+    hud = np.ones(H.shape, bool); hud[95:375, :215] = False      # (all but the players' names)
     return f, dict(
         red=hud & ((H <= 8) | (H >= 172)) & (S > 120) & (V > 150), gold=hud & (H >= 17) & (H <= 27) & (S > 125) & (V > 165) & (V < 232),
         rock=hud & (H >= 108) & (H <= 130) & (S >= 55) & (S < 150) & (V >= 150), log=hud & (H >= 168) & (S >= 60) & (S <= 125) & (V >= 70) & (V < 150),

@@ -9,7 +9,7 @@ a = cv2.imread('art/autumn_glade/output/render.png'); b = cv2.imread('art/autumn
 la, lb = cv2.cvtColor(a, cv2.COLOR_BGR2LAB).astype(float), cv2.cvtColor(b, cv2.COLOR_BGR2LAB).astype(float)
 la[..., 0] *= 100 / 255; lb[..., 0] *= 100 / 255; la[..., 1:] -= 128; lb[..., 1:] -= 128
 d = np.sqrt(((la - lb) ** 2).sum(-1))
-valid = np.ones(d.shape, bool); valid[:, :215] = False; valid[470:620, 740:1190] = False
+valid = np.ones(d.shape, bool); valid[95:375, :215] = False; valid[470:620, 740:1190] = False
 v = d[valid]
 print('mean dE %.2f  median %.2f  >5: %.1f%%  >10: %.1f%%  >20: %.1f%%' % (v.mean(), np.median(v), (v > 5).mean() * 100, (v > 10).mean() * 100, (v > 20).mean() * 100))
 # by region (a 4x3 grid): the mean dE of each cell
