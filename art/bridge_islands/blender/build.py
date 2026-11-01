@@ -30,7 +30,8 @@ sys.path.insert(0, os.path.join(ROOT, 'art/bridge_islands'))
 import colour as HQ                                                # (the HQ's colours as the video looks in a browser: colour.py)
 sys.path.insert(0, os.path.join(ROOT, 'art/sky_islands/blender'))
 import objects as obj_models                                       # the gong islands' crate and bamboo, as they are
-PAL = J('art/sky_islands/objects.json')['palettes']
+PAL = dict(J('art/sky_islands/objects.json')['palettes'])
+PAL['hexplant'] = ['#92d9ad', '#83cea5', '#70c19c']      # (the HQ's plates here are bluer than the gong islands': their median measured, 1:12)
 rng = random.Random(11)
 
 WATER_Z, DEPTH = L['water_z'], 2.4      # (layout.py: the water's height, which edges.py's water lines were unprojected at)

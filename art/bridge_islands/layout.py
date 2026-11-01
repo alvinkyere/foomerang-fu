@@ -187,7 +187,7 @@ for t in TREES:
     tree_out.append(dict(foot=unproject(*t['foot'], base)[0], base=base, height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, base + height)[0], lumps=lumps))
 _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/bridge_islands/props.json') else {}
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
-BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_mv('bush2', (1360, 468)), 70)]
+BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
 # pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
 POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 782, 0.8, 0.9, 0.0),
         (1105, 800, 0.8, 0.9, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
