@@ -640,7 +640,7 @@ for _try in range(600):
     _n += 1
 # ---------------------------------------------------------------------------------------------------------------- the bridge, bushes, pots, gate, lanterns
 # the bridge: a purple-brown brick deck between the islands (the HQ, 1:15), planks laid across it, a hair above the grass
-BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#9a789a', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
+BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#a2819e', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
 if L['bridge']:
     body('BRIDGE', [tuple(p) for p in L['bridge']], 0.12, BRIDGE_TOP, BRIDGE_SIDE, top_r=0.1, bottom=WATER_Z - 0.5, soft=True, top_seg=2)
     bp = [tuple(p) for p in L['bridge']]
@@ -658,6 +658,7 @@ if L['bridge']:
     to_xy = lambda u, v: (cxb + u * c_ - v * s_, cyb + u * s_ + v * c_)
     seams = []
     course, brick = 1.2, 1.7
+    STREAK = '#bf9f9c'
     n_courses = int((u1 - u0) / course)
     rr_ = random.Random(5)
     for i in range(n_courses + 1):
@@ -670,9 +671,18 @@ if L['bridge']:
                 # a rounded brick (a soft cushion in the HQ: lighter in the middle, a darker gap round it)
                 pts_ = rounded_rect(0, 0, course - 0.2, v_hi - v_lo, 0, 0.4, seg=3)
                 cu, cv_ = uc, (v_lo + v_hi) / 2
-                col = ['#a07d9e', '#9c7a9b', '#a380a1'][rr_.randrange(3)]
+                col = ['#a886a2', '#a4839f', '#ab89a5'][rr_.randrange(3)]      # (the HQ deck's median #a483a0, measured)
                 seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
             v += brick
+        # the HQ's pale tan streaks along the course joints (worn mortar): broken lines, a few bricks long
+        if i > 0:
+            vv = v0
+            while vv < v1:
+                ln_ = rr_.uniform(1.5, 4.5)
+                if rr_.random() < 0.55:
+                    a_, b_ = vv, min(vv + ln_, v1); uj = u0 + i * course - 0.05
+                    seams.append(([to_xy(uj, a_), to_xy(uj, b_), to_xy(uj + 0.1, b_), to_xy(uj + 0.1, a_)], STREAK, 0.002))
+                vv += ln_ + rr_.uniform(0.5, 2.5)
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#8190d2', 0.98)), lit('wall_side', HQ.lit('#5f6cae', 0.875))
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
