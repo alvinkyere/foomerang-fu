@@ -198,6 +198,15 @@ LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
 GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
+# the lily pads (fit_pads.py: each pad's ellipse, notch and flower measured on the HQ frame), lying on the water: unprojected at the water's height;
+# a screen direction turns into the plan's by undoing the view's squash (y up in the plan, the frame's y down, sin(pitch) ~0.83 vertically)
+_PADS = json.load(open('art/bridge_islands/pads.json'))
+def _pad(p):
+    spot, ppu = unproject(p['c'][0], p['c'][1], WATER_Z)
+    na = None if p['notch'] is None else round(math.degrees(math.atan2(-math.sin(math.radians(p['notch'])) / 0.83, math.cos(math.radians(p['notch'])))), 1)
+    return dict(at=spot, r=round(p['axes'][0] / ppu, 2), notch=na, flower=p['flower'])
+pads_out = [_pad(p) for p in _PADS['pads']]
+small_out = [dict(at=unproject(x_, y_, WATER_Z)[0], r=round(r_ / unproject(x_, y_, WATER_Z)[1], 2)) for x_, y_, r_ in _PADS['small']]
 # the cube standing in the water by the wall's end (the HQ: its top a diamond, corners (1600, 73) (1642, 112) (1597, 140) (1558, 103); its left side
 # 70 px tall down to the water): each corner unprojected at the top's height, the water's plus 4.3
 CUBE_TOP = WATER_Z + 4.3
@@ -216,7 +225,7 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
 out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
-           pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
+           pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
            gate=dict(left=unproject(*GATE['left'], 0.0)[0], right=unproject(*GATE['right'], 0.0)[0], gong=unproject(*GATE['gong'], 0.0)[0]),
            petals=[[*unproject(float(x), float(y), 0.0)[0], '#e6a93a'] for x, y in [(455, 525), (470, 540), (428, 548), (498, 515), (405, 520), (490, 545), (445, 560), (515, 535), (418, 538), (478, 505), (460, 500)]], tufts=[])

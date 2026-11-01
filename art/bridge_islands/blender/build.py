@@ -513,11 +513,11 @@ for n, blk in SWB.items():
         if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 1.3, n=7, seed=hash(n) % 97)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
-PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#5fb066', '#6dbb70', '#4f9a5a', '#fbe8ec', '#f4c4d0'
+PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#79af77', '#86bd86', '#5f9a64', '#fbe8ec', '#f4c4d0'      # (the HQ pads' median, its lighter rim)
 for k, pad in enumerate(L['pads']):
     x, y = pad['at']
-    r = pad['r'] * 0.8; z = WATER_Z + 0.06       # (the HQ's pads: measured radii)
-    notch = math.radians(40); a0 = rng.uniform(0, 2 * math.pi)
+    r = pad['r']; z = WATER_Z + 0.06       # (fit_pads.py: the HQ's pads, their radii, notches and flowers measured)
+    notch = math.radians(40); a0 = (math.radians(pad['notch']) if pad.get('notch') is not None else rng.uniform(0, 2 * math.pi))      # (the gap is centred on a0)
     steps = 28
     rim = [(x + math.cos(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r, y + math.sin(a0 + notch / 2 + t * (2 * math.pi - notch) / steps) * r) for t in range(steps + 1)]
     inner = [(x + (px - x) * 0.92, y + (py - y) * 0.92) for px, py in rim]
@@ -531,11 +531,14 @@ for k, pad in enumerate(L['pads']):
         d = Vector((math.cos(a), math.sin(a), 0)); n = Vector((-d.y, d.x, 0)) * 0.09
         p0, p1 = Vector((x, y, 0)) + d * c0, Vector((x, y, 0)) + d * c1
         parts.append(([(p0.x - n.x, p0.y - n.y), (p0.x + n.x, p0.y + n.y), (p1.x + n.x, p1.y + n.y), (p1.x - n.x, p1.y - n.y)], PAD_DARK, 0.01))
-    if k in (1, 3):                                                # (two of them carry a flower: pale petals round a pink heart)
+    if pad.get('flower', k in (1, 3)):                              # (a flower: pale petals round a pink heart)
         star = [(x + math.cos(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26), y + math.sin(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26)) for i in range(16)]
         parts.append((star, FLOWER, 0.03))
         parts.append(([(x + math.cos(a) * r * 0.14, y + math.sin(a) * r * 0.14) for a in [i * math.pi / 4 for i in range(8)]], FLOWER_HEART, 0.04))
     flat(f'PAD_{k}', parts, z=z)
+for k, sp in enumerate(L.get('small_pads', [])):                   # (the small round pads)
+    x, y = sp['at']; r = sp['r']
+    flat(f'SPAD_{k}', [([(x + math.cos(i * math.pi / 10) * r, y + math.sin(i * math.pi / 10) * r) for i in range(20)], PAD, 0)], z=WATER_Z + 0.05)
 for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
