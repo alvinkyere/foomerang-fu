@@ -165,10 +165,10 @@ for _name, _idx in (('sw', SW_INDEX), ('east', EAST_INDEX)):
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ's canopy), colour
-    dict(foot=(570, 340), colour='#e1806f', lumps=[(539, 185, 64, 37), (564, 279, 63, 29)]),
-    dict(foot=(440, 535), colour='#d9bb70', lumps=[(458, 379, 30, 29), (491, 425, 25, 45), (400, 432, 34, 21), (420, 491, 36, 32)]),
-    dict(foot=(1215, 610), colour='#d9bb70', lumps=[(1232, 501, 42, 33), (1170, 546, 33, 31), (1232, 580, 45, 30)]),
-    dict(foot=(1795, 335), top=(1835, 210), base='islet_e', colour='#e1806f', lumps=[(1806, 190, 56, 47), (1882, 271, 40, 49), (1760, 297, 38, 42), (1825, 365, 57, 59), (1878, 434, 61, 52)]),
+    dict(foot=(570, 340), colour='#d87b6a', lumps=[(539, 185, 64, 37), (564, 279, 63, 29)]),
+    dict(foot=(440, 535), colour='#d3b66d', lumps=[(458, 379, 30, 29), (491, 425, 25, 45), (400, 432, 34, 21), (420, 491, 36, 32)]),
+    dict(foot=(1215, 610), colour='#d3b66d', lumps=[(1232, 501, 42, 33), (1170, 546, 33, 31), (1232, 580, 45, 30)]),
+    dict(foot=(1795, 335), top=(1835, 210), base='islet_e', colour='#d87b6a', lumps=[(1806, 190, 56, 47), (1882, 271, 40, 49), (1760, 297, 38, 42), (1825, 365, 57, 59), (1878, 434, 61, 52)]),
 ]
 tree_out = []
 for t in TREES:

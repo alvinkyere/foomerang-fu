@@ -571,7 +571,8 @@ def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
             ring = 0.5 + 0.5 * math.sin(d * 9.0 + ph)                      # (soft rings from the middle)
             up = max(0.0, min(1.0, (v.z - (c[2] - radii[2])) / (2 * radii[2])))
             mott = 0.14 * math.sin(7.3 * v.x + 3 * v.y + ph) * math.sin(6.1 * v.y - 2 * v.x + ph * 1.7)      # (soft mottling)
-            k = 0.85 * max(0.0, 1 - d) ** 1.3 + 0.22 * ring + mott + (0.0 if up > 0.4 else 0.5)    # (darker towards the heart and underneath)
+            south = max(0.0, -(v.y - c[1]) / max(radii[1], 1e-6))
+            k = 0.7 * (1 - up) + 0.35 * south - 0.15 + 0.5 * mott    # (the HQ's lumps: light over their tops, darkening down their camera-facing undersides)
             col_ = hi.lerp(lo, max(0.0, min(1.0, k)))
             loop[col] = (col_.x, col_.y, col_.z, 1.0)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -605,7 +606,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 for k, t in enumerate(L['trees']):
-    TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.9) for i in (1, 3, 5))
+    TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.86) for i in (1, 3, 5))
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.7, 0.55, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
