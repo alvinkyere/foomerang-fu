@@ -423,7 +423,7 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
 SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
-    if k in SW_SKIP or k in (0, 2, 3, 5, 7, 9): continue      # (9: the SE wall's run onto the east island, built with the wall)          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
+    if k in SW_SKIP or k in (0, 2, 3, 5, 7, 9, 14): continue      # (9: the SE wall's run onto the east island, built with the wall)          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -466,7 +466,7 @@ paint_flat(body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['heigh
 # the cube in the water by the wall's end (layout.py `cubes`: its top's corners from the HQ): a soft box down into the water, unlit in the HQ's colours
 for k, cu in enumerate(L.get('cubes', [])):
     paint_flat(body(f'CUBE_{k}', [tuple(q) for q in cu['top']], cu['z'], FLAT, FLAT, top_r=0.2, corner_r=0.25, bottom=STONE_BOTTOM,
-                    soft=True, top_seg=2), '#a6c4ea', '#7198bb', '#8cafd3')      # (the HQ's colours there less the beams' light: the overlay adds it back)
+                    soft=True, top_seg=2), *(('#a6c4ea', '#7198bb', '#8cafd3') if k == 0 else ('#a7b5ea', '#7e8bc2', '#94a2dc')))      # (the water cube: the HQ's colours there less the beams' light, which the overlay adds back; the rest lavender)
 # the raised grass-topped blocks at the wall's end (layout.py `raised`): a lavender block with a rim round its grass, unlit in the HQ's colours
 for k, rb in enumerate(L.get('raised', [])):
     g_ = [tuple(q) for q in rb['grass']]

@@ -103,6 +103,13 @@ def _rect(b):
     if cv2.contourArea(P) / max(w * h, 1e-6) < 0.9 or w * h < 120: return b
     return cv2.boxPoints(((cx, cy), (w, h), a))
 banks = [_rect(b) for b in banks]
+# islets put where the HQ shows them (their traced blob's hexagon moved to the HQ's centre in the frame and scaled): the pots' islet, south
+_ISLET_FIX = [((1150, 830), (1110, 818), 1.08)]      # (the islet's kerb, thick on its camera-facing sides, carries it ~17 px right and 10 down of its own centre)
+for _was, _now, _sc in _ISLET_FIX:
+    _w = plan_k([_was])[0]; _n = plan([_now])[0]      # (the traced blobs are in plan_k's plane; the islet's grass is at the ground's)
+    for _i, _b in enumerate(banks):
+        _c = np.mean(np.array(_b, float), 0)
+        if len(_b) == 6 and np.linalg.norm(_c - _w) < 4.0: banks[_i] = (np.array(_b, float) - _c) * _sc + _n
 # the east islet (islet_e.py: a tall round rock, fitted): the red tree stands on its top; the hex islet traced there is its grass, not an island
 ISLET_E = json.load(open('art/bridge_islands/islet_e.json'))
 banks = [b for b in banks if np.linalg.norm(np.mean(np.array(b, float), 0) - np.array(ISLET_E['centre'])) > ISLET_E['radius'] + 3.0]
@@ -189,8 +196,8 @@ _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/br
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
 # pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
-POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 782, 0.8, 0.9, 0.0),
-        (1105, 800, 0.8, 0.9, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
+POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1148, 822, 1.35, 1.75, 0.0),
+        (1075, 812, 1.2, 1.25, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1400, 355), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
@@ -221,7 +228,9 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 ([(1090, 295), (1120, 283), (1165, 285), (1185, 305), (1182, 335), (1150, 348), (1105, 346), (1083, 325)], 2.8),
                 ([(1305, 330), (1345, 322), (1370, 340), (1360, 365), (1315, 368)], 2.0),
                 # the gong's stepped stone base, two slabs
-                ([(1203, 262), (1258, 250), (1292, 280), (1235, 296)], 0.5), ([(1218, 240), (1262, 232), (1280, 258), (1235, 268)], 1.0)):
+                ([(1203, 262), (1258, 250), (1292, 280), (1235, 296)], 0.5), ([(1218, 240), (1262, 232), (1280, 258), (1235, 268)], 1.0),
+                # the tall block in the water south of the east island (its front face 57 px down to the water)
+                ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
 out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
