@@ -38,12 +38,9 @@ for H in np.arange(0.5, 10.0, 0.05):
     dy = ref(p[0], p[1], 0.0)[1] - ref(p[0], p[1], H)[1]
     if best is None or abs(dy - (FRONT_FOOT - FRONT_TOP)) < best[0]: best = (abs(dy - (FRONT_FOOT - FRONT_TOP)), H)
 H = round(float(best[1]), 2)
-fp = plan(box, H)
-# the wall runs on out of the frame to the north-west: lengthen it 8 units that way so its end is never seen
-# the corners run SE end (0, 3) to NW end (1, 2): the NW end is lengthened 4 units (the HQ's wall runs on past the frame's top edge, x ~1000)
-u = (fp[1] - fp[0]) / np.linalg.norm(fp[1] - fp[0]); fp[1] += u * 4.0; fp[2] += u * 4.0
-# the min-area box over-reads the top's depth (it took in the rolled front edge): the HQ's top spans 67 px down at x 1400 (144-211), the box 111;
-# the front edge (corners 0, 1) comes back towards the back one (3, 2) to that
-w_ = (fp[3] - fp[0]); fp[0] += w_ * 0.4; fp[1] += w_ * 0.4
+# the top face's corners read off the frame directly (the min-area box of the mask was skewed by what stands before the wall): its front edge
+# through (1480, 275) at the HQ's slope 0.727 (x 1150: 35), its back edge through (1480, 205); the NW end run out past the frame's top
+TOP_PX = [(1530, 297), (1000, -74), (1000, -144), (1545, 252)]
+fp = plan(TOP_PX, H); box = np.float32(TOP_PX)
 print('top face box px', np.round(box).tolist(), 'height', H, 'footprint', np.round(fp, 2).tolist())
 json.dump(dict(height=H, footprint=np.round(fp, 2).tolist(), box_px=np.round(box).tolist()), open('art/bridge_islands/ne_wall.json', 'w'))
