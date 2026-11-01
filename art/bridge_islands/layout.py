@@ -98,7 +98,11 @@ def rectify(P, eps=1.2, tiny=2.2):
 
 
 banks = [_hex(b) if cv2.contourArea(np.float32(b)) < 120 else rectify(b, eps=1.5, tiny=2.6) for b in banks]
-banks = [b for b in banks]
+def _rect(b):
+    P = np.float32(b); (cx, cy), (w, h), a = cv2.minAreaRect(P)
+    if cv2.contourArea(P) / max(w * h, 1e-6) < 0.9 or w * h < 120: return b
+    return cv2.boxPoints(((cx, cy), (w, h), a))
+banks = [_rect(b) for b in banks]
 # the bridge's own outline (its bricks), for the walkable ground and its model
 bcs, _ = cv2.findContours(bridge_m.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 bridge_poly = plan(cv2.approxPolyDP(max(bcs, key=cv2.contourArea), 6.0, True).reshape(-1, 2)) if bcs else []

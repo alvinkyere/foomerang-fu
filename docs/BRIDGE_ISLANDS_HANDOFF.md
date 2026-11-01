@@ -40,3 +40,5 @@ shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), 
   should say: scale sc > 1 means the game must be zoomed IN by sc (multiply `gameZoomFit` by sc).
 - State: whole frame still ~59% differing (>12 levels); grass IoU 0.47. Biggest visible gaps: the land outline (HQ west island is a clean diagonal strip, ours a rounded blob: rectify() breaks
   on this outline, hand-fit two rotated rectangles with minAreaRect instead), tree trunks absent, the east islet (a big round rock with a grass top), vines, light shafts, the back wall's softness.
+- (later) LESSON: fit the CAMERA first with the land (grass closed over its props, scale+shift search: see the snippet in the log: IoU 0.50 -> 0.66 once u,v = -0.0014, 0.0166), THEN the props in the game view
+  (fit_trees.py): fitting props first just hides a camera error inside the props. Now: whole frame 50% differing as shot, grass (closed) IoU 0.66, canopies within 2 px.
