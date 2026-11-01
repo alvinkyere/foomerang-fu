@@ -239,7 +239,7 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 ([(1203, 262), (1258, 250), (1292, 280), (1235, 296)], 0.5), ([(1218, 240), (1262, 232), (1280, 258), (1235, 268)], 1.0),
                 # the tall block in the water south of the east island (its front face 57 px down to the water)
                 ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
-    cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
+    cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z, side='#6c79a8' if _z == WATER_Z + 3.5 else '#7e8bc2'))      # (the tall block in the water: its sides darker, as the HQ's)
 out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bunting=bunting, ferns=[dict(at=unproject(x_, y_, z_)[0], r=round(r_ / unproject(x_, y_, z_)[1], 2), z=z_) for x_, y_, r_, z_ in FERNS], cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
