@@ -550,7 +550,7 @@ for _try in range(600):
     _n += 1
 # ---------------------------------------------------------------------------------------------------------------- the bridge, bushes, pots, gate, lanterns
 # the bridge: a purple-brown brick deck between the islands (the HQ, 1:15), planks laid across it, a hair above the grass
-BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#8d6c8e', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
+BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#9a789a', 0.98)), lit('bridge_side', HQ.lit('#7b6190', 0.875))
 if L['bridge']:
     body('BRIDGE', [tuple(p) for p in L['bridge']], 0.12, BRIDGE_TOP, BRIDGE_SIDE, top_r=0.1, bottom=WATER_Z - 0.5, soft=True, top_seg=2)
     bp = [tuple(p) for p in L['bridge']]
@@ -580,7 +580,7 @@ if L['bridge']:
                 # a rounded brick (a soft cushion in the HQ: lighter in the middle, a darker gap round it)
                 pts_ = rounded_rect(0, 0, course - 0.2, v_hi - v_lo, 0, 0.4, seg=3)
                 cu, cv_ = uc, (v_lo + v_hi) / 2
-                col = ['#ad8fae', '#a68aa8', '#b095b1'][rr_.randrange(3)]
+                col = ['#a885a5', '#a280a0', '#ab89a8'][rr_.randrange(3)]
                 seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
             v += brick
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
