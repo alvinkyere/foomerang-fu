@@ -245,7 +245,7 @@ out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
            gate=dict(left=unproject(*GATE['left'], 0.0)[0], right=unproject(*GATE['right'], 0.0)[0], gong=unproject(*GATE['gong'], 0.0)[0]),
-           petals=[[*unproject(float(x), float(y), 0.0)[0], '#e6a93a'] for x, y in [(455, 525), (470, 540), (428, 548), (498, 515), (405, 520), (490, 545), (445, 560), (515, 535), (418, 538), (478, 505), (460, 500)]], tufts=[])
+           petals=[[*unproject(float(x), float(y), 0.0)[0], '#d0ae66'] for x, y in [(480, 522), (490, 532), (474, 540), (470, 558), (482, 566), (455, 548), (404, 537), (440, 530), (498, 548), (462, 532)]], tufts=[])
 json.dump(out, open('art/bridge_islands/layout.json', 'w'))
 allp = np.concatenate(banks)
 print('banks', [len(b) for b in banks], 'bridge', len(bridge_poly), 'bounds', allp.min(0).round(1), allp.max(0).round(1))
