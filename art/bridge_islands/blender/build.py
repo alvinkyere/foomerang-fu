@@ -33,7 +33,7 @@ import objects as obj_models                                       # the gong is
 PAL = J('art/sky_islands/objects.json')['palettes']
 rng = random.Random(11)
 
-WATER_Z, DEPTH = -1.1, 2.4
+WATER_Z, DEPTH = -0.7, 2.4
 STONE_BOTTOM = WATER_Z - DEPTH
 
 
