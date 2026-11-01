@@ -103,6 +103,9 @@ def _rect(b):
     if cv2.contourArea(P) / max(w * h, 1e-6) < 0.9 or w * h < 120: return b
     return cv2.boxPoints(((cx, cy), (w, h), a))
 banks = [_rect(b) for b in banks]
+# the east islet (islet_e.py: a tall round rock, fitted): the red tree stands on its top; the hex islet traced there is its grass, not an island
+ISLET_E = json.load(open('art/bridge_islands/islet_e.json'))
+banks = [b for b in banks if np.linalg.norm(np.mean(np.array(b, float), 0) - np.array(ISLET_E['centre'])) > ISLET_E['radius'] + 3.0]
 # the east island, as its corners stand in the frame (a big plain island with its south-west side along the bridge): five corners, unprojected where the kerb is
 EAST_PX = [(640, 205), (1125, 20), (1585, 330), (1592, 585), (1350, 792)]
 SW_PX = [(255, 612), (495, 452), (1020, 905), (885, 1080)]      # the south-west island's four corners in the frame (kerb's outer edge)
@@ -131,7 +134,7 @@ def unproject(px, py, z):
     return [round(float(a[0]), 2), round(float(a[1]), 2)], 10 / float(np.hypot(*(b - a)))
 
 
-BRIDGE_PX = [(660, 550), (850, 405), (1080, 580), (890, 750)]      # the deck's corners in the frame: the NW wall along A-B, the SE wall along C-D, open ends B-C and D-A
+BRIDGE_PX = [(650, 539), (825, 402), (1056, 587), (880, 739)]      # the deck's corners in the frame: the NW wall along A-B, the SE wall along C-D, open ends B-C and D-A
 bridge_poly = np.array([unproject(x, y, 0.12)[0] for x, y in BRIDGE_PX])
 # the south-west island measured side by side (edges.py): its grass outline (the top, at the grass's height) and its water line (the flank's foot,
 # at the water's height): the island is the grass, the flank slopes from it down to that line
@@ -162,17 +165,18 @@ for _name, _idx in (('sw', SW_INDEX), ('east', EAST_INDEX)):
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry), colour
-    dict(foot=(570, 340), colour='#e98471', lumps=[(545, 190, 62, 50), (575, 285, 55, 45)]),
-    dict(foot=(440, 535), colour='#e8b548', lumps=[(465, 380, 55, 48), (395, 435, 50, 44), (485, 425, 46, 42), (420, 485, 54, 44)]),
-    dict(foot=(1215, 610), colour='#e8b548', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
-    dict(foot=(1750, 480), colour='#e98471', lumps=[(1810, 210, 62, 50), (1760, 290, 56, 46), (1855, 300, 50, 45), (1850, 405, 62, 50), (1775, 375, 46, 40)]),
+    dict(foot=(570, 340), colour='#e1806f', lumps=[(545, 190, 62, 50), (575, 285, 55, 45)]),
+    dict(foot=(440, 535), colour='#d9bb70', lumps=[(465, 380, 55, 48), (395, 435, 50, 44), (485, 425, 46, 42), (420, 485, 54, 44)]),
+    dict(foot=(1215, 610), colour='#d9bb70', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
+    dict(foot=(1790, 335), base='islet_e', colour='#e1806f', lumps=[(1810, 210, 62, 50), (1760, 290, 56, 46), (1855, 300, 50, 45), (1850, 405, 62, 50), (1775, 375, 46, 40)]),
 ]
 tree_out = []
 for t in TREES:
     height = 3.4
+    base = ISLET_E['height'] if t.get('base') == 'islet_e' else 0.0
     lumps = []
     for x, y, rx, ry in t['lumps']:
-        z = float(np.clip(2.0 + 3.0 * (t['foot'][1] - y) / 260.0, 2.0, 5.2))
+        z = base + float(np.clip(2.0 + 3.0 * (t['foot'][1] - y) / 260.0, 2.0, 5.2))
         spot, ppu = unproject(x, y, z)
         lumps.append(dict(at=spot, r=round(rx / ppu, 2), ry=round(ry / ppu, 2), z=round(z, 2)))
     tf = json.load(open('art/bridge_islands/treefit.json')).get(str(len(tree_out)), dict(dx=0.0, dy=0.0, s=1.0)) if os.path.exists('art/bridge_islands/treefit.json') else dict(dx=0.0, dy=0.0, s=1.0)
@@ -180,7 +184,7 @@ for t in TREES:
     for l in lumps:
         l['at'] = [round(mx + tf['s'] * (l['at'][0] - mx) + tf['dx'], 2), round(my + tf['s'] * (l['at'][1] - my) + tf['dy'], 2)]
         l['r'] = round(l['r'] * tf['s'], 2); l['ry'] = round(l['ry'] * tf['s'], 2)
-    tree_out.append(dict(foot=unproject(*t['foot'], 0.0)[0], height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, height)[0], lumps=lumps))
+    tree_out.append(dict(foot=unproject(*t['foot'], base)[0], base=base, height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, base + height)[0], lumps=lumps))
 _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/bridge_islands/props.json') else {}
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 205)), 78), (*_mv('bush1', (775, 865)), 72), (*_mv('bush2', (1345, 420)), 68)]
@@ -192,7 +196,15 @@ LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
 LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
 GATE = dict(left=(1223, 233), right=(1300, 290), gong=(1260, 230))
 at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
-out = dict(zoom=Z, water_z=WATER_Z, measured=measured, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+# the cube standing in the water by the wall's end (the HQ: its top a diamond, corners (1600, 73) (1642, 112) (1597, 140) (1558, 103); its left side
+# 70 px tall down to the water): each corner unprojected at the top's height, the water's plus 4.3
+CUBE_TOP = WATER_Z + 4.3
+# the two raised grass-topped blocks at the wall's end (the HQ: grass corners read off the frame): the lower platform's grass front edge ~60 px over the
+# water (z = water + 3.7), the upper one standing on it, its side 35 px (2.1 units) above the platform
+raised = [dict(grass=r1([unproject(x, y, WATER_Z + 3.7)[0] for x, y in [(1495, 340), (1630, 325), (1635, 410), (1525, 415)]]), z=WATER_Z + 3.7),
+          dict(grass=r1([unproject(x, y, WATER_Z + 5.8)[0] for x, y in [(1495, 245), (1575, 250), (1565, 305), (1490, 300)]]), z=WATER_Z + 5.8)]
+cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=at(POTS), crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],

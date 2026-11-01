@@ -28,6 +28,7 @@ def probe(p, n):
     lav = np.nonzero(l[ge:])[0]
     if len(lav) < 4: return None
     le = ge + int(lav[-1]) + 1
+    if le >= len(s) - 10: return None
     if lav[0] > 8 or g[le:].any() or w[le:le + 30].mean() < 0.8: return None      # (the flank starts within a blend of the grass; water after it)
     return s[ge], s[le]
 
@@ -119,7 +120,12 @@ sides = measure(EAST_PX, back=(0, 1))
 print('east probes per side', [sd['n'] for sd in sides])
 fits = {}
 for i, sd in enumerate(sides):
-    if i == 1 or sd['n'] < 8: continue
+    if i == 1:
+        # the north-east side: the wall stands in the water beyond it (a channel lit by the beams between); the grass's top edge read column by
+        # column where nothing stands on it (x 1150 and 1400-1450): a back side, grass and water lines the same
+        c_ = np.array([1150.0, 182.0]); d_ = np.array([300.0, 201.0]); d_ /= np.linalg.norm(d_)
+        fits[1] = {'grass': (c_, d_), 'water': (c_, d_)}; continue
+    if sd['n'] < 8: continue
     fits[i] = {}
     for key in ('grass', 'water'):
         pts = sd[key]; c, d = line(pts); r_ = np.abs((pts - c) @ np.array([d[1], -d[0]]))

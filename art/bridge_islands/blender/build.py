@@ -66,6 +66,19 @@ def unlit(name):
     return m
 
 
+def paint_flat(o, top_hex, side_hex, mid_hex=None):
+    """Makes a built body unlit, in the colours the HQ shows (its top, its sides; a rolled edge between in `mid_hex`): as the island flanks are drawn."""
+    me = o.data; bm = bmesh.new(); bm.from_mesh(me); col = bm.loops.layers.float_color.new('Col')
+    T, S_ = lin(HQ.flat(top_hex)), lin(HQ.flat(side_hex)); M = lin(HQ.flat(mid_hex)) if mid_hex else None
+    for f in bm.faces:
+        f.normal_update(); nz = f.normal.z
+        c = T if nz > 0.8 else (M if (M is not None and nz > 0.3) else S_)
+        for lp in f.loops: lp[col] = c
+        f.material_index = 0
+    bm.to_mesh(me); bm.free(); me.materials.clear(); me.materials.append(FLAT)
+    return o
+
+
 def image(path):
     img = bpy.data.images.load(os.path.join(ROOT, path)); img.pack(); return img
 
@@ -401,7 +414,7 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
 SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
-    if k in SW_SKIP or k == 3: continue          # (3: the north-east wall, measured by ne_wall.py, below)
+    if k in SW_SKIP or k in (0, 3, 7): continue          # (3: the north-east wall, measured by ne_wall.py; 7: the east islet, islet_e.py: both below)
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -438,8 +451,25 @@ _q = NEW['footprint']; _cx = sum(q[0] for q in _q) / 4; _cy = sum(q[1] for q in 
 _e1 = (_q[1][0] - _q[0][0], _q[1][1] - _q[0][1]); _e2 = (_q[2][0] - _q[1][0], _q[2][1] - _q[1][1])
 _L, _W = math.hypot(*_e1), math.hypot(*_e2); _ang = math.degrees(math.atan2(_e1[1], _e1[0]))
 if _W > _L: _L, _W, _ang = _W, _L, math.degrees(math.atan2(_e2[1], _e2[0]))
-body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['height'], lit('ne_top', HQ.lit('#a7b5ea', 0.98)), lit('ne_side', HQ.lit('#7e8bc2', 0.875)),
-     top_r=0.35, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+paint_flat(body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['height'], lit('ne_top', HQ.lit('#a7b5ea', 0.98)), lit('ne_side', HQ.lit('#7e8bc2', 0.875)),
+     top_r=0.35, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3), '#a7b5ea', '#7e8bc2', '#94a2dc')      # (unlit: the HQ's top and front colours)
+
+# the cube in the water by the wall's end (layout.py `cubes`: its top's corners from the HQ): a soft box down into the water, unlit in the HQ's colours
+for k, cu in enumerate(L.get('cubes', [])):
+    paint_flat(body(f'CUBE_{k}', [tuple(q) for q in cu['top']], cu['z'], FLAT, FLAT, top_r=0.2, corner_r=0.25, bottom=STONE_BOTTOM,
+                    soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
+# the raised grass-topped blocks at the wall's end (layout.py `raised`): a lavender block with a rim round its grass, unlit in the HQ's colours
+for k, rb in enumerate(L.get('raised', [])):
+    g_ = [tuple(q) for q in rb['grass']]
+    paint_flat(body(f'RAISED_{k}', offset_poly(g_, 0.35), rb['z'], FLAT, FLAT, top_r=0.2, corner_r=0.4, bottom=STONE_BOTTOM, soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
+    flat(f'RAISED_{k}_grass', [(chaikin(g_, 2), '#c4eb9c', 0)], z=rb['z'] + 0.02)
+# the east islet (islet_e.py: fitted to the HQ's silhouette): a tall round rock, an octagon with soft corners, grass on its top, its red tree up there
+IE = L['islet_e']
+_oct = [(IE['centre'][0] + IE['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), IE['centre'][1] + IE['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
+body('ISLET_E', offset_poly(_oct, 0.0), IE['height'], lit('ie_top', HQ.lit('#a7b5ea', 0.98)), lit('ie_side', HQ.lit('#7e8bc2', 0.875)), top_r=0.35, corner_r=1.2,
+     bottom=STONE_BOTTOM, soft=True, top_seg=3)
+_cap = [(IE['centre'][0] + (x - IE['centre'][0]) * 0.62, IE['centre'][1] + (y - IE['centre'][1]) * 0.62 + 0.6) for x, y in _oct]
+lit_flat('ISLET_E_grass', [chaikin(_cap, 2)], LIME_GRASS, IE['height'] + 0.02)
 
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two
@@ -536,11 +566,11 @@ def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
     return o
 
 
-def trunk(name, foot, top, height, r0, r1, bend=0.0):
+def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
     """A slim leaning trunk, white birch with dark patches: a tapered tube from the foot (on the ground) to the top (`height` up)."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     rings, seg = 15, 10
-    a = Vector((foot[0], foot[1], 0.0)); b = Vector((top[0], top[1], height))
+    a = Vector((foot[0], foot[1], base)); b = Vector((top[0], top[1], base + height))
     axis = (b - a).normalized(); side = axis.cross(Vector((0, 0, 1)))
     side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0)); up = axis.cross(side).normalized()
     grid = []; blot = {}
@@ -551,7 +581,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
         dark = (i % 3 == 1)
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < 0.72)      # (random blotches of dark navy on pale lavender, uneven like the HQ's)
+            patch = blot[(i // 2, k // 3)] if (i // 2, k // 3) in blot else blot.setdefault((i // 2, k // 3), rng.random() < (0.35 if i > rings * 0.55 else 0.05))      # (pale lavender bark, dark navy blotches gathered near the top where the canopy starts, as the HQ's)
             for loop in f.loops: loop[col] = lin(HQ.flat('#4f5a93' if patch else '#c4c9e9'))
             f.smooth = False
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
@@ -563,14 +593,14 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.9) for i in (1, 3, 5))
-    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.6, 0.5, bend=0.5 if k == 0 else -0.4)
+    trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.7, 0.55, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
-        blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.95, ry * 0.95, r * 0.8), TREE, TREE_LOW)
-        for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: small domes round and over the big one)
-            a = 2 * math.pi * m / 9 + rng.uniform(-0.2, 0.2); d = rng.uniform(0.55, 0.78)
-            pr = rng.uniform(0.3, 0.42)
+        blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.78, ry * 0.78, r * 0.7), TREE, TREE_LOW)
+        for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: domes round and over a smaller heart, crevices between)
+            a = 2 * math.pi * m / 9 + rng.uniform(-0.25, 0.25); d = rng.uniform(0.5, 0.72)
+            pr = rng.uniform(0.38, 0.5)
             blob(f'TREE_{k}_{j}_p{m}', (cx + math.cos(a) * r * d, cy + math.sin(a) * ry * d, cz + rng.uniform(-0.1, 0.25) * r),
                  (r * pr, ry * pr, r * pr * 0.9), TREE, TREE_LOW, sub=3, bumps=0.05)
 # cast shadows of the canopies (the HQ bakes them as dark flat shapes): each lump's footprint shifted along the light (east 0.10, north 0.44 per
@@ -646,7 +676,9 @@ if len(bq) == 4:
     A, B_, C_, D_ = bq
     for tag, p0, p1, outward in (('NW', A, B_, (-1, 1)), ('SE', D_, C_, (1, -1))):
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]; ln0 = math.hypot(dx, dy); ux, uy = dx / ln0, dy / ln0
-        p0 = (p0[0] - ux * 0.9, p0[1] - uy * 0.9); p1 = (p1[0] + ux * 0.9, p1[1] + uy * 0.9); ln = ln0 + 1.8
+        # (how far each wall runs past the deck's corners, and how wide it is, measured: the NW wall runs on onto the east island, ~3.7 units past B)
+        e0, e1, wid, off = (0.9, 4.6, 1.8, 0.8) if tag == 'NW' else (0.9, 0.9, 1.3, 0.5)
+        p0 = (p0[0] - ux * e0, p0[1] - uy * e0); p1 = (p1[0] + ux * e1, p1[1] + uy * e1); ln = ln0 + e0 + e1
         nx, ny = -uy, ux
         # which side is outward: away from the deck's centre
         cxd = sum(q[0] for q in bq) / 4; cyd = sum(q[1] for q in bq) / 4
@@ -655,8 +687,8 @@ if len(bq) == 4:
         for j in range(n_w):
             mid = (j + 0.5) * piece
             cap = (j == n_w - 1) if tag == 'NW' else (j == 0)
-            cxw, cyw = p0[0] + ux * mid + nx * 0.8, p0[1] + uy * mid + ny * 0.8
-            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.2 if cap else 0), 1.8 + (0.2 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
+            cxw, cyw = p0[0] + ux * mid + nx * off, p0[1] + uy * mid + ny * off
+            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.2 if cap else 0), wid + (0.2 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
                  0.65 + (0.2 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):

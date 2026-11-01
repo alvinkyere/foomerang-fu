@@ -1,7 +1,7 @@
 """The long wall along the east island's north-east side (HQ 1:12, top right): measured, not traced as a blob.
 
 Its top face is the pale lavender band (V >= 225, hue of the stone) running from the frame's top edge down to the raised grass block; its height is
-the front face's span in the columns where nothing stands in front of it (x 1320-1370: 185 -> 250 px; below it, to ~300, is the water's lit edge). The footprint is the top face unprojected
+the front face's span in the columns where nothing stands in front of it (x 1320-1370: 185 -> 250 px; below it to ~316 is water lit by the beams, a channel between the wall and the island (the gate stands before the wall)). The footprint is the top face unprojected
 at that height, so the wall is a vertical prism standing on it. Writes ne_wall.json (plan units) for build.py.
 
   python art/bridge_islands/ne_wall.py
@@ -30,10 +30,10 @@ roi = np.zeros_like(top); cv2.fillPoly(roi, [np.int32([(1100, 0), (1290, 0), (15
 m = cv2.morphologyEx(top & roi, cv2.MORPH_CLOSE, np.ones((25, 25), np.uint8))
 cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE); c = max(cs, key=cv2.contourArea)
 rect = cv2.minAreaRect(c); box = cv2.boxPoints(rect)          # (a long thin parallelogram on screen: its min-area rectangle is close enough)
-# height: the front face spans 185 -> 250 px; below it, to ~300, is the water's lit edge at x 1350; find H with ref(top) - ref(foot) = 115 px there
+# height: the front face spans 185 -> 250 px; below it to ~316 is water lit by the beams, a channel between the wall and the island (the gate stands before the wall) at x 1350; find H with ref(top) - ref(foot) = 115 px there
 FRONT_TOP, FRONT_FOOT, COL = 185, 250, 1350
 best = None
-for H in np.arange(0.5, 6.0, 0.05):
+for H in np.arange(0.5, 10.0, 0.05):
     p = plan([(COL, FRONT_TOP)], H)[0]
     dy = ref(p[0], p[1], 0.0)[1] - ref(p[0], p[1], H)[1]
     if best is None or abs(dy - (FRONT_FOOT - FRONT_TOP)) < best[0]: best = (abs(dy - (FRONT_FOOT - FRONT_TOP)), H)
