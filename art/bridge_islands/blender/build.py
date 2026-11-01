@@ -388,7 +388,7 @@ for k, b in enumerate(S):
 
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two
-SW_TOP, SW_SIDE = lit('sw_top', HQ.lit('#a9b5ec', 0.98)), lit('sw_side', HQ.lit('#8793d0', 0.875))
+SW_TOP, SW_SIDE = lit('sw_top', HQ.lit('#a9b5ec', 0.98)), lit('sw_side', HQ.lit('#7480c4', 0.875))
 IVY = '#6fae82'
 
 
@@ -403,7 +403,7 @@ def ivy(name, cx, cy, z, r, n=7, seed=0):
         a = rr.uniform(0, 2 * math.pi); d = rr.uniform(0, r * 0.7); px, py = cx + math.cos(a) * d, cy + math.sin(a) * d
         pts = []
         for j in range(10):
-            t = j * 2 * math.pi / 10; rad = r * rr.uniform(0.28, 0.5) * (1.0 if j % 2 == 0 else 0.55)
+            t = j * 2 * math.pi / 10; rad = r * rr.uniform(0.3, 0.45) * (1.0 if j % 2 == 0 else 0.8)
             pts.append((px + math.cos(t) * rad, py + math.sin(t) * rad))
         parts.append((pts, IVY if i % 3 else '#5f9e75', 0.0))
     flat(name, parts, z=z)
@@ -413,7 +413,7 @@ for n, blk in SWB.items():
     top = [tuple(p) for p in blk['top']]; foot = [tuple(p) for p in blk['foot']]
     c = (sum(p[0] for p in top) / len(top), sum(p[1] for p in top) / len(top))
     cf = (sum(p[0] for p in foot) / len(foot), sum(p[1] for p in foot) / len(foot))
-    H = blk['height']
+    H = blk['height'] * 1.4
     if n == 'w':
         body('SW_w_low', grow(top, c, 1.5), H * 0.42, SW_TOP, SW_SIDE, top_r=0.35, corner_r=0.7, bottom=STONE_BOTTOM, soft=True, top_seg=3)
         body('SW_w_up', grow(top, c, 1.25), H, SW_TOP, SW_SIDE, top_r=0.45, corner_r=0.9, bottom=H * 0.3, soft=True, top_seg=3)
@@ -605,7 +605,7 @@ if len(bq) == 4:
                  1.0 + (0.5 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
-    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 2.1}, PAL, FLAT, None, k)
+    obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['pots']):
     obj_models.pot({'x': x, 'y': y, 'width': 0.8, 'height': 0.9}, PAL, FLAT, None, k)
 # stone lanterns: a small pale-lavender post with a cap
