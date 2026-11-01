@@ -33,7 +33,7 @@ import objects as obj_models                                       # the gong is
 PAL = J('art/sky_islands/objects.json')['palettes']
 rng = random.Random(11)
 
-WATER_Z, DEPTH = -0.6, 2.4
+WATER_Z, DEPTH = -1.1, 2.4
 STONE_BOTTOM = WATER_Z - DEPTH
 
 
@@ -415,12 +415,12 @@ for n, blk in SWB.items():
     cf = (sum(p[0] for p in foot) / len(foot), sum(p[1] for p in foot) / len(foot))
     H = blk['height'] * 1.4
     if n == 'w':
-        body('SW_w_low', grow(top, c, 1.5), H * 0.42, SW_TOP, SW_SIDE, top_r=0.35, corner_r=0.7, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+        body('SW_w_low', grow(top, c, 1.3), H * 0.36, SW_TOP, SW_SIDE, top_r=0.35, corner_r=0.7, bottom=STONE_BOTTOM, soft=True, top_seg=3)
         body('SW_w_up', grow(top, c, 1.25), H, SW_TOP, SW_SIDE, top_r=0.45, corner_r=0.9, bottom=H * 0.3, soft=True, top_seg=3)
         ivy('SW_w_ivy', c[0] - 1.2, c[1] - 0.6, H + 0.05, 0.8, n=3, seed=1)
     else:
         body(f'SW_{n}', grow(top, c, 1.75 if n != 's' else 1.9), H, SW_TOP, SW_SIDE, top_r=0.45, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3)
-        if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 2.0, n=10, seed=hash(n) % 97)
+        if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 1.3, n=7, seed=hash(n) % 97)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
 PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#5fb066', '#6dbb70', '#4f9a5a', '#fbe8ec', '#f4c4d0'
@@ -449,7 +449,7 @@ for k, pad in enumerate(L['pads']):
 for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
-    obj_models.bamboo({'x': x, 'y': y, 'width': 0.42, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
+    obj_models.bamboo({'x': x, 'y': y, 'width': 0.7, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
 def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
@@ -507,7 +507,7 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0):
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
 for k, t in enumerate(L['trees']):
-    TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.78) for i in (1, 3, 5))
+    TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.9) for i in (1, 3, 5))
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
@@ -529,11 +529,11 @@ for k, t in enumerate(L['trees']):
         on_land = any(inside((cx, cy), [tuple(q) for q in poly]) for poly in G['polygons'])
         if on_land: flat(f'SHADOW_{k}_{j}', [(pts, SHADOW_GRASS, 0)], z=0.03)      # (the HQ's water shows none under its trees)
 # the fallen leaves: small red ovals on the grass by the trees' feet
-for k, (x, y) in enumerate(L['petals']):
+for k, (x, y, *_pc) in enumerate(L['petals']):
     a0 = rng.uniform(0, math.pi); w, h = rng.uniform(0.22, 0.34), rng.uniform(0.12, 0.19)      # (the HQ's leaves are plump ovals, ~14 x 8 px)
     pts = [(x + math.cos(i * math.pi / 5) * w * math.cos(a0) - math.sin(i * math.pi / 5) * h * math.sin(a0),
             y + math.cos(i * math.pi / 5) * w * math.sin(a0) + math.sin(i * math.pi / 5) * h * math.cos(a0)) for i in range(10)]
-    flat(f'PETAL_{k}', [(pts, '#d95a38', 0)], z=0.06)
+    flat(f'PETAL_{k}', [(pts, (_pc[0] if _pc else '#d95a38'), 0)], z=0.06)
 
 # short isolated horizontal white ripple dashes in the open water (the HQ's, away from the island), screen-horizontal = plan x
 _rp = random.Random(23)

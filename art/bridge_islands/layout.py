@@ -135,8 +135,8 @@ ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry), colour
     dict(foot=(570, 340), colour='#e98471', lumps=[(545, 190, 62, 50), (575, 285, 55, 45)]),
-    dict(foot=(440, 540), colour='#d8bc78', lumps=[(470, 405, 62, 52), (400, 440, 60, 50), (430, 500, 48, 40)]),
-    dict(foot=(1215, 610), colour='#d8bc78', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
+    dict(foot=(440, 535), colour='#e8b548', lumps=[(465, 380, 55, 48), (395, 435, 50, 44), (485, 425, 46, 42), (420, 485, 54, 44)]),
+    dict(foot=(1215, 610), colour='#e8b548', lumps=[(1215, 520, 58, 46), (1185, 560, 55, 40), (1245, 590, 46, 40)]),
     dict(foot=(1750, 480), colour='#e98471', lumps=[(1810, 210, 62, 50), (1760, 290, 56, 46), (1855, 300, 50, 45), (1850, 405, 62, 50), (1775, 375, 46, 40)]),
 ]
 tree_out = []
@@ -169,7 +169,7 @@ out = dict(zoom=Z, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=t
            pots=at(POTS), crates=at(CRATES), bamboo=at(BAMBOO), pads=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in PADS],
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
            gate=dict(left=unproject(*GATE['left'], 0.0)[0], right=unproject(*GATE['right'], 0.0)[0], gong=unproject(*GATE['gong'], 0.0)[0]),
-           petals=[], tufts=[])
+           petals=[[*unproject(float(x), float(y), 0.0)[0], '#e6a93a'] for x, y in [(455, 525), (470, 540), (428, 548), (498, 515), (405, 520), (490, 545), (445, 560), (515, 535), (418, 538), (478, 505), (460, 500)]], tufts=[])
 json.dump(out, open('art/bridge_islands/layout.json', 'w'))
 allp = np.concatenate(banks)
 print('banks', [len(b) for b in banks], 'bridge', len(bridge_poly), 'bounds', allp.min(0).round(1), allp.max(0).round(1))
