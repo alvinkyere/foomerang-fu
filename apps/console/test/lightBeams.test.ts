@@ -49,6 +49,20 @@ describe('the light beams', () => {
     expect(beamsFragment(walled)).toContain('150.0000');
   });
 
+  it('can be a grid of profiles down the screen (the HQ’s bands change along their length): strength between rows is interpolated', () => {
+    const a = (120 * Math.PI) / 180;
+    const xFor = (t: number, y: number) => 960 + (t + (y - 540) * Math.cos(a)) / Math.sin(a);
+    // two rows (y 100 and 200), three columns of t (-100, -90, -80): 0 / 30 / 0 on the first row, 0 / 10 / 0 on the second
+    const grid: LightBeams = {
+      ...BEAMS,
+      grid: { t0: -100, dt: 10, y0: 100, dy: 100, cols: 3, rows: 2, values: [0, 30, 0, 0, 10, 0] },
+    };
+    expect(beamStrength(grid, xFor(-90, 100), 100)).toBeCloseTo(30, 6);
+    expect(beamStrength(grid, xFor(-90, 150), 150)).toBeCloseTo(20, 6);
+    expect(beamStrength(grid, xFor(-95, 200), 200)).toBeCloseTo(5, 6);
+    expect(beamStrength(grid, xFor(-50, 150), 150)).toBe(0);
+  });
+
   it('are written as GLSL without reserved words (`half` killed a water shader silently once)', () => {
     const glsl = beamsFragment(BEAMS);
     expect(glsl).toContain('gl_FragColor');

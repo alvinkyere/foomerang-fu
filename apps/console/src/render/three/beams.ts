@@ -17,6 +17,35 @@ export interface LightBeams {
    * grass in front of the wall is not lit (its colour is the grass's own), the wall and the water beyond are.
    */
   readonly above?: readonly (readonly [number, number])[];
+  /**
+   * Instead of one profile faded down the screen, a profile per row (art/bridge_islands/fit_beams_game.py: the HQ's bands brighten and fade
+   * along their length): `values[row * cols + col]` is the strength at t = t0 + col * dt on the screen row y = y0 + row * dy; bilinear between,
+   * none outside the columns, the nearest row above the first and below the last. `stops` and `fade` are then unused.
+   */
+  readonly grid?: {
+    readonly t0: number;
+    readonly dt: number;
+    readonly y0: number;
+    readonly dy: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly values: readonly number[];
+  };
+}
+
+function gridAt(g: NonNullable<LightBeams['grid']>, t: number, y: number): number {
+  const c = (t - g.t0) / g.dt;
+  if (c < 0 || c > g.cols - 1) return 0;
+  const r = Math.min(Math.max((y - g.y0) / g.dy, 0), g.rows - 1);
+  const c0 = Math.min(Math.floor(c), g.cols - 2);
+  const r0 = Math.min(Math.floor(r), Math.max(g.rows - 2, 0));
+  const r1 = Math.min(r0 + 1, g.rows - 1);
+  const fc = c - c0;
+  const fr = r - r0;
+  const v = (rr: number, cc: number) => g.values[rr * g.cols + cc] ?? 0;
+  const top = v(r0, c0) * (1 - fc) + v(r0, c0 + 1) * fc;
+  const bottom = v(r1, c0) * (1 - fc) + v(r1, c0 + 1) * fc;
+  return top * (1 - fr) + bottom * fr;
 }
 
 /** The line's height (frame pixels) at x: linear between its points, flat beyond its ends. */
@@ -42,9 +71,10 @@ const smooth = (e0: number, e1: number, x: number) => {
 export function beamStrength(b: LightBeams, x: number, y: number): number {
   const a = (b.angle * Math.PI) / 180;
   const t = (x - 960) * Math.sin(a) + (y - 540) * -Math.cos(a);
+  if (b.above !== undefined && b.above.length > 0 && y > lineAt(b.above, x)) return 0;
+  if (b.grid !== undefined) return gridAt(b.grid, t, y);
   const s = b.stops;
   if (s.length === 0) return 0;
-  if (b.above !== undefined && b.above.length > 0 && y > lineAt(b.above, x)) return 0;
   const first = s[0] as readonly [number, number];
   const last = s[s.length - 1] as readonly [number, number];
   if (t < first[0] || t > last[0]) return 0;
@@ -80,6 +110,20 @@ export function beamsFragment(b: LightBeams): string {
     const [x1, y1] = line[i] as readonly [number, number];
     lineY = `(px.x <= ${F(x1)} ? mix(${F(y0)}, ${F(y1)}, clamp((px.x - ${F(x0)}) / ${F(x1 - x0)}, 0.0, 1.0)) : ${lineY})`;
   }
+  const g = b.grid;
+  if (g !== undefined) {
+    return `uniform vec2 resolution; uniform sampler2D grid;
+void main() {
+  vec2 px = vec2(gl_FragCoord.x / resolution.x * 1920.0, (1.0 - gl_FragCoord.y / resolution.y) * 1080.0);
+  float t = (px.x - 960.0) * ${F(Math.sin(a))} + (px.y - 540.0) * ${F(-Math.cos(a))};
+  float c = (t - ${F(g.t0)}) / ${F(g.dt)};
+  float r = clamp((px.y - ${F(g.y0)}) / ${F(g.dy)}, 0.0, ${F(g.rows - 1)});
+  float strength = (c < 0.0 || c > ${F(g.cols - 1)}) ? 0.0 : texture2D(grid, vec2((c + 0.5) / ${F(g.cols)}, (r + 0.5) / ${F(g.rows)})).r * 255.0;
+  if (px.y > ${lineY}) strength = 0.0;
+  gl_FragColor = vec4(vec3(${b.add.map(F).join(', ')}) * max(strength, 0.0) / 255.0, 1.0);
+}
+`;
+  }
   return `uniform vec2 resolution;
 void main() {
   vec2 px = vec2(gl_FragCoord.x / resolution.x * 1920.0, (1.0 - gl_FragCoord.y / resolution.y) * 1080.0);
@@ -99,8 +143,22 @@ export function beamsOverlay(b: LightBeams): {
   resolution: THREE.Vector2;
 } {
   const resolution = new THREE.Vector2(1920, 1080);
+  const uniforms: Record<string, THREE.IUniform> = { resolution: { value: resolution } };
+  if (b.grid !== undefined) {
+    // (strengths 0..255 in one float channel; linear filtering does the bilinear blend the TS beamStrength does)
+    const tex = new THREE.DataTexture(
+      new Float32Array(b.grid.values.map((v) => v / 255)),
+      b.grid.cols,
+      b.grid.rows,
+      THREE.RedFormat,
+      THREE.FloatType,
+    );
+    tex.magFilter = tex.minFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    uniforms['grid'] = { value: tex };
+  }
   const material = new THREE.ShaderMaterial({
-    uniforms: { resolution: { value: resolution } },
+    uniforms,
     vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: beamsFragment(b),
     blending: THREE.AdditiveBlending,
