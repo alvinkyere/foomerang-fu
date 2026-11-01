@@ -475,10 +475,11 @@ for k, rb in enumerate(L.get('raised', [])):
 # the east islet (islet_e.py: fitted to the HQ's silhouette): a tall round rock, an octagon with soft corners, grass on its top, its red tree up there
 IE = L['islet_e']
 _oct = [(IE['centre'][0] + IE['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), IE['centre'][1] + IE['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
-body('ISLET_E', offset_poly(_oct, 0.0), IE['height'], lit('ie_top', HQ.lit('#a7b5ea', 0.98)), lit('ie_side', HQ.lit('#7e8bc2', 0.875)), top_r=0.35, corner_r=1.2,
+body('ISLET_E', offset_poly(_oct, 0.0), IE['height'], lit('ie_top', HQ.lit('#a7b5ea', 0.98)), lit('ie_side', HQ.lit('#7e8bc2', 0.875)), top_r=0.3, corner_r=0.45,
      bottom=STONE_BOTTOM, soft=True, top_seg=3)
-_cap = [(IE['centre'][0] + (x - IE['centre'][0]) * 0.62, IE['centre'][1] + (y - IE['centre'][1]) * 0.62 + 0.6) for x, y in _oct]
-lit_flat('ISLET_E_grass', [chaikin(_cap, 2)], LIME_GRASS, IE['height'] + 0.02)
+# (the HQ: its grass a smaller patch towards the back left, the rest of the top lavender rim)
+_cap = [(IE['centre'][0] + (x - IE['centre'][0]) * 0.5 - 0.8, IE['centre'][1] + (y - IE['centre'][1]) * 0.5 + 1.0) for x, y in _oct]
+flat('ISLET_E_grass', [(chaikin(_cap, 2), '#c4ea9c', 0)], z=IE['height'] + 0.02)
 
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two

@@ -168,7 +168,7 @@ TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ'
     dict(foot=(570, 340), colour='#e1806f', lumps=[(539, 185, 64, 37), (564, 279, 63, 29)]),
     dict(foot=(440, 535), colour='#d9bb70', lumps=[(458, 379, 30, 29), (491, 425, 25, 45), (400, 432, 34, 21), (420, 491, 36, 32)]),
     dict(foot=(1215, 610), colour='#d9bb70', lumps=[(1232, 501, 42, 33), (1170, 546, 33, 31), (1232, 580, 45, 30)]),
-    dict(foot=(1790, 335), base='islet_e', colour='#e1806f', lumps=[(1806, 190, 56, 47), (1882, 271, 40, 49), (1760, 297, 38, 42), (1825, 365, 57, 59), (1878, 434, 61, 52)]),
+    dict(foot=(1795, 335), top=(1835, 210), base='islet_e', colour='#e1806f', lumps=[(1806, 190, 56, 47), (1882, 271, 40, 49), (1760, 297, 38, 42), (1825, 365, 57, 59), (1878, 434, 61, 52)]),
 ]
 tree_out = []
 for t in TREES:
@@ -184,7 +184,7 @@ for t in TREES:
     for l in lumps:
         l['at'] = [round(mx + tf['s'] * (l['at'][0] - mx) + tf['dx'], 2), round(my + tf['s'] * (l['at'][1] - my) + tf['dy'], 2)]
         l['r'] = round(l['r'] * tf['s'], 2); l['ry'] = round(l['ry'] * tf['s'], 2)
-    tree_out.append(dict(foot=unproject(*t['foot'], base)[0], base=base, height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, base + height)[0], lumps=lumps))
+    tree_out.append(dict(foot=unproject(*t['foot'], base)[0], base=base, height=height, colour=t['colour'], top=unproject(*(t.get('top') or (t['foot'][0], t['foot'][1] - 90)), base + height)[0], lumps=lumps))
 _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/bridge_islands/props.json') else {}
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
