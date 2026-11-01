@@ -30,7 +30,9 @@ import { gzipSync } from 'node:zlib';
 // room for its polish. Measured lazy 576.6 kB.
 // Raised on purpose (owner-approved 2026-10-30): Team Up (GAME MODE, PICK TEAMS, the team recolour of the players, the team scoreboard)
 // and the lily island map (initial 152.5 kB, lazy 586.3 kB measured).
-const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 587_000 };
+// Raised on purpose (owner-approved 2026-11-01): the bridge islands' and the autumn glade's rules data and wiring (lazy JS 589.8 kB
+// measured): lazy 592 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 592_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
