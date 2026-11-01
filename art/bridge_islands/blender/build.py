@@ -461,8 +461,8 @@ for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.78) for i in (1, 3, 5))
     trunk(f'TRUNK_{k}', t['foot'], t['top'], t['height'], 0.95, 0.8, bend=0.5 if k == 0 else -0.4)
     for j, lump in enumerate(t['lumps']):
-        r = lump['r'] * 0.74
-        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 0.74
+        r = lump['r'] * 1.12
+        cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
         blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.95, ry * 0.95, r * 0.8), TREE, TREE_LOW)
         for m in range(9):                              # (the HQ's canopy is a cauliflower of puffs: small domes round and over the big one)
             a = 2 * math.pi * m / 9 + rng.uniform(-0.2, 0.2); d = rng.uniform(0.55, 0.78)

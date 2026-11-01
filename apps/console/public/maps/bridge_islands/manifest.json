@@ -17,8 +17,8 @@
     "centre": [0.0, 0.0, 1.1],
     "world": {
       "unitsPerPlanUnit": 2748,
-      "planOriginX": -0.29,
-      "planOriginY": 1.04
+      "planOriginX": -0.28,
+      "planOriginY": 1.05
     }
   },
   "occluders": [],
@@ -51,18 +51,18 @@
     }
   },
   "fixedFrame": {
-    "zoom": 0.9,
+    "zoom": 0.9298,
     "u": 0,
     "v": 0
   },
   "hqFrame": {
-    "zoom": 0.9,
-    "u": 0.0465,
-    "v": 0.0137
+    "zoom": 0.9298,
+    "u": 0.0726,
+    "v": 0.0656
   },
   "followFrame": {
-    "minZoom": 0.9,
-    "maxZoom": 1.17
+    "minZoom": 0.9298,
+    "maxZoom": 1.2088
   },
   "water": {
     "base": "#7aa8bb",

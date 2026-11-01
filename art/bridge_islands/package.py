@@ -41,7 +41,7 @@ manifest = {
     'fixedFrame': {'zoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'u': 0, 'v': 0},
     # ...but, as the HQ's camera on this map does (10:37-10:44: it closes in as the players come together), it follows them, from the
     # whole island to 1.3 times closer (the plaza's own closest)
-    'hqFrame': {'zoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'u': 0.0465, 'v': 0.0137},       # (calibrated against the HQ frame: art/bridge_islands/hqcompare.py)
+    'hqFrame': {'zoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'u': 0.0726, 'v': 0.0656},       # (calibrated against the HQ frame: art/bridge_islands/hqcompare.py)
     'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'] * 1.3, 4)},
     # and its foam as measured (44 ribbons: 0.32 wide, within ~1 unit of the bank, 1.4-11 long, 4.6% of the water): one wide ribbon
     # at a time drifting off each edge, broken into long pieces (the field's noise, below)

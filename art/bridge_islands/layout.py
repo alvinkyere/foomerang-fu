@@ -40,7 +40,6 @@ glow = hud & (h[..., 0] >= 55) & (h[..., 0] <= 100) & (h[..., 1] > 25) & (h[...,
 land = clean(grass, 11) > 0
 land = land | ((clean(rock | glow, 5) > 0) & (cv2.dilate(land.astype(np.uint8), k(27)) > 0))
 bridge_m = clean(bridge, 9) > 0
-land = land | bridge_m
 land = clean(land, 21) > 0
 land = cv2.morphologyEx(land.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))) > 0
 cs, _ = cv2.findContours(land.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -48,6 +47,58 @@ KERB_Z = 0.3
 _Hk = cv2.findHomography(np.float32([ref(X, Y, KERB_Z) for X, Y in g]), np.float32(g))[0]
 plan_k = lambda pts: cv2.perspectiveTransform(np.float32(pts).reshape(-1, 1, 2), _Hk).reshape(-1, 2)
 banks = [plan_k(cv2.approxPolyDP(c, 3.0, True).reshape(-1, 2)) for c in cs if cv2.contourArea(c) > 2500]
+# the small islets are regular platforms in the HQ (a hexagon of grass with a wall round it): each traced blob becomes a regular hexagon of the same area, at its centroid
+def _hex(poly):
+    P = np.array(poly); n = len(P)
+    area = abs(sum(P[i][0] * P[(i + 1) % n][1] - P[(i + 1) % n][0] * P[i][1] for i in range(n))) / 2
+    c = P.mean(0); r = math.sqrt(2 * area / (3 * math.sqrt(3)))
+    return np.array([[c[0] + r * math.cos(math.pi / 6 + i * math.pi / 3), c[1] + r * math.sin(math.pi / 6 + i * math.pi / 3)] for i in range(6)])
+def rectify(P, eps=1.2, tiny=2.2):
+    """The HQ's island is built of right angles in the plan (45 degrees in the picture): a traced outline is straightened to that. Find
+    the way its edges run, turn it square, replace each run of edges by one straight edge at its mean place, drop the wobbles
+    shorter than `tiny`, put the corners where neighbouring edges meet, and turn it back."""
+    d = np.diff(np.vstack([P, P[:1]]), axis=0)
+    ang = np.arctan2(d[:, 1], d[:, 0]); w = np.hypot(d[:, 0], d[:, 1])
+    th = np.angle(np.sum(w * np.exp(4j * ang))) / 4                     # (the grid's turn, from the edges' own directions)
+    c, s = np.cos(-th), np.sin(-th); Rm = np.array([[c, -s], [s, c]])
+    Q = P @ Rm.T
+    Q = cv2.approxPolyDP(np.float32(Q).reshape(-1, 1, 2), eps, True).reshape(-1, 2)
+    n = len(Q)
+    edges = []                                                          # [orientation 'h'|'v', coordinate, length]
+    for i in range(n):
+        a, b = Q[i], Q[(i + 1) % n]
+        horiz = abs(b[0] - a[0]) >= abs(b[1] - a[1])
+        edges.append([horiz, (a[1] + b[1]) / 2 if horiz else (a[0] + b[0]) / 2, float(np.hypot(*(b - a)))])
+    changed = True
+    while changed and len(edges) > 4:
+        changed = False
+        for i in range(len(edges)):
+            j = (i + 1) % len(edges)
+            if edges[i][0] == edges[j][0]:                              # two runs the same way: one edge
+                L = edges[i][2] + edges[j][2]
+                edges[i] = [edges[i][0], (edges[i][1] * edges[i][2] + edges[j][1] * edges[j][2]) / L, L]
+                del edges[j]; changed = True; break
+            if edges[i][2] < tiny:                                      # a wobble: its neighbours meet over it
+                k = (i - 1) % len(edges)
+                if edges[k][0] == edges[j][0]:
+                    L = edges[k][2] + edges[j][2]
+                    edges[k] = [edges[k][0], (edges[k][1] * edges[k][2] + edges[j][1] * edges[j][2]) / L, L]
+                    for idx in sorted({i, j}, reverse=True): del edges[idx]
+                    changed = True; break
+    out = []
+    for i in range(len(edges)):
+        a, b = edges[i - 1], edges[i]                                   # the corner between edge i-1 and edge i
+        out.append((b[1], a[1]) if b[0] is False or not b[0] else (a[1], b[1]))
+    pts = []
+    for i in range(len(edges)):
+        a, b = edges[i - 1], edges[i]
+        pts.append([a[1], b[1]] if a[0] is False or not a[0] else [b[1], a[1]])
+    pts = np.array(pts)                                                 # (x of the vertical edge, y of the horizontal one)
+    return pts @ Rm                                                     # (back from the square frame)
+
+
+banks = [_hex(b) if cv2.contourArea(np.float32(b)) < 120 else rectify(b, eps=1.5, tiny=2.6) for b in banks]
+banks = [b for b in banks]
 # the bridge's own outline (its bricks), for the walkable ground and its model
 bcs, _ = cv2.findContours(bridge_m.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 bridge_poly = plan(cv2.approxPolyDP(max(bcs, key=cv2.contourArea), 6.0, True).reshape(-1, 2)) if bcs else []
@@ -81,6 +132,11 @@ for t in TREES:
         z = float(np.clip(2.0 + 3.0 * (t['foot'][1] - y) / 260.0, 2.0, 5.2))
         spot, ppu = unproject(x, y, z)
         lumps.append(dict(at=spot, r=round(rx / ppu, 2), ry=round(ry / ppu, 2), z=round(z, 2)))
+    tf = json.load(open('art/bridge_islands/treefit.json')).get(str(len(tree_out)), dict(dx=0.0, dy=0.0, s=1.0)) if os.path.exists('art/bridge_islands/treefit.json') else dict(dx=0.0, dy=0.0, s=1.0)
+    mx = float(np.mean([l['at'][0] for l in lumps])); my = float(np.mean([l['at'][1] for l in lumps]))
+    for l in lumps:
+        l['at'] = [round(mx + tf['s'] * (l['at'][0] - mx) + tf['dx'], 2), round(my + tf['s'] * (l['at'][1] - my) + tf['dy'], 2)]
+        l['r'] = round(l['r'] * tf['s'], 2); l['ry'] = round(l['ry'] * tf['s'], 2)
     tree_out.append(dict(foot=unproject(*t['foot'], 0.0)[0], height=height, colour=t['colour'], top=unproject(t['foot'][0], t['foot'][1] - 90, height)[0], lumps=lumps))
 BUSHES = [(860, 205, 78), (775, 865, 72), (1345, 420, 68)]
 POTS = [(1060, 190), (1085, 180), (1130, 288), (1165, 402), (1135, 782), (1105, 800), (545, 345), (1150, 600), (890, 180)]

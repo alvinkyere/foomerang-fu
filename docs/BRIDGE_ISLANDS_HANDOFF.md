@@ -33,3 +33,10 @@ indices 6 and 11, sorted by y; check them after any re-sort), the deck has offse
 placed from the HQ's posts (still hidden under the back wall in the game: the back wall block 3 is too tall/wide there), the trees take the HQ's two colours, bush size from measure.
 Back wall now a row of blocks (BRICK_WALLS has 3) and the gate shows; the HQ wall is smoother, taller and wider (one long soft slab). Next, in order: trees (trunk + lump
 shapes), then each block's height/colour (`BLOCK_COLOURS` is one pair for all), the islets' outlines, pads, crates, bamboo, lanterns, the aloe pot.
+
+## 2026-10-31 later
+- `fit_trees.py` (this map's) fits the four canopies in the game's own view (treefit.json, applied by layout.py): residual < 3 px. Islets are regular hexagons (layout.py `_hex`), the two big islands are separate rectified outlines
+  (the bridge is its own polygon, added to the walkable ground by ground.py), `gameZoomFit` 0.997 / `hqFrame` u 0.0726 v 0.0656 re-pinned. `hqcompare.py`'s printed "game wants fz x" is the INVERSE of what it
+  should say: scale sc > 1 means the game must be zoomed IN by sc (multiply `gameZoomFit` by sc).
+- State: whole frame still ~59% differing (>12 levels); grass IoU 0.47. Biggest visible gaps: the land outline (HQ west island is a clean diagonal strip, ours a rounded blob: rectify() breaks
+  on this outline, hand-fit two rotated rectangles with minAreaRect instead), tree trunks absent, the east islet (a big round rock with a grass top), vines, light shafts, the back wall's softness.

@@ -81,7 +81,7 @@ for c in cs:
     c = cv2.approxPolyDP(c, 1.6, True).reshape(-1, 2)
     polys.append([[round(float(x / PX + X0), 2), round(float(Y1 - y / PX), 2)] for x, y in c])
 # the walkable and the drawn island are ONE outline: layout.py's straightened one (the traced `polys` above are only the fallback)
-polys = [[[round(float(x), 2), round(float(y), 2)] for x, y in b] for b in L['banks']] or polys
+polys = [[[round(float(x), 2), round(float(y), 2)] for x, y in b] for b in L['banks']] + ([[[round(float(x), 2), round(float(y), 2)] for x, y in L['bridge']]] if L['bridge'] else [])
 json.dump(dict(box=[X0, X1, Y0, Y1], px=PX, polygons=polys), open('art/bridge_islands/ground.json', 'w'))
 
 # the grass: lime everywhere on the ground, the rim stripe along its edge, the shadow where it was measured
