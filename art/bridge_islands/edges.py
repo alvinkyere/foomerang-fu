@@ -165,6 +165,9 @@ for key in ('grass', 'water'):
         a_, b_ = np.array(EAST_PX[i], float), np.array(EAST_PX[(i + 1) % 5], float)
         L_.append(fits[i][key] if i in fits else (a_, (b_ - a_) / np.linalg.norm(b_ - a_)))
     lines[key] = [meet(L_[i - 1], L_[i]).round(1).tolist() for i in range(5)]
+    # the north corner, read column by column (the grass's top edge: x 960 y 78, 1050 y 80, 1100 y 118): the corner pokes out of the frame's
+    # top at x ~912, the edge drops to y ~74 and runs nearly flat past the bunting's lantern before it turns to follow the wall
+    lines[key] = [lines[key][0], [912.0, -5.0], [952.0, 74.0], [1060.0, 80.0], [1105.0, 114.0]] + lines[key][2:]
     print('  east %s corners' % key, lines[key])
 res['east'] = lines
 if len(sys.argv) == 1: json.dump(res, open('art/bridge_islands/edges.json', 'w'))
