@@ -482,6 +482,27 @@ body('ISLET_E', offset_poly(_oct, 0.0), IE['height'], lit('ie_top', HQ.lit('#a7b
 _cap = [(IE['centre'][0] + (x - IE['centre'][0]) * 0.5 - 0.8, IE['centre'][1] + (y - IE['centre'][1]) * 0.5 + 1.0) for x, y in _oct]
 flat('ISLET_E_grass', [(chaikin(_cap, 2), '#c4ea9c', 0)], z=IE['height'] + 0.02)
 
+# the bunting (layout.py: its strings' ends from the HQ): a thin dark string, red pennants every 1.25 units hanging 0.95, unlit, two-sided
+def _flat3d(name, tris):
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    for pts, hx in tris:
+        for order in (pts, pts[::-1]):
+            f = bm.faces.new([bm.verts.new(p) for p in order])
+            for loop in f.loops: loop[col] = lin(HQ.flat(hx))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
+_tris = []
+for st in L.get('bunting', []):
+    a, b = Vector(st['a']), Vector(st['b']); d = b - a; ln = d.length; d.normalize()
+    up = Vector((0, 0, 0.05))
+    _tris.append(([a - up, a + up, b + up], '#4a3550')); _tris.append(([a - up, b + up, b - up], '#4a3550'))
+    t = 0.5
+    while t < ln - 0.2:
+        p = a + d * t
+        _tris.append(([p - d * 0.38, p + d * 0.38, p + Vector((0, 0, -0.95))], '#d87b69'))
+        t += 1.25
+_flat3d('BUNTING', _tris)
+
 # the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
 INW = L['islet_nw']
 _hx = [(INW['centre'][0] + INW['radius'] * math.cos(math.pi / 6 + i * math.pi / 3), INW['centre'][1] + INW['radius'] * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]

@@ -222,6 +222,10 @@ CUBE_TOP = WATER_Z + 4.3
 # water (z = water + 3.7), the upper one standing on it, its side 35 px (2.1 units) above the platform
 raised = [dict(grass=r1([unproject(x, y, WATER_Z + 3.7)[0] for x, y in [(1495, 340), (1630, 325), (1635, 410), (1525, 415)]]), z=WATER_Z + 3.7),
           dict(grass=r1([unproject(x, y, WATER_Z + 5.8)[0] for x, y in [(1495, 245), (1575, 250), (1565, 305), (1490, 300)]]), z=WATER_Z + 5.8)]
+# the bunting (the HQ: two strings of red pennants, read off the frame where the string runs just above the pennants' tops): each end unprojected at
+# the height it hangs at (the north string from the long wall's end over the north lantern, 4.5 up; the east one from the raised block to the tree)
+bunting = [dict(a=unproject(905, 12, 4.5)[0] + [4.5], b=unproject(1125, 26, 4.5)[0] + [4.5]),
+           dict(a=unproject(1560, 296, 5.0)[0] + [5.0], b=unproject(1745, 322, 5.0)[0] + [5.0])]
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
 # the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small
 # cube by the urns, the round boulder the pot and the lever stand on, the block before the hex bush
@@ -233,7 +237,7 @@ for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
                 # the tall block in the water south of the east island (its front face 57 px down to the water)
                 ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z))
-out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bunting=bunting, cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
