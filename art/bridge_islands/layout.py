@@ -161,7 +161,7 @@ for _name, _idx in (('sw', SW_INDEX), ('east', EAST_INDEX)):
     _g = np.array([unproject(x, y, 0.0)[0] for x, y in _EDGES[_name]['grass']]); _wl = np.array([unproject(x, y, WATER_Z)[0] for x, y in _EDGES[_name]['water']])
     _fw = float(np.mean(np.linalg.norm(_wl - _g, axis=1)))
     banks[_idx] = fillet(_g, ISLAND_R)
-    measured.append(dict(index=_idx, water=r1(fillet(_wl, ISLAND_R + _fw))))
+    measured.append(dict(name=_name, index=_idx, water=r1(fillet(_wl, ISLAND_R + _fw))))
 ground = lambda pts: r1(plan(pts))
 # Props read off the HQ frame (foomerang-fu physics hq.mp4 1:15.5) by eye, in pixels of the 1920x1080 reference
 TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ's canopy), colour

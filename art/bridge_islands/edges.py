@@ -113,9 +113,18 @@ for key in ('grass', 'water'):
             if key == 'grass': c_ = c_ - sd['normal'] * INSET['sw']      # (the game draws the grass's edge a little further out than the line: see INSET)
             L_.append((c_, d_))
             print(' ', key, 'side', i, 'kept', int(keep.sum()), 'of', sd['n'], 'rms %.1f px' % float(np.sqrt((r_[keep] ** 2).mean())))
+        elif i == 1:
+            # the north-east side runs under the bridge's south-west end: the grass meets the deck there (no water between, as the HQ shows):
+            # the deck's D-A edge (layout.py BRIDGE_PX), 12 px in under the deck
+            d0, a0 = np.array([880.0, 739.0]), np.array([650.0, 539.0]); dd = (a0 - d0) / np.linalg.norm(a0 - d0)
+            L_.append((d0 - np.array([dd[1], -dd[0]]) * 12.0, dd))
         else:
             L_.append((a_, (b_ - a_) / np.linalg.norm(b_ - a_)))
     lines[key] = [meet(L_[i - 1], L_[i]).round(1).tolist() for i in range(4)]
+    # the island's north corner stays where the HQ shows it (500, 452), and the north-east side bends there to run under the deck from its A
+    # corner: five corners (the HQ: water beyond the north corner, grass to the deck)
+    a_under = (np.array([650.0, 539.0]) - np.array([dd[1], -dd[0]]) * 12.0).round(1).tolist()
+    lines[key] = [lines[key][0], [500.0, 452.0], a_under, lines[key][2], lines[key][3]]
     print('  %s corners' % key, lines[key])
 res['sw'] = lines
 # the east island: its north-west side (a back side), its east, south-east and south-west sides measured; its north-east side runs under the

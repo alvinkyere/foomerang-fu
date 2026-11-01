@@ -355,7 +355,7 @@ def flank(name, inner, z_in, outer, z_out, rows):
     return o
 
 
-EAST_K = max(MEASURED, key=lambda k: len(L['banks'][k])) if MEASURED else -1      # (the east island: the measured island with the most corners)
+EAST_K = next((m['index'] for m in L.get('measured', []) if m.get('name') == 'east'), -1)
 for _k_, _water in MEASURED.items():
     _in = RENDER_OUTLINES[_k_]
     _out = [tuple(q) for q in _water]
@@ -652,45 +652,40 @@ BRIDGE_TOP, BRIDGE_SIDE = lit('bridge_top', HQ.lit('#a2819e', 0.98)), lit('bridg
 if L['bridge']:
     body('BRIDGE', [tuple(p) for p in L['bridge']], 0.12, BRIDGE_TOP, BRIDGE_SIDE, top_r=0.1, bottom=WATER_Z - 0.5, soft=True, top_seg=2)
     bp = [tuple(p) for p in L['bridge']]
-    # the deck's own axes (its long sides run NE-SW on screen): courses of bricks across it, each course offset half a brick from the last
-    pts_ = np.array(bp) if False else bp
-    cxb = sum(p[0] for p in bp) / len(bp); cyb = sum(p[1] for p in bp) / len(bp)
-    best_ = None
-    for deg in range(0, 180, 3):
-        t_ = math.radians(deg); c_, s_ = math.cos(t_), math.sin(t_)
-        us = [(p[0] - cxb) * c_ + (p[1] - cyb) * s_ for p in bp]; vs = [-(p[0] - cxb) * s_ + (p[1] - cyb) * c_ for p in bp]
-        area_ = (max(us) - min(us)) * (max(vs) - min(vs))
-        if best_ is None or area_ < best_[0]: best_ = (area_, t_, min(us), max(us), min(vs), max(vs))
-    _, t_, u0, u1, v0, v1 = best_
-    c_, s_ = math.cos(t_), math.sin(t_)
-    to_xy = lambda u, v: (cxb + u * c_ - v * s_, cyb + u * s_ + v * c_)
+    # the deck's own axes: u along the walls (A-B: the HQ's courses of bricks run that way, their joints the pale streaks), v across, B-C
+    A_, B_, C_, D_ = bp
+    ux_, uy_ = B_[0] - A_[0], B_[1] - A_[1]; ln_ = math.hypot(ux_, uy_); ux_, uy_ = ux_ / ln_, uy_ / ln_
+    vx_, vy_ = -uy_, ux_
+    cxb = sum(p[0] for p in bp) / 4; cyb = sum(p[1] for p in bp) / 4
+    us = [(p[0] - cxb) * ux_ + (p[1] - cyb) * uy_ for p in bp]; vs = [(p[0] - cxb) * vx_ + (p[1] - cyb) * vy_ for p in bp]
+    u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+    to_xy = lambda u, v: (cxb + u * ux_ + v * vx_, cyb + u * uy_ + v * vy_)
     seams = []
-    course, brick = 1.2, 1.7
+    course, brick = 1.2, 1.7           # (a course is a row of bricks along the walls, `course` wide across the deck; a brick `brick` long)
     STREAK = '#bf9f9c'
-    n_courses = int((u1 - u0) / course)
     rr_ = random.Random(5)
+    n_courses = int((v1 - v0) / course)
     for i in range(n_courses + 1):
-        uc = u0 + (i + 0.5) * course
+        vc = v0 + (i + 0.5) * course
         off = 0.0 if i % 2 else brick / 2
-        v = v0 - off + brick / 2
-        while v < v1 + brick / 2:
-            v_lo, v_hi = max(v - brick / 2 + 0.1, v0), min(v + brick / 2 - 0.1, v1)
-            if v_hi - v_lo > 0.5 and uc - course / 2 >= u0 - 0.1 and uc + course / 2 <= u1 + 0.1:
-                # a rounded brick (a soft cushion in the HQ: lighter in the middle, a darker gap round it)
-                pts_ = rounded_rect(0, 0, course - 0.2, v_hi - v_lo, 0, 0.4, seg=3)
-                cu, cv_ = uc, (v_lo + v_hi) / 2
+        u = u0 - off + brick / 2
+        while u < u1 + brick / 2:
+            u_lo, u_hi = max(u - brick / 2 + 0.1, u0), min(u + brick / 2 - 0.1, u1)
+            if u_hi - u_lo > 0.5 and vc - course / 2 >= v0 - 0.1 and vc + course / 2 <= v1 + 0.1:
+                pts_ = rounded_rect(0, 0, u_hi - u_lo, course - 0.2, 0, 0.4, seg=3)
+                cu, cv_ = (u_lo + u_hi) / 2, vc
                 col = ['#a886a2', '#a4839f', '#ab89a5'][rr_.randrange(3)]      # (the HQ deck's median #a483a0, measured)
                 seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
-            v += brick
-        # the HQ's pale tan streaks along the course joints (worn mortar): broken lines, a few bricks long
+            u += brick
+        # the HQ's pale tan streaks along the course joints (worn mortar): broken lines, a few bricks long, running with the walls
         if i > 0:
-            vv = v0
-            while vv < v1:
-                ln_ = rr_.uniform(1.5, 4.5)
+            uu = u0
+            while uu < u1:
+                l_ = rr_.uniform(1.5, 4.5)
                 if rr_.random() < 0.55:
-                    a_, b_ = vv, min(vv + ln_, v1); uj = u0 + i * course - 0.05
-                    seams.append(([to_xy(uj, a_), to_xy(uj, b_), to_xy(uj + 0.1, b_), to_xy(uj + 0.1, a_)], STREAK, 0.002))
-                vv += ln_ + rr_.uniform(0.5, 2.5)
+                    a_, b_ = uu, min(uu + l_, u1); vj = v0 + i * course - 0.05
+                    seams.append(([to_xy(a_, vj), to_xy(b_, vj), to_xy(b_, vj + 0.1), to_xy(a_, vj + 0.1)], STREAK, 0.002))
+                uu += l_ + rr_.uniform(0.5, 2.5)
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#8190d2', 0.98)), lit('wall_side', HQ.lit('#5f6cae', 0.875))
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
