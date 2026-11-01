@@ -567,7 +567,7 @@ if L['bridge']:
     c_, s_ = math.cos(t_), math.sin(t_)
     to_xy = lambda u, v: (cxb + u * c_ - v * s_, cyb + u * s_ + v * c_)
     seams = []
-    course, brick = 1.7, 2.3
+    course, brick = 1.2, 1.7
     n_courses = int((u1 - u0) / course)
     rr_ = random.Random(5)
     for i in range(n_courses + 1):
@@ -580,7 +580,7 @@ if L['bridge']:
                 # a rounded brick (a soft cushion in the HQ: lighter in the middle, a darker gap round it)
                 pts_ = rounded_rect(0, 0, course - 0.2, v_hi - v_lo, 0, 0.4, seg=3)
                 cu, cv_ = uc, (v_lo + v_hi) / 2
-                col = ['#a885a5', '#a280a0', '#ab89a8'][rr_.randrange(3)]
+                col = ['#a07d9e', '#9c7a9b', '#a380a1'][rr_.randrange(3)]
                 seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
             v += brick
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
@@ -591,7 +591,7 @@ if len(bq) == 4:
     A, B_, C_, D_ = bq
     for tag, p0, p1, outward in (('NW', A, B_, (-1, 1)), ('SE', D_, C_, (1, -1))):
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]; ln0 = math.hypot(dx, dy); ux, uy = dx / ln0, dy / ln0
-        p0 = (p0[0] - ux * 1.4, p0[1] - uy * 1.4); p1 = (p1[0] + ux * 1.4, p1[1] + uy * 1.4); ln = ln0 + 2.8
+        p0 = (p0[0] - ux * 0.9, p0[1] - uy * 0.9); p1 = (p1[0] + ux * 0.9, p1[1] + uy * 0.9); ln = ln0 + 1.8
         nx, ny = -uy, ux
         # which side is outward: away from the deck's centre
         cxd = sum(q[0] for q in bq) / 4; cyd = sum(q[1] for q in bq) / 4
@@ -601,8 +601,8 @@ if len(bq) == 4:
             mid = (j + 0.5) * piece
             cap = (j == n_w - 1) if tag == 'NW' else (j == 0)
             cxw, cyw = p0[0] + ux * mid + nx * 0.8, p0[1] + uy * mid + ny * 0.8
-            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.7 if cap else 0), 1.8 + (0.7 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
-                 1.0 + (0.5 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.2 if cap else 0), 1.8 + (0.2 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
+                 0.65 + (0.2 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)
