@@ -10,6 +10,7 @@ import { bookScale } from '../pickupMotion';
 import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
+import { beamsOverlay, type LightBeams } from './beams';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   STAND_PULL,
@@ -101,6 +102,8 @@ interface Manifest {
   readonly hqFrame?: { readonly zoom: number; readonly u: number; readonly v: number };
   /** The map's own water colours (the cross pond's pond: duller than the fountain's); the fountain's when absent. */
   readonly water?: WaterStyle;
+  /** Light beams added over everything on the screen (the bridge islands: the HQ 1:12's top right; beams.ts). */
+  readonly beams?: LightBeams;
   /** The map's own light instead of the plaza's toon light (softLook.ts; the gong islands). */
   readonly look?: unknown;
   readonly characterScale?: number;
@@ -1166,6 +1169,7 @@ class Plaza {
   #aim: CameraFrame = CAMERA_FRAMING.rest;
   #framedAt: number | undefined;
   readonly #restCamera = new THREE.PerspectiveCamera();
+  #beams: ReturnType<typeof beamsOverlay> | null = null;
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
   /** The ice blocks breaking: pieces thrown out (iceShards.ts). */
@@ -2069,6 +2073,14 @@ class Plaza {
     }
     this.#fadeWhatHidesSomeone();
     this.renderer.render(this.scene, this.camera);
+    if (this.manifest.beams !== undefined) {
+      this.#beams ??= beamsOverlay(this.manifest.beams);
+      this.renderer.getDrawingBufferSize(this.#beams.resolution);
+      const clear = this.renderer.autoClear;
+      this.renderer.autoClear = false;
+      this.renderer.render(this.#beams.scene, this.#beams.camera);
+      this.renderer.autoClear = clear;
+    }
   }
 
   drive(): (virtualMs: number) => void {

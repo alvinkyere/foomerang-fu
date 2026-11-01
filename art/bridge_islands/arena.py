@@ -34,7 +34,7 @@ def raster(polys):
     return m
 SLIDER_BLOCK = -1          # the NW slab: the lever-driven rock (the HQ, 10:37-10:48): a solid on rails, not a wall (sliders.ts)
 bank, wall = raster(G), raster([b['top'] for b in STONES])
-solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i != SLIDER_BLOCK])                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 3)] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint']])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
 # the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
 # water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
 # stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).

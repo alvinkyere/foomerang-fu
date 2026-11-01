@@ -355,7 +355,7 @@ GROW, CORNER_SLAB, CORNER_BOULDER, ROLL, SEGS = float(os.environ.get('POND_GROW'
 SW_SKIP = {8, 10, 12, 13, 6, 11}          # (stones.json blocks the south-west section draws from sw_blocks.json instead: measured, one by one)
 SWB = J('art/bridge_islands/sw_blocks.json')
 for k, b in enumerate(S):
-    if k in SW_SKIP: continue
+    if k in SW_SKIP or k == 3: continue          # (3: the north-east wall, measured by ne_wall.py, below)
     H = b['height']
     if k in BRICK_WALLS:
         # the bridge's walls: a row of fat rounded bricks laid end to end along the rect's long axis, a hair apart, heights uneven, the end brick a taller cap
@@ -385,6 +385,15 @@ for k, b in enumerate(S):
         else:
             pts = offset_poly([tuple(p) for p in b['clean']], GROW)                       # (the hull in a few straight sides, grown a little)
         body(f'BOULDER_{k}', pts, H, BLOCK_MATERIALS[k][0], BLOCK_MATERIALS[k][1], top_r=ROLL, corner_r=CORNER_BOULDER, bottom=STONE_BOTTOM, soft=True, top_seg=SEGS, taper=BLOCK_TAPER.get(k, 0.88))
+
+# the long wall along the east island's north-east side (ne_wall.py: its top face from the HQ, its height from the front face): one soft slab
+NEW = J('art/bridge_islands/ne_wall.json')
+_q = NEW['footprint']; _cx = sum(q[0] for q in _q) / 4; _cy = sum(q[1] for q in _q) / 4
+_e1 = (_q[1][0] - _q[0][0], _q[1][1] - _q[0][1]); _e2 = (_q[2][0] - _q[1][0], _q[2][1] - _q[1][1])
+_L, _W = math.hypot(*_e1), math.hypot(*_e2); _ang = math.degrees(math.atan2(_e1[1], _e1[0]))
+if _W > _L: _L, _W, _ang = _W, _L, math.degrees(math.atan2(_e2[1], _e2[0]))
+body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['height'], lit('ne_top', HQ.lit('#a7b5ea', 0.98)), lit('ne_side', HQ.lit('#7e8bc2', 0.875)),
+     top_r=0.35, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two

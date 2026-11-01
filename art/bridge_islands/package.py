@@ -62,6 +62,8 @@ manifest = {
     # the light shafts: drawn on the water only, by the water shader (waterShader.ts `shafts`): one broad bright band and a narrower one,
     # across the screen at the angle measured from the HQ frame (the water's green excess), strongest at the top and gone by 72% down
     # (hqcompare.py / the cell grid in docs/BRIDGE_ISLANDS_HANDOFF.md)
+    # the light beams over the top right (fit_beams.py: their direction, profile and fade, measured): ADDED over everything there, the wall too
+    'beams': json.load(open('art/bridge_islands/beams.json')),
     'characters': gong['characters'],
     'provenance': 'art/bridge_islands (layout.py, arena.py, blender/build.py, package.py) from foomerang-fu physics hq.mp4 10:37',
 }
