@@ -202,8 +202,8 @@ POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2,
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1400, 355), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
-LANTERNS = [_mv('lantern0', (1025, 60)), _mv('lantern1', (1495, 410))]
-LEVERS = [((569, 568), (538, 585)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
+LANTERNS = [_mv('lantern0', (1025, 42)), _mv('lantern1', (1491, 396))]
+LEVERS = [((571, 554), (540, 571)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
 # leafy ferns (the HQ's dark green tufts by the gate, the boulder and the bridge's east end): (x, y) of the tuft's middle in the frame, its radius in px,
 # the height it grows from (the potted one on its pot)
 FERNS = [(1186, 222, 26, 0.0), (1316, 303, 26, 0.0), (1080, 305, 22, 0.0), (1128, 405, 28, 0.0), (1098, 572, 30, 0.0), (1135, 128, 22, 1.1), (835, 335, 18, 0.0)]
@@ -232,7 +232,7 @@ bunting = [dict(a=unproject(905, 12, 4.5)[0] + [4.5], b=unproject(1125, 26, 4.5)
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
 # the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small
 # cube by the urns, the round boulder the pot and the lever stand on, the block before the hex bush
-for _px, _z in (([(1020, 135), (1075, 125), (1090, 160), (1035, 175)], 1.9),
+for _px, _z in (([(1016, 123), (1071, 113), (1086, 148), (1031, 163)], 1.9),
                 ([(1090, 295), (1120, 283), (1165, 285), (1185, 305), (1182, 335), (1150, 348), (1105, 346), (1083, 325)], 2.8),
                 ([(1305, 330), (1345, 322), (1370, 340), (1360, 365), (1315, 368)], 2.0),
                 # the gong's stepped stone base, two slabs

@@ -37,6 +37,8 @@ for n, (x0, y0, x1, y1) in BOXES.items():
     ss, _ = cv2.findContours(sil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     sc = max(ss, key=cv2.contourArea); sp = cv2.approxPolyDP(cv2.convexHull(sc), 3.0, True).reshape(-1, 2)
     side = int(sp[:, 1].max() - tp[:, 1].max())                         # pixels of side under the top face's lowest point
+    SHIFT = {'s': (12, 10), 'lw': (2, -14)}.get(n, (0, 0))      # (the game's own view, 2026-11-01: the shift that best puts each block on the HQ's)
+    tp = tp + np.array(SHIFT); sp = sp + np.array(SHIFT)
     cx, cy = tp.mean(0)
     guess = unproject([[cx, cy]], 0.0)[0]
     dy = abs(ref(guess[0], guess[1], 1.0)[1] - ref(guess[0], guess[1], 0.0)[1])
