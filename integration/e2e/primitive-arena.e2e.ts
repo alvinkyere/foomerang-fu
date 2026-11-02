@@ -203,6 +203,11 @@ test('Start with nobody in the room is refused with an explanation, and the lobb
 test('the development debug snapshot never carries a credential', async ({ host }) => {
   // The hook exists here because this stack runs Vite in development. Its absence from the
   // production build is checked by production.e2e.ts and by apps/console/scripts/check-bundle-size.mjs.
+  // (the hook arrives by a dynamic import after the page boots: wait for it, so the check runs on a real snapshot)
+  await host.page.waitForFunction(() => window.__FOOMERANG__ !== undefined, null, {
+    timeout: 10_000,
+  });
   const snapshot = await host.page.evaluate(() => JSON.stringify(window.__FOOMERANG__?.snapshot()));
+  expect(snapshot).toBeDefined();
   expect(snapshot).not.toMatch(/token/i);
 });

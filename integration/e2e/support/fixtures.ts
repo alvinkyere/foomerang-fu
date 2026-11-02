@@ -249,6 +249,10 @@ export class Host {
   }
 
   async snapshot(): Promise<Snapshot> {
+    // the hook is installed by a dynamic import after the page boots (main.tsx): after a load or a reload, wait for it
+    await this.page
+      .waitForFunction(() => window.__FOOMERANG__ !== undefined, null, { timeout: 10_000 })
+      .catch(() => undefined);
     const snapshot = await this.page.evaluate(() => window.__FOOMERANG__?.snapshot());
     if (snapshot === undefined) throw new Error('the DEV debug hook is not installed');
     return snapshot;
