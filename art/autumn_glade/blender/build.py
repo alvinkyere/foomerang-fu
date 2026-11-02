@@ -333,6 +333,8 @@ def portal(name, p):
     """A vertical sheet of cyan zigzag (an N) standing on the foot, face to the camera, and the glow it throws on the sand."""
     x0, y0 = p['foot']; hw, ht = p['halfWidth'], p['height']
     mir = 1 if p['side'] == 'W' else -1
+    PF = J('art/autumn_glade/portal.json')      # (fit_portal.py: the N's proportions and each portal's shift, fitted to the frame's cyan)
+    x0 += mir * PF['dx'][p['side']]
     # the glow first: concentric discs from the sand's pale yellow to a white-cyan heart
     gx, gy = p['glow']
     for i in range(18):
@@ -350,13 +352,16 @@ def portal(name, p):
         me = bpy.data.meshes.new(name + '_s'); bm.to_mesh(me); bm.free()
         return obj(name + '_s', me, [FLAT])
     W, H_ = hw, ht
-    sheet([(-W * 1.05, 0), (W * 0.2, 0), (W * 0.35, H_ * 1.02), (-W * 0.95, H_ * 1.02)], '#3a4c82', -1)      # (the dark socket in the rock's face)
-    sheet([(-W * 0.85, 0.1), (W * 0.1, 0.1), (W * 0.15, H_ * 0.95), (-W * 0.8, H_ * 0.95)], '#5fd6ee', 0)        # (the cyan swirl's filled near half)
-    for dx, hexc, wd in ((0, '#25c6e7', 0.13), (0.01, '#bdf4fb', 0.04)):                                                          # the N: left stroke, diagonal, right stroke
-        pts = [(-W * 0.8 + dx, 0.05), (-W * 0.8 + dx, H_ * 0.96), (W * 0.8 + dx, 0.05), (W * 0.8 + dx, H_ * 0.96)]
-        for (ax_, az_), (bx_, bz_) in zip(pts, pts[1:]):
-            n = math.hypot(bx_ - ax_, bz_ - az_); nx, nz = -(bz_ - az_) / n * wd, (bx_ - ax_) / n * wd
-            sheet([(ax_ - nx, az_ - nz), (ax_ + nx, az_ + nz), (bx_ + nx, bz_ + nz), (bx_ - nx, bz_ - nz)], hexc, 1)
+    # the frame's N (3x crops at 626.0 s): a thick bright left stroke with a pale heart, set in the rock's dark recess; a thin line from
+    # its top down to the bottom middle and a thin line back up on the right; all within the cyan mask's box (-W .. W)
+    sheet([(-W * 1.05, 0), (-W * 0.6, 0), (-W * 0.6, H_ * 1.02), (-W * 1.05, H_ * 1.02)], '#34437a', -1)          # (the recess, behind)
+    t0, t1, d0, d1, r1 = PF['t0'], PF['t1'], PF['d0'], PF['d1'], PF['r1']
+    sheet([(-W * t0, 0.05), (W * t1, 0.05), (W * t1 + 0.08 * W, H_ * 0.95), (-W * t0 + 0.07 * W, H_ * 0.97)], '#36dfee', 0)    # (the thick stroke)
+    hl, hr = -W * t0 + 0.25 * (W * t1 + W * t0), W * t1 - 0.25 * (W * t1 + W * t0)
+    sheet([(hl, 0.3), (hr, 0.3), (hr + 0.05 * W, H_ * 0.85), (hl + 0.05 * W, H_ * 0.87)], '#72ecf3', 1)                         # (its paler heart: still cyan, as the frame's)
+    for (ax_, az_), (bx_, bz_), wd in (((W * d0, H_ * 0.95), (W * d1, 0.08), PF['wd']), ((W * d1, 0.08), (W * r1, H_ * 0.92), PF['wr'])):
+        n = math.hypot(bx_ - ax_, bz_ - az_); nx, nz = -(bz_ - az_) / n * wd, (bx_ - ax_) / n * wd
+        sheet([(ax_ - nx, az_ - nz), (ax_ + nx, az_ + nz), (bx_ + nx, bz_ + nz), (bx_ - nx, bz_ - nz)], '#3fe3ef', 1)
 
 
 for k, p in enumerate(L['portals']): portal(f'PORTAL_{k}', p)

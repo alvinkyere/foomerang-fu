@@ -6,7 +6,7 @@ The map of `ff physics hq 2.mp4` at 10:26 (626.0 s, the READY frame: the camera 
 **Run order** (from the repository root; Python = `art/audio/output/venv/bin/python`, Blender = `/Applications/Blender.app`):
 
     layout.py -> props.py -> [fit_trees.py] -> sand.py -> lift.py -> arena.py      (run.sh does all but the fits)
-    [fit_rocks.py] [fit_logs.py]                                                     (slow fits; their json is committed)
+    [fit_rocks.py] [fit_logs.py] [fit_portal.py]                                                     (slow fits; their json is committed)
     Blender -b --python art/autumn_glade/blender/build.py -- <tmp> render
     package.py <tmp>/glade.glb      (then npx prettier --write the manifest, the arena .ts and the json)
 
