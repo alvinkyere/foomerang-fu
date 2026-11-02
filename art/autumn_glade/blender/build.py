@@ -229,7 +229,7 @@ for k, t in enumerate(L['trees']):
     hi, mid, lo = PAL[t['kind']]
     top = max(lumps, key=lambda q: q['z'])
     low = min(lumps, key=lambda q: q['z'])
-    trunk(f'TRUNK_{k}', foot[:2], (foot[0] + low['x'], foot[1], low['z']), 0.62, 0.42)      # (into the lowest clump: the frame never shows a trunk's top)
+    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.75, 0.55)      # (straight up, ~1.5 units thick as the frame's, into the lowest clump)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
         umbrella(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'], hi, mid, lo, scallops=rng.choice((6, 7, 8)))
 
@@ -282,7 +282,7 @@ for gx in range(-56, 64, 11):
 
 
 # ---------------------------------------------------------------------------------------------------------------- logs
-def log(name, a, b, radius=0.65):
+def log(name, a, b, radius=0.65, mat=None):
     a, b = Vector(at(a, radius)), Vector(at(b, radius))
     bm = bmesh.new(); ax = (b - a).normalized(); side = ax.cross(Vector((0, 0, 1))).normalized(); up = ax.cross(side).normalized()
     seg = 14; rings = [bm.verts.new(a + (side * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * radius) for k in range(seg)]
@@ -293,11 +293,13 @@ def log(name, a, b, radius=0.65):
         f = bm.faces.new(ring); f.material_index = 1
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
-    return obj(name, me, [LOG_SIDE, LOG_END])
+    return obj(name, me, [mat or LOG_SIDE, LOG_END])
 
 
 LOGS = J('art/autumn_glade/logs.json')[:2] + [dict(ends=L['log3']['ends'], r=0.62)]      # (fit_logs.py; the third lies in the shafts: its measured ends)
-for k, lg in enumerate(LOGS): log(f'LOG_{k}', lg['ends'][0], lg['ends'][1], lg['r'])
+# the third log lies in a shaft: the frame shows it #8d5e50 where the other two are #7b4d52 (ours #7d5258): its own base, scaled by the ratio
+LOG_SHAFT = lit('log_shaft', '#%02x%02x%02x' % tuple(min(255, round(int(scale_hex('#7a4c52', 1 / TOP)[i:i + 2], 16) * k)) for i, k in ((1, 141 / 125), (3, 94 / 82), (5, 80 / 88))))
+for k, lg in enumerate(LOGS): log(f'LOG_{k}', lg['ends'][0], lg['ends'][1], lg['r'], LOG_SHAFT if k == 2 else None)
 
 
 # ---------------------------------------------------------------------------------------------------------------- rocks and portals
