@@ -22,6 +22,7 @@ vmask = cv2.resize(valid.astype(np.uint8), None, fx=SC, fy=SC, interpolation=cv2
 L = json.load(open('art/autumn_glade/layout.json'))
 trees = L['trees']
 rng = random.Random(4)
+NIT = 30000      # (annealed: early on a slightly worse move is kept now and then, so a lump can get out of a bad spot)
 
 
 def ellipse(t, lump):
@@ -55,7 +56,7 @@ def total():
 for t in trees:
     t['lumps'] = [dict(x=l['x'], z=l['z'], r=l['r']) for l in (t.get('lumps') or [dict(x=0, z=5.0, r=2.4)])]
 best = total(); print('start IoU r %.3f g %.3f' % (1 - loss('r'), 1 - loss('g')))
-for it in range(10000):
+for it in range(NIT):
     t = rng.choice(trees); kind = t['kind']
     before = loss(kind); old = [dict(l) for l in t['lumps']]
     op = rng.random()
@@ -66,9 +67,10 @@ for it in range(10000):
     elif len(t['lumps']) > 1:
         t['lumps'].pop(rng.randrange(len(t['lumps'])))
     for l in t['lumps']: l['x'] = max(-3.5, min(3.5, l['x'])); l['z'] = max(2.5, min(11.0, l['z'])); l['r'] = min(3.8, l['r'])      # (a lump stays on its own tree)
-    if loss(kind) < before - 1e-5: pass
+    temp = 0.002 * max(0.0, 1 - it / (0.7 * NIT))
+    if loss(kind) < before - 1e-5 or (temp > 0 and rng.random() < math.exp(-(loss(kind) - before) / temp)): pass
     else: t['lumps'] = old
-    if it % 1000 == 999: print(it + 1, 'IoU r %.3f g %.3f' % (1 - loss('r'), 1 - loss('g')))
+    if it % 5000 == 4999: print(it + 1, 'IoU r %.3f g %.3f' % (1 - loss('r'), 1 - loss('g')))
 for t in trees:
     for l in t['lumps']: l.update(x=round(l['x'], 2), z=round(l['z'], 2), r=round(l['r'], 2))
 json.dump([t['lumps'] for t in trees], open('art/autumn_glade/lumps.json', 'w'), indent=1)      # (blender/build.py reads these over layout.json's k-means starting lumps)
