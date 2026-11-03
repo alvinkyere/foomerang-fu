@@ -734,8 +734,8 @@ if L['bridge']:
         if i > 0:
             uu = u0
             while uu < u1:
-                l_ = rr_.uniform(1.5, 4.5)
-                if rr_.random() < 0.55:
+                l_ = rr_.uniform(1.0, 2.8)
+                if rr_.random() < 0.35:
                     a_, b_ = uu, min(uu + l_, u1); vj = v0 + i * course - 0.05
                     seams.append(([to_xy(a_, vj), to_xy(b_, vj), to_xy(b_, vj + 0.1), to_xy(a_, vj + 0.1)], STREAK, 0.002))
                 uu += l_ + rr_.uniform(0.5, 2.5)
