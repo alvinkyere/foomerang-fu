@@ -177,6 +177,7 @@ TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ'
     dict(foot=(440, 535), colour='#d3b66d', lumps=[(458, 378, 30, 28), (490, 407, 28, 26), (400, 432, 34, 22), (484, 446, 20, 25), (431, 489, 21, 31), (410, 495, 26, 30)]),
     dict(foot=(1215, 610), colour='#d3b66d', lumps=[(1242, 500, 31, 30), (1217, 503, 25, 30), (1170, 546, 33, 31), (1245, 576, 33, 25), (1214, 586, 25, 29)]),
     dict(foot=(1795, 335), top=(1835, 210), base='islet_e', colour='#d87b6a', lumps=[(1810, 189, 51, 46), (1786, 193, 37, 39), (1883, 271, 39, 49), (1761, 297, 37, 42), (1839, 349, 41, 39), (1795, 370, 29, 51), (1852, 418, 38, 47), (1879, 435, 64, 51)]),
+    dict(foot=(878, 78), top=(878, 30), colour='#d3b66d', lumps=[(845, 4, 26, 14), (885, 12, 24, 23), (903, 22, 21, 28)]),      # (the gold tree at the frame's top edge, by the north lantern)
 ]
 tree_out = []
 for t in TREES:
@@ -245,7 +246,7 @@ out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],
            gate=dict(left=unproject(*GATE['left'], 0.0)[0], right=unproject(*GATE['right'], 0.0)[0], gong=unproject(*GATE['gong'], 0.0)[0]),
-           petals=[[*unproject(float(x), float(y), 0.0)[0], '#d0ae66'] for x, y in [(480, 522), (490, 532), (474, 540), (470, 558), (482, 566), (455, 548), (404, 537), (440, 530), (498, 548), (462, 532)]], tufts=[])
+           petals=[[*unproject(float(x), float(y), 0.0)[0], '#d0ae66'] for x, y in [(480, 522), (490, 532), (474, 540), (470, 558), (482, 566), (455, 548), (404, 537), (440, 530), (498, 548), (462, 532), (845, 82), (860, 95), (880, 92), (915, 70), (925, 80), (905, 92), (915, 95), (860, 105), (872, 102), (895, 110), (855, 117), (870, 120)]], tufts=[])
 json.dump(out, open('art/bridge_islands/layout.json', 'w'))
 allp = np.concatenate(banks)
 print('banks', [len(b) for b in banks], 'bridge', len(bridge_poly), 'bounds', allp.min(0).round(1), allp.max(0).round(1))

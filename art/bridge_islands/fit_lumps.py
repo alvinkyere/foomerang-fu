@@ -9,7 +9,7 @@ from scipy.optimize import minimize
 h = cv2.imread('art/bridge_islands/output/reference.png'); x = cv2.cvtColor(h, cv2.COLOR_BGR2HSV).astype(int)
 MASK = {'red': ((x[..., 0] <= 12) | (x[..., 0] >= 170)) & (x[..., 1] > 90) & (x[..., 2] > 150),
         'gold': (x[..., 0] >= 12) & (x[..., 0] <= 24) & (x[..., 1] > 90) & (x[..., 2] > 170)}
-TREES = [((430, 110, 680, 330), 'red', 4), ((300, 330, 560, 560), 'gold', 6), ((1050, 440, 1330, 640), 'gold', 5), ((1640, 100, 1920, 500), 'red', 8)]
+TREES = [((780, 0, 1000, 80), 'gold', 3), ((430, 110, 680, 330), 'red', 4), ((300, 330, 560, 560), 'gold', 6), ((1050, 440, 1330, 640), 'gold', 5), ((1640, 100, 1920, 500), 'red', 8)]
 for (x0, y0, x1, y1), kind, n in TREES:
     m = cv2.morphologyEx(MASK[kind][y0:y1, x0:x1].astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) > 0
     H, W = m.shape; yy, xx = np.mgrid[0:H, 0:W]

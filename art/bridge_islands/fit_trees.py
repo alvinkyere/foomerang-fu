@@ -10,7 +10,7 @@ CAM = json.load(open('art/sky_islands/camera.json')); SC = json.load(open('art/b
 Z = SC['hqZoom'] / SC['scale']; th = math.radians(CAM['pitchDeg'])
 R = np.array([[1, 0, 0], [0, -math.sin(th), -math.cos(th)], [0, math.cos(th), -math.sin(th)]]); F_, C = CAM['focalPx'], np.array(CAM['centre'])
 pxs = lambda X, Y, z: (lambda v: (960 + (F_ * v[0] / v[2]) * Z, 540 + (F_ * v[1] / v[2]) * Z))(R @ (np.array([X, Y, z]) / 100 - C))
-BOXES = [(430, 110, 680, 330, 'red'), (300, 330, 560, 560, 'gold'), (1050, 440, 1330, 640, 'gold'), (1640, 100, 1920, 500, 'red')]
+BOXES = [(430, 110, 680, 330, 'red'), (300, 330, 560, 560, 'gold'), (1050, 440, 1330, 640, 'gold'), (1640, 100, 1920, 500, 'red'), (780, 0, 1000, 80, 'gold')]
 g = cv2.resize(cv2.imread(sys.argv[1]), (1920, 1080)); h = cv2.imread('art/bridge_islands/output/reference.png')
 
 
