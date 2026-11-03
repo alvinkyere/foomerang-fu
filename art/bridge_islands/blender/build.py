@@ -371,8 +371,8 @@ for _k_, _water in MEASURED.items():
         _grow = lambda P, d: [(x + (x - _cx) / math.hypot(x - _cx, y - _cy) * d, y + (y - _cy) / math.hypot(x - _cx, y - _cy) * d) for x, y in P]
         # (the HQ: the water hugging the flank is darker than the open water, ~15 px, then eases into it; the south-west island also shows a thin
         # pale foam line at its foot, the east island none)
-        _o2 = _grow(_out, 0.22) if _k_ != EAST_K else _out
-        if _k_ != EAST_K: flank(f'FOAM_{_k_}', _out, WATER_Z + 0.012, _o2, WATER_Z + 0.012, [(0.0, '#a8daf5'), (1.0, '#a8daf5')])
+        _o2 = _out
+        # (no continuous foam line: the HQ's is only a short stretch, which the water's own ribbons give)
         flank(f'DARK_{_k_}', _o2, WATER_Z + 0.011, _grow(_o2, 0.7), WATER_Z + 0.011, [(0.0, '#6c9abe'), (0.6, '#719fbd'), (1.0, '#77a4bd')])
 for k, poly in enumerate(RENDER_OUTLINES):
     if k in MEASURED: continue
@@ -514,6 +514,15 @@ for k, fe in enumerate(L.get('ferns', [])):
         col = '#78b88c' if j % 2 else '#66a67c'      # (the HQ's fern greens, #7ab98f median)
         _tris.append(([base - n * 0.12, mid - n * ln * 0.24, mid + n * ln * 0.24], col)); _tris.append(([mid - n * ln * 0.24, tip, mid + n * ln * 0.24], col))
 _flat3d('FERNS', _tris)
+
+# the east islet's foam: the HQ draws a thick pale crescent round its foot on the camera's side (1:12, ~0.9 units out, ~0.5 wide)
+_ie = L['islet_e']; _ring = []
+for i in range(25):
+    a = math.radians(190 + i * 160 / 24)
+    _ring.append(a)
+_in_ = [(_ie['centre'][0] + math.cos(a) * (_ie['radius'] + 0.55), _ie['centre'][1] + math.sin(a) * (_ie['radius'] + 0.55)) for a in _ring]
+_ou_ = [(_ie['centre'][0] + math.cos(a) * (_ie['radius'] + 0.55 + 0.55 * math.sin((a - math.radians(190)) / math.radians(160) * math.pi)), _ie['centre'][1] + math.sin(a) * (_ie['radius'] + 0.55 + 0.55 * math.sin((a - math.radians(190)) / math.radians(160) * math.pi))) for a in _ring]
+flat('ISLET_E_foam', [([_in_[i], _in_[i + 1], _ou_[i + 1], _ou_[i]], '#b4e2f2', 0) for i in range(len(_ring) - 1)], z=WATER_Z + 0.03)
 
 # the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
 INW = L['islet_nw']

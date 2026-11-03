@@ -9,7 +9,7 @@ import numpy as np, cv2
 f = cv2.imread('art/bridge_islands/output/reference.png'); x = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 green = (x[..., 0] >= 45) & (x[..., 0] <= 80) & (x[..., 1] >= 60) & (x[..., 2] >= 110)
 pink = ((x[..., 0] >= 150) | (x[..., 0] <= 10)) & (x[..., 1] <= 90) & (x[..., 2] >= 200)
-REGIONS = [(30, 720, 420, 1080), (1400, 740, 1820, 1080), (380, 60, 520, 200), (620, 400, 760, 480)]          # (the open water south-west and south-east, where the pads float)
+REGIONS = [(30, 720, 420, 1080), (1400, 740, 1820, 1080), (380, 60, 520, 200), (620, 400, 760, 480), (1820, 500, 1920, 640)]          # (the open water south-west and south-east, where the pads float)
 pads, small = [], []
 for x0, y0, x1, y1 in REGIONS:
     m = np.zeros(green.shape, np.uint8); m[y0:y1, x0:x1] = (green | pink)[y0:y1, x0:x1]
