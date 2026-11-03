@@ -1,5 +1,6 @@
 import type { Vec2 } from '@foomerang/game-core';
 import type { FuArena, Solid } from './arena';
+import type { SliderSpec } from './sliders';
 
 /**
  * THE LILY ISLAND (`bridge_islands`): the HQ's lime island in the water (foomerang-fu physics hq.mp4 10:37), measured from it
@@ -410,16 +411,6 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     id: 'WALL_32',
     kind: 'WALL',
     shape: 'box',
-    x: 649,
-    y: 598,
-    halfWidth: 18,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_33',
-    kind: 'WALL',
-    shape: 'box',
     x: 1185,
     y: 598,
     halfWidth: 18,
@@ -427,7 +418,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_34',
+    id: 'WALL_33',
     kind: 'WALL',
     shape: 'box',
     x: 1182,
@@ -437,17 +428,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_35',
-    kind: 'WALL',
-    shape: 'box',
-    x: 632,
-    y: 639,
-    halfWidth: 34,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_36',
+    id: 'WALL_34',
     kind: 'WALL',
     shape: 'box',
     x: 1419,
@@ -457,7 +438,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_37',
+    id: 'WALL_35',
     kind: 'WALL',
     shape: 'box',
     x: 1628,
@@ -467,7 +448,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_38',
+    id: 'WALL_36',
     kind: 'WALL',
     shape: 'box',
     x: 982,
@@ -477,17 +458,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_39',
-    kind: 'WALL',
-    shape: 'box',
-    x: 605,
-    y: 680,
-    halfWidth: 34,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_40',
+    id: 'WALL_37',
     kind: 'WALL',
     shape: 'box',
     x: 1628,
@@ -497,27 +468,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_41',
-    kind: 'WALL',
-    shape: 'box',
-    x: 570,
-    y: 721,
-    halfWidth: 34,
-    halfHeight: 21,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_42',
-    kind: 'WALL',
-    shape: 'box',
-    x: 529,
-    y: 783,
-    halfWidth: 21,
-    halfHeight: 41,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_43',
+    id: 'WALL_38',
     kind: 'WALL',
     shape: 'box',
     x: 447,
@@ -527,7 +478,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_44',
+    id: 'WALL_39',
     kind: 'WALL',
     shape: 'box',
     x: 196,
@@ -537,7 +488,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_45',
+    id: 'WALL_40',
     kind: 'WALL',
     shape: 'box',
     x: 192,
@@ -547,7 +498,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_46',
+    id: 'WALL_41',
     kind: 'WALL',
     shape: 'box',
     x: 185,
@@ -557,7 +508,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_47',
+    id: 'WALL_42',
     kind: 'WALL',
     shape: 'box',
     x: 189,
@@ -567,47 +518,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_48',
-    kind: 'WALL',
-    shape: 'box',
-    x: 855,
-    y: 976,
-    halfWidth: 18,
-    halfHeight: 18,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_49',
-    kind: 'WALL',
-    shape: 'box',
-    x: 835,
-    y: 1003,
-    halfWidth: 18,
-    halfHeight: 18,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_50',
-    kind: 'WALL',
-    shape: 'box',
-    x: 811,
-    y: 1030,
-    halfWidth: 18,
-    halfHeight: 18,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_51',
-    kind: 'WALL',
-    shape: 'box',
-    x: 773,
-    y: 1072,
-    halfWidth: 18,
-    halfHeight: 27,
-    angle: 0,
-  }),
-  Object.freeze({
-    id: 'WALL_52',
+    id: 'WALL_43',
     kind: 'WALL',
     shape: 'box',
     x: 721,
@@ -617,7 +528,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_53',
+    id: 'WALL_44',
     kind: 'WALL',
     shape: 'box',
     x: 550,
@@ -627,7 +538,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_54',
+    id: 'WALL_45',
     kind: 'WALL',
     shape: 'box',
     x: 1072,
@@ -637,7 +548,7 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     angle: 0,
   }),
   Object.freeze({
-    id: 'WALL_55',
+    id: 'WALL_46',
     kind: 'WALL',
     shape: 'box',
     x: 1079,
@@ -666,6 +577,26 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     halfHeight: 19.6,
     angle: 0,
   }),
+  Object.freeze({
+    id: 'WALL_NW_RUN',
+    kind: 'WALL',
+    shape: 'box',
+    x: 711,
+    y: 610,
+    halfWidth: 50.8,
+    halfHeight: 24.7,
+    angle: -0.7783,
+  }),
+  Object.freeze({
+    id: 'WALL_SE_RUN',
+    kind: 'WALL',
+    shape: 'box',
+    x: 942,
+    y: 841,
+    halfWidth: 45.4,
+    halfHeight: 19,
+    angle: -0.7925,
+  }),
 ]);
 
 export const BRIDGE_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
@@ -686,10 +617,49 @@ export const BRIDGE_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   { x: 1088.9, y: 738.5 },
 ]);
 
+/** The bridge's two walls (NW, SE): levers slide them in across the deck to meet on its middle line, and back (sliders.ts). */
+export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
+  Object.freeze({
+    wall: {
+      shape: 'box' as const,
+      x: 555,
+      y: 732,
+      halfWidth: 146.2,
+      halfHeight: 24.7,
+      angle: -0.7783,
+    },
+    by: { x: 113, y: 114 },
+    speed: 100,
+    levers: [
+      { x: 377, y: 875, radius: 36 },
+      { x: 904, y: 638, radius: 36 },
+      { x: 660, y: 1172, radius: 36 },
+    ],
+  }),
+  Object.freeze({
+    wall: {
+      shape: 'box' as const,
+      x: 816,
+      y: 989,
+      halfWidth: 148.4,
+      halfHeight: 19,
+      angle: -0.7925,
+    },
+    by: { x: -113, y: -112 },
+    speed: 100,
+    levers: [
+      { x: 377, y: 875, radius: 36 },
+      { x: 904, y: 638, radius: 36 },
+      { x: 660, y: 1172, radius: 36 },
+    ],
+  }),
+]);
+
 export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({
   width: BRIDGE_ISLANDS_WIDTH,
   height: BRIDGE_ISLANDS_HEIGHT,
   ground: BRIDGE_ISLANDS_GROUND,
   walls: BRIDGE_ISLANDS_WALLS,
+  sliders: BRIDGE_ISLANDS_SLIDERS,
   spawns: BRIDGE_ISLANDS_SPAWNS,
 });

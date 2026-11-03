@@ -11,6 +11,7 @@ import { DRAWN_CHARACTER_WIDTH } from '../drawnSize';
 import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { beamsOverlay, type LightBeams } from './beams';
+import { sliderNodeIndex, sliderOffset } from './sliderNodes';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   STAND_PULL,
@@ -1124,9 +1125,8 @@ class Plaza {
   #pinnedCamera = false;
   /** The cross pond's raft (pond_cross: RAFT), turned by the rules' turntable angle each frame; null elsewhere. */
   readonly #raft: THREE.Object3D | null;
-  /** The lily island's lever-driven rock (the glTF node SLIDER_0) and where its model stands at home. */
-  readonly #slider: THREE.Object3D | null;
-  readonly #sliderHome = new THREE.Vector3();
+  /** Rocks that levers move (the glTF nodes SLIDER_<k>: the lily island's rock, the bridge islands' walls), each with where it stands at home. */
+  readonly #sliders: { node: THREE.Object3D; index: number; home: THREE.Vector3 }[] = [];
   readonly #banner: HTMLDivElement;
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
   readonly #word = readyGoOverlay();
@@ -1232,8 +1232,10 @@ class Plaza {
         clampToArt: false,
       };
     this.#raft = gltf.getObjectByName('RAFT') ?? null;
-    this.#slider = gltf.getObjectByName('SLIDER_0') ?? null;
-    if (this.#slider !== null) this.#sliderHome.copy(this.#slider.position);
+    gltf.traverse((o) => {
+      const index = sliderNodeIndex(o.name);
+      if (index !== null) this.#sliders.push({ node: o, index, home: o.position.clone() });
+    });
     this.#space = sceneSpace(config);
     this.#atlases = atlases;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1627,15 +1629,11 @@ class Plaza {
     const turned = view.turntables?.[0];
     if (this.#raft !== null && turned !== undefined) this.#raft.rotation.set(0, -turned, 0);
     // the lever-driven rock rides its rails by the rules' progress (sliders.ts): its node moves by the run, in scene units
-    const slid = view.sliders?.[0];
-    if (this.#slider !== null && slid !== undefined) {
-      const a = this.#space.toScene(0, 0);
-      const b = this.#space.toScene(slid.by.x, slid.by.y);
-      this.#slider.position.set(
-        this.#sliderHome.x + (b.x - a.x) * slid.progress,
-        this.#sliderHome.y,
-        this.#sliderHome.z + (b.z - a.z) * slid.progress,
-      );
+    for (const s of this.#sliders) {
+      const slid = view.sliders?.[s.index];
+      if (slid === undefined) continue;
+      const d = sliderOffset(slid, (x, y) => this.#space.toScene(x, y));
+      s.node.position.set(s.home.x + d.x, s.home.y, s.home.z + d.z);
     }
     const now = this.#virtual ?? performance.now();
     const present = new Set<string>();

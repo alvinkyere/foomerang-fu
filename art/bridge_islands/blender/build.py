@@ -760,12 +760,17 @@ if len(bq) == 4:
         cxd = sum(q[0] for q in bq) / 4; cyd = sum(q[1] for q in bq) / 4
         if (((p0[0] + p1[0]) / 2 - cxd) * nx + ((p0[1] + p1[1]) / 2 - cyd) * ny) < 0: nx, ny = -nx, -ny
         n_w = max(3, round(ln / 4.4)); piece = ln / n_w
+        # (the pieces along the deck ride their wall's slider, the glTF node SLIDER_<k> the renderer moves by the rules' progress; the run on
+        # onto the east island stays: layout.py `bridge_walls`)
+        _slider = bpy.data.objects.new('SLIDER_%d' % (0 if tag == 'NW' else 1), None); sc.collection.objects.link(_slider)
+        _slides_to = ln0 + e0 + 0.9
         for j in range(n_w):
             mid = (j + 0.5) * piece
             cap = (j == n_w - 1) if tag == 'NW' else (j == 0)
             cxw, cyw = p0[0] + ux * mid + nx * off, p0[1] + uy * mid + ny * off
             body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.2 if cap else 0), wid + (0.2 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
-                 0.65 + (0.2 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+                 0.65 + (0.2 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3,
+                 parent=_slider if mid <= _slides_to else None)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)

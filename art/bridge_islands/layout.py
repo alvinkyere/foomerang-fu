@@ -230,6 +230,23 @@ raised = [dict(grass=r1([unproject(x, y, WATER_Z + 3.7)[0] for x, y in [(1495, 3
 # the height it hangs at (the north string from the long wall's end over the north lantern, 4.5 up; the east one from the raised block to the tree)
 bunting = [dict(a=unproject(905, 12, 4.5)[0] + [4.5], b=unproject(1125, 26, 4.5)[0] + [4.5]),
            dict(a=unproject(1560, 296, 5.0)[0] + [5.0], b=unproject(1745, 322, 5.0)[0] + [5.0])]
+# the bridge's two walls (the HQ 1:12-1:19): each a row of fat bricks along a long side of the deck (NW along A-B, SE along D-C), run on past the
+# deck's ends; the part along the deck SLIDES (a lever pulled, both walls slide in across the deck and meet side by side on its middle line,
+# ~1.6 s, as the HQ's do at 1:17-1:19; pulled again they go back: rules sliders.ts); the part run on onto the east island stays
+def _bridge_walls():
+    A, B, C, D = [np.array(q, float) for q in bridge_poly]
+    cd = (A + B + C + D) / 4; out = []
+    for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.9, 4.6, 1.8, 0.8), ('SE', D, C, 0.9, 4.2, 1.3, 0.5)):
+        u = (p1 - p0) / np.linalg.norm(p1 - p0); n = np.array([-u[1], u[0]])
+        if ((p0 + p1) / 2 - cd) @ n < 0: n = -n
+        a, b = p0 - u * e0, p1 + u * 0.9                                   # (the sliding part: the deck's length and a little)
+        c = (a + b) / 2 + n * off
+        dist = (c - cd) @ n
+        out.append(dict(tag=tag, u=r1([u])[0], n=r1([n])[0], a=r1([a])[0], b=r1([b])[0], centre=r1([c])[0], length=round(float(np.linalg.norm(b - a)), 2),
+                        width=wid, off=off, slide=r1([-n * (dist - wid / 2 - 0.05)])[0],
+                        extension=dict(a=r1([p1 + u * 0.9])[0], b=r1([p1 + u * e1])[0])))
+    return out
+bridge_walls = _bridge_walls()
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
 # the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small
 # cube by the urns, the round boulder the pot and the lever stand on, the block before the hex bush
@@ -241,7 +258,7 @@ for _px, _z in (([(1016, 123), (1071, 113), (1086, 148), (1031, 163)], 1.9),
                 # the tall block in the water south of the east island (its front face 57 px down to the water)
                 ([(1245, 782), (1292, 808), (1265, 838), (1222, 812)], WATER_Z + 3.5)):
     cubes.append(dict(top=r1([unproject(x, y, _z)[0] for x, y in _px]), z=_z, side='#6c79a8' if _z == WATER_Z + 3.5 else '#7e8bc2'))      # (the tall block in the water: its sides darker, as the HQ's)
-out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bunting=bunting, ferns=[dict(at=unproject(x_, y_, z_)[0], r=round(r_ / unproject(x_, y_, z_)[1], 2), z=z_) for x_, y_, r_, z_ in FERNS], cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
+out = dict(zoom=Z, water_z=WATER_Z, measured=measured, islet_e=ISLET_E, islet_nw=ISLET_NW, bridge_walls=bridge_walls, bunting=bunting, ferns=[dict(at=unproject(x_, y_, z_)[0], r=round(r_ / unproject(x_, y_, z_)[1], 2), z=z_) for x_, y_, r_, z_ in FERNS], cubes=cubes, raised=raised, banks=[r1(b) for b in banks], bridge=r1(bridge_poly), trees=tree_out,
            bushes=[dict(at=unproject(x, y, 0.0)[0], r=round(r / unproject(x, y, 0.0)[1], 2)) for x, y, r in BUSHES],
            pots=[dict(at=unproject(x, y, z)[0], w=w, h=hh, z=z) for x, y, w, hh, z in POTS], crates=at(CRATES), bamboo=at(BAMBOO), pads=pads_out, small_pads=small_out,
            lanterns=at(LANTERNS), levers=[dict(housing=unproject(a[0], a[1], 0.3)[0], knob=unproject(b[0], b[1], 0.3)[0], z=0.3) for a, b in LEVERS],

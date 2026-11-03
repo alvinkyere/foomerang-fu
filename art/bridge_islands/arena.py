@@ -39,7 +39,7 @@ def _islet_e():
     return [(e['centre'][0] + e['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), e['centre'][1] + e['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
 
 
-solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 7, 9, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 6, 7, 9, 11, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
 # the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
 # water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
 # stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
@@ -101,6 +101,18 @@ def spread(n, seed):
         d = np.min([np.hypot(*(cand - c).T) for c in chosen], 0)
         chosen.append(cand[int(np.argmax(d))])
     return [dict(x=round(float(x), 1), y=round(float(y), 1)) for x, y in chosen]
+# the bridge's walls (layout.py `bridge_walls`): their sliding parts are the rules' sliders (sliders.ts), worked by every lever on the map
+# (the HQ: one pull and both walls slide in across the deck, meeting on its middle line in ~1.6 s); the runs on onto the east island are walls
+sliders = []
+for bw in L['bridge_walls']:
+    cx_, cy_ = w(*bw['centre']); ang = math.atan2(-bw['u'][1], bw['u'][0])
+    run = math.hypot(*bw['slide']) * S
+    sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(bw['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
+                        by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.6),
+                        levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
+    e = bw['extension']; ex, ey = w((e['a'][0] + e['b'][0]) / 2, (e['a'][1] + e['b'][1]) / 2)
+    walls.append(dict(id=f'WALL_{bw["tag"]}_RUN', kind='WALL', shape='box', x=ex, y=ey, halfWidth=round(math.hypot(e['b'][0] - e['a'][0], e['b'][1] - e['a'][1]) / 2 * S, 1),
+                      halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)))
 spawns = spread(6, np.array([0, 0]))
 books = spread(10, np.array([WIDTH, HEIGHT]))[4:]
 
@@ -110,6 +122,7 @@ def pts(poly):
     return 'Object.freeze([' + ', '.join(f'{{ x: {x}, y: {y} }}' for x, y in poly) + '])'
 ts = f"""import type {{ Vec2 }} from '@foomerang/game-core';
 import type {{ FuArena, Solid }} from './arena';
+import type {{ SliderSpec }} from './sliders';
 
 /**
  * THE LILY ISLAND (`bridge_islands`): the HQ's lime island in the water (foomerang-fu physics hq.mp4 10:37), measured from it
@@ -136,11 +149,16 @@ export const BRIDGE_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
 export const BRIDGE_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 {''.join('  ' + obj(o) + ',\n' for o in books)}]);
 
+/** The bridge's two walls (NW, SE): levers slide them in across the deck to meet on its middle line, and back (sliders.ts). */
+export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
+{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
+
 export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({{
   width: BRIDGE_ISLANDS_WIDTH,
   height: BRIDGE_ISLANDS_HEIGHT,
   ground: BRIDGE_ISLANDS_GROUND,
   walls: BRIDGE_ISLANDS_WALLS,
+  sliders: BRIDGE_ISLANDS_SLIDERS,
   spawns: BRIDGE_ISLANDS_SPAWNS,
 }});
 """
