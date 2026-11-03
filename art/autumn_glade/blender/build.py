@@ -151,9 +151,22 @@ for j in range(GF['ny'] - 1):
             b_, g_, r_ = GF['bgr'][jj * GF['nx'] + ii]
             loop[colL] = lin('#%02x%02x%02x' % (r_, g_, b_))
 me = bpy.data.meshes.new('SAND_FIELD'); bm.to_mesh(me); bm.free(); obj('SAND_FIELD', me, [FLAT])
-for k, poly in enumerate(L['shadows']):
-    try: flat(f'SHADOW_{k}', poly, COL['shadow'], 0.03)
-    except ValueError: pass
+SM = J('art/autumn_glade/shadow_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/shadow_mass.json')) else None      # (shadow_mass.py)
+if SM is None:
+    for k, poly in enumerate(L['shadows']):
+        try: flat(f'SHADOW_{k}', poly, COL['shadow'], 0.03)
+        except ValueError: pass
+else:
+    # the shadows as the frame shows them: its outline, a smooth measured tone (flat, on the sand)
+    bm = bmesh.new(); colS = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((x, YC + y, 0.03)) for x, y in SM['verts']]; tc = {v: c for v, c in zip(vs, SM['bgr'])}
+    for q in SM['faces']:
+        try: f = bm.faces.new([vs[i] for i in q])
+        except ValueError: continue
+        f.normal_update()
+        if f.normal.z < 0: f.normal_flip()
+        for loop in f.loops: b_, g_, r_ = tc[loop.vert]; loop[colS] = lin('#%02x%02x%02x' % (r_, g_, b_))
+    me = bpy.data.meshes.new('SHADOWS'); bm.to_mesh(me); bm.free(); obj('SHADOWS', me, [FLAT])
 # the dashed border: 24 px dashes on a 36 px period at the bottom edge, 4 px thick (measured at 626.0 s: 0.81 / 0.40 / 0.14 plan units)
 B = A['border']; DASH, PERIOD, THICK = 0.81, 1.21, 0.14
 edges = [((B['x0'], B['y0']), (B['x1'], B['y0'])), ((B['x1'], B['y0']), (B['x1'], B['y1'])), ((B['x1'], B['y1']), (B['x0'], B['y1'])), ((B['x0'], B['y1']), (B['x0'], B['y0']))]
