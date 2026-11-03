@@ -57,6 +57,14 @@ for rk in ROCKS:
                 todo[ii] = False
             if not todo.any(): break
     ok = ~np.isnan(found)
+    # its tones: the frame's rock pixels in four clusters (lit top, two sides, the navy socket), the label map smoothed (5 px), each
+    # vertex the tone of the region it sits in: flat regions traced as sand.py's levels are, never the frame's pixels
+    win = m > 0
+    px_ = np.float32(f[win]); _, lab_, cen = cv2.kmeans(px_, 4, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5), 4, cv2.KMEANS_PP_CENTERS)
+    lm = np.full(H.shape, 255, np.uint8); lm[win] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5)
+    tone = ['#%02x%02x%02x' % tuple(int(v) for v in c[::-1]) for c in cen]
+    vlab = lm[py.astype(int), px.astype(int)]
+    vlab = np.where(vlab == 255, int(np.argmax([c.sum() for c in cen])), vlab)
     idx = -np.ones(gx.shape, int); sel = np.argwhere(ins)
     keep_i = np.nonzero(ok)[0]; idx[sel[keep_i, 0], sel[keep_i, 1]] = np.arange(len(keep_i))
     faces = []
@@ -65,6 +73,6 @@ for rk in ROCKS:
             q = [idx[j, i], idx[j, i + 1], idx[j + 1, i + 1], idx[j + 1, i]]; k = [v for v in q if v >= 0]
             if len(k) == 4: faces.append([int(v) for v in q])
             elif len(k) == 3: faces.append([int(v) for v in k])
-    out.append(dict(side=rk['side'], verts=[[round(float(a), 3) for a in p] for p in pts[ok]], faces=faces))
-    print(rk['side'], int(ins.sum()), 'pixels,', int(ok.sum()), 'on the blocks,', len(faces), 'faces')
+    out.append(dict(side=rk['side'], verts=[[round(float(a), 3) for a in p] for p in pts[ok]], faces=faces, tones=tone, tone=[int(v) for v in vlab[ok]]))
+    print(rk['side'], int(ins.sum()), 'pixels,', int(ok.sum()), 'on the blocks,', len(faces), 'faces; tones', tone)
 json.dump(out, open('art/autumn_glade/rock_mass.json', 'w'))

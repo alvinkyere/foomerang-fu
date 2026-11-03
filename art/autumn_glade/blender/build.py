@@ -446,8 +446,11 @@ else:
             f.smooth = True; f.normal_update()
             if f.normal.dot(f.calc_center_median() - camv) > 0: f.normal_flip()      # (every face towards the camera: its grid was the screen's)
         bm.normal_update()
-        for f in bm.faces: f.material_index = 0 if f.normal.z > 0.55 else 1
-        me = bpy.data.meshes.new('ROCK_' + rm['side']); bm.to_mesh(me); bm.free(); obj('ROCK_' + rm['side'], me, [ROCK, ROCK_SIDE])
+        # (its tones as the frame's regions show them: rock_mass.py; flat, as the frame's rocks look)
+        colR = bm.loops.layers.float_color.new('Col'); tl = {v: rm['tones'][t_] for v, t_ in zip(vs, rm['tone'])}
+        for f in bm.faces:
+            for loop in f.loops: loop[colR] = lin(tl[loop.vert])
+        me = bpy.data.meshes.new('ROCK_' + rm['side']); bm.to_mesh(me); bm.free(); obj('ROCK_' + rm['side'], me, [FLAT])
 
 
 def portal(name, p):
