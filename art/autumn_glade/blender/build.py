@@ -266,6 +266,37 @@ def cauliflower(name, c, r, hi, mid, lo, n_rim=18, n_top=0):
 
 
 PAL = dict(r=('#f08b66', '#c96459', '#bb5e5c'), g=('#e6cc66', '#cdb35c', '#bca056'))      # (the frame's clusters, by share: mostly the middle two)
+MASS = J('art/autumn_glade/canopy_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/canopy_mass.json')) else None      # (canopy_mass.py)
+
+
+def canopy_mass(name, data, hi, mid, lo):
+    """canopy_mass.py's mesh: the frame's canopy outline, the fitted clumps' surface; shaded as a clump is (the game's light on its
+    normals, calibrated to the frame's lightness, mottled)."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((x, YC + y, z)) for x, y, z in data['verts']]
+    dd = {v: d_ for v, d_ in zip(vs, data['d'])}
+    for q in data['faces']:
+        try: bm.faces.new([vs[i] for i in q])
+        except ValueError: pass
+    for f in bm.faces:
+        f.smooth = True; f.normal_update()
+        if f.normal.z < 0: f.normal_flip()
+    bm.normal_update()
+    ch, cm, cl = Vector(lin(hi)[:3]), Vector(lin(mid)[:3]), Vector(lin(lo)[:3]); ph = 1.3
+    for f in bm.faces:
+        for loop in f.loops:
+            v = loop.vert.co; n = loop.vert.normal
+            shade = -0.32 + 1.0 * max(0.0, n.dot(SUN_TO)) - 0.42 * max(0.0, -n.z)
+            shade += 0.09 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph) + 0.6 * math.sin(4.1 * v.x - 3.7 * v.y + ph))
+            d_ = dd[loop.vert]
+            shade += 0.06 * (1 - min(d_, 1.0)) - 0.22 * max(0.0, min(d_, 1.1) - 0.72) / 0.38      # (a clump's heart lighter, its rim dark over the clump below)
+            t = max(0.0, min(1.0, shade + 0.9 * max(0.0, shade - 0.55)))
+            base = cl.lerp(cm, t / 0.6) if t < 0.6 else cm.lerp(ch, (t - 0.6) / 0.4)
+            loop[col] = list(base) + [1.0]
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return obj(name, me, [FLAT])
+
+
 FIT = J('art/autumn_glade/lumps.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/lumps.json')) else None      # (fit_trees.py)
 for k, t in enumerate(L['trees']):
     foot = at(t['plan']); lumps = (FIT[k] if FIT else t.get('lumps')) or [dict(x=0, z=5.0, r=2.4)]
@@ -274,7 +305,13 @@ for k, t in enumerate(L['trees']):
     low = min(lumps, key=lambda q: q['z'])
     trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)      # (straight up, ~0.8 units thick as the frame's mid-field trunks, into the lowest clump)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
+        cpx, cpy = to_px(foot[0] + lump['x'], foot[1], lump['z'])
+        if MASS is not None and 0 <= cpx < 1920 and 0 <= cpy < 1080: continue      # (in the frame: the measured canopy mass draws it)
         cauliflower(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'] * 1.08, hi, mid, lo)
+
+
+if MASS is not None:
+    for kind_, data_ in MASS.items(): canopy_mass(f'CANOPY_MASS_{kind_}', data_, *PAL[kind_])
 
 
 # ---------------------------------------------------------------------------------------------------------------- beyond the frame
