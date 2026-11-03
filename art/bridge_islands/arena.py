@@ -110,9 +110,6 @@ for bw in L['bridge_walls']:
     sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(bw['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
                         by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.6),
                         levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
-    e = bw['extension']; ex, ey = w((e['a'][0] + e['b'][0]) / 2, (e['a'][1] + e['b'][1]) / 2)
-    walls.append(dict(id=f'WALL_{bw["tag"]}_RUN', kind='WALL', shape='box', x=ex, y=ey, halfWidth=round(math.hypot(e['b'][0] - e['a'][0], e['b'][1] - e['a'][1]) / 2 * S, 1),
-                      halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)))
 spawns = spread(6, np.array([0, 0]))
 books = spread(10, np.array([WIDTH, HEIGHT]))[4:]
 

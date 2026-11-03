@@ -239,7 +239,7 @@ def _bridge_walls():
     for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.9, 4.6, 1.8, 0.8), ('SE', D, C, 0.9, 4.2, 1.3, 0.5)):
         u = (p1 - p0) / np.linalg.norm(p1 - p0); n = np.array([-u[1], u[0]])
         if ((p0 + p1) / 2 - cd) @ n < 0: n = -n
-        a, b = p0 - u * e0, p1 + u * 0.9                                   # (the sliding part: the deck's length and a little)
+        a, b = p0 - u * e0, p1 + u * e1                                    # (the whole wall slides, its run past the deck too)
         c = (a + b) / 2 + n * off
         dist = (c - cd) @ n
         out.append(dict(tag=tag, u=r1([u])[0], n=r1([n])[0], a=r1([a])[0], b=r1([b])[0], centre=r1([c])[0], length=round(float(np.linalg.norm(b - a)), 2),

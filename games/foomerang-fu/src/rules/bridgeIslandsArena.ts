@@ -577,26 +577,6 @@ export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze(
     halfHeight: 19.6,
     angle: 0,
   }),
-  Object.freeze({
-    id: 'WALL_NW_RUN',
-    kind: 'WALL',
-    shape: 'box',
-    x: 711,
-    y: 610,
-    halfWidth: 50.8,
-    halfHeight: 24.7,
-    angle: -0.7783,
-  }),
-  Object.freeze({
-    id: 'WALL_SE_RUN',
-    kind: 'WALL',
-    shape: 'box',
-    x: 942,
-    y: 841,
-    halfWidth: 45.4,
-    halfHeight: 19,
-    angle: -0.7925,
-  }),
 ]);
 
 export const BRIDGE_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
@@ -622,9 +602,9 @@ export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
   Object.freeze({
     wall: {
       shape: 'box' as const,
-      x: 555,
-      y: 732,
-      halfWidth: 146.2,
+      x: 592,
+      y: 697,
+      halfWidth: 197.0,
       halfHeight: 24.7,
       angle: -0.7783,
     },
@@ -639,9 +619,9 @@ export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
   Object.freeze({
     wall: {
       shape: 'box' as const,
-      x: 816,
-      y: 989,
-      halfWidth: 148.4,
+      x: 847,
+      y: 957,
+      halfWidth: 193.7,
       halfHeight: 19,
       angle: -0.7925,
     },

@@ -719,31 +719,38 @@ if L['bridge']:
     u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
     to_xy = lambda u, v: (cxb + u * ux_ + v * vx_, cyb + u * uy_ + v * vy_)
     seams = []
-    course, brick = 1.2, 1.7           # (a course is a row of bricks along the walls, `course` wide across the deck; a brick `brick` long)
-    STREAK = '#bf9f9c'
+    # the HQ's deck (1:12, close up): overlapping scalloped shingles in rows along the walls, each lighter over its body with a darker
+    # shadowed front edge (the edge towards the camera), the rows overlapping; on some rows a pale scalloped line along the front edges.
+    # Its tones span only ~16 levels (5th-95th percentile #9c7d9a .. #ab8ba0): measured
+    course, brick = 1.05, 1.5
+    front = -1.0 if vy_ < 0 else 1.0                   # (the HQ's shingles bulge AWAY from the camera, up the frame: +v when it points north)
     rr_ = random.Random(5)
-    n_courses = int((v1 - v0) / course)
-    for i in range(n_courses + 1):
-        vc = v0 + (i + 0.5) * course
+    n_courses = int((v1 - v0) / course) + 1
+    order = range(n_courses - 1, -1, -1) if front > 0 else range(n_courses)      # (each row is drawn over the one its scallops bulge into)
+    for depth, i in enumerate(order):
+        vb, vf = v0 + i * course, v0 + (i + 1) * course          # (the row's band; its front edge at vf if front > 0, else at vb)
+        if front < 0: vb, vf = vf, vb
         off = 0.0 if i % 2 else brick / 2
-        u = u0 - off + brick / 2
-        while u < u1 + brick / 2:
-            u_lo, u_hi = max(u - brick / 2 + 0.1, u0), min(u + brick / 2 - 0.1, u1)
-            if u_hi - u_lo > 0.5 and vc - course / 2 >= v0 - 0.1 and vc + course / 2 <= v1 + 0.1:
-                pts_ = rounded_rect(0, 0, u_hi - u_lo, course - 0.2, 0, 0.4, seg=3)
-                cu, cv_ = (u_lo + u_hi) / 2, vc
-                col = ['#a886a2', '#a4839f', '#ab89a5'][rr_.randrange(3)]      # (the HQ deck's median #a483a0, measured)
-                seams.append(([to_xy(cu + px, cv_ + py) for px, py in pts_], col, 0.0))
+        u = u0 - off
+        pale_row = rr_.random() < 0.3
+        while u < u1:
+            ua, ub = max(u + 0.03, u0), min(u + brick - 0.03, u1)
+            if ub - ua > 0.25:
+                um = (ua + ub) / 2; hw = (ub - ua) / 2
+                # the tile: its back edge straight, its front a shallow arc bulging 0.3 past the row's front
+                arc = [(um + hw * math.cos(t), vf + front * 0.3 * math.sin(t)) for t in [math.pi * k / 8 for k in range(9)]][::-1]
+                body_ = [(ua, vb), (ub, vb)] + [(x, y) for x, y in arc[::-1]] if False else [(ua, vb), (ub, vb), (ub, vf)] + arc[1:-1] + [(ua, vf)]
+                col = ['#a6859f', '#a4839e', '#a887a1'][rr_.randrange(3)]
+                dz = 0.004 * depth
+                seams.append(([to_xy(x, y) for x, y in body_], col, dz))
+                # its front shadow: a band along the arc, 0.22 deep, darker
+                inner = [(um + (x - um) * 0.97, y - front * 0.09) for x, y in arc]
+                band = [to_xy(x, y) for x, y in arc] + [to_xy(x, y) for x, y in inner[::-1]]
+                seams.append((band, '#9a7b98', dz + 0.0015))
+                if pale_row:
+                    edge = [to_xy(x, y) for x, y in arc] + [to_xy(um + (x - um) * 0.97, y - front * 0.06) for x, y in arc[::-1]]
+                    seams.append((edge, '#b496a6', dz + 0.003))
             u += brick
-        # the HQ's pale tan streaks along the course joints (worn mortar): broken lines, a few bricks long, running with the walls
-        if i > 0:
-            uu = u0
-            while uu < u1:
-                l_ = rr_.uniform(1.0, 2.8)
-                if rr_.random() < 0.35:
-                    a_, b_ = uu, min(uu + l_, u1); vj = v0 + i * course - 0.05
-                    seams.append(([to_xy(a_, vj), to_xy(b_, vj), to_xy(b_, vj + 0.1), to_xy(a_, vj + 0.1)], STREAK, 0.002))
-                uu += l_ + rr_.uniform(0.5, 2.5)
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#828fc3', 0.98)), lit('wall_side', HQ.lit('#5f6ca3', 0.875))      # (the HQ walls' bright and dark medians, measured)
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
@@ -770,7 +777,7 @@ if len(bq) == 4:
             cxw, cyw = p0[0] + ux * mid + nx * off, p0[1] + uy * mid + ny * off
             body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.12 + (0.2 if cap else 0), wid + (0.2 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.6),
                  0.65 + (0.2 if cap else 0) + rng.uniform(-0.08, 0.08), WALL_TOP, WALL_SIDE, top_r=0.35, corner_r=0.6, bottom=STONE_BOTTOM, soft=True, top_seg=3,
-                 parent=_slider if mid <= _slides_to else None)
+                 parent=_slider)      # (the whole wall slides, its run onto the east island too: the HQ leaves nothing behind, 1:19)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)
