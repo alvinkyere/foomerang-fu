@@ -762,8 +762,15 @@ for k, po in enumerate(L['pots']):
 # stone lanterns: a small pale-lavender post with a cap
 for k, (x, y) in enumerate(L['lanterns']):
     # (the HQ's lanterns are grey-green stone, stacked: a base, a post, a lit box, a roof)
-    for j_, (w_, z0, z1) in enumerate(((1.4, 0.0, 0.5), (0.8, 0.5, 1.7), (1.3, 1.7, 2.5), (1.7, 2.5, 2.9), (0.6, 2.9, 3.3))):
-        paint_flat(body(f'LANTERN_{k}_{j_}', rounded_rect(x, y, w_, w_, 0, 0.15), z1, FLAT, FLAT, top_r=0.08, bottom=z0, soft=True, top_seg=1), '#b4c4bb', '#7f948d', '#97aaa2')
+    # (the HQ's, 1:12: ~2 units across, ~4 tall, turned 45 degrees: a base block, a lit box with dark windows, a stepped roof)
+    for j_, (w_, z0, z1) in enumerate(((1.5, 0.0, 0.9), (1.2, 0.9, 1.1), (1.8, 1.1, 2.2), (2.1, 2.2, 2.55), (1.5, 2.55, 2.9), (0.9, 2.9, 3.25), (0.45, 3.25, 3.6))):
+        paint_flat(body(f'LANTERN_{k}_{j_}', rounded_rect(x, y, w_ * 0.55, w_ * 0.55, 45, 0.12), z1, FLAT, FLAT, top_r=0.08, bottom=z0, soft=True, top_seg=1), '#adc3b9', '#8aa69d', '#9bb5ab')
+    for sx in (-1, 1):                                              # (its windows: dark slots on the two camera-facing faces)
+        a_ = math.radians(45 + (90 if sx > 0 else 0) - 90); nx_, ny_ = math.cos(a_ - math.pi / 2) * sx, math.sin(a_ - math.pi / 2)
+        cxw, cyw = x + 0.51 * (-0.707 if sx < 0 else 0.707), y - 0.51 * 0.707
+        tx, ty = (0.707, -0.707) if sx < 0 else (0.707, 0.707)
+        quad = [(cxw - tx * 0.2, cyw - ty * 0.2, 1.35), (cxw + tx * 0.2, cyw + ty * 0.2, 1.35), (cxw + tx * 0.2, cyw + ty * 0.2, 1.95), (cxw - tx * 0.2, cyw - ty * 0.2, 1.95)]
+        _flat3d(f'LANTERN_{k}_win{sx}', [([Vector(q) for q in quad[:3]], '#4f6266'), ([Vector(q) for q in (quad[0], quad[2], quad[3])], '#4f6266')])
 # the gong gate: the gong islands' model, turned to the gate's own way (its posts stand along the plan diagonal in the HQ frame here)
 gl, gr = L['gate']['left'], L['gate']['right']
 gate_root = bpy.data.objects.new('GATE', None); sc.collection.objects.link(gate_root)

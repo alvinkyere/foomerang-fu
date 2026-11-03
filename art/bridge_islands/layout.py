@@ -202,7 +202,7 @@ POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2,
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1400, 355), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
-LANTERNS = [_mv('lantern0', (1025, 42)), _mv('lantern1', (1491, 396))]
+LANTERNS = [_mv('lantern0', (1026, 79)), _mv('lantern1', (1490, 434))]      # (each lantern's FOOT in the frame)
 LEVERS = [((571, 554), (540, 571)), ((1075, 375), (1063, 380)), ((839, 814), (816, 831))]
 # leafy ferns (the HQ's dark green tufts by the gate, the boulder and the bridge's east end): (x, y) of the tuft's middle in the frame, its radius in px,
 # the height it grows from (the potted one on its pot)
