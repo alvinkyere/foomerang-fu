@@ -590,6 +590,11 @@ for k, pad in enumerate(L['pads']):
         parts.append((star, FLOWER, 0.03))
         parts.append(([(x + math.cos(a) * r * 0.14, y + math.sin(a) * r * 0.14) for a in [i * math.pi / 4 for i in range(8)]], FLOWER_HEART, 0.04))
     flat(f'PAD_{k}', parts, z=z)
+# the potted bamboo's grey pot (the HQ: by the gate, a squat grey-green pot)
+if L['bamboo']:
+    _bx, _by = L['bamboo'][0]
+    paint_flat(body('BAMBOO_POT', [(_bx + math.cos(i * math.pi / 8) * 0.75, _by + math.sin(i * math.pi / 8) * 0.75) for i in range(16)], 0.9, FLAT, FLAT, top_r=0.1, bottom=0,
+                    soft=True, top_seg=1, taper=0.8), '#6f7f7c', '#8a9a96', '#7d8c89')
 for k, sp in enumerate(L.get('small_pads', [])):                   # (the small round pads)
     x, y = sp['at']; r = sp['r']
     flat(f'SPAD_{k}', [([(x + math.cos(i * math.pi / 10) * r, y + math.sin(i * math.pi / 10) * r) for i in range(20)], PAD, 0)], z=WATER_Z + 0.05)
@@ -597,7 +602,7 @@ for k, (x, y) in enumerate(L['crates']):
     obj_models.crate({'x': x, 'y': y, 'width': 1.43}, PAL, FLAT, None, k)
 for k, (x, y) in enumerate(L['bamboo']):
     # (the HQ's bamboo by the gate and the potted one by the wall are thick, ~20 px: 1.1 units; the rest thinner)
-    obj_models.bamboo({'x': x, 'y': y, 'width': 1.1 if k in (0, 1, 2) else 0.7, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
+    obj_models.bamboo({'x': x, 'y': y, 'width': 1.1 if k in (1, 2) else 0.7, 'height': rng.uniform(4.4, 6.4)}, PAL, FLAT, None, 100 + k)
 
 
 def blob(name, c, radii, hex_, hex_low, sub=5, bumps=0.17):
