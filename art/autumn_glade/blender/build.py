@@ -430,8 +430,24 @@ def rock(name, b, e1, e2):
     return obj(name, me, [ROCK, ROCK_SIDE])
 
 
-for r_ in J('art/autumn_glade/rocks.json'):
-    for i, b_ in enumerate(r_['blocks']): rock(f"ROCK_{r_['side']}_{i}", b_, r_['e1'], r_['e2'])
+RM = J('art/autumn_glade/rock_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/rock_mass.json')) else None      # (rock_mass.py)
+if RM is None:
+    for r_ in J('art/autumn_glade/rocks.json'):
+        for i, b_ in enumerate(r_['blocks']): rock(f"ROCK_{r_['side']}_{i}", b_, r_['e1'], r_['e2'])
+else:
+    # the rocks as the frame shows them: rock_mass.py's surface on the fitted blocks, the frame's outline; lit, tops and sides
+    for rm in RM:
+        bm = bmesh.new(); vs = [bm.verts.new((x, YC + y, z)) for x, y, z in rm['verts']]
+        for q in rm['faces']:
+            try: bm.faces.new([vs[i] for i in q])
+            except ValueError: pass
+        camv = Vector(tuple(v * 100 for v in CAM['centre']))
+        for f in bm.faces:
+            f.smooth = True; f.normal_update()
+            if f.normal.dot(f.calc_center_median() - camv) > 0: f.normal_flip()      # (every face towards the camera: its grid was the screen's)
+        bm.normal_update()
+        for f in bm.faces: f.material_index = 0 if f.normal.z > 0.55 else 1
+        me = bpy.data.meshes.new('ROCK_' + rm['side']); bm.to_mesh(me); bm.free(); obj('ROCK_' + rm['side'], me, [ROCK, ROCK_SIDE])
 
 
 def portal(name, p):
@@ -440,12 +456,18 @@ def portal(name, p):
     mir = 1 if p['side'] == 'W' else -1
     PF = J('art/autumn_glade/portal.json')      # (fit_portal.py: the N's proportions and each portal's shift, fitted to the frame's cyan)
     x0 += mir * PF['dx'][p['side']]
-    # the glow first: concentric discs from the sand's pale yellow to a white-cyan heart
-    gx, gy = p['glow']
-    for i in range(18):
-        t = i / 17; rad = 2.3 * (1 - t) ** 1.3 + 0.15
-        pts = [(gx + math.cos(a * math.pi / 12) * rad, gy + math.sin(a * math.pi / 12) * rad) for a in range(24)]
-        flat(f'GLOW_{name}_{i}', pts, '#%02x%02x%02x' % tuple(int(v * 255) for v in mix(Vector((0.97, 0.94, 0.62)), Vector((0.95, 1.0, 0.98)), t ** 0.7)[:3]), 0.04 + 0.002 * i)
+    # the glow first (fit_glow.py: measured round the west portal, the east's mirrored): a Gaussian of 2 sigma = GR plan units from the
+    # sand's colour to a white-cyan heart, as concentric discs on the sand
+    GW = next(g for g in J('art/autumn_glade/glow.json') if g['side'] == 'W'); WP = next(q for q in L['portals'] if q['side'] == 'W')
+    off = (GW['centre'][0] - WP['foot'][0], GW['centre'][1] - WP['foot'][1]); GR = (GW['rx'] + GW['ry']) / 2
+    gx, gy = p['foot'][0] + mir * off[0], p['foot'][1] + off[1]
+    heart_, sand_ = Vector(lin(GW['heart'])[:3]), Vector(lin(J('art/autumn_glade/ground_field.json')['base'])[:3])
+    for i in range(20):
+        rad = GR * 1.1 * (1 - i / 20) + 0.05
+        w_ = math.exp(-0.5 * (rad / (GR / 2)) ** 2)
+        c_ = sand_.lerp(heart_, w_)
+        pts = [(gx + math.cos(a * math.pi / 14) * rad, gy + math.sin(a * math.pi / 14) * rad) for a in range(28)]
+        flat(f'GLOW_{name}_{i}', pts, '#%02x%02x%02x' % tuple(int(round(srgb(v) * 255)) for v in c_), 0.04 + 0.002 * i)
     def sheet(pts, hex_, dy):
         bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
         face = bm.faces.new([bm.verts.new((x0 + mir * px, YC + y0 - 0.02 * dy, pz)) for px, pz in pts])
