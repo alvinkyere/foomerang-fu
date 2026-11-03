@@ -176,7 +176,11 @@ def oval(cx, cy, a, b, ang_deg, n=10):
 
 # ---------------------------------------------------------------------------------------------------------------- ground
 me = bpy.data.meshes.new('GROUND'); me.from_pydata([(-90, YC - 70, 0), (90, YC - 70, 0), (90, YC + 70, 0), (-90, YC + 70, 0)], [], [(0, 1, 2, 3)])
-obj('GROUND', me, [SAND])
+_gc = bmesh.new(); _gc.from_mesh(me); _cl = _gc.loops.layers.float_color.new('Col')
+for _f in _gc.faces:
+    for _l in _f.loops: _l[_cl] = lin(J('art/autumn_glade/ground_field.json')['base'])
+_gc.to_mesh(me); _gc.free()
+obj('GROUND', me, [FLAT])      # (unlit, the field's plain sand: lit, the game showed it lighter than the field round the frame)
 # the sand where the frame shows it: ground_field.py's smooth measured field (vertex colours, unlit: shown as measured), easing to the
 # plain sand at the frame's edges; beyond it the lit plane above, in the field's plain colour
 GF = J('art/autumn_glade/ground_field.json')
@@ -241,13 +245,21 @@ def mix(a, b, t):
     return [a[i] + (b[i] - a[i]) * max(0.0, min(1.0, t)) for i in range(3)] + [1.0]
 
 
-def trunk(name, foot, top, r0, r1, rings=10, seg=10):
-    """A tapered spotted trunk from the foot (on the ground) to `top` = (x, y, z)."""
+def trunk(name, foot, top, r0, r1, rings=10, seg=10, via=()):
+    """A tapered spotted trunk from the foot (on the ground) to `top` = (x, y, z), through the points `via`."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
-    a, b = Vector((foot[0], foot[1], 0)), Vector(top)
+    path = [Vector((foot[0], foot[1], 0.0))] + [Vector(p) for p in via] + [Vector(top)]
+    lens = [0.0]
+    for p, q in zip(path, path[1:]): lens.append(lens[-1] + (q - p).length)
+    def at_(t):
+        d = t * lens[-1]
+        for i in range(len(path) - 1):
+            if d <= lens[i + 1] or i == len(path) - 2:
+                u = 0.0 if lens[i + 1] == lens[i] else (d - lens[i]) / (lens[i + 1] - lens[i])
+                return path[i].lerp(path[i + 1], max(0.0, min(1.0, u)))
     grid = []
     for i in range(rings):
-        t = i / (rings - 1); c = a + (b - a) * t; r = r0 + (r1 - r0) * t
+        t = i / (rings - 1); c = at_(t); r = r0 + (r1 - r0) * t
         grid.append([bm.verts.new((c.x + math.cos(2 * math.pi * k / seg) * r, c.y + math.sin(2 * math.pi * k / seg) * r, c.z)) for k in range(seg)])
     for i in range(rings - 1):
         for k in range(seg):
@@ -387,14 +399,34 @@ def trunk_mass(name, data):
     return obj(name, me, [FLAT])
 
 
+CROWN = {}
+if MASS is not None:
+    _pts = {}
+    for _d in MASS.values():
+        for (_x, _y, _z), _t, _o in zip(_d['verts'], _d['tree'], _d['own']):
+            if _o: _pts.setdefault(_t, []).append((_x, YC + _y, _z))      # (only what lies in the tree's own clumps)
+    for _t, _p in _pts.items():
+        if len(_p) < 30: continue
+        _p.sort(key=lambda q: q[2]); _lo = _p[: max(10, len(_p) // 4)]; _n = len(_p)
+        CROWN[_t] = (tuple(sum(q[i] for q in _lo) / len(_lo) for i in range(3)), tuple(sorted(q[i] for q in _p)[_n // 2] for i in range(3)))
 FIT = J('art/autumn_glade/lumps.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/lumps.json')) else None      # (fit_trees.py)
 for k, t in enumerate(L['trees']):
     foot = at(t['plan']); lumps = (FIT[k] if FIT else t.get('lumps')) or [dict(x=0, z=5.0, r=2.4)]
     hi, mid, lo = PAL[t['kind']]
     top = max(lumps, key=lambda q: q['z'])
     low = min(lumps, key=lambda q: q['z'])
-    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42 if TM is None or TM[k] is None else 0.22, 0.32 if TM is None or TM[k] is None else 0.18)      # (a thin core where trunk_mass draws what the frame shows)
-    if TM is not None and TM[k] is not None: trunk_mass(f'TRUNKMASS_{k}', TM[k])
+    crown = None if os.environ.get("GLADE_OLD_TRUNKS") else CROWN.get(k)
+    if crown is not None:
+        # (owner, 2026-11-03: the crowns must sit on their trunks from every angle) the trunk runs from its foot into its own crown: to the
+        # crown's lower part, then on up to its middle, so whichever way the camera looks the crown is held by its trunk
+        (lx, ly, lz), (mx, my, mz) = crown
+        # (the crown is a surface, not a volume: the trunk ends just under its lower part, inside its footprint, not through its top;
+        # leaning no more than 0.35 across per unit up, as the frame's trees)
+        dx_, dy_ = lx - foot[0], ly - foot[1]; lim = 0.35 * max(lz, 1.0); dl = math.hypot(dx_, dy_)
+        if dl > lim: dx_, dy_ = dx_ * lim / dl, dy_ * lim / dl
+        trunk(f'TRUNK_{k}', foot[:2], (foot[0] + dx_, foot[1] + dy_, lz - 0.6), 0.42, 0.32)
+    else:
+        trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
         cpx, cpy = to_px(foot[0] + lump['x'], foot[1], lump['z'])
         if MASS is not None and 0 <= cpx < 1920 and 0 <= cpy < 1080: continue      # (in the frame: the measured canopy mass draws it)
@@ -522,7 +554,7 @@ else:
         me = bpy.data.meshes.new('ROCK_' + rm['side']); bm.to_mesh(me); bm.free(); obj('ROCK_' + rm['side'], me, [FLAT])
 
 
-def portal(name, p):
+def portal(name, p, strokes=True):
     """A vertical sheet of cyan zigzag (an N) standing on the foot, face to the camera, and the glow it throws on the sand."""
     x0, y0 = p['foot']; hw, ht = p['halfWidth'], p['height']
     mir = 1 if p['side'] == 'W' else -1
@@ -540,6 +572,7 @@ def portal(name, p):
         c_ = sand_.lerp(heart_, w_)
         pts = [(gx + math.cos(a * math.pi / 14) * rad, gy + math.sin(a * math.pi / 14) * rad) for a in range(28)]
         flat(f'GLOW_{name}_{i}', pts, '#%02x%02x%02x' % tuple(int(round(srgb(v) * 255)) for v in c_), 0.04 + 0.002 * i)
+    if not strokes: return
     def sheet(pts, hex_, dy):
         bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
         face = bm.faces.new([bm.verts.new((x0 + mir * px, YC + y0 - 0.02 * dy, pz)) for px, pz in pts])
@@ -563,7 +596,22 @@ def portal(name, p):
         sheet([(ax_ - nx, az_ - nz), (ax_ + nx, az_ + nz), (bx_ + nx, bz_ + nz), (bx_ - nx, bz_ - nz)], '#3fe3ef', 1)
 
 
-for k, p in enumerate(L['portals']): portal(f'PORTAL_{k}', p)
+PMASS = J('art/autumn_glade/portal_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/portal_mass.json')) else None      # (portal_mass.py)
+for k, p in enumerate(L['portals']):
+    portal(f'PORTAL_{k}', p, strokes=PMASS is None)
+    if PMASS is not None:
+        pm = PMASS[k]; bm = bmesh.new(); colP = bm.loops.layers.float_color.new('Col')
+        vs = [bm.verts.new((x, YC + y - 0.1, z)) for x, y, z in pm['verts']]; tl = {v: pm['tones'][t_] for v, t_ in zip(vs, pm['tone'])}
+        for q in pm['faces']:
+            try: f = bm.faces.new([vs[i] for i in q])
+            except ValueError: continue
+            for loop in f.loops: loop[colP] = lin(tl[loop.vert])
+        smooth_boundary(bm, 3)
+        camv = Vector(tuple(v * 100 for v in CAM['centre']))
+        for f in bm.faces:
+            f.normal_update()
+            if f.normal.dot(f.calc_center_median() - camv) > 0: f.normal_flip()
+        me = bpy.data.meshes.new(f'PORTAL_{k}_face'); bm.to_mesh(me); bm.free(); obj(f'PORTAL_{k}_face', me, [FLAT])
 # the pale paving stones at the frame's top-right edge (props.py): low flat-topped slabs, lit
 for k, ps in enumerate(L.get('pale_stones', [])):
     rock(f'PAVING_{k}', dict(cx=ps['plan'][0], cy=ps['plan'][1], w=ps['half'], d=ps['half'] * 0.8, h=0.6), 0.3, 0.3)

@@ -25,7 +25,7 @@ describe('the autumn glade', () => {
 
   it('has a dashed border, three logs and two rocks (two blocks each) as walls, and six spawns inside the border', () => {
     const { walls, safeZone, spawns } = AUTUMN_GLADE_ARENA;
-    expect(walls).toHaveLength(7);
+    expect(walls?.filter((w) => !('radius' in w))).toHaveLength(7);
     expect(spawns).toHaveLength(6);
     if (safeZone === undefined) throw new Error('no border');
     for (const s of spawns ?? []) {
@@ -33,6 +33,18 @@ describe('the autumn glade', () => {
       expect(s.x).toBeLessThan(safeZone.x + safeZone.width);
       expect(s.y).toBeGreaterThan(safeZone.y);
       expect(s.y).toBeLessThan(safeZone.y + safeZone.height);
+    }
+  });
+
+  it('has solid trees: a trunk disc at each of the 19 trees, none of them on a spawn', () => {
+    const { walls, spawns } = AUTUMN_GLADE_ARENA;
+    const trunks = (walls ?? []).filter((w) => 'shape' in w && w.shape === 'disc');
+    expect(trunks).toHaveLength(19);
+    for (const t of trunks) {
+      if (!('radius' in t)) throw new Error('not a disc');
+      expect(t.radius).toBeGreaterThanOrEqual(18);
+      for (const s of spawns ?? [])
+        expect(Math.hypot(s.x - t.x, s.y - t.y)).toBeGreaterThan(t.radius + 36);
     }
   });
 

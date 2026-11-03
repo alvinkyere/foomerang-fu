@@ -24,6 +24,7 @@ for m in (red, gold):
         sel = lab == i
         tones.append('#%02x%02x%02x' % tuple(int(v) for v in np.median(f[sel], 0)[::-1])); tone_of[sel] = len(tones) - 1; lv |= sel
 lv[95:375, :215] = False; lv[470:620, 740:1190] = False
+for x0, y0, x1, y1 in ((415, 225, 500, 300), (1315, 145, 1385, 205), (1545, 830, 1620, 905), (290, 760, 390, 850)): lv[y0:y1, x0:x1] = False      # (the players)
 lv = cv2.dilate(lv.astype(np.uint8), np.ones((2, 2), np.uint8)) > 0      # (a leaf's edge pixel: the grid needs its corners in)
 tone_of = cv2.dilate(tone_of + 1, np.ones((3, 3), np.uint8).astype(np.uint8)) - 1 if False else tone_of
 gy, gx = np.mgrid[0:1080:STEP, 0:1920:STEP]; ins = lv[gy, gx]

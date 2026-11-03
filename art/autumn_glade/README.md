@@ -29,6 +29,8 @@ The map of `ff physics hq 2.mp4` at 10:26 (626.0 s, the READY frame: the camera 
 **Camera:** the game's camera is the HQ rig's own zoom (0.9326) with no offset: the game's shot equals the Blender render to within 1 px
 at the logs and the rocks. So render-vs-frame numbers are game-vs-frame numbers.
 
-**Last measured (2026-11-01, render vs frame):** red canopy IoU 0.69, gold 0.61, rocks 0.68, logs 0.63, sand 0.76; mean Lab
-difference 8.5 (median 3.1). Known gaps: the canopies' leafy detail and ragged clumps, the shafts on non-flat objects (rocks, logs),
-the portals' animation (a slow morph in the video; ours is static), the left-edge vignette.
+**Last measured (2026-11-03, the render with the game's light beams vs the frame, all but the names and READY):** mean Lab
+difference 5.5 (median 1.3): sand 2.1, canopies 10.4 (red canopy IoU ~0.8). The game's shot equals the emulated render (mean 1 level).
+Approach: the frame's outlines for canopies, rocks, trunks, shadows and leaves (`*_mass.py`), surfaces from the fits, our own shading;
+outlines smoothed and leaf-tipped so they hold up at the follow camera's zoom. Known gaps: the canopies' inner leaf pattern (only our
+shading model: painting them from the frame would ship its image), the east portal's ring shape, the corners' vignette.

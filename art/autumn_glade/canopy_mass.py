@@ -20,12 +20,12 @@ H, S, V = h[..., 0], h[..., 1], h[..., 2]
 red = ((H <= 12) | (H >= 170)) & (S > 90) & (V > 140)
 gold = (H >= 15) & (H <= 28) & (S > 120) & (V > 160) & (V < 234) & ~red
 import os
-TRUNK = np.load('art/autumn_glade/output/trunk_pixels.npy') if os.path.exists('art/autumn_glade/output/trunk_pixels.npy') else np.zeros((1080, 1920), bool)
 hidden = np.zeros(H.shape, bool); hidden[95:375, :215] = True
+for x0, y0, x1, y1 in ((415, 225, 500, 300), (1315, 145, 1385, 205), (1545, 830, 1620, 905), (290, 760, 390, 850)): hidden[y0:y1, x0:x1] = True      # (the four players standing in the frame: not canopy)
 if os.path.exists('art/autumn_glade/output/ready_hidden.npy'): hidden |= np.load('art/autumn_glade/output/ready_hidden.npy')
 else: hidden[470:620, 740:1190] = True
 L = json.load(open('art/autumn_glade/layout.json')); FIT = json.load(open('art/autumn_glade/lumps.json'))
-trees = [dict(t, lumps=FIT[k]) for k, t in enumerate(L['trees'])]
+trees = [dict(t, lumps=FIT[k], k=k) for k, t in enumerate(L['trees'])]
 
 
 def project(P):
@@ -42,7 +42,7 @@ for t in trees:
         x, r, z = bx + l['x'], l['r'], l['z']
         cx, cy = ref(x, Yc + by, z - 0.11 * r)
         ppu = ref(x + 1, Yc + by, z)[0] - ref(x, Yc + by, z)[0]
-        clumps[t['kind']].append((cx, cy, 1.07 * r * ppu, (1.07 * 0.83 + 0.41 * 0.56) * r * ppu, z, r, x, by))
+        clumps[t['kind']].append((cx, cy, 1.07 * r * ppu, (1.07 * 0.83 + 0.41 * 0.56) * r * ppu, z, r, x, by, t['k']))
 out = {}
 for kind, mask in (('r', red), ('g', gold)):
     m = mask.astype(np.uint8)
@@ -55,7 +55,6 @@ for kind, mask in (('r', red), ('g', gold)):
     inv = (1 - m).astype(np.uint8); nh, labh, sth, _ = cv2.connectedComponentsWithStats(inv)
     small = np.zeros(nh, bool); small[1:] = sth[1:, 4] < 1500
     m = (m > 0) | small[labh]
-    m &= ~TRUNK                                                             # (where the frame shows trunk: trunk_mass.py draws it)
     # where the frame is hidden: the model's clumps' ellipses
     model = np.zeros(H.shape, np.uint8)
     for cx, cy, ax, ay, *_ in clumps[kind]: cv2.ellipse(model, (int(cx), int(cy)), (max(1, int(ax)), max(1, int(ay))), 0, 0, 360, 1, -1)
@@ -67,14 +66,15 @@ for kind, mask in (('r', red), ('g', gold)):
     m = np.where(hidden, model > 0, np.where(band, m & near, m))
     # the surface: per grid point, the highest clump dome over it (a clump's dome: height r * 0.6 * sqrt(1 - d^2), d its ellipse distance)
     gy, gx = np.mgrid[0:1080:STEP, 0:1920:STEP]
-    inside = m[gy, gx]
+    inside = m[gy, gx]      # (every canopy pixel belongs to a tree: away from its clumps, the nearest clump's height and tree)
     best = np.full(gx.shape, -1e9); bz = np.zeros(gx.shape); bdist = np.full(gx.shape, 1e9); nz = np.zeros(gx.shape); bd = np.full(gx.shape, 1.2)
-    for cx, cy, ax, ay, z, r, *_ in clumps[kind]:
+    bk = -np.ones(gx.shape, int); nk = -np.ones(gx.shape, int)
+    for cx, cy, ax, ay, z, r, _x, _y, tk in clumps[kind]:
         d = np.sqrt(((gx - cx) / ax) ** 2 + ((gy - cy) / ay) ** 2)
         top = z + 0.6 * r * np.sqrt(np.clip(1 - d ** 2, 0, 1))
         on = (d < 1) & (top > best)
-        best = np.where(on, top, best); bz = np.where(on, top, bz); bd = np.where(on, d, bd)
-        near = (d < bdist); bdist = np.where(near, d, bdist); nz = np.where(near, z - 0.1 * r, nz)
+        best = np.where(on, top, best); bz = np.where(on, top, bz); bd = np.where(on, d, bd); bk = np.where(on, tk, bk)
+        near = (d < bdist); bdist = np.where(near, d, bdist); nz = np.where(near, z - 0.1 * r, nz); nk = np.where(near, tk, nk)
     zs = np.where(best > -1e8, bz, nz)                                       # (outside every clump: the nearest clump's rim height)
     zs = cv2.GaussianBlur(zs.astype(np.float32), (0, 0), 1.2)                 # (no cliffs between neighbouring clumps)
     idx = -np.ones(gx.shape, int); verts = []
@@ -102,7 +102,7 @@ for kind, mask in (('r', red), ('g', gold)):
             if len(k) == 4: faces.append(q)
             elif len(k) == 3: faces.append(k)
     out[kind] = dict(verts=[[round(float(a), 3) for a in p] for p in plan], faces=[[int(v) for v in q] for q in faces],
-                     d=[round(float(bd[j, i]), 2) for (j, i) in pts])      # (how far into its clump each vertex is: the rims darken)
+                     d=[round(float(bd[j, i]), 2) for (j, i) in pts], tree=[int(bk[j, i] if bk[j, i] >= 0 else nk[j, i]) for (j, i) in pts], own=[int(bk[j, i] >= 0) for (j, i) in pts])      # (how far into its clump each vertex is: the rims darken)
     # check: the vertices' own projection lands on their pixels
     back = project(plan[:200]); err = np.abs(back - V_[:200, :2]).max()
     print(kind, len(plan), 'verts', len(faces), 'faces; reprojection error %.2f px' % err)
