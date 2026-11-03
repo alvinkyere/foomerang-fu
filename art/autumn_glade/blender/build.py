@@ -180,7 +180,7 @@ def trunk(name, foot, top, r0, r1, rings=10, seg=10):
     for i in range(rings - 1):
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            spot = ((i * 7 + k * 3) % 5 == 0) and rng.random() < 0.7
+            spot = rng.random() < (0.32 if k % 3 else 0.12)                  # (the frame's birch: irregular dark dashes on white)
             for loop in f.loops: loop[col] = lit_up(lin('#5b618b' if spot else '#bbc3e6'), loop.vert.co)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     return obj(name, me, [FLAT])
@@ -266,7 +266,7 @@ for k, t in enumerate(L['trees']):
     hi, mid, lo = PAL[t['kind']]
     top = max(lumps, key=lambda q: q['z'])
     low = min(lumps, key=lambda q: q['z'])
-    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.75, 0.55)      # (straight up, ~1.5 units thick as the frame's, into the lowest clump)
+    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)      # (straight up, ~0.8 units thick as the frame's mid-field trunks, into the lowest clump)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
         cauliflower(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'] * 1.08, hi, mid, lo)
 
