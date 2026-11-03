@@ -90,7 +90,7 @@ def unlit(name):
 
 # The game's soft light lands a top at ~0.98 of its base colour and a side at ~0.9: bases are the measured colours over that.
 TOP = 0.52 + 0.4812 * 0.9111      # the game's light on a top: ambient + sun x its up component (0.958)
-SAND, ROCK = lit('sand', scale_hex(L['sand']['base'], 1 / TOP)), lit('rock', scale_hex('#9ea8e1', 1 / TOP))
+SAND, ROCK = lit('sand', scale_hex(J('art/autumn_glade/ground_field.json')['base'], 1 / TOP)), lit('rock', scale_hex('#9ea8e1', 1 / TOP))
 # (the frame's rock sides are ~0.70 of its tops, #6872a5 to #9ca6e0; the game's light alone gives ~0.85 on these rounded sides: the sides' base is darker)
 ROCK_SIDE = lit('rock_side', scale_hex('#9ea8e1', 0.8 / TOP))
 LOG_SIDE, LOG_END = lit('log', scale_hex('#7a4c52', 1 / TOP)), lit('log_end', scale_hex('#b49285', 1 / TOP))
@@ -138,13 +138,19 @@ def oval(cx, cy, a, b, ang_deg, n=10):
 # ---------------------------------------------------------------------------------------------------------------- ground
 me = bpy.data.meshes.new('GROUND'); me.from_pydata([(-90, YC - 70, 0), (90, YC - 70, 0), (90, YC + 70, 0), (-90, YC + 70, 0)], [], [(0, 1, 2, 3)])
 obj('GROUND', me, [SAND])
-z = 0.01
-for li, layer in enumerate(L['sand']['layers']):
-    if int(layer['colour'][1:3], 16) < 0xee: continue          # (the clusters that are tree shadows or canopy blur: not sand)
-    for k, poly in enumerate(layer['polygons']):
-        try: flat(f'SAND_{li}_{k}', poly, layer['colour'], z)
-        except ValueError: pass
-    z += 0.002
+# the sand where the frame shows it: ground_field.py's smooth measured field (vertex colours, unlit: shown as measured), easing to the
+# plain sand at the frame's edges; beyond it the lit plane above, in the field's plain colour
+GF = J('art/autumn_glade/ground_field.json')
+bm = bmesh.new(); colL = bm.loops.layers.float_color.new('Col')
+vs = [[bm.verts.new((GF['x0'] + i * GF['dx'], YC + GF['y0'] + j * GF['dx'], 0.005)) for i in range(GF['nx'])] for j in range(GF['ny'])]
+for j in range(GF['ny'] - 1):
+    for i in range(GF['nx'] - 1):
+        f = bm.faces.new([vs[j][i], vs[j][i + 1], vs[j + 1][i + 1], vs[j + 1][i]])
+        for loop in f.loops:
+            ii = round((loop.vert.co.x - GF['x0']) / GF['dx']); jj = round((loop.vert.co.y - YC - GF['y0']) / GF['dx'])
+            b_, g_, r_ = GF['bgr'][jj * GF['nx'] + ii]
+            loop[colL] = lin('#%02x%02x%02x' % (r_, g_, b_))
+me = bpy.data.meshes.new('SAND_FIELD'); bm.to_mesh(me); bm.free(); obj('SAND_FIELD', me, [FLAT])
 for k, poly in enumerate(L['shadows']):
     try: flat(f'SHADOW_{k}', poly, COL['shadow'], 0.03)
     except ValueError: pass

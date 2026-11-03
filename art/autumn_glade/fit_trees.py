@@ -22,7 +22,7 @@ vmask = cv2.resize(valid.astype(np.uint8), None, fx=SC, fy=SC, interpolation=cv2
 L = json.load(open('art/autumn_glade/layout.json'))
 trees = L['trees']
 rng = random.Random(4)
-NIT = 30000      # (annealed: early on a slightly worse move is kept now and then, so a lump can get out of a bad spot)
+NIT = 50000      # (annealed: early on a slightly worse move is kept now and then, so a lump can get out of a bad spot)
 
 
 def ellipse(t, lump):
@@ -61,8 +61,8 @@ for it in range(NIT):
     before = loss(kind); old = [dict(l) for l in t['lumps']]
     op = rng.random()
     if op < 0.7 and t['lumps']:
-        l = rng.choice(t['lumps']); l['x'] += rng.gauss(0, 0.25); l['z'] += rng.gauss(0, 0.3); l['r'] = max(0.8, l['r'] * math.exp(rng.gauss(0, 0.08)))
-    elif op < 0.85 and len(t['lumps']) < 8:
+        l = rng.choice(t['lumps']); l['x'] += rng.gauss(0, 0.25); l['z'] += rng.gauss(0, 0.3); l['r'] = max(0.6, l['r'] * math.exp(rng.gauss(0, 0.08)))
+    elif op < 0.85 and len(t['lumps']) < 12:
         base = rng.choice(t['lumps']); t['lumps'].append(dict(x=base['x'] + rng.gauss(0, 1.5), z=base['z'] + rng.gauss(0, 1.5), r=max(0.9, base['r'] * 0.7)))
     elif len(t['lumps']) > 1:
         t['lumps'].pop(rng.randrange(len(t['lumps'])))

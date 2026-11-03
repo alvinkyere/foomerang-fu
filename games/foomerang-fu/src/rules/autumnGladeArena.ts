@@ -16,16 +16,84 @@ export const AUTUMN_GLADE_HEIGHT = 1759;
 export type AutumnGladeWall = Solid & { readonly id: string; readonly kind: 'WALL' };
 
 export const AUTUMN_GLADE_WALLS: readonly AutumnGladeWall[] = Object.freeze([
-  Object.freeze({ id: 'LOG_0', kind: 'WALL', shape: 'box', x: 740, y: 861, halfWidth: 100, halfHeight: 19, angle: -1.9822 }),
-  Object.freeze({ id: 'LOG_1', kind: 'WALL', shape: 'box', x: 1474, y: 1103, halfWidth: 74, halfHeight: 19, angle: -0.7145 }),
-  Object.freeze({ id: 'LOG_2', kind: 'WALL', shape: 'box', x: 1778, y: 376, halfWidth: 92, halfHeight: 19, angle: 1.0411 }),
-  Object.freeze({ id: 'ROCK_W_0', kind: 'WALL', shape: 'box', x: 355, y: 680, halfWidth: 21, halfHeight: 53, angle: 0 }),
-  Object.freeze({ id: 'ROCK_W_1', kind: 'WALL', shape: 'box', x: 350, y: 628, halfWidth: 43, halfHeight: 74, angle: 0 }),
-  Object.freeze({ id: 'ROCK_E_0', kind: 'WALL', shape: 'box', x: 1883, y: 609, halfWidth: 54, halfHeight: 92, angle: 0 }),
-  Object.freeze({ id: 'ROCK_E_1', kind: 'WALL', shape: 'box', x: 1855, y: 710, halfWidth: 39, halfHeight: 46, angle: 0 }),
+  Object.freeze({
+    id: 'LOG_0',
+    kind: 'WALL',
+    shape: 'box',
+    x: 740,
+    y: 861,
+    halfWidth: 100,
+    halfHeight: 19,
+    angle: -1.9822,
+  }),
+  Object.freeze({
+    id: 'LOG_1',
+    kind: 'WALL',
+    shape: 'box',
+    x: 1474,
+    y: 1103,
+    halfWidth: 74,
+    halfHeight: 19,
+    angle: -0.7145,
+  }),
+  Object.freeze({
+    id: 'LOG_2',
+    kind: 'WALL',
+    shape: 'box',
+    x: 1778,
+    y: 376,
+    halfWidth: 92,
+    halfHeight: 19,
+    angle: 1.0411,
+  }),
+  Object.freeze({
+    id: 'ROCK_W_0',
+    kind: 'WALL',
+    shape: 'box',
+    x: 355,
+    y: 680,
+    halfWidth: 21,
+    halfHeight: 53,
+    angle: 0,
+  }),
+  Object.freeze({
+    id: 'ROCK_W_1',
+    kind: 'WALL',
+    shape: 'box',
+    x: 350,
+    y: 628,
+    halfWidth: 43,
+    halfHeight: 74,
+    angle: 0,
+  }),
+  Object.freeze({
+    id: 'ROCK_E_0',
+    kind: 'WALL',
+    shape: 'box',
+    x: 1883,
+    y: 609,
+    halfWidth: 54,
+    halfHeight: 92,
+    angle: 0,
+  }),
+  Object.freeze({
+    id: 'ROCK_E_1',
+    kind: 'WALL',
+    shape: 'box',
+    x: 1855,
+    y: 710,
+    halfWidth: 39,
+    halfHeight: 46,
+    angle: 0,
+  }),
 ]);
 
-export const AUTUMN_GLADE_SAFE_ZONE: Rect = Object.freeze({x: 346, y: 338, width: 1528, height: 1082});
+export const AUTUMN_GLADE_SAFE_ZONE: Rect = Object.freeze({
+  x: 346,
+  y: 338,
+  width: 1528,
+  height: 1082,
+});
 
 export const AUTUMN_GLADE_PORTALS: readonly ArenaPortal[] = Object.freeze([
   Object.freeze({ id: 'PORTAL_0', x: 1764, y: 611, radius: 27, to: 'PORTAL_1' }),
