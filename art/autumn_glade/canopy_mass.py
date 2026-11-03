@@ -13,11 +13,17 @@ from measure import ref, Yc, R as _R, F as _F, C as _C, Z as _Z
 
 STEP = 3
 from beams_emu import remove
-f = remove(cv2.imread('art/autumn_glade/output/reference.png')); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)      # (the beams out: their crisp edges would cut the masks)
+import os
+_FILL = 'art/autumn_glade/output/reference_fill.png'      # (fill_ready.py: the READY box mostly seen at 626.6 s)
+f = remove(cv2.imread(_FILL if os.path.exists(_FILL) else 'art/autumn_glade/output/reference.png')); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)      # (the beams out: their crisp edges would cut the masks)
 H, S, V = h[..., 0], h[..., 1], h[..., 2]
 red = ((H <= 12) | (H >= 170)) & (S > 90) & (V > 140)
 gold = (H >= 15) & (H <= 28) & (S > 120) & (V > 160) & (V < 234) & ~red
-hidden = np.zeros(H.shape, bool); hidden[95:375, :215] = True; hidden[470:620, 740:1190] = True
+import os
+TRUNK = np.load('art/autumn_glade/output/trunk_pixels.npy') if os.path.exists('art/autumn_glade/output/trunk_pixels.npy') else np.zeros((1080, 1920), bool)
+hidden = np.zeros(H.shape, bool); hidden[95:375, :215] = True
+if os.path.exists('art/autumn_glade/output/ready_hidden.npy'): hidden |= np.load('art/autumn_glade/output/ready_hidden.npy')
+else: hidden[470:620, 740:1190] = True
 L = json.load(open('art/autumn_glade/layout.json')); FIT = json.load(open('art/autumn_glade/lumps.json'))
 trees = [dict(t, lumps=FIT[k]) for k, t in enumerate(L['trees'])]
 
@@ -49,15 +55,16 @@ for kind, mask in (('r', red), ('g', gold)):
     inv = (1 - m).astype(np.uint8); nh, labh, sth, _ = cv2.connectedComponentsWithStats(inv)
     small = np.zeros(nh, bool); small[1:] = sth[1:, 4] < 1500
     m = (m > 0) | small[labh]
+    m &= ~TRUNK                                                             # (where the frame shows trunk: trunk_mass.py draws it)
     # where the frame is hidden: the model's clumps' ellipses
     model = np.zeros(H.shape, np.uint8)
     for cx, cy, ax, ay, *_ in clumps[kind]: cv2.ellipse(model, (int(cx), int(cy)), (max(1, int(ax)), max(1, int(ay))), 0, 0, 360, 1, -1)
     # where the frame is hidden: its mask carried in from round the box (inpainted), with the model's clumps
     # (READY's box: the mask carried in only near the model's clumps; the names' box: the model alone, its edge borders other red)
-    ready = np.zeros(H.shape, bool); ready[470:620, 740:1190] = True
-    carried = cv2.inpaint((m * 255).astype(np.uint8), ready.astype(np.uint8) * 255, 9, cv2.INPAINT_TELEA) > 127
-    near = cv2.dilate(model, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))) > 0
-    m = np.where(ready, (carried & near) | (model > 0), np.where(hidden, model > 0, m))
+    # inside a hidden box the model's clumps; in a 25 px band round it the frame's mask only near them (no straight seam at the box)
+    band = (cv2.dilate(hidden.astype(np.uint8), np.ones((51, 51), np.uint8)) > 0) & ~hidden
+    near = cv2.dilate(model, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))) > 0
+    m = np.where(hidden, model > 0, np.where(band, m & near, m))
     # the surface: per grid point, the highest clump dome over it (a clump's dome: height r * 0.6 * sqrt(1 - d^2), d its ellipse distance)
     gy, gx = np.mgrid[0:1080:STEP, 0:1920:STEP]
     inside = m[gy, gx]

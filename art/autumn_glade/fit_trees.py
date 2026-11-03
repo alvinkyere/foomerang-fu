@@ -11,9 +11,13 @@ sys.path.insert(0, 'art/autumn_glade')
 from measure import ref, Yc
 
 SC = 0.5                                        # fit at half resolution
-f = cv2.imread('art/autumn_glade/output/reference.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+import os
+_FILL = 'art/autumn_glade/output/reference_fill.png'      # (fill_ready.py: the READY box mostly seen at 626.6 s)
+f = cv2.imread(_FILL if os.path.exists(_FILL) else 'art/autumn_glade/output/reference.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H, S, V = h[..., 0], h[..., 1], h[..., 2]
-valid = np.ones(H.shape, bool); valid[95:375, :215] = False; valid[470:620, 740:1190] = False       # (the players' names, the READY text)
+valid = np.ones(H.shape, bool); valid[95:375, :215] = False       # (the players' names; READY: what is still hidden)
+if os.path.exists('art/autumn_glade/output/ready_hidden.npy'): valid &= ~np.load('art/autumn_glade/output/ready_hidden.npy')
+else: valid[470:620, 740:1190] = False
 red = valid & (((H <= 8) | (H >= 172)) & (S > 120) & (V > 150))
 gold = valid & ((H >= 17) & (H <= 27) & (S > 125) & (V > 165) & (V < 232))
 K = lambda n: np.ones((n, n), np.uint8)

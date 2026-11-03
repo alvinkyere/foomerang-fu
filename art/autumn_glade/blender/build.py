@@ -297,13 +297,36 @@ def canopy_mass(name, data, hi, mid, lo):
     return obj(name, me, [FLAT])
 
 
+TM = J('art/autumn_glade/trunk_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/trunk_mass.json')) else None      # (trunk_mass.py)
+
+
+def trunk_mass(name, data):
+    """trunk_mass.py's patch: the trunk where the frame shows it, on the vertical plane through it; our pale birch and its navy dashes,
+    shaded across as a cylinder (lighter in the middle, darker to the sides, a little darker to the right)."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((x, YC + y - 0.05, z)) for x, y, z in data['verts']]      # (a hair in front of its own core)
+    info = {v: (nv, a) for v, nv, a in zip(vs, data['navy'], data['across'])}
+    for q in data['faces']:
+        try: bm.faces.new([vs[i] for i in q])
+        except ValueError: pass
+    pale_, navy_ = Vector(lin('#c7cbea')[:3]), Vector(lin('#5b618b')[:3])
+    for f in bm.faces:
+        for loop in f.loops:
+            nv, a = info[loop.vert]
+            k_ = 1.0 - 0.35 * abs(2 * a - 1) ** 2 - 0.1 * a
+            loop[col] = list((navy_ if nv else pale_) * k_) + [1.0]
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return obj(name, me, [FLAT])
+
+
 FIT = J('art/autumn_glade/lumps.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/lumps.json')) else None      # (fit_trees.py)
 for k, t in enumerate(L['trees']):
     foot = at(t['plan']); lumps = (FIT[k] if FIT else t.get('lumps')) or [dict(x=0, z=5.0, r=2.4)]
     hi, mid, lo = PAL[t['kind']]
     top = max(lumps, key=lambda q: q['z'])
     low = min(lumps, key=lambda q: q['z'])
-    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)      # (straight up, ~0.8 units thick as the frame's mid-field trunks, into the lowest clump)
+    trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42 if TM is None or TM[k] is None else 0.22, 0.32 if TM is None or TM[k] is None else 0.18)      # (a thin core where trunk_mass draws what the frame shows)
+    if TM is not None and TM[k] is not None: trunk_mass(f'TRUNKMASS_{k}', TM[k])
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
         cpx, cpy = to_px(foot[0] + lump['x'], foot[1], lump['z'])
         if MASS is not None and 0 <= cpx < 1920 and 0 <= cpy < 1080: continue      # (in the frame: the measured canopy mass draws it)
