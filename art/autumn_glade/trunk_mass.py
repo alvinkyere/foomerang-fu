@@ -15,10 +15,14 @@ from beams_emu import remove
 STEP = 2
 f = remove(cv2.imread('art/autumn_glade/output/reference.png')); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H, S, V = h[..., 0], h[..., 1], h[..., 2]
-pale = (H >= 95) & (H <= 150) & (S >= 6) & (S <= 80) & (V >= 120)      # (its lit and its shaded side: #bba4ba .. #7d797f)
+pale = (H >= 95) & (H <= 150) & (S >= 6) & (S <= 100) & (V >= 120)      # (its lit and its shaded side: #bba4ba .. #7d797f .. #8f90cc)
 navy = (H >= 100) & (H <= 130) & (S >= 60) & (V >= 60) & (V < 165)
-rockish = cv2.dilate(((H >= 104) & (H <= 132) & (S >= 55) & (S < 150) & (V >= 150)).astype(np.uint8), np.ones((15, 15), np.uint8)) > 0
 L = json.load(open('art/autumn_glade/layout.json'))
+# the rocks' own blue, only round the two rocks (elsewhere the same blue is a trunk's shaded side)
+near_rock = np.zeros(H.shape, bool)
+for it in L['rock']:
+    cx, cy = it['px']; near_rock[max(0, cy - 140):cy + 140, max(0, cx - 120):cx + 120] = True
+rockish = (cv2.dilate(((H >= 104) & (H <= 132) & (S >= 55) & (S < 150) & (V >= 150)).astype(np.uint8), np.ones((15, 15), np.uint8)) > 0) & near_rock
 trunk_all = np.zeros(H.shape, bool)
 out = []
 for t in L['trees']:
