@@ -38,6 +38,8 @@ manifest = {
     'fixedFrame': {'zoom': round(ZOOM, 4), 'u': U, 'v': V},
     'hqFrame': {'zoom': round(ZOOM, 4), 'u': U, 'v': V},
     'followFrame': {'minZoom': round(ZOOM, 4), 'maxZoom': round(ZOOM * 1.3, 4)},
+    # the light shafts: added over everything on the screen (render/three/beams.ts), fitted to the frame by fit_beams.py
+    'beams': json.load(open('art/autumn_glade/beams.json')),
     'characters': gong['characters'],
     'provenance': 'art/autumn_glade (measure.py, layout.py, props.py, arena.py, blender/build.py, package.py) from ff physics hq 2.mp4 10:26',
 }

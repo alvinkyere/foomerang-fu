@@ -3,11 +3,16 @@ rocks, and the sand's median colour in the two (the render is the game's light t
 
   python art/autumn_glade/compare.py       (from the repository root; the Python of art/audio/output/venv)
 """
+import sys
 import numpy as np, cv2
+sys.path.insert(0, 'art/autumn_glade')
+from beams_emu import apply as with_beams
 
 
 def masks(path):
-    f = cv2.imread(path); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int); H, S, V = h[..., 0], h[..., 1], h[..., 2]
+    f = cv2.imread(path)
+    if 'render' in path: f = with_beams(f)      # (as the game shows it: its light beams over the render)
+    h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int); H, S, V = h[..., 0], h[..., 1], h[..., 2]
     hud = np.ones(H.shape, bool); hud[95:375, :215] = False      # (all but the players' names)
     return f, dict(
         red=hud & ((H <= 8) | (H >= 172)) & (S > 120) & (V > 150), gold=hud & (H >= 17) & (H <= 27) & (S > 125) & (V > 165) & (V < 232),

@@ -31,6 +31,7 @@ def lin(h):
 
 
 LIFT = J('art/autumn_glade/lift.json')        # (lift.py: the light shafts' green lift over the frame, 240 x 135)
+LIFT['data'] = [[0.0] * LIFT['w'] for _ in range(LIFT['h'])]      # (off: the game's light beams add the shafts over everything now, fit_beams.py)
 _pth = math.radians(CAM['pitchDeg'])
 _PR = [[1, 0, 0], [0, -math.sin(_pth), -math.cos(_pth)], [0, math.cos(_pth), -math.sin(_pth)]]
 
@@ -222,6 +223,42 @@ def umbrella(name, c, r, hi, mid, lo, scallops=7):
     return obj(name, me, [FLAT])
 
 
+SUN_TO = Vector((-0.095, -0.401, 0.911)).normalized()      # (towards the game's sun: its rays travel along (0.095, 0.401, -0.911))
+
+
+def cauliflower(name, c, r, hi, mid, lo, n_rim=18, n_top=0):
+    """A clump as the frame draws it (4x crops at 626.0 s): a soft flattened dome whose edge is a ring of small rounded bumps and whose
+    top carries an inner ring of leaf bumps; shaded as a softly lit shape (the game's light on each vertex's normal, ambient 0.52 + sun
+    0.48), the shade mapped onto the frame's palette (lo .. mid .. hi), mottled, with the shafts' light added."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    ph = rng.uniform(0, 6.28)
+    parts = [((c[0], c[1], c[2]), (r * 1.0, r * 1.0, r * 0.6), 2),
+             ((c[0] + r * 0.08, c[1] + r * 0.12, c[2] + 0.22 * r), (r * 0.66, r * 0.62, r * 0.42), 2)]      # (the dome, and its raised inner terrace: the frame's crescent of leaves)
+    for i in range(n_rim):
+        a = 2 * math.pi * i / n_rim + ph + rng.uniform(-0.1, 0.1); rr = r * rng.uniform(0.15, 0.21)
+        parts.append(((c[0] + math.cos(a) * r * 0.93, c[1] + math.sin(a) * r * 0.93, c[2] - 0.08 * r), (rr, rr, rr * 0.75), 1))
+    for i in range(n_top):
+        a = 2 * math.pi * i / n_top + ph * 1.7; rr = r * rng.uniform(0.24, 0.32)
+        parts.append(((c[0] + math.cos(a) * r * 0.48, c[1] + math.sin(a) * r * 0.48, c[2] + 0.38 * r), (rr, rr, rr * 0.7), 1))
+    for (px, py, pz), (ax, ay, az), sub in parts:
+        geom = bmesh.ops.create_icosphere(bm, subdivisions=sub, radius=1.0)
+        for v in geom['verts']: v.co = Vector((px + v.co.x * ax, py + v.co.y * ay, pz + v.co.z * az))
+    ch, cm, cl = Vector(lin(hi)[:3]), Vector(lin(mid)[:3]), Vector(lin(lo)[:3])
+    for f in bm.faces:
+        f.smooth = True
+    bm.normal_update()
+    for f in bm.faces:
+        for loop in f.loops:
+            v = loop.vert.co; n = loop.vert.normal
+            shade = -0.32 + 1.0 * max(0.0, n.dot(SUN_TO)) - 0.42 * max(0.0, -n.z)        # (calibrated to the frame's lightness: red L p10/50/90 131/139/156)
+            shade += 0.09 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph) + 0.6 * math.sin(4.1 * v.x - 3.7 * v.y + ph))
+            t = max(0.0, min(1.0, shade + 0.9 * max(0.0, shade - 0.55)))      # (the sun-facing tops reach the light tone, as the frame's p90)
+            base = cl.lerp(cm, t / 0.6) if t < 0.6 else cm.lerp(ch, (t - 0.6) / 0.4)
+            loop[col] = lit_up(list(base), v)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return obj(name, me, [FLAT])
+
+
 PAL = dict(r=('#f08b66', '#c96459', '#bb5e5c'), g=('#e6cc66', '#cdb35c', '#bca056'))      # (the frame's clusters, by share: mostly the middle two)
 FIT = J('art/autumn_glade/lumps.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/lumps.json')) else None      # (fit_trees.py)
 for k, t in enumerate(L['trees']):
@@ -231,7 +268,7 @@ for k, t in enumerate(L['trees']):
     low = min(lumps, key=lambda q: q['z'])
     trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.75, 0.55)      # (straight up, ~1.5 units thick as the frame's, into the lowest clump)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
-        umbrella(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'], hi, mid, lo, scallops=rng.choice((6, 7, 8)))
+        cauliflower(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'] * 1.08, hi, mid, lo)
 
 
 # ---------------------------------------------------------------------------------------------------------------- beyond the frame

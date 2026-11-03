@@ -4,8 +4,12 @@ beside the two images.
 
   python art/autumn_glade/heat.py       (from the repository root; the Python of art/audio/output/venv)
 """
+import sys
 import numpy as np, cv2
-a = cv2.imread('art/autumn_glade/output/render.png'); b = cv2.imread('art/autumn_glade/output/reference.png')
+sys.path.insert(0, 'art/autumn_glade')
+from beams_emu import apply as with_beams
+a = with_beams(cv2.imread('art/autumn_glade/output/render.png'))      # (the game's light beams over the render)
+b = cv2.imread('art/autumn_glade/output/reference.png')
 la, lb = cv2.cvtColor(a, cv2.COLOR_BGR2LAB).astype(float), cv2.cvtColor(b, cv2.COLOR_BGR2LAB).astype(float)
 la[..., 0] *= 100 / 255; lb[..., 0] *= 100 / 255; la[..., 1:] -= 128; lb[..., 1:] -= 128
 d = np.sqrt(((la - lb) ** 2).sum(-1))

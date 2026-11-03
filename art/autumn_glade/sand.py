@@ -10,8 +10,10 @@ import numpy as np, cv2
 sys.path.insert(0, 'art/autumn_glade')
 from measure import plan
 
-LEVELS = 7
+LEVELS = 14
 f = cv2.imread('art/autumn_glade/output/reference.png')
+from beams_emu import remove
+f = remove(f)      # (the shafts are the renderer's light beams now: fit_beams.py; the sand is traced without them)
 h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 sand = (h[..., 0] >= 15) & (h[..., 0] <= 34) & (h[..., 1] >= 30) & (h[..., 1] <= 150) & (h[..., 2] >= 200)
 sand[95:375, :215] = False
@@ -20,7 +22,7 @@ hole = cv2.dilate((~sand).astype(np.uint8), np.ones((9, 9), np.uint8))
 filled = cv2.inpaint(f, hole * 255, 12, cv2.INPAINT_TELEA)
 smooth = cv2.medianBlur(cv2.GaussianBlur(filled, (0, 0), 6), 15)
 lab = cv2.cvtColor(smooth, cv2.COLOR_BGR2LAB).astype(np.float32)
-roi = np.ones(sand.shape, bool); roi[95:375, :215] = False      # (all but the players' names)
+roi = np.ones(sand.shape, bool)      # (all of it: the players' names' box is inpainted from round it like any object)
 X = lab[roi]
 _, l, c = cv2.kmeans(X, LEVELS, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.2), 3, cv2.KMEANS_PP_CENTERS)
 lab_img = np.zeros(sand.shape, np.uint8); lab_img[roi] = l[:, 0]
