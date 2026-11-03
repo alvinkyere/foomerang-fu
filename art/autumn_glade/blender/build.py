@@ -179,7 +179,19 @@ for (ax_, ay_), (bx_, by_) in edges:
         px_, py_ = -uy * THICK / 2, ux * THICK / 2
         flat(f'DASH_{nd}', [(x0_ + px_, y0_ + py_), (x1_ + px_, y1_ + py_), (x1_ - px_, y1_ - py_), (x0_ - px_, y0_ - py_)], '#aca157', 0.05); nd += 1
         t += PERIOD
-for k, lf in enumerate(L['leaves']):
+LM = J('art/autumn_glade/leaf_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/leaf_mass.json')) else None      # (leaf_mass.py)
+if LM is not None:
+    # the fallen leaves as the frame outlines them, each in its own tone (flat, on the sand)
+    bm = bmesh.new(); colF = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((x, YC + y, 0.06)) for x, y in LM['verts']]; tl = {v: LM['tones'][t_] for v, t_ in zip(vs, LM['tone'])}
+    for q in LM['faces']:
+        try: f = bm.faces.new([vs[i] for i in q])
+        except ValueError: continue
+        f.normal_update()
+        if f.normal.z < 0: f.normal_flip()
+        for loop in f.loops: loop[colF] = lin(tl[loop.vert])
+    me = bpy.data.meshes.new('LEAVES'); bm.to_mesh(me); bm.free(); obj('LEAVES', me, [FLAT])
+for k, lf in ([] if LM is not None else enumerate(L['leaves'])):
     flat(f'LEAF_{k}', oval(lf['plan'][0], lf['plan'][1], min(0.62, max(lf['a'], lf['b'])), min(0.36, min(lf['a'], lf['b'])), lf['ang']), '#cf6753' if lf['kind'] == 'r' else '#c9ad55', 0.06, lift=True)
 
 
