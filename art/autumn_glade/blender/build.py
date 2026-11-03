@@ -118,6 +118,45 @@ def flat(name, poly, hex_, z):
 
 
 # ---------------------------------------------------------------------------------------------------------------- flat shapes
+def scallop_boundary(bm, amp=0.12, period=5):
+    """Leaf tips along a canopy's outline (the frame's edges are bumpy at ~8 px): walk each boundary loop and push its vertices out and
+    in, a bump every `period` vertices, by up to `amp` plan units in the surface's plane, away from the loop's middle."""
+    bnd = {}
+    for e in bm.edges:
+        if len(e.link_faces) == 1:
+            a, b = e.verts; bnd.setdefault(a, []).append(b); bnd.setdefault(b, []).append(a)
+    seen = set()
+    for start in list(bnd):
+        if start in seen or len(bnd[start]) != 2: continue
+        loop = [start]; seen.add(start); prev, cur = None, start
+        while True:
+            nxt = [n for n in bnd[cur] if n is not prev and len(bnd.get(n, [])) == 2]
+            if not nxt or nxt[0] in seen: break
+            prev, cur = cur, nxt[0]; loop.append(cur); seen.add(cur)
+        if len(loop) < 12: continue
+        mid = sum((v.co for v in loop), Vector((0, 0, 0))) / len(loop)
+        ph = rng.uniform(0, 6.28); per = period * rng.uniform(0.8, 1.25)
+        for i, v in enumerate(loop):
+            out = v.co - mid; out.z = 0
+            if out.length < 1e-6: continue
+            bump = max(0.0, math.sin(2 * math.pi * i / per + ph)) ** 2 * rng.uniform(0.6, 1.0)
+            v.co += out.normalized() * amp * bump
+
+
+def smooth_boundary(bm, iters=6):
+    """The traced meshes' outlines are a pixel grid's staircase: each pass moves every boundary vertex half way to the mean of its two
+    neighbours along the boundary (a [1/4 1/2 1/4] filter), so the steps become the soft curve the frame draws."""
+    bnd = {}
+    for e in bm.edges:
+        if len(e.link_faces) == 1:
+            a, b = e.verts; bnd.setdefault(a, []).append(b); bnd.setdefault(b, []).append(a)
+    for _ in range(iters):
+        new = {v: v.co.copy() for v in bnd}
+        for v, nb in bnd.items():
+            if len(nb) == 2: new[v] = v.co * 0.5 + (nb[0].co + nb[1].co) * 0.25
+        for v, c in new.items(): v.co = c
+
+
 def flat(name, poly, hex_, z, lift=False):
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     face = bm.faces.new([bm.verts.new((x, YC + y, z)) for x, y in poly]); face.normal_update()
@@ -166,6 +205,7 @@ else:
         f.normal_update()
         if f.normal.z < 0: f.normal_flip()
         for loop in f.loops: b_, g_, r_ = tc[loop.vert]; loop[colS] = lin('#%02x%02x%02x' % (r_, g_, b_))
+    smooth_boundary(bm)
     me = bpy.data.meshes.new('SHADOWS'); bm.to_mesh(me); bm.free(); obj('SHADOWS', me, [FLAT])
 # the dashed border: 24 px dashes on a 36 px period at the bottom edge, 4 px thick (measured at 626.0 s: 0.81 / 0.40 / 0.14 plan units)
 B = A['border']; DASH, PERIOD, THICK = 0.81, 1.21, 0.14
@@ -190,6 +230,7 @@ if LM is not None:
         f.normal_update()
         if f.normal.z < 0: f.normal_flip()
         for loop in f.loops: loop[colF] = lin(tl[loop.vert])
+    smooth_boundary(bm, 3)
     me = bpy.data.meshes.new('LEAVES'); bm.to_mesh(me); bm.free(); obj('LEAVES', me, [FLAT])
 for k, lf in ([] if LM is not None else enumerate(L['leaves'])):
     flat(f'LEAF_{k}', oval(lf['plan'][0], lf['plan'][1], min(0.62, max(lf['a'], lf['b'])), min(0.36, min(lf['a'], lf['b'])), lf['ang']), '#cf6753' if lf['kind'] == 'r' else '#c9ad55', 0.06, lift=True)
@@ -303,6 +344,7 @@ def canopy_mass(name, data, hi, mid, lo):
     for q in data['faces']:
         try: bm.faces.new([vs[i] for i in q])
         except ValueError: pass
+    smooth_boundary(bm, 3); scallop_boundary(bm)
     for f in bm.faces:
         f.smooth = True; f.normal_update()
         if f.normal.z < 0: f.normal_flip()
@@ -314,7 +356,7 @@ def canopy_mass(name, data, hi, mid, lo):
             shade = -0.32 + 1.0 * max(0.0, n.dot(SUN_TO)) - 0.42 * max(0.0, -n.z)
             shade += 0.09 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph) + 0.6 * math.sin(4.1 * v.x - 3.7 * v.y + ph))
             d_ = dd[loop.vert]
-            shade += 0.06 * (1 - min(d_, 1.0)) - 0.22 * max(0.0, min(d_, 1.1) - 0.72) / 0.38      # (a clump's heart lighter, its rim dark over the clump below)
+            shade += 0.12 * (1 - min(d_, 1.0)) - 0.45 * max(0.0, min(d_, 1.1) - 0.72) / 0.38      # (a clump's heart lighter, its rim dark over the clump below)
             t = max(0.0, min(1.0, shade + 0.9 * max(0.0, shade - 0.55)))
             base = cl.lerp(cm, t / 0.6) if t < 0.6 else cm.lerp(ch, (t - 0.6) / 0.4)
             loop[col] = list(base) + [1.0]
@@ -334,6 +376,7 @@ def trunk_mass(name, data):
     for q in data['faces']:
         try: bm.faces.new([vs[i] for i in q])
         except ValueError: pass
+    smooth_boundary(bm, 4)
     pale_, navy_ = Vector(lin('#c7cbea')[:3]), Vector(lin('#5b618b')[:3])
     for f in bm.faces:
         for loop in f.loops:
@@ -466,6 +509,7 @@ else:
         for q in rm['faces']:
             try: bm.faces.new([vs[i] for i in q])
             except ValueError: pass
+        smooth_boundary(bm)
         camv = Vector(tuple(v * 100 for v in CAM['centre']))
         for f in bm.faces:
             f.smooth = True; f.normal_update()

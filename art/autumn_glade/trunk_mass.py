@@ -32,7 +32,7 @@ for t in L['trees']:
     m[95:375, :215] = False
     m = cv2.morphologyEx(m.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(m)
-    keep = np.zeros(n, bool); keep[1:] = st[1:, 4] >= 60                   # (specks are not trunk)
+    keep = np.zeros(n, bool); keep[1:] = st[1:, 4] >= 150                  # (specks and slivers are not trunk: up close they float)
     m = keep[lab]
     trunk_all |= m
     gy, gx = np.mgrid[0:1080:STEP, 0:1920:STEP]; inside = m[gy, gx]
