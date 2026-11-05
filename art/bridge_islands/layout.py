@@ -104,7 +104,7 @@ def _rect(b):
     return cv2.boxPoints(((cx, cy), (w, h), a))
 banks = [_rect(b) for b in banks]
 # islets put where the HQ shows them (their traced blob's hexagon moved to the HQ's centre in the frame and scaled): the pots' islet, south
-_ISLET_FIX = [((1150, 830), (1123, 838), 0.88)]      # (the islet's kerb, thick on its camera-facing sides, carries it ~17 px right and 10 down of its own centre)
+_ISLET_FIX = [((1150, 830), (1122, 832), 1.08)]      # (the islet's kerb, thick on its camera-facing sides, carries it ~17 px right and 10 down of its own centre)
 for _was, _now, _sc in _ISLET_FIX:
     _w = plan_k([_was])[0]; _n = plan([_now])[0]      # (the traced blobs are in plan_k's plane; the islet's grass is at the ground's)
     for _i, _b in enumerate(banks):
@@ -198,8 +198,8 @@ _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/br
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
 # pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
-POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 150, 1.3, 1.1, 0.0), (1148, 822, 1.35, 1.75, 0.0),
-        (1075, 812, 1.2, 1.25, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
+POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 150, 1.3, 1.1, 0.0), (1150, 803, 1.35, 1.75, 0.0),
+        (1105, 806, 1.2, 1.25, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1398, 352), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]
 PADS = [(*_mv('pad0', (125, 790)), 45), (*_mv('pad1', (290, 915)), 72), (*_mv('pad2', (1565, 825)), 52), (*_mv('pad3', (1690, 900)), 66), (*_mv('pad4', (1520, 960)), 62), (*_mv('pad5', (380, 1065)), 55)]
