@@ -462,7 +462,7 @@ _e1 = (_q[1][0] - _q[0][0], _q[1][1] - _q[0][1]); _e2 = (_q[2][0] - _q[1][0], _q
 _L, _W = math.hypot(*_e1), math.hypot(*_e2); _ang = math.degrees(math.atan2(_e1[1], _e1[0]))
 if _W > _L: _L, _W, _ang = _W, _L, math.degrees(math.atan2(_e2[1], _e2[0]))
 paint_flat(body('NE_WALL', rounded_rect(_cx, _cy, _L, _W, _ang, 0.8), NEW['height'], lit('ne_top', HQ.lit('#a7b5ea', 0.98)), lit('ne_side', HQ.lit('#7e8bc2', 0.875)),
-     top_r=0.35, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=3), '#a7b5ea', '#7e8bc2', '#94a2dc')      # (unlit: the HQ's top and front colours)
+     top_r=0.15, corner_r=0.8, bottom=STONE_BOTTOM, soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#a7b5ea')      # (unlit: the HQ's top and front colours)
 
 # the cube in the water by the wall's end (layout.py `cubes`: its top's corners from the HQ): a soft box down into the water, unlit in the HQ's colours
 for k, cu in enumerate(L.get('cubes', [])):
