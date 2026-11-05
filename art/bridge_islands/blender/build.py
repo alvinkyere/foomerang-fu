@@ -665,7 +665,7 @@ for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.86) for i in (1, 3, 5))
     # (the HQ's trunk runs up between the canopy's tiers to its highest lump: seen in the gaps, pale bark with navy patches up there)
     _hi = max(t['lumps'], key=lambda l: l['z'])
-    trunk(f'TRUNK_{k}', t['foot'], _hi['at'], _hi['z'] - t.get('base', 0.0) - 0.4, 0.7, 0.5, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
+    trunk(f'TRUNK_{k}', t['foot'], _hi['at'], _hi['z'] - t.get('base', 0.0) - 0.4, 0.42, 0.3, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
     for j, lump in enumerate(t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
