@@ -419,12 +419,14 @@ for k, t in enumerate(L['trees']):
     if crown is not None:
         # (owner, 2026-11-03: the crowns must sit on their trunks from every angle) the trunk runs from its foot into its own crown: to the
         # crown's lower part, then on up to its middle, so whichever way the camera looks the crown is held by its trunk
-        (lx, ly, lz), (mx, my, mz) = crown
-        # (the crown is a surface, not a volume: the trunk ends just under its lower part, inside its footprint, not through its top;
-        # leaning no more than 0.35 across per unit up, as the frame's trees)
-        dx_, dy_ = lx - foot[0], ly - foot[1]; lim = 0.35 * max(lz, 1.0); dl = math.hypot(dx_, dy_)
-        if dl > lim: dx_, dy_ = dx_ * lim / dl, dy_ * lim / dl
-        trunk(f'TRUNK_{k}', foot[:2], (foot[0] + dx_, foot[1] + dy_, lz - 0.6), 0.42, 0.32)
+        # (owner, 2026-11-05: the trees as the HQ's: white trunks running up through their stack of clumps, showing in the gaps) the
+        # trunk goes from its foot through each of its own clumps' middles, low to high, each at the clump's height (under its dome, so
+        # inside a clump it is hidden and between clumps it shows); leaning no more than 0.35 across per unit up
+        # (straight, as the HQ's: its lean the best line through its clumps' middles, x per unit up from the foot, at most 0.35)
+        zs_ = [q['z'] for q in lumps]; xs_ = [q['x'] for q in lumps]
+        lean = sum(x_ * z_ for x_, z_ in zip(xs_, zs_)) / max(sum(z_ * z_ for z_ in zs_), 1e-6)
+        lean = max(-0.35, min(0.35, lean)); ztop = max(q['z'] - 0.1 * q['r'] for q in lumps)
+        trunk(f'TRUNK_{k}', foot[:2], (foot[0] + lean * ztop, foot[1], ztop), 0.5, 0.28, rings=14)
     else:
         trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
