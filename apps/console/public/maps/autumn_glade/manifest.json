@@ -449,6 +449,11 @@
       ]
     }
   },
+  "portalFlip": {
+    "period": 5.833,
+    "frames": 24,
+    "lags": [0, 0]
+  },
   "characters": {
     "bread": {
       "file": "char_bread.webp",

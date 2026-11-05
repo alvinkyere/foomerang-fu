@@ -596,22 +596,37 @@ def portal(name, p, strokes=True):
         sheet([(ax_ - nx, az_ - nz), (ax_ + nx, az_ + nz), (bx_ + nx, bz_ + nz), (bx_ - nx, bz_ - nz)], '#3fe3ef', 1)
 
 
+PFLIP = J('art/autumn_glade/portal_flip.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/portal_flip.json')) else None      # (portal_flip.py)
 PMASS = J('art/autumn_glade/portal_mass.json') if os.path.exists(os.path.join(ROOT, 'art/autumn_glade/portal_mass.json')) else None      # (portal_mass.py)
+
+
+def portal_frame(name, data, foot, mirror, show):
+    """One traced frame of a portal's strokes (portal_flip.py / portal_mass.py), placed at a portal's foot (mirrored for the east one)."""
+    bm = bmesh.new(); colP = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((foot[0] + (-x if mirror else x), YC + foot[1] + y - 0.1, z)) for x, y, z in data['verts']]
+    tl = {v: data['tones'][t_] for v, t_ in zip(vs, data['tone'])}
+    for q in data['faces']:
+        try: f = bm.faces.new([vs[i] for i in q])
+        except ValueError: continue
+        for loop in f.loops: loop[colP] = lin(tl[loop.vert])
+    smooth_boundary(bm, 3)
+    camv = Vector(tuple(v * 100 for v in CAM['centre']))
+    for f in bm.faces:
+        f.normal_update()
+        if f.normal.dot(f.calc_center_median() - camv) > 0: f.normal_flip()
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); o = obj(name, me, [FLAT]); o.hide_render = not show
+    return o
+
+
 for k, p in enumerate(L['portals']):
-    portal(f'PORTAL_{k}', p, strokes=PMASS is None)
-    if PMASS is not None:
-        pm = PMASS[k]; bm = bmesh.new(); colP = bm.loops.layers.float_color.new('Col')
-        vs = [bm.verts.new((x, YC + y - 0.1, z)) for x, y, z in pm['verts']]; tl = {v: pm['tones'][t_] for v, t_ in zip(vs, pm['tone'])}
-        for q in pm['faces']:
-            try: f = bm.faces.new([vs[i] for i in q])
-            except ValueError: continue
-            for loop in f.loops: loop[colP] = lin(tl[loop.vert])
-        smooth_boundary(bm, 3)
-        camv = Vector(tuple(v * 100 for v in CAM['centre']))
-        for f in bm.faces:
-            f.normal_update()
-            if f.normal.dot(f.calc_center_median() - camv) > 0: f.normal_flip()
-        me = bpy.data.meshes.new(f'PORTAL_{k}_face'); bm.to_mesh(me); bm.free(); obj(f'PORTAL_{k}_face', me, [FLAT])
+    portal(f'PORTAL_{k}', p, strokes=PMASS is None and PFLIP is None)
+    if PFLIP is not None:
+        # the portal's cycle: one mesh a frame (the game shows them in turn, portalFlip.ts); frame 0 is the HQ frame's moment
+        for n, fr in enumerate(PFLIP['frames']):
+            portal_frame(f'PORTAL_{k}_f{n:02d}', fr, p['foot'], p['side'] == 'E', n == 0)
+    elif PMASS is not None:
+        pm = PMASS[k]
+        portal_frame(f'PORTAL_{k}_face', dict(pm, verts=[[x - p['foot'][0], y - p['foot'][1], z] for x, y, z in pm['verts']]), p['foot'], False, True)
 # the pale paving stones at the frame's top-right edge (props.py): low flat-topped slabs, lit
 for k, ps in enumerate(L.get('pale_stones', [])):
     rock(f'PAVING_{k}', dict(cx=ps['plan'][0], cy=ps['plan'][1], w=ps['half'], d=ps['half'] * 0.8, h=0.6), 0.3, 0.3)

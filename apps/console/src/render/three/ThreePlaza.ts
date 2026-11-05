@@ -45,6 +45,7 @@ import {
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
+import { flipFrameAt, parsePortalFlip } from './portalFlip';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1499,6 +1500,20 @@ class Plaza {
         },
       });
     }
+    // a map whose portals are traced frames (portalFlip.ts: the autumn glade): one mesh per frame, PORTAL_<k>_f<n>, shown in turn
+    const flip = parsePortalFlip((this.manifest as { portalFlip?: unknown }).portalFlip);
+    if (flip !== undefined)
+      gltf.traverse((o) => {
+        const which = /^PORTAL_(\d+)_f(\d+)$/.exec(o.name);
+        if (which === null) return;
+        const portal = Number(which[1]);
+        const frame = Number(which[2]);
+        o.visible = frame === 0;
+        this.#moving.push({
+          object: o,
+          motion: (t) => (o.visible = flipFrameAt(flip, portal, t) === frame),
+        });
+      });
     // the portals' swirl: played frame by frame from its atlas, the next frame fading in over the one shown (the HQ's is not
     // a rigid shape turning); without frames, the "G" turning in its face's plane (its local Y: the face's normal)
     const spin = this.#portalSpin;

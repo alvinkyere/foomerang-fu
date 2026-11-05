@@ -40,6 +40,8 @@ manifest = {
     'followFrame': {'minZoom': round(ZOOM, 4), 'maxZoom': round(ZOOM * 1.3, 4)},
     # the light shafts: added over everything on the screen (render/three/beams.ts), fitted to the frame by fit_beams.py
     'beams': json.load(open('art/autumn_glade/beams.json')),
+    # the portals' cycle: portal_flip.py's traced frames shown in turn (render/three/portalFlip.ts), the two portals in step
+    'portalFlip': {'period': json.load(open('art/autumn_glade/portal_flip.json'))['period'], 'frames': len(json.load(open('art/autumn_glade/portal_flip.json'))['frames']), 'lags': [0, 0]},
     'characters': gong['characters'],
     'provenance': 'art/autumn_glade (measure.py, layout.py, props.py, arena.py, blender/build.py, package.py) from ff physics hq 2.mp4 10:26',
 }
