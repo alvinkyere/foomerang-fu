@@ -451,7 +451,7 @@
   },
   "portalFlip": {
     "period": 5.833,
-    "frames": 24,
+    "frames": 120,
     "lags": [0, 0]
   },
   "characters": {

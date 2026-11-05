@@ -601,15 +601,25 @@ PMASS = J('art/autumn_glade/portal_mass.json') if os.path.exists(os.path.join(RO
 
 
 def portal_frame(name, data, foot, mirror, show):
-    """One traced frame of a portal's strokes (portal_flip.py / portal_mass.py), placed at a portal's foot (mirrored for the east one)."""
+    """One frame of a portal's strokes (portal_flip.py: its bloom, its strokes, their lighter heart, each a clean polygon on the portal's
+    plane, a hair apart towards the camera), placed at a portal's foot (mirrored for the east one); or portal_mass.py's grid."""
     bm = bmesh.new(); colP = bm.loops.layers.float_color.new('Col')
-    vs = [bm.verts.new((foot[0] + (-x if mirror else x), YC + foot[1] + y - 0.1, z)) for x, y, z in data['verts']]
-    tl = {v: data['tones'][t_] for v, t_ in zip(vs, data['tone'])}
-    for q in data['faces']:
-        try: f = bm.faces.new([vs[i] for i in q])
-        except ValueError: continue
-        for loop in f.loops: loop[colP] = lin(tl[loop.vert])
-    smooth_boundary(bm, 3)
+    if 'layers' in data:
+        for layer in data['layers']:
+            vs = [bm.verts.new((foot[0] + (-x if mirror else x), YC + foot[1] + y - 0.1, z)) for x, y, z in layer['poly']]
+            try: face = bm.faces.new(vs)
+            except ValueError: continue
+            tri = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='EAR_CLIP')
+            for f in tri['faces']:
+                for loop in f.loops: loop[colP] = lin(layer['colour'])
+    else:
+        vs = [bm.verts.new((foot[0] + (-x if mirror else x), YC + foot[1] + y - 0.1, z)) for x, y, z in data['verts']]
+        tl = {v: data['tones'][t_] for v, t_ in zip(vs, data['tone'])}
+        for q in data['faces']:
+            try: f = bm.faces.new([vs[i] for i in q])
+            except ValueError: continue
+            for loop in f.loops: loop[colP] = lin(tl[loop.vert])
+        smooth_boundary(bm, 3)
     camv = Vector(tuple(v * 100 for v in CAM['centre']))
     for f in bm.faces:
         f.normal_update()
@@ -623,7 +633,7 @@ for k, p in enumerate(L['portals']):
     if PFLIP is not None:
         # the portal's cycle: one mesh a frame (the game shows them in turn, portalFlip.ts); frame 0 is the HQ frame's moment
         for n, fr in enumerate(PFLIP['frames']):
-            portal_frame(f'PORTAL_{k}_f{n:02d}', fr, p['foot'], p['side'] == 'E', n == 0)
+            portal_frame(f'PORTAL_{k}_f{n:03d}', fr, p['foot'], p['side'] == 'E', n == 0)
     elif PMASS is not None:
         pm = PMASS[k]
         portal_frame(f'PORTAL_{k}_face', dict(pm, verts=[[x - p['foot'][0], y - p['foot'][1], z] for x, y, z in pm['verts']]), p['foot'], False, True)
