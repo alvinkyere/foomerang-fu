@@ -12,6 +12,7 @@ import { EXPLOSIVE_TICK, tickAt } from '../explosiveTick';
 import * as THREE from 'three';
 import { beamsOverlay, type LightBeams } from './beams';
 import { sliderNodeIndex, sliderOffset } from './sliderNodes';
+import { isBareFrame, withoutActors } from './bareFrame';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   STAND_PULL,
@@ -45,7 +46,7 @@ import {
 } from '../cameraFraming';
 import { DashTrail } from './dashTrail';
 import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
-import { flipFrameAt, parsePortalFlip } from './portalFlip';
+import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1504,10 +1505,19 @@ class Plaza {
     const flip = parsePortalFlip((this.manifest as { portalFlip?: unknown }).portalFlip);
     if (flip !== undefined)
       gltf.traverse((o) => {
-        const which = /^PORTAL_(\d+)_f(\d+)$/.exec(o.name);
-        if (which === null) return;
-        const portal = Number(which[1]);
-        const frame = Number(which[2]);
+        const part = portalFlipPart(o.name);
+        if (part === undefined) return;
+        const { portal, frame } = part;
+        // its see-through part: the bright glow on the sand behind shows through its cyan, as the HQ's (measured: additive light
+        // over that glow clips to white)
+        if (part.glow && o instanceof THREE.Mesh) {
+          const m = (o.material as THREE.Material).clone();
+          m.transparent = true;
+          m.opacity = 0.82;
+          m.depthWrite = false;
+          o.material = m;
+          o.renderOrder = 2;
+        }
         o.visible = frame === 0;
         this.#moving.push({
           object: o,
@@ -1638,7 +1648,8 @@ class Plaza {
     }
   }
 
-  show(view: ArenaView): void {
+  show(given: ArenaView): void {
+    const view = isBareFrame(globalThis.location?.search ?? '') ? withoutActors(given) : given;
     this.#view = view;
     // the raft turns by the rules' angle (clockwise on screen when positive): about the scene's up, the other way round (scene z is the rules' y)
     const turned = view.turntables?.[0];

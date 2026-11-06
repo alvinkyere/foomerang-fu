@@ -52,17 +52,18 @@ for k in range(FRAMES):
     layers = []
     # three layers, each the frame's own outline as a clean polygon (straight edges, sharp corners: the HQ's ribbon is crisp):
     # the bloom round the strokes, the strokes, a lighter heart along them
-    for mask, colour, z_off in ((cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))), '#d6faf2', 0.0),
-                                (m, stroke, 0.03), (cv2.erode(m, np.ones((5, 5), np.uint8)), light, 0.06)):
+    # (the glow: drawn by the game as light added over what is behind it, render/three/portalFlip.ts `_glow`)
+    # (both see-through, as the HQ's portal is: the bright glow on the sand behind shows through its cyan; the game draws `glow` parts so)
+    for mask, colour, z_off, glow in ((m, stroke, 0.03, True), (cv2.erode(m, np.ones((5, 5), np.uint8)), light, 0.06, True)):
         cs, hier = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         for ci, cc in enumerate(cs):
             if cv2.contourArea(cc) < 12 or (hier is not None and hier[0][ci][3] >= 0): continue      # (outer outlines only)
-            poly = cv2.approxPolyDP(cc, 1.0, True)[:, 0, :].astype(float)
+            poly = cv2.approxPolyDP(cc, 2.0 if glow else 1.0, True)[:, 0, :].astype(float)
             if len(poly) < 3: continue
             xc = (poly[:, 0] - 960) / _Z + 960; yc = (poly[:, 1] - 540) / _Z + 540
             dirw = (_R.T @ np.c_[(xc - 960) / _F, (yc - 540) / _F, np.ones(len(poly))].T).T
             cam = _C * 100; tt = ((Yc + P['foot'][1] - z_off) - cam[1]) / dirw[:, 1]; world = cam[None, :] + dirw * tt[:, None]
-            layers.append(dict(colour=colour, poly=[[round(float(q[0] - P['foot'][0]), 3), round(float(q[1] - Yc - P['foot'][1]), 3), round(float(q[2]), 3)] for q in world]))
+            layers.append(dict(colour=colour, glow=glow, poly=[[round(float(q[0] - P['foot'][0]), 3), round(float(q[1] - Yc - P['foot'][1]), 3), round(float(q[2]), 3)] for q in world]))
     out.append(dict(t=round(t, 3), match=round(float(mv), 3), layers=layers))
     if k % 20 == 0: print(k, 'at %.2f s' % t, 'match %.2f' % mv, len(layers), 'polygons')
 json.dump(dict(period=PERIOD, frames=out), open('art/autumn_glade/portal_flip.json', 'w'))

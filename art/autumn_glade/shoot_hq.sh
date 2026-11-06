@@ -1,7 +1,7 @@
 #!/bin/zsh
 # The glade in the game, against the HQ frame (copy of art/lily_island/shoot_hq.sh; same needs). usage: shoot_hq.sh NAME WAIT_MS -- the game on ?arena=glade&frame=hq at 1920x1080
 # (a copy of the repo with node_modules) and writes $TMPDIR/NAME.png. usage: shoot_hq.sh NAME WAIT_MS -- the game on ?arena=glade&frame=hq at 1920x1080 (the validation worktree, a temporary e2e test, removed after)
-R="/Users/alvin/Desktop/Foomerang Fu"; V="${TMPDIR%/}/foomerang-validate"
+R="/Users/alvin/Desktop/Foomerang Fu"; V="${GLADE_V:-${TMPDIR%/}/foomerang-validate}"      # (GLADE_V: another worktree with node_modules)
 cd $V && git reset -q --hard "$(git -C "$R" rev-parse HEAD)" && git clean -fdq apps art games integration docs
 cd $R; { git diff --name-only -z; git ls-files -o -z --exclude-standard; } | tr '\0' '\n' | grep -vE "mp4$|jpg$|/output/|/venv/" | sort -u | while IFS= read -r f; do mkdir -p "$V/$(dirname "$f")"; cp "$f" "$V/$f"; done
 cd $V

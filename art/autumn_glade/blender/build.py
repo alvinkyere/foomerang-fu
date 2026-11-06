@@ -605,6 +605,11 @@ PMASS = J('art/autumn_glade/portal_mass.json') if os.path.exists(os.path.join(RO
 def portal_frame(name, data, foot, mirror, show):
     """One frame of a portal's strokes (portal_flip.py: its bloom, its strokes, their lighter heart, each a clean polygon on the portal's
     plane, a hair apart towards the camera), placed at a portal's foot (mirrored for the east one); or portal_mass.py's grid."""
+    if 'layers' in data and any(l_.get('glow') for l_ in data['layers']):
+        # its glow as a mesh of its own: the game draws it as light added over the rock and the sand (portalFlip.ts)
+        portal_frame(name + '_glow', dict(layers=[dict(l_, glow=False) for l_ in data['layers'] if l_.get('glow')]), foot, mirror, show)
+        data = dict(data, layers=[l_ for l_ in data['layers'] if not l_.get('glow')])
+        if not data['layers']: return None
     bm = bmesh.new(); colP = bm.loops.layers.float_color.new('Col')
     if 'layers' in data:
         for layer in data['layers']:

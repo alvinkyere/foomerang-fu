@@ -28,3 +28,12 @@ export function flipFrameAt(f: PortalFlip, portal: number, tMs: number): number 
   const phase = ((((tMs - lagMs) % periodMs) + periodMs) % periodMs) / periodMs;
   return Math.min(f.frames - 1, Math.floor(phase * f.frames));
 }
+
+/** A model part of a flipbook portal: `PORTAL_<portal>_f<frame>` (opaque) or `..._glow` (drawn see-through), else undefined. */
+export function portalFlipPart(
+  name: string,
+): { portal: number; frame: number; glow: boolean } | undefined {
+  const which = /^PORTAL_(\d+)_f(\d+)(_glow)?$/.exec(name);
+  if (which === null) return undefined;
+  return { portal: Number(which[1]), frame: Number(which[2]), glow: which[3] !== undefined };
+}
