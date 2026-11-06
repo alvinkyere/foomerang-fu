@@ -214,9 +214,12 @@ at = lambda pts, z=0.0: [unproject(x, y, z)[0] for x, y in pts]
 # a screen direction turns into the plan's by undoing the view's squash (y up in the plan, the frame's y down, sin(pitch) ~0.83 vertically)
 _PADS = json.load(open('art/bridge_islands/pads.json'))
 def _pad(p):
-    spot, ppu = unproject(p['c'][0], p['c'][1], WATER_Z)
+    spot, ppu = unproject(p['c'][0], p['c'][1] - 6, WATER_Z)      # (the game's water plane ~6 px lower than this camera model)
     na = None if p['notch'] is None else round(math.degrees(math.atan2(-math.sin(math.radians(p['notch'])) / 0.83, math.cos(math.radians(p['notch'])))), 1)
-    return dict(at=spot, r=round(p['axes'][0] / ppu, 2), notch=na, flower=p['flower'])
+    # (a pad is a circle lying on the water: its screen ellipse's long axis is its diameter; the first pad's measured long axis, 55 px, takes
+    # in the flower's overhang, and a circle that size draws 66 wide: its radius from the area instead)
+    rr = math.sqrt(p['axes'][0] * p['axes'][1] / 0.83) if p['axes'][0] / p['axes'][1] > 1.25 else p['axes'][0]
+    return dict(at=spot, r=round(rr / ppu, 2), notch=na, flower=p['flower'])
 pads_out = [_pad(p) for p in _PADS['pads']]
 small_out = [dict(at=unproject(x_, y_, WATER_Z)[0], r=round(r_ / unproject(x_, y_, WATER_Z)[1], 2)) for x_, y_, r_ in _PADS['small']]
 # the cube standing in the water by the wall's end (the HQ: its top a diamond, corners (1600, 73) (1642, 112) (1597, 140) (1558, 103); its left side
