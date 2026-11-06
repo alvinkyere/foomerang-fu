@@ -50,5 +50,39 @@ for k in range(K):
         if len(poly) < 3: continue
         shapes.append(dict(plan=[[round(float(a), 3), round(float(bb), 3)] for a, bb in plan(poly)], colour=col, area=float(cv2.contourArea(c))))
 shapes.sort(key=lambda s: -s['area'])
-print(len(shapes), 'shapes over', int(region.sum()), 'px')
-json.dump(dict(z=WZ, shapes=shapes), open('art/bridge_islands/water_paint.json', 'w'))
+# the lily pads and their flowers, traced the same way (the HQ's own pad greens, darker veins, pale petals, the flowers' hearts), over the water
+f0 = cv2.medianBlur(cv2.imread('art/bridge_islands/output/reference.png'), 3)
+x0 = cv2.cvtColor(f0, cv2.COLOR_BGR2HSV).astype(int)
+# the pads: green (hue 40-85, saturated) or the flowers' pale pink/white, in the open water (the pads' own boxes, fit_pads.py), not near land
+PJ = json.load(open('art/bridge_islands/pads.json'))
+inbox = np.zeros(water.shape, bool)
+for pd in PJ['pads']:
+    cx, cy = pd['c']; ax = pd['axes'][0] * 1.25 + 8
+    inbox[int(max(cy - ax, 0)):int(cy + ax), int(max(cx - ax, 0)):int(cx + ax)] = True
+for cx, cy, r in PJ['small']:
+    inbox[int(max(cy - r - 6, 0)):int(cy + r + 6), int(max(cx - r - 6, 0)):int(cx + r + 6)] = True
+padm = ((((x0[..., 0] >= 40) & (x0[..., 0] <= 85) & (x0[..., 1] >= 35)) | (x0[..., 1] <= 60) & (x0[..., 2] >= 200)) & inbox & mask())
+grassy = np.zeros_like(padm); water_d = padm
+n_, lab_, st_, _ = cv2.connectedComponentsWithStats(cv2.morphologyEx(padm.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)))
+pads = np.zeros(padm.shape, bool)
+for i in range(1, n_):
+    comp = lab_ == i
+    if st_[i, 4] >= 60 and (comp & grassy).sum() < 0.1 * st_[i, 4]: pads |= comp & padm
+lab0 = cv2.cvtColor(f0, cv2.COLOR_BGR2LAB).astype(np.float32)
+_, lp, _ = cv2.kmeans(lab0[pads], 6, None, crit, 4, cv2.KMEANS_PP_CENTERS)
+labp = np.full(pads.shape, -1, int); labp[pads] = lp.ravel(); rgb0 = f0.astype(int)[..., ::-1]
+order = sorted(range(6), key=lambda k: -(labp == k).sum())       # (the commonest tone, the pad's body, under the rest)
+pad_shapes = []
+for k in order:
+    m = cv2.morphologyEx((labp == k).astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    for c in cs:
+        if cv2.contourArea(c) < 6: continue
+        one = np.zeros(m.shape, np.uint8); cv2.drawContours(one, [c], -1, 1, -1)
+        col = '#%02x%02x%02x' % tuple(np.median(rgb0[(one > 0) & (labp == k)], 0).astype(int))
+        poly = cv2.approxPolyDP(c, 0.7, True).reshape(-1, 2) + np.array([0, -6])
+        if len(poly) < 3: continue
+        pad_shapes.append(dict(plan=[[round(float(a), 3), round(float(bb), 3)] for a, bb in plan(poly)], colour=col))
+print(len(shapes), 'shapes over', int(region.sum()), 'px;', len(pad_shapes), 'pad shapes over', int(pads.sum()), 'px')
+cv2.imwrite('art/bridge_islands/output/pads_mask.png', pads.astype(np.uint8) * 255)
+json.dump(dict(z=WZ, shapes=shapes, pads=pad_shapes), open('art/bridge_islands/water_paint.json', 'w'))

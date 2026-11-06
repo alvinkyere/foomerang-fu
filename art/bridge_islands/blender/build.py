@@ -567,8 +567,11 @@ for n, blk in SWB.items():
         if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 1.3, n=7, seed=hash(n) % 97)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
+_WP_PADS = J('art/bridge_islands/water_paint.json').get('pads', [])
+if _WP_PADS:      # (the lily pads and their flowers traced off the HQ, tone by tone: water_paint.py; the body first, the veins and petals on it)
+    flat('PADS_TRACED', [([tuple(q) for q in sh['plan']], sh['colour'], 0.001 * i) for i, sh in enumerate(_WP_PADS)], z=WATER_Z + 0.06)
 PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#79af77', '#86bd86', '#5f9a64', '#fbe2e8', '#f4c4d0'      # (the HQ pads' median, its lighter rim)
-for k, pad in enumerate(L['pads']):
+for k, pad in enumerate([] if _WP_PADS else L['pads']):      # (traced pads replace these: water_paint.py)
     x, y = pad['at']
     r = pad['r']; z = WATER_Z + 0.06       # (fit_pads.py: the HQ's pads, their radii, notches and flowers measured)
     notch = math.radians(40); a0 = (math.radians(pad['notch']) if pad.get('notch') is not None else rng.uniform(0, 2 * math.pi))      # (the gap is centred on a0)
@@ -599,7 +602,7 @@ if L['bamboo']:
     _bx, _by = L['bamboo'][0]
     paint_flat(body('BAMBOO_POT', [(_bx + math.cos(i * math.pi / 8) * 0.75, _by + math.sin(i * math.pi / 8) * 0.75) for i in range(16)], 0.9, FLAT, FLAT, top_r=0.1, bottom=0,
                     soft=True, top_seg=1, taper=0.8), '#6f7f7c', '#8a9a96', '#7d8c89')
-for k, sp in enumerate(L.get('small_pads', [])):                   # (the small round pads)
+for k, sp in enumerate([] if _WP_PADS else L.get('small_pads', [])):                   # (the small round pads)
     x, y = sp['at']; r = sp['r']
     flat(f'SPAD_{k}', [([(x + math.cos(i * math.pi / 10) * r, y + math.sin(i * math.pi / 10) * r) for i in range(20)], PAD, 0)], z=WATER_Z + 0.05)
 for k, (x, y) in enumerate(L['crates']):
