@@ -237,18 +237,27 @@ bunting = [dict(a=unproject(905, 12, 4.5)[0] + [4.5], b=unproject(1125, 26, 4.5)
 # deck's ends; the part along the deck SLIDES (a lever pulled, both walls slide in across the deck and meet side by side on its middle line,
 # ~1.6 s, as the HQ's do at 1:17-1:19; pulled again they go back: rules sliders.ts); the part run on onto the east island stays
 def _bridge_walls():
+    """Each wall: SLABS slabs over the deck's length that slide (each its own slider, `lag` growing from the south-west end: the HQ's slabs set
+    off one after another, a staircase across the deck, 1:17-1:19, and come back faster, 1:33-1:34), and fixed pieces where the wall runs on past
+    the deck (the cap among them)."""
     A, B, C, D = [np.array(q, float) for q in bridge_poly]
     cd = (A + B + C + D) / 4; out = []
-    for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.9, 4.6, 1.8, 0.8), ('SE', D, C, 0.9, 4.2, 1.3, 0.5)):
+    for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.2, 4.6, 2.0, 0.9), ('SE', D, C, 1.8, 4.2, 2.0, 0.8)):
         u = (p1 - p0) / np.linalg.norm(p1 - p0); n = np.array([-u[1], u[0]])
         if ((p0 + p1) / 2 - cd) @ n < 0: n = -n
-        a, b = p0 - u * e0, p1 + u * e1                                    # (the whole wall slides, its run past the deck too)
-        c = (a + b) / 2 + n * off
-        dist = (c - cd) @ n
-        out.append(dict(tag=tag, u=r1([u])[0], n=r1([n])[0], a=r1([a])[0], b=r1([b])[0], centre=r1([c])[0], length=round(float(np.linalg.norm(b - a)), 2),
-                        width=wid, off=off, slide=r1([-n * (dist - wid / 2 - 0.05)])[0],
-                        extension=dict(a=r1([p1 + u * 0.9])[0], b=r1([p1 + u * e1])[0])))
+        # the cap (a taller near-cube, CAP long) stays at one end; the rest of the wall is the four slabs that slide (the HQ leaves only the cap)
+        w0, w1 = p0 - u * e0, p1 + u * e1
+        if tag == 'NW': a, b, capc = w0, w1 - u * CAP, w1 - u * CAP / 2
+        else: a, b, capc = w0 + u * CAP, w1, w0 + u * CAP / 2
+        dist = (((a + b) / 2 + n * off) - cd) @ n
+        slide = -n * (dist - wid / 2 - 0.05)
+        L_ = float(np.linalg.norm(b - a)); piece = L_ / SLABS
+        slabs = [dict(centre=r1([a + u * piece * (j + 0.5) + n * off])[0], length=round(piece, 2), lag_out=round(j * LAG_OUT, 3), lag_back=round(j * LAG_BACK, 3))
+                 for j in range(SLABS)]
+        fixed = [dict(centre=r1([capc + n * off])[0], length=CAP, cap=True)]
+        out.append(dict(tag=tag, u=r1([u])[0], n=r1([n])[0], width=wid, slide=r1([slide])[0], slabs=slabs, fixed=fixed))
     return out
+SLABS, LAG_OUT, LAG_BACK, CAP = 4, 0.13, 0.06, 1.8      # (the HQ: four slabs a wall; out 1:17.58-1:18.9, each ~0.85 s, a beat apart; back ~0.5 s in all)
 bridge_walls = _bridge_walls()
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
 # the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small

@@ -24,6 +24,13 @@ export interface SliderSpec {
   /** World units a second. */
   readonly speed: number;
   readonly levers: readonly LeverSpec[];
+  /**
+   * Seconds it waits after a hit sets it going before it moves (`out` towards the far end, `back` home): the bridge islands' wall slabs set off
+   * one after another. Absent: none.
+   */
+  readonly lag?: { readonly out: number; readonly back: number };
+  /** World units a second going home, when it differs from `speed` (the HQ's slabs come back faster). */
+  readonly backSpeed?: number;
 }
 
 export interface SliderState {
@@ -33,6 +40,8 @@ export interface SliderState {
   readonly dir: -1 | 0 | 1;
   /** The way it last went (a hit from a halt sends it the other way). Home counts as having come from the far end's opposite: -1. */
   readonly last: -1 | 1;
+  /** Seconds still to wait before it moves (a lagged slider just set going). */
+  readonly wait?: number;
 }
 
 export const SLIDER_HOME: SliderState = Object.freeze({ progress: 0, dir: 0, last: -1 });
@@ -44,20 +53,29 @@ export const sliderBox = (spec: SliderSpec, progress: number): TurnedBox => ({
   y: spec.wall.y + spec.by.y * progress,
 });
 
-/** A lever was hit. */
-export const toggleSlider = (s: SliderState): SliderState => {
-  if (s.dir !== 0) return { ...s, dir: 0, last: s.dir };
-  if (s.progress >= 1) return { ...s, dir: -1 };
-  if (s.progress <= 0) return { ...s, dir: 1 };
-  return { ...s, dir: s.last === 1 ? -1 : 1 };
+/** A lever was hit (`spec`: its lag, if it has one). */
+export const toggleSlider = (s: SliderState, spec?: SliderSpec): SliderState => {
+  if (s.dir !== 0) return { progress: s.progress, dir: 0, last: s.dir };
+  const dir: -1 | 1 = s.progress >= 1 ? -1 : s.progress <= 0 ? 1 : s.last === 1 ? -1 : 1;
+  const wait = spec?.lag === undefined ? 0 : dir === 1 ? spec.lag.out : spec.lag.back;
+  return wait > 0
+    ? { progress: s.progress, dir, last: s.last, wait }
+    : { progress: s.progress, dir, last: s.last };
 };
 
 /** `dt` seconds on. */
 export const advanceSlider = (spec: SliderSpec, s: SliderState, dt: number): SliderState => {
   if (s.dir === 0) return s;
+  let left = dt;
+  if ((s.wait ?? 0) > 0) {
+    const w = s.wait ?? 0;
+    if (w >= left) return { ...s, wait: w - left };
+    left -= w;
+  }
   const length = Math.hypot(spec.by.x, spec.by.y) || 1;
-  const progress = Math.min(1, Math.max(0, s.progress + (s.dir * spec.speed * dt) / length));
+  const speed = s.dir === -1 ? (spec.backSpeed ?? spec.speed) : spec.speed;
+  const progress = Math.min(1, Math.max(0, s.progress + (s.dir * speed * left) / length));
   if (progress >= 1) return { progress: 1, dir: 0, last: 1 };
   if (progress <= 0) return { progress: 0, dir: 0, last: -1 };
-  return { ...s, progress };
+  return { progress, dir: s.dir, last: s.last };
 };

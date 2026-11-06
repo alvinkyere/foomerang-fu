@@ -1015,7 +1015,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       spec.levers.forEach((lever, j) => {
         const was = state.leverHot?.[at] === true;
         if (hotNow[at] === true && !was) {
-          sliders[k] = toggleSlider(sliders[k] as SliderState);
+          sliders[k] = toggleSlider(sliders[k] as SliderState, spec);
           events.push({
             type: 'LEVER',
             slider: k,

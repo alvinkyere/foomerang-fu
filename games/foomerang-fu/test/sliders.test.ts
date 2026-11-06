@@ -127,3 +127,31 @@ describe('in the match', () => {
     expect(later.state.sliders?.[0]).toEqual({ progress: 0, dir: 0, last: -1 });
   });
 });
+
+// The bridge islands' wall slabs (the HQ, 1:17-1:19 and 1:33-1:34): one lever pull and every slab of a wall slides, but not as one: each sets
+// off a beat after the one before it (a staircase across the deck), and they come back faster than they went.
+describe('a slider with a lag', () => {
+  const LAGGED: SliderSpec = { ...SPEC, lag: { out: 0.3, back: 0.1 }, backSpeed: 600 };
+  it('waits its lag after a hit before it moves', () => {
+    let s = toggleSlider(state0, LAGGED);
+    expect(s.dir).toBe(1);
+    s = advanceSlider(LAGGED, s, 0.2);
+    expect(s.progress).toBe(0);
+    s = advanceSlider(LAGGED, s, 0.2); // 0.1 s of travel
+    expect(s.progress).toBeCloseTo((300 * 0.1) / 450, 6);
+  });
+  it('goes back at its own speed after its own (shorter) lag', () => {
+    let s: SliderState = { progress: 1, dir: 0, last: 1 };
+    s = toggleSlider(s, LAGGED);
+    expect(s.dir).toBe(-1);
+    s = advanceSlider(LAGGED, s, 0.2); // 0.1 s waiting, 0.1 s at 600
+    expect(s.progress).toBeCloseTo(1 - (600 * 0.1) / 450, 6);
+  });
+  it('a hit while it waits halts it before it has moved', () => {
+    let s = toggleSlider(state0, LAGGED);
+    s = advanceSlider(LAGGED, s, 0.1);
+    s = toggleSlider(s, LAGGED);
+    expect(s.dir).toBe(0);
+    expect(advanceSlider(LAGGED, s, 1).progress).toBe(0);
+  });
+});

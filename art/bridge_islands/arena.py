@@ -105,11 +105,17 @@ def spread(n, seed):
 # (the HQ: one pull and both walls slide in across the deck, meeting on its middle line in ~1.6 s); the runs on onto the east island are walls
 sliders = []
 for bw in L['bridge_walls']:
-    cx_, cy_ = w(*bw['centre']); ang = math.atan2(-bw['u'][1], bw['u'][0])
-    run = math.hypot(*bw['slide']) * S
-    sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(bw['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
-                        by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.6),
-                        levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
+    ang = math.atan2(-bw['u'][1], bw['u'][0]); run = math.hypot(*bw['slide']) * S
+    for sl in bw['slabs']:
+        cx_, cy_ = w(*sl['centre'])
+        sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(sl['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
+                            by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.0), backSpeed=round(run / 0.32),
+                            lag=dict(out=sl['lag_out'], back=sl['lag_back']),
+                            levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
+    for j, fx in enumerate(bw['fixed']):
+        cx_, cy_ = w(*fx['centre'])
+        walls.append(dict(id=f'WALL_{bw["tag"]}_F{j}', kind='WALL', shape='box', x=cx_, y=cy_, halfWidth=round(max(fx['length'] / 2 * S, 19), 1),
+                          halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)))
 spawns = spread(6, np.array([0, 0]))
 books = spread(10, np.array([WIDTH, HEIGHT]))[4:]
 
@@ -148,7 +154,7 @@ export const BRIDGE_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 
 /** The bridge's two walls (NW, SE): levers slide them in across the deck to meet on its middle line, and back (sliders.ts). */
 export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
-{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
+{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', backSpeed: ' + str(sl['backSpeed']) + ', lag: ' + obj(sl['lag']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
 
 export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({{
   width: BRIDGE_ISLANDS_WIDTH,

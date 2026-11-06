@@ -776,31 +776,19 @@ if L['bridge']:
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#828fc3', 0.98)), lit('wall_side', HQ.lit('#5f6ca3', 0.875))      # (the HQ walls' bright and dark medians, measured)
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
-bq = [tuple(p) for p in L['bridge']]
-if len(bq) == 4:
-    A, B_, C_, D_ = bq
-    for tag, p0, p1, outward in (('NW', A, B_, (-1, 1)), ('SE', D_, C_, (1, -1))):
-        dx, dy = p1[0] - p0[0], p1[1] - p0[1]; ln0 = math.hypot(dx, dy); ux, uy = dx / ln0, dy / ln0
-        # (how far each wall runs past the deck's corners, and how wide it is, measured: the NW wall runs on onto the east island, ~3.7 units past B)
-        e0, e1, wid, off = (0.9, 4.6, 1.8, 0.8) if tag == 'NW' else (0.9, 4.2, 1.3, 0.5)      # (the SE wall too runs on onto the east island, behind the crates: to (1180, 500))
-        p0 = (p0[0] - ux * e0, p0[1] - uy * e0); p1 = (p1[0] + ux * e1, p1[1] + uy * e1); ln = ln0 + e0 + e1
-        nx, ny = -uy, ux
-        # which side is outward: away from the deck's centre
-        cxd = sum(q[0] for q in bq) / 4; cyd = sum(q[1] for q in bq) / 4
-        if (((p0[0] + p1[0]) / 2 - cxd) * nx + ((p0[1] + p1[1]) / 2 - cyd) * ny) < 0: nx, ny = -nx, -ny
-        n_w = max(3, round(ln / 3.3)); piece = ln / n_w      # (the HQ's: ~5 blocks a wall)
-        # (the pieces along the deck ride their wall's slider, the glTF node SLIDER_<k> the renderer moves by the rules' progress; the run on
-        # onto the east island stays: layout.py `bridge_walls`)
-        _slider = bpy.data.objects.new('SLIDER_%d' % (0 if tag == 'NW' else 1), None); sc.collection.objects.link(_slider)
-        _slides_to = ln0 + e0 + 0.9
-        for j in range(n_w):
-            mid = (j + 0.5) * piece
-            cap = (j == n_w - 1) if tag == 'NW' else (j == 0)
-            cxw, cyw = p0[0] + ux * mid + nx * off, p0[1] + uy * mid + ny * off
-            # (the HQ's blocks stand ~1.1 high with bevelled tops; the cap at the island end a taller near-cube)
-            body(f'BWALL_{tag}_{j}', rounded_rect(cxw, cyw, piece - 0.08 - (0.3 if cap else 0), wid + (0.35 if cap else 0), math.degrees(math.atan2(uy, ux)), 0.45),
-                 1.1 + (0.45 if cap else 0) + rng.uniform(-0.06, 0.06), WALL_TOP, WALL_SIDE, top_r=0.28, corner_r=0.45, bottom=STONE_BOTTOM, soft=True, top_seg=3,
-                 parent=_slider)      # (the whole wall slides, its run onto the east island too: the HQ leaves nothing behind, 1:19)
+# the bridge's two walls (layout.py `bridge_walls`): the slabs over the deck each ride their own slider (the glTF node SLIDER_<k>, k in the
+# rules' order: the NW wall's slabs from its south-west end, then the SE wall's), the pieces past the deck stay, the cap among them a taller cube
+_k_slider = 0
+for bw in L.get('bridge_walls', []):
+    ang_ = math.degrees(math.atan2(bw['u'][1], bw['u'][0])); wid = bw['width']
+    for sl in bw['slabs']:
+        node = bpy.data.objects.new('SLIDER_%d' % _k_slider, None); sc.collection.objects.link(node); _k_slider += 1
+        body(f'BWALL_{bw["tag"]}_s{_k_slider}', rounded_rect(sl['centre'][0], sl['centre'][1], sl['length'] - 0.08, wid, ang_, 0.45),
+             1.1 + rng.uniform(-0.06, 0.06), WALL_TOP, WALL_SIDE, top_r=0.28, corner_r=0.45, bottom=STONE_BOTTOM, soft=True, top_seg=3, parent=node)
+    for j, fx in enumerate(bw['fixed']):
+        cap = fx['cap']
+        body(f'BWALL_{bw["tag"]}_f{j}', rounded_rect(fx['centre'][0], fx['centre'][1], fx['length'] - 0.08 - (0.3 if cap else 0), wid + (0.35 if cap else 0), ang_, 0.45),
+             1.1 + (0.45 if cap else 0) + rng.uniform(-0.06, 0.06), WALL_TOP, WALL_SIDE, top_r=0.28, corner_r=0.45, bottom=STONE_BOTTOM, soft=True, top_seg=3)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     if k in _BUSH_CARDS: card(f'BUSHCARD_{k}', _BUSH_CARDS[k]); continue      # (the HQ's bush painted on a card: cards.py)

@@ -69,7 +69,11 @@ export function installDebugHook(
         ...state,
         ...(state.sliders === undefined
           ? {}
-          : { sliders: state.sliders.map((st, k) => (k === slider ? toggleSlider(st) : st)) }),
+          : {
+              sliders: state.sliders.map((st, k) =>
+                k === slider ? toggleSlider(st, state.config.arena.sliders?.[k]) : st,
+              ),
+            }),
       }));
     },
     snapshot(): DebugSnapshot {
