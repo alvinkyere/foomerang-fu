@@ -684,6 +684,7 @@ for k, t in enumerate(L['trees']):
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.86) for i in (1, 3, 5))
     # (the HQ's trunk runs up between the canopy's tiers to its highest lump: seen in the gaps, pale bark with navy patches up there)
     _hi = max(t['lumps'], key=lambda l: l['z'])
+    if k in _CARDS: _hi = dict(_hi, z=min(l['z'] for l in t['lumps']) - 0.6)      # (a carded tree: the card shows the trunk up among the lumps; the model only below them)
     trunk(f'TRUNK_{k}', t['foot'], _hi['at'], _hi['z'] - t.get('base', 0.0) - 0.4, 0.42, 0.3, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
     for j, lump in enumerate([] if k in _CARDS else t['lumps']):
         r = lump['r'] * 1.12

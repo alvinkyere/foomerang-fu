@@ -46,6 +46,13 @@ for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
     box = np.zeros(CLASS[kind].shape, bool); box[y0:y1, x0:x1] = True
     m = CLASS[kind] & box & mask()
     m = cv2.morphologyEx(m.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) > 0
+    # the trunk where it shows between the lumps: dark navy and its white patches, inside the canopy's hull
+    hull = np.zeros(m.shape, np.uint8)
+    pts_ = cv2.findNonZero(m.astype(np.uint8))
+    if pts_ is not None: cv2.fillPoly(hull, [cv2.convexHull(pts_)], 1)
+    navy = (hsv[..., 0] >= 105) & (hsv[..., 0] <= 135) & (hsv[..., 2] < 170)
+    pale = (hsv[..., 1] < 45) & (hsv[..., 2] > 190)
+    m |= (navy | pale) & (hull > 0) & box & mask()
     if m.sum() < 200: continue
     NK = 5
     _, lb, _ = cv2.kmeans(lab[m], NK, None, crit, 4, cv2.KMEANS_PP_CENTERS)
