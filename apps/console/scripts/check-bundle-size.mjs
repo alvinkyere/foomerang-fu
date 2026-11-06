@@ -32,7 +32,9 @@ import { gzipSync } from 'node:zlib';
 // and the lily island map (initial 152.5 kB, lazy 586.3 kB measured).
 // Raised on purpose (owner-approved 2026-11-01): the bridge islands' and the autumn glade's rules data and wiring (lazy JS 589.8 kB
 // measured): lazy 592 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 592_000 };
+// Raised on purpose (owner-approved 2026-11-06, for the hex meadow): its rules data and its plants (render/hexPlants.ts, the
+// instanced pads, stems, shadows and fire) (lazy JS 596.8 kB measured): lazy 600 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 600_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
