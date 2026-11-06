@@ -259,7 +259,7 @@ def umbrella(name, c, r, hi, mid, lo, scallops=7):
     return obj(name, me, [FLAT])
 
 
-GOLD = ('#d6bd63', '#c4a95a', '#b29452')      # (the frame's gold canopies: light tops, the body, the shaded rims)
+GOLD = ('#d6be64', '#c4a95a', '#b49653')      # (the frame's gold canopies: light tops, the body, the shaded rims)
 MASS = J('art/hex_meadow/canopy_mass.json')
 FIT = J('art/hex_meadow/lumps.json')
 for k, t in enumerate(L['trees']):

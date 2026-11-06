@@ -13,7 +13,15 @@ const LOOK = {
    *  pads' footprints on the frame's shadow, (-0.75, +1.4) plan units for the 2.9 tall stems; the scene's z is the plan's -y). */
   shadow: { colour: '#a1d07d', perHeight: [-0.26, -0.48] as const },
   /** Flames per burning pad (blobs over it), and how much of a pad wide each is. */
-  flames: { perPad: 2, size: 0.55 },
+  /** (the HQ's, 1206.9-1207.2: faceted balls, yellow #ffe62e, golden, orange over each burning pad; then dark brown-grey smoke
+   *  balls with a red ember among them) */
+  flames: {
+    perPad: 3,
+    size: 0.55,
+    second: '#f3b625',
+    third: '#ffe62e',
+    smoke: ['#5e5450', '#6e5a52', '#8a3a22'],
+  },
 };
 
 /** A flat-topped hexagon's corner k (0..5) at radius r, in the x-z plane. */
@@ -182,12 +190,24 @@ export class HexPlantsView {
         const jx = (((ph * 37) % 10) / 10 - 0.5) * this.data.s * 0.9;
         const jz = (((ph * 53) % 10) / 10 - 0.5) * this.data.s * 0.9;
         const flicker = 1 + 0.12 * Math.sin(now * 23 + ph * 1.7);
-        const r = this.data.s * LOOK.flames.size * b.size * flicker * (j === 0 ? 1 : 0.75);
+        const r =
+          this.data.s * LOOK.flames.size * b.size * flicker * (j === 0 ? 1 : j === 1 ? 0.75 : 0.55);
         this.#p.set(x + jx, top + 0.15 + b.rise + j * 0.25, z + jz);
         this.#q.setFromAxisAngle(UP, ph);
         this.#m.compose(this.#p, this.#q, this.#sc.set(r, r * 0.8, r));
         this.#flames.setMatrixAt(k, this.#m);
-        this.#flames.setColorAt(k, this.#c.set(j === 1 && !b.smoke ? '#f3b625' : b.colour));
+        this.#flames.setColorAt(
+          k,
+          this.#c.set(
+            b.smoke
+              ? (LOOK.flames.smoke[j] as string)
+              : j === 1
+                ? LOOK.flames.second
+                : j === 2
+                  ? LOOK.flames.third
+                  : b.colour,
+          ),
+        );
         k += 1;
       }
     }

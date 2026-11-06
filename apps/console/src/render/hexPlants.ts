@@ -86,9 +86,9 @@ export function burnAt(
     const colour = t < 0.25 ? '#f7e91f' : t < 0.5 ? '#f2db50' : t < 0.75 ? '#f3b625' : '#ef9a3a';
     return { colour, smoke: false, size: Math.min(1, 0.6 + t * 4), rise: t * 0.4 };
   }
-  // (its smoke: dark grey-olive puffs, #6b6e60, rising and shrinking)
+  // (its smoke: dark brown-grey puffs, #5e5450 (the HQ's at 1207.2), rising and shrinking)
   const u = (t - BURN.gone) / (BURN.end - BURN.gone);
-  return { colour: '#6b6e60', smoke: true, size: 1 - 0.7 * u, rise: 0.4 + u * 1.2 };
+  return { colour: '#5e5450', smoke: true, size: 1 - 0.7 * u, rise: 0.4 + u * 1.2 };
 }
 
 /** A small seeded hash in [0, 1): the same field burns the same way every time. */
