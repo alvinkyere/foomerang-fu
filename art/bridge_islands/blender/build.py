@@ -379,8 +379,10 @@ for k, poly in enumerate(RENDER_OUTLINES):
     corner_blocks(poly)
     kerb_ring(f'KERB_{k}', chaikin(poly, 1 if len(poly) <= 6 else 2), KERB_TOP, KERB_SIDE)
 lit_flat('LIME', G.get('lime', []), LIME_GRASS, 0.012)      # (ground.py: the ground less its pale edge stripe)
-lit_flat('SHADE', G.get('shade', []), SHADE_GRASS, 0.02)
-lit_flat('PALE', G.get('pale', []), PALE_GRASS, 0.024)
+# the grass painted by numbers (grass_paint.py: the HQ's tones traced, each shape its own measured colour, big first and small on top),
+# in place of the measured SHADE and PALE patches
+_GP = J('art/bridge_islands/grass_paint.json')
+flat('GRASS_PAINT', [([tuple(q) for q in sh['plan']], sh['colour'], 0.0004 * i) for i, sh in enumerate(_GP['shapes'])], z=0.02)
 
 
 def tuft(name, x, y, rot):
