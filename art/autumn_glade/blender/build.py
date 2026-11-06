@@ -564,6 +564,9 @@ else:
         me = bpy.data.meshes.new('ROCK_' + rm['side']); bm.to_mesh(me); bm.free(); obj('ROCK_' + rm['side'], me, [FLAT])
 
 
+NO_GLOW = True
+
+
 def portal(name, p, strokes=True):
     """A vertical sheet of cyan zigzag (an N) standing on the foot, face to the camera, and the glow it throws on the sand."""
     x0, y0 = p['foot']; hw, ht = p['halfWidth'], p['height']
@@ -576,7 +579,7 @@ def portal(name, p, strokes=True):
     off = (GW['centre'][0] - WP['foot'][0], GW['centre'][1] - WP['foot'][1]); GR = (GW['rx'] + GW['ry']) / 2
     gx, gy = p['foot'][0] + mir * off[0], p['foot'][1] + off[1]
     heart_, sand_ = Vector(lin(GW['heart'])[:3]), Vector(lin(J('art/autumn_glade/ground_field.json')['base'])[:3])
-    for i in range(20):
+    for i in ([] if NO_GLOW else range(20)):      # (owner, 2026-11-05: "there is this white spot in front of the portals: take them out")
         rad = GR * 1.1 * (1 - i / 20) + 0.05
         w_ = math.exp(-0.5 * (rad / (GR / 2)) ** 2)
         c_ = sand_.lerp(heart_, w_)

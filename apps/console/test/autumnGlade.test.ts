@@ -11,9 +11,9 @@ import { RECONSTRUCTED_MAPS } from '../src/render/reconstructed/maps';
 // The autumn glade (art/autumn_glade, ff physics hq 2.mp4 10:26): tested at ?arena=glade, outside the rotation, on the plaza's renderer.
 
 describe('the autumn glade', () => {
-  it('is chosen by ?arena=glade and is not in the rotation yet', () => {
+  it('is chosen by ?arena=glade and is in the rotation (owner, 2026-11-05)', () => {
     expect(productArena('?arena=glade')).toBe('autumn_glade');
-    expect(PRODUCT_POOL).not.toContain('autumn_glade');
+    expect(PRODUCT_POOL).toContain('autumn_glade');
   });
 
   it('is drawn by the plaza’s renderer and is a named, playable arena', () => {

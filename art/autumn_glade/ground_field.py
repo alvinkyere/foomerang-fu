@@ -20,6 +20,14 @@ sand = (h[..., 0] >= 15) & (h[..., 0] <= 34) & (h[..., 1] >= 30) & (h[..., 1] <=
 sand[95:375, :215] = False; sand[470:620, 740:1190] = False
 sand = cv2.erode(sand.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
 hole = cv2.dilate((~sand).astype(np.uint8), np.ones((11, 11), np.uint8))
+# the portals' glow is not the sand's (owner, 2026-11-05: "this white spot in front of the portals: take them out"): a circle round each
+# glow (fit_glow.py's centre, 3 sigma of the west one's) filled from the sand round it
+import os as _os
+if _os.path.exists('art/autumn_glade/glow.json'):
+    _gw = next(g for g in json.load(open('art/autumn_glade/glow.json')) if g['side'] == 'W'); _rad = int(3 * max(_gw['sigma_px']))
+    for _p in json.load(open('art/autumn_glade/layout.json'))['portals']:
+        _x, _y, _w, _h = _p['px']; _cx = _x + _w + 10 if _p['side'] == 'W' else _x - 10
+        cv2.circle(hole, (int(_cx), int(_y + _h / 2)), _rad, 1, -1)
 filled = cv2.inpaint(f, hole * 255, 15, cv2.INPAINT_TELEA)
 smooth = cv2.GaussianBlur(filled.astype(np.float32), (0, 0), BLUR)
 L = json.load(open('art/autumn_glade/layout.json'))
