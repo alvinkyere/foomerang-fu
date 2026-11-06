@@ -37,6 +37,8 @@ L = json.load(open('art/bridge_islands/layout.json'))
 # per tree: its box in the frame and colour class (fit_trees.py's), and its anchor: the canopy's middle, in the world (layout.py's lumps)
 BOXES = [(430, 110, 680, 330, 'red'), (300, 330, 560, 560, 'gold'), (1050, 440, 1330, 640, 'gold'), (1640, 100, 1920, 500, 'red'), (780, 0, 1000, 80, 'gold')]
 NEAR = 3.0
+# each card's residual shift in the game's view (game - HQ canopy centroid, px), measured on a map-only shot, 2026-11-05
+FIX = {0: (2.2, 3.2), 1: (3.4, 6.2), 2: (-0.2, 2.1), 3: (-2.4, 0.3), 4: (2.0, 4.4)}
 crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.2)
 cards = []
 for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
@@ -74,7 +76,8 @@ for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
     out = []
     for i, (poly, col) in enumerate(parts):
         if len(poly) < 3: continue
-        P = [on_card(float(px), float(py) - 6, anchor) for px, py in poly]          # (the game's view ~6 px lower than this camera model)
+        dx_, dy_ = FIX.get(k, (0, 0))
+        P = [on_card(float(px) - dx_, float(py) - 6 - dy_, anchor) for px, py in poly]          # (the game's view ~6 px lower than this camera model; FIX: each card's own residual)
         out.append(dict(pts=[[round(float(a), 3) for a in p] for p in P], colour=col))
     cards.append(dict(tree=k, anchor=anchor, toward=[round(float(-a), 4) for a in VIEW], parts=out))
     print('tree', k, kind, len(out), 'parts')
