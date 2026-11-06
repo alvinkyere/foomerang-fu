@@ -79,6 +79,8 @@ for kind, mask in (('g', gold),):
     nearp = cv2.dilate(modelp, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))) > 0
     mp = np.where(outside, (carried & nearp) | (modelp > 0), mp)
     gy, gx = np.mgrid[-PAD:1080 + PAD:STEP, -PAD:1920 + PAD:STEP]
+    # the canopy's outline on the screen (quarter size), for blender/build.py: the trunks show only outside it, as the frame's do
+    json.dump(dict(w=480, h=270, rows=[''.join('1' if v else '0' for v in row) for row in cv2.resize(mp[PAD:-PAD, PAD:-PAD].astype(np.uint8), (480, 270), interpolation=cv2.INTER_AREA) > 0]), open('art/hex_meadow/canopy_screen.json', 'w'))
     inside = mp[gy + PAD, gx + PAD]      # (every canopy pixel belongs to a tree: away from its clumps, the nearest clump's height and tree)
     best = np.full(gx.shape, -1e9); bz = np.zeros(gx.shape); bdist = np.full(gx.shape, 1e9); nz = np.zeros(gx.shape); bd = np.full(gx.shape, 1.2)
     bk = -np.ones(gx.shape, int); nk = -np.ones(gx.shape, int); bc = -np.ones(gx.shape, int); ba = np.zeros(gx.shape)

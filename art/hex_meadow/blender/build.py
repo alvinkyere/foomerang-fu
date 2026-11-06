@@ -152,7 +152,7 @@ traced('LEAVES', LM, 0.06, lambda k: LM['tones'][LM['tone'][k]], 3)
 
 
 # ---------------------------------------------------------------------------------------------------------------- trees
-def trunk(name, foot, top, r0, r1, rings=14, seg=12, path=None):
+def trunk(name, foot, top, r0, r1, rings=14, seg=12, path=None, clip=False):
     """A tapered lavender trunk from the foot (on the ground) to `top` (or along `path`, its points from the foot up): navy on its
     shaded side, pale where the sun meets it, with dark spots (the frame's: #b4b8f0 lit, #8a8fd6, #4d4f97 shaded)."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
@@ -171,19 +171,37 @@ def trunk(name, foot, top, r0, r1, rings=14, seg=12, path=None):
         ring_ = [bm.verts.new((c.x + math.cos(2 * math.pi * k / seg) * r, c.y + math.sin(2 * math.pi * k / seg) * r, c.z)) for k in range(seg)]
         for v_ in ring_: vc[v_] = c.copy()
         grid.append(ring_)
-    lo_, mi_, hi_ = Vector(lin('#4d4f97')[:3]), Vector(lin('#8a8fd6')[:3]), Vector(lin('#b4b8f0')[:3])
+    # (banded as the frame's trunks are: a navy shaded side, lavender, a pale lit stripe; sharp steps, not a gradient)
+    lo_, mi_, hi_ = Vector(lin('#4d4f97')[:3]), Vector(lin('#9da2e6')[:3]), Vector(lin('#d2d4f3')[:3])
     for i in range(rings - 1):
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
             spot = rng.random() < 0.12
-            for loop in f.loops:
-                nrm = (loop.vert.co - vc[loop.vert]); nrm.z = 0
-                nrm = nrm.normalized() if nrm.length > 1e-6 else Vector((0, -1, 0))
-                l_ = max(0.0, min(1.0, nrm.dot(MEADOW_SUN) * 0.8 + 0.45))
-                c_ = lo_.lerp(mi_, l_ / 0.5) if l_ < 0.5 else mi_.lerp(hi_, (l_ - 0.5) / 0.5)
-                loop[col] = list(c_ * (0.55 if spot else 1.0)) + [1.0]
+            mid_ = (f.calc_center_median() - (vc[f.verts[0]] + vc[f.verts[2]]) / 2); mid_.z = 0
+            nrm = mid_.normalized() if mid_.length > 1e-6 else Vector((0, -1, 0))
+            l_ = nrm.dot(Vector((MEADOW_SUN.x, MEADOW_SUN.y, 0)).normalized())
+            c_ = lo_ if l_ < -0.15 else hi_ if l_ > 0.75 else mi_
+            for loop in f.loops: loop[col] = list(c_ * (0.5 if spot else 1.0)) + [1.0]
+    if clip and CROWN_SCREEN is not None:
+        # (the crowns stand in front of their trunks: where the frame shows canopy, no trunk; it shows only in the gaps)
+        gone = [f for f in bm.faces if crown_hides(f.calc_center_median())]
+        bmesh.ops.delete(bm, geom=gone, context='FACES')
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     return obj(name, me, [FLAT])
+
+
+_pth = math.radians(CAM['pitchDeg'])
+_PR = [[1, 0, 0], [0, -math.sin(_pth), -math.cos(_pth)], [0, math.cos(_pth), -math.sin(_pth)]]
+CROWN_SCREEN = J('art/hex_meadow/canopy_screen.json') if HAS('art/hex_meadow/canopy_screen.json') else None
+
+
+def crown_hides(co):
+    v = [co[0] / 100 - CAM['centre'][0], co[1] / 100 - CAM['centre'][1], co[2] / 100 - CAM['centre'][2]]
+    w = [sum(_PR[i][j] * v[j] for j in range(3)) for i in range(3)]
+    cx, cy = CAM['focalPx'] * w[0] / w[2] + 960, CAM['focalPx'] * w[1] / w[2] + 540
+    px, py = 960 + (cx - 960) * CAM['referenceZoom'], 540 + (cy - 540) * CAM['referenceZoom']
+    if co[2] < 0.8 or not (0 <= px < 1920 and 0 <= py < 1080): return False
+    return CROWN_SCREEN['rows'][int(py / 4)][int(px / 4)] == '1'
 
 
 def canopy_mass(name, data, hi, mid, lo):
@@ -252,7 +270,7 @@ for k, t in enumerate(L['trees']):
     fx, fy = t['plan'][0], YC + t['plan'][1]
     for j, br in enumerate(t['trunk']):
         # (the frame's trunks, read along their middles: ~35 px across at the foot, a branch about half that)
-        trunk(f'TRUNK_{k}_{j}', (fx, fy), None, 0.55 if j == 0 else 0.3, 0.3 if j == 0 else 0.18, rings=max(8, 4 * len(br)), path=[(x, YC + y, z) for x, y, z in br])
+        trunk(f'TRUNK_{k}_{j}', (fx, fy), None, 0.55 if j == 0 else 0.3, 0.3 if j == 0 else 0.18, rings=max(8, 4 * len(br)), path=[(x, YC + y, z) for x, y, z in br], clip=True)
 for kind_, data_ in MASS.items(): canopy_mass(f'CANOPY_MASS_{kind_}', data_, *GOLD)
 
 
