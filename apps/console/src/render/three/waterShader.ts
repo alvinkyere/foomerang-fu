@@ -57,6 +57,12 @@ export type WaterStyle = {
     readonly rows: number;
     readonly offsets: readonly (readonly [number, number, number])[];
   };
+  /**
+   * Lay the grade and the shafts out by the fragment's true place on the screen (the clip position divided per pixel). Without it the place is
+   * divided per vertex and interpolated across the water's one big quad, which is off away from its corners (the lily island was fitted
+   * through that, so it keeps it; the bridge islands use this).
+   */
+  readonly exactScreen?: boolean;
   readonly shafts?: {
     readonly angle: number;
     readonly stops: readonly (readonly [number, number])[];
@@ -99,14 +105,30 @@ export function waterMaterial(
       light: { value: rgb(colours.light) },
       foam: { value: rgb(colours.foam) },
     },
-    vertexShader: `varying vec2 at; varying vec2 ndc;
+    vertexShader:
+      style.exactScreen === true
+        ? `varying vec2 at; varying vec4 clipAt;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  at = w.xz;
+  gl_Position = projectionMatrix * viewMatrix * w;
+  clipAt = gl_Position;
+}`
+        : `varying vec2 at; varying vec2 ndc;
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
   at = w.xz;
   gl_Position = projectionMatrix * viewMatrix * w;
   ndc = gl_Position.xy / gl_Position.w;
 }`,
-    fragmentShader: fragment,
+    // (exactScreen: the fragment's ndc from the clip position, divided here, per pixel)
+    fragmentShader:
+      style.exactScreen === true
+        ? fragment.replace(
+            'varying vec2 ndc;',
+            'varying vec4 clipAt;\n#define ndc (clipAt.xy / clipAt.w)',
+          )
+        : fragment,
   });
 }
 

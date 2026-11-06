@@ -45,7 +45,7 @@ manifest = {
     'followFrame': {'minZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'], 4), 'maxZoom': round(SC['hqZoom'] / SC['scale'] * SC['gameZoomFit'] * 1.3, 4)},
     # and its foam as measured (44 ribbons: 0.32 wide, within ~1 unit of the bank, 1.4-11 long, 4.6% of the water): one wide ribbon
     # at a time drifting off each edge, broken into long pieces (the field's noise, below)
-    'water': {'grade': json.load(open('art/bridge_islands/grade.json')) if os.path.exists('art/bridge_islands/grade.json') else None,
+    'water': {'exactScreen': True, 'grade': json.load(open('art/bridge_islands/grade.json')) if os.path.exists('art/bridge_islands/grade.json') else None,
               'base': HQ.flat('#7aa8bb'), 'light': HQ.flat('#9ac3d3'), 'foam': HQ.flat('#c2e8f4'), 'glowWidth': 0.9, 'foamSpacing': 1.0,
               'foamWidth': 0.26, 'foamReach': 1.15, 'drift': 0.07,
               # the raft is in the water: its edges get the foam too, as it turns (the shader reads where it is now)

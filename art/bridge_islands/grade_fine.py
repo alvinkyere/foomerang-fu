@@ -45,6 +45,6 @@ for r in range(ROWS):
 L = np.array(rowsL)
 A = B.T @ B + lam * L.T @ L
 delta = np.linalg.solve(A, B.T @ diff)
-new = old + delta.reshape(ROWS, COLS, 3)
+new = old + 0.5 * delta.reshape(ROWS, COLS, 3)      # (the shader adds the offset in linear colour, which the screen shows ~2x as large near the water's tones)
 print('mean |change| %.2f levels, largest %.1f' % (np.abs(new - old).mean(), np.abs(new - old).max()))
 json.dump(dict(cols=COLS, rows=ROWS, offsets=[[round(float(v), 1) for v in o] for o in new.reshape(-1, 3)]), open('art/bridge_islands/grade.json', 'w'))

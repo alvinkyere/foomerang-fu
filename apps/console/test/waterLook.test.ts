@@ -140,3 +140,22 @@ describe('the water shader of a map with a moving raft', () => {
         );
   });
 });
+
+describe('the water’s place on the screen (a map’s grade and shafts are laid out by it)', () => {
+  // The water is one big quad seen in perspective: a screen position divided per VERTEX and interpolated across it lands in the wrong place
+  // away from the corners (found 2026-11-05: a grade cell meant for (480, 432) showed at (640, 135)). With `exactScreen` the divide is per pixel.
+  const style = { base: '#74a2b3', light: '#9bc5d1', foam: '#a8deeb' };
+  it('by default keeps the old per-vertex screen position (maps fitted through it look as they did)', () => {
+    const m = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, style);
+    expect(m.vertexShader).toContain('ndc = gl_Position.xy / gl_Position.w');
+  });
+  it('with exactScreen divides per pixel', () => {
+    const m = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, {
+      ...style,
+      exactScreen: true,
+    });
+    expect(m.vertexShader).toContain('clipAt = gl_Position');
+    expect(m.fragmentShader).toContain('clipAt.xy / clipAt.w');
+    expect(m.fragmentShader).not.toMatch(/\bhalf\b/);
+  });
+});
