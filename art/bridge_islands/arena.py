@@ -34,19 +34,24 @@ def raster(polys):
     return m
 SLIDER_BLOCK = -1          # the NW slab: the lever-driven rock (the HQ, 10:37-10:48): a solid on rails, not a wall (sliders.ts)
 bank, wall = raster(G), raster([b['top'] for b in STONES])
+def _islet_nw():      # (the north-west tree's raised hexagonal platform: solid, no one climbs it)
+    e = json.load(open('art/bridge_islands/islet_nw.json'))
+    return [(e['centre'][0] + e['radius'] * math.cos(math.pi / 6 + i * math.pi / 3), e['centre'][1] + e['radius'] * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]
+
+
 def _islet_e():
     e = json.load(open('art/bridge_islands/islet_e.json'))
     return [(e['centre'][0] + e['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), e['centre'][1] + e['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
 
 
-solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 6, 7, 9, 11, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
-# the ground: the banks and under the stones (solid all the same: no one falls at a stone's foot), reaching a unit out over the
-# water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
-# stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
-# Outlines simplified to within 0.25 units: the data stays small.
-reach = cv2.dilate(bank | wall, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
-cs, _ = cv2.findContours(reach, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 2.5, True).reshape(-1, 2)]
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 6, 7, 9, 11, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e(), _islet_nw()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+# the ground is exactly the land as drawn (owner, 2026-11-06: "no player can walk on water"): each island to where its side meets the water
+# (layout.py `measured`: the water lines of the two big islands), the small islets' banks, and the bridge's deck. A player whose middle leaves
+# it falls. (It used to reach a unit out over the water, so players stood on the water.)
+_land = [b for b in G] + [m['water'] for m in L.get('measured', [])]
+land = raster(_land)
+cs, _ = cv2.findContours(land, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 1.0, True).reshape(-1, 2)]
           for k in cs if cv2.contourArea(k) > 20]
 # the walls as boxes: where a wall lies within 3 units of a bank (no one reaches the rest), rows of half a unit merged downward
 near = solid_wall
@@ -76,9 +81,22 @@ for k, (r0, r1, c0, c1) in enumerate(merged):
                       halfHeight=round(max(hh, MIN_HALF)), angle=0))
 
 CRATE = 1.43 * S / 2
+# the props that break (as the gong islands'): the crates and the pots, each named as its model is (CRATE_k, POT_k: plazaProps.ts hides it)
+breakables = []
 for k, (X, Y) in enumerate(L['crates']):
     cx, cy = w(X, Y)
-    walls.append(dict(id=f'CRATE_{k}', kind='WALL', shape='box', x=cx, y=cy, halfWidth=round(CRATE, 1), halfHeight=round(CRATE, 1), angle=0))
+    breakables.append(dict(id=f'CRATE_{k}', kind='CRATE', shape='box', x=cx, y=cy, halfWidth=round(max(CRATE, 19), 1), halfHeight=round(max(CRATE, 19), 1), angle=0))
+for k, po in enumerate(L['pots']):
+    if po['z'] > 0.5: continue                          # (a pot up on a block: the block is the wall there)
+    cx, cy = w(*po['at'])
+    breakables.append(dict(id=f'POT_{k}', kind='POT', shape='disc', x=cx, y=cy, radius=round(max(po['w'] / 2 * S, 18), 1)))
+# what stands up off the ground and is drawn solid: tree trunks, bamboo, stone lanterns, the gong gate's posts (round solids)
+def disc(id_, X, Y, r):
+    cx, cy = w(X, Y); walls.append(dict(id=id_, kind='WALL', shape='disc', x=cx, y=cy, radius=round(max(r * S, 18), 1)))
+for k, t in enumerate(L['trees']): disc(f'TRUNK_{k}', t['foot'][0], t['foot'][1], 0.55)
+for k, (X, Y) in enumerate(L['bamboo']): disc(f'BAMBOO_{k}', X, Y, 0.6 if k in (1, 2) else 0.4)
+for k, (X, Y) in enumerate(L['lanterns']): disc(f'LANTERN_{k}', X, Y, 0.75)
+for side in ('left', 'right'): disc(f'GATE_{side}', *L['gate'][side], 0.35)
 
 # the sliding rock and its levers (rules sliders.ts): home = the slab's place; it runs along the island's long diagonal (screen top-left to
 # bottom-right: plan +x, -y) until its centre reaches the island's edge: "all the way to the edge", where a player in its way is shoved off
@@ -87,12 +105,13 @@ slider = None
 
 # spawns and Book spots: open bank, clear of every wall and the water by more than a player's radius, spread far apart
 solid = wall.copy()                                   # (the wall boxes as the rules have them, a little widened; the sliding rock's whole run too)
-for o in walls:
+for o in walls + breakables:
+    if o['shape'] == 'disc': o = dict(o, halfWidth=o['radius'], halfHeight=o['radius'])
     c0, r0 = int((o['x'] - o['halfWidth']) / S / CELL), int((o['y'] - o['halfHeight']) / S / CELL)
     c1, r1 = int((o['x'] + o['halfWidth']) / S / CELL) + 1, int((o['y'] + o['halfHeight']) / S / CELL) + 1
     solid[max(r0, 0):r1, max(c0, 0):c1] = 1
 CLEAR = int(40 / S / CELL) + 1                        # a player's radius (36) and more, from any wall and the water
-free = cv2.erode(bank, np.ones((2 * CLEAR + 1,) * 2, np.uint8)) & (1 - cv2.dilate(solid, np.ones((2 * CLEAR + 1,) * 2, np.uint8)))
+free = cv2.erode(land, np.ones((2 * CLEAR + 1,) * 2, np.uint8)) & (1 - cv2.dilate(solid, np.ones((2 * CLEAR + 1,) * 2, np.uint8)))
 ys, xs = np.nonzero(free)
 cand = np.c_[(xs + 0.5) * CELL * S, (ys + 0.5) * CELL * S]
 def spread(n, seed):
@@ -146,6 +165,11 @@ export const BRIDGE_ISLANDS_GROUND: readonly (readonly Vec2[])[] = Object.freeze
 export const BRIDGE_ISLANDS_WALLS: readonly BridgeIslandsWall[] = Object.freeze([
 {''.join('  Object.freeze(' + obj(o) + '),\n' for o in walls)}]);
 
+export type BridgeIslandsBreakable = Solid & {{ readonly id: string; readonly kind: 'CRATE' | 'POT' }};
+
+export const BRIDGE_ISLANDS_BREAKABLES: readonly BridgeIslandsBreakable[] = Object.freeze([
+{''.join('  Object.freeze(' + obj(o) + '),\n' for o in breakables)}]);
+
 export const BRIDGE_ISLANDS_SPAWNS: readonly Vec2[] = Object.freeze([
 {''.join('  ' + obj(o) + ',\n' for o in spawns)}]);
 
@@ -161,9 +185,11 @@ export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({{
   height: BRIDGE_ISLANDS_HEIGHT,
   ground: BRIDGE_ISLANDS_GROUND,
   walls: BRIDGE_ISLANDS_WALLS,
+  breakables: BRIDGE_ISLANDS_BREAKABLES,
   sliders: BRIDGE_ISLANDS_SLIDERS,
   spawns: BRIDGE_ISLANDS_SPAWNS,
 }});
 """
 open('games/foomerang-fu/src/rules/bridgeIslandsArena.ts', 'w').write(ts)
+json.dump(dict(ground=ground, walls=walls, sliders=sliders, breakables=breakables), open('art/bridge_islands/output/arena_dump.json', 'w'))      # (for checks: output/ is not committed)
 print('arena', WIDTH, 'x', HEIGHT, ';', len(ground), 'ground,', len(walls), 'walls')
