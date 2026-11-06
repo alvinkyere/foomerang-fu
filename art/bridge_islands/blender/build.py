@@ -667,12 +667,25 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
 
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
+_CARDS = {c['tree']: c for c in J('art/bridge_islands/cards.json')['cards']}
+def card(name, cd):
+    """A tree's canopy as the HQ paints it (cards.py): flat shapes on a plane facing the camera, each part a hair nearer it than the one before."""
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col'); tw = Vector(cd['toward'])
+    for i, pt in enumerate(cd['parts']):
+        vs = [bm.verts.new(Vector(q) + tw * (0.004 * i)) for q in pt['pts']]
+        try: fc = bm.faces.new(vs)
+        except ValueError: continue
+        for lp in fc.loops: lp[col] = lin(HQ.flat(pt['colour']))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
 for k, t in enumerate(L['trees']):
+    if k in _CARDS:      # (the canopy painted on a card: the trunk below stays a model)
+        card(f'CARD_{k}', _CARDS[k])
     TREE = t['colour']; TREE_LOW = '#' + ''.join('%02x' % int(int(t['colour'][i:i + 2], 16) * 0.86) for i in (1, 3, 5))
     # (the HQ's trunk runs up between the canopy's tiers to its highest lump: seen in the gaps, pale bark with navy patches up there)
     _hi = max(t['lumps'], key=lambda l: l['z'])
     trunk(f'TRUNK_{k}', t['foot'], _hi['at'], _hi['z'] - t.get('base', 0.0) - 0.4, 0.42, 0.3, bend=0.5 if k == 0 else -0.4, base=t.get('base', 0.0))
-    for j, lump in enumerate(t['lumps']):
+    for j, lump in enumerate([] if k in _CARDS else t['lumps']):
         r = lump['r'] * 1.12
         cx, cy, cz, ry = lump['at'][0], lump['at'][1], lump['z'], lump.get('ry', lump['r']) * 1.12
         blob(f'TREE_{k}_{j}', (cx, cy, cz), (r * 0.78, ry * 0.78, r * 0.7), TREE, TREE_LOW)
