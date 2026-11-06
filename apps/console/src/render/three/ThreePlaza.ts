@@ -1069,10 +1069,6 @@ class Boomerang {
   }
 }
 
-/** Where the video's blast was cut (art/physics_reference/vfx/blast.json): the core's crop centre against the ring's centre
- * (video px), the video's foreshortening of the ground, and its yardstick (the donut beside it, px). */
-const BLAST_CUT = Object.freeze({ coreOffset: [9, -3] as const, aspect: 0.86, charPx: 21 });
-
 /** A short effect: something that grows and fades, then removes itself. */
 interface Burst {
   readonly object: THREE.Object3D;
@@ -1824,33 +1820,12 @@ class Plaza {
       );
       add(spark, 220, 1.6);
     } else if (e.type === 'BLASTED') {
-      // the reference video's blast: puff, flash, the ring out to the radius that kills, smoke (render/blastMotion.ts)
-      const ring = this.flipbooks.meta('blast_ring');
-      const core = this.flipbooks.meta('blast');
-      if (e.radius !== undefined && ring?.ringRadius !== undefined && core !== undefined) {
-        // the video's own blast, cut out of it (10:17.43–10:18.17): its ring on the ground, sized so that it ends exactly at
-        // the radius that kills, and its fireball, puffs and smoke at the same scale, where they were against the ring
-        const centre = this.#space.toScene(e.x, e.y);
-        const ringSize = this.#space.length(e.radius) / ring.ringRadius;
-        const perPx = ringSize / (ring.widths * BLAST_CUT.charPx);
-        this.flipbooks.play('blast_ring', new THREE.Vector3(centre.x, 0, centre.z), 1, now, {
-          size: ringSize,
-        });
-        this.flipbooks.play(
-          'blast',
-          new THREE.Vector3(
-            centre.x - BLAST_CUT.coreOffset[0] * perPx,
-            centre.y,
-            centre.z - (BLAST_CUT.coreOffset[1] * perPx) / BLAST_CUT.aspect,
-          ),
-          1,
-          now,
-          { size: core.widths * BLAST_CUT.charPx * perPx },
-        );
-      } else if (e.radius !== undefined) {
-        const ground = this.#space.toScene(e.x, e.y, 2);
+      // the HQ video's blast, our own geometry (render/explosionMotion.ts, measured every frame at 5:22.47): its ring ends exactly at
+      // the radius that kills
+      if (e.radius !== undefined) {
+        const ground = this.#space.toScene(e.x, e.y);
         this.#blasts.burst(
-          new THREE.Vector3(ground.x, ground.y, ground.z),
+          new THREE.Vector3(ground.x, 0, ground.z),
           this.#space.length(e.radius),
           now,
         );
@@ -1975,7 +1950,16 @@ class Plaza {
     const H = 1000;
     const w = W / zoom;
     const h = H / zoom;
-    this.camera.setViewOffset(W, H, ((u + 1) / 2) * W - w / 2, ((1 - v) / 2) * H - h / 2, w, h);
+    // a blast shakes the screen (explosionMotion.ts shakeAt: measured, at random each frame, up to 2% of its height)
+    const shake = this.#blasts.shake(time);
+    this.camera.setViewOffset(
+      W,
+      H,
+      ((u + 1) / 2) * W - w / 2 + shake.x * h,
+      ((1 - v) / 2) * H - h / 2 + shake.y * h,
+      w,
+      h,
+    );
   }
 
   /** Fire and ice boomerangs in flight, and burning players, leave fire or ice on the ground behind them (groundMarks.ts). */
@@ -2166,7 +2150,7 @@ class Plaza {
 }
 
 /** The flipbooks cut from the reference video (public/vfx/<name>.png + .json). */
-const VFX_FLIPBOOKS = ['pickup', 'blast', 'blast_ring', 'shield_pop', 'split'] as const;
+const VFX_FLIPBOOKS = ['pickup', 'shield_pop', 'split'] as const; // (the blast is our own: blasts.ts)
 
 /** Creates the 3D plaza inside `container` and resolves once its models and characters are loaded and a frame is drawn. */
 export async function createThreePlaza(
