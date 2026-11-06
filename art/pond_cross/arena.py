@@ -33,7 +33,7 @@ solid_wall = wall                                      # (the stones' own footpr
 # water: the rules drop a player whose middle leaves the ground, so with most of a body over the water, as the HQ's players
 # stand at a bank's edge (and the CPUs' plan, which wants ground a body's radius all round, finds the narrow banks walkable).
 # Outlines simplified to within 0.25 units: the data stays small.
-reach = cv2.dilate(bank | wall, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+reach = bank | wall      # (exactly the land as drawn and the stones on it: owner, 2026-11-06, "no player can walk on water"; it used to reach a unit out)
 cs, _ = cv2.findContours(reach, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 1.0, True).reshape(-1, 2)]
           for k in cs if cv2.contourArea(k) > 20]
