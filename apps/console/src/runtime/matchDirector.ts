@@ -23,9 +23,19 @@ export function createRuntimeFor(
   targetKills?: number,
   roundIntroSeconds = 0,
   slowMo = false,
+  given?: readonly PowerKind[],
 ): MatchRuntime {
   return gameId === 'foomerang-fu'
-    ? new LazyFuRuntime(powerups, enabled, arena, mode, targetKills, roundIntroSeconds, slowMo)
+    ? new LazyFuRuntime(
+        powerups,
+        enabled,
+        arena,
+        mode,
+        targetKills,
+        roundIntroSeconds,
+        slowMo,
+        given,
+      )
     : new GameRuntime();
 }
 

@@ -56,6 +56,7 @@ export class LazyFuRuntime implements MatchRuntime {
 
   readonly #roundIntroSeconds: number;
   readonly #slowMo: boolean;
+  readonly #given: readonly PowerKind[] | undefined;
 
   constructor(
     powerups?: PowerupMode,
@@ -66,7 +67,10 @@ export class LazyFuRuntime implements MatchRuntime {
     roundIntroSeconds = 0,
     /** A kill freezes and slows the game (runtime/killSlowMo.ts). Default off. */
     slowMo = false,
+    /** DEVELOPER ONLY (`?give=`): powers every player holds from the start of the match. */
+    given?: readonly PowerKind[],
   ) {
+    this.#given = given;
     this.#slowMo = slowMo;
     this.#targetKills = targetKills;
     this.#roundIntroSeconds = roundIntroSeconds;
@@ -112,6 +116,7 @@ export class LazyFuRuntime implements MatchRuntime {
           this.#roundIntroSeconds,
           undefined,
           this.#slowMo,
+          this.#given,
         );
         real.setActivity((playerId) => this.#isActive(playerId));
         real.start(players, nowMs);

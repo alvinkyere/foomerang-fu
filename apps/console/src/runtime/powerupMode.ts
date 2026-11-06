@@ -42,6 +42,18 @@ export function parseEnabledParam(search: string): PowerKind[] | undefined {
 }
 
 /**
+ * DEVELOPER ONLY: powers every player holds from the start of the match (`?give=EXPLOSIVE_BOOMERANG`), to test a power at once
+ * (owner, 2026-11-06: "make it possible to test explosive boomerang"). Unknown names are ignored; none valid means none given.
+ */
+export function parseGiveParam(search: string): PowerKind[] | undefined {
+  const raw = new URLSearchParams(search).get('give');
+  if (raw === null) return undefined;
+  const wanted = raw.split(',').map((name) => name.trim());
+  const valid = KNOWN.filter((kind) => wanted.includes(kind));
+  return valid.length === 0 ? undefined : valid;
+}
+
+/**
  * How many kills win a Free For All (`?kills=3`), for playtesting and automated checks only: 1–14, so a match can be
  * seen to its end in seconds. The game is 14; no parameter (or anything else) means 14.
  */

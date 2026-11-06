@@ -110,6 +110,8 @@ export interface FuConfig {
   readonly explosiveRespawnSeconds: number;
   /** Slice 5: which powers a Book may award (default all five). A disabled power is never awarded. */
   readonly enabledPowers?: readonly PowerKind[];
+  /** For testing a power (owner, 2026-11-06): what every player holds when the match starts (default nothing). */
+  readonly startingPowers?: readonly PowerKind[];
   /** Slice 5: the seed the Book's choice of power is derived from (with how many Books have been taken). */
   readonly seed: number;
   /**
@@ -303,6 +305,9 @@ export function assertValidConfig(config: FuConfig): void {
     !(Number.isFinite(config.roundIntroSeconds) && config.roundIntroSeconds >= 0)
   )
     throw new RangeError('roundIntroSeconds must be a finite number, 0 or more');
+  if (config.startingPowers !== undefined && !config.startingPowers.every(isPowerKind)) {
+    throw new RangeError('startingPowers must be power kinds');
+  }
   if (config.enabledPowers !== undefined && !config.enabledPowers.every(isPowerKind)) {
     throw new RangeError('enabledPowers must be power kinds');
   }

@@ -7,6 +7,7 @@ import { createConsoleRuntime } from './consoleRuntime';
 import {
   productArena,
   parseEnabledParam,
+  parseGiveParam,
   parseKillsParam,
   parsePowerupsParam,
 } from './runtime/powerupMode';
@@ -54,6 +55,8 @@ if (!config.ok) {
   // open two connections.
   const enabled = parseEnabledParam(window.location.search);
   const enabledOption = enabled === undefined ? {} : { enabled };
+  const given = parseGiveParam(window.location.search);
+  const givenOption = given === undefined ? {} : { given };
   const kills = parseKillsParam(window.location.search);
   const killsOption = kills === undefined ? {} : { targetKills: kills };
   const runtime = createConsoleRuntime({
@@ -63,6 +66,7 @@ if (!config.ok) {
     // The gong islands for now (the owner, 2026-10-22); ?arena=product rotates them with the plaza; ?arena= pins a map.
     arena: productArena(window.location.search),
     ...enabledOption,
+    ...givenOption,
     ...killsOption,
     // each round opens with the reference video's landings, READY and GO (?intro=off for development and tests)
     roundIntroSeconds:

@@ -27,6 +27,8 @@ export interface ConsoleRuntimeOptions {
   readonly random?: () => number;
   /** Which powers a Book may award (the page address's `?enable=`); default all five. */
   readonly enabled?: readonly PowerKind[];
+  /** DEVELOPER ONLY (the page address's `?give=`): powers every player holds from the start of the match. Default none. */
+  readonly given?: readonly PowerKind[];
   /** Test/playtest only (the page address's `?kills=`): fewer kills to win, so a match ends in seconds. Default 14. */
   readonly targetKills?: number;
   /** Each Foomerang Fu round's intro, READY … GO (the reference video: 2.84 s; the page address's `?intro=off`: none). Default none. */
@@ -110,6 +112,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       options.targetKills,
       options.roundIntroSeconds,
       options.slowMo,
+      options.given,
     );
   }, warmUpFor);
   const session = new HostSession({

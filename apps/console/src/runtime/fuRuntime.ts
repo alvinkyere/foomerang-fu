@@ -100,6 +100,7 @@ export class FuRuntime implements MatchRuntime {
   readonly #powerups: FuConfig['powerups'];
 
   readonly #enabled: readonly PowerKind[] | undefined;
+  readonly #given: readonly PowerKind[] | undefined;
 
   /** What the chosen mode asks of the rules (its win condition). Only Free For All exists; the director never starts another. */
   readonly #mode: GameModeId;
@@ -119,7 +120,10 @@ export class FuRuntime implements MatchRuntime {
     random: () => number = Math.random,
     /** A kill freezes the game and plays it in slow motion (runtime/killSlowMo.ts, the HQ video). Default off. */
     slowMo = false,
+    /** DEVELOPER ONLY (`?give=`): powers every player holds from the start of the match (the rules' startingPowers). */
+    given?: readonly PowerKind[],
   ) {
+    this.#given = given;
     this.#random = random;
     this.#slowMo = slowMo;
     this.#targetKills = targetKills;
@@ -188,6 +192,7 @@ export class FuRuntime implements MatchRuntime {
         // a fresh seed every match (owner, 2026-10-22: Books must not come the same way every time); the rules stay pure
         seed: Math.floor(this.#random() * 0x7fffffff),
         ...(this.#enabled === undefined ? {} : { enabledPowers: this.#enabled }),
+        ...(this.#given === undefined ? {} : { startingPowers: this.#given }),
         ...FREE_FOR_ALL,
         roundAdvance: 'ON_CONTINUE', // the scoreboard waits for CONTINUE between rounds (owner, 2026-10-19)
         ...(this.#roundIntroSeconds > 0 ? { roundIntroSeconds: this.#roundIntroSeconds } : {}),

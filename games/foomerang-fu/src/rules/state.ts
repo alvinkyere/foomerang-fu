@@ -266,7 +266,16 @@ export function createFuMatch(
   const config: FuConfig = Object.freeze({ ...DEFAULT_FU_CONFIG, ...overrides });
   assertValidConfig(config);
   assertValidPlayers(players);
-  return startRound(players, config, 1, 0);
+  const given = config.startingPowers;
+  return startRound(
+    players,
+    config,
+    1,
+    0,
+    given === undefined || given.length === 0
+      ? new Map()
+      : new Map(players.map((p) => [p.id, Object.freeze([...given])])),
+  );
 }
 
 /**
