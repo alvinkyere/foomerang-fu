@@ -667,7 +667,8 @@ def trunk(name, foot, top, height, r0, r1, bend=0.0, base=0.0):
 
 # the two orange trees (layout.py: read off the HQ frame at 10:37): a leaning birch, then its lumps of canopy, each a flat wavy disc
 # standing the height of the trunk (their half widths and heights are the pixels the HQ shows, over the pixels a plan unit is there)
-_CARDS = {c['tree']: c for c in J('art/bridge_islands/cards.json')['cards']}
+_CARDS = {c['tree']: c for c in J('art/bridge_islands/cards.json')['cards'] if c.get('tree') is not None}
+_BUSH_CARDS = {c['bush']: c for c in J('art/bridge_islands/cards.json')['cards'] if c.get('bush') is not None}
 def card(name, cd):
     """A tree's canopy as the HQ paints it (cards.py): flat shapes on a plane facing the camera, each part a hair nearer it than the one before."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col'); tw = Vector(cd['toward'])
@@ -802,6 +803,7 @@ if len(bq) == 4:
                  parent=_slider)      # (the whole wall slides, its run onto the east island too: the HQ leaves nothing behind, 1:19)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
+    if k in _BUSH_CARDS: card(f'BUSHCARD_{k}', _BUSH_CARDS[k]); continue      # (the HQ's bush painted on a card: cards.py)
     obj_models.hexplant({'x': bu['at'][0], 'y': bu['at'][1], 'width': bu['r'] * 1.6}, PAL, FLAT, None, k)
 for k, po in enumerate(L['pots']):
     _before = set(bpy.data.objects.keys())

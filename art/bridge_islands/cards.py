@@ -32,6 +32,7 @@ f = cv2.medianBlur(cv2.imread('art/bridge_islands/output/reference.png'), 3)
 hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int); rgb = f.astype(int)[..., ::-1]
 lab = cv2.cvtColor(f, cv2.COLOR_BGR2LAB).astype(np.float32)
 CLASS = {'red': ((hsv[..., 0] <= 12) | (hsv[..., 0] >= 170)) & (hsv[..., 1] > 80) & (hsv[..., 2] > 140),
+         'hex': (hsv[..., 0] >= 60) & (hsv[..., 0] <= 92) & (hsv[..., 1] > 55) & (hsv[..., 2] > 140),
          'gold': (hsv[..., 0] >= 11) & (hsv[..., 0] <= 26) & (hsv[..., 1] > 70) & (hsv[..., 2] > 150)}
 L = json.load(open('art/bridge_islands/layout.json'))
 # per tree: its box in the frame and colour class (fit_trees.py's), and its anchor: the canopy's middle, in the world (layout.py's lumps)
@@ -41,17 +42,27 @@ NEAR = 3.0
 FIX = {0: (2.2, 3.2), 1: (3.4, 6.2), 2: (-0.2, 2.1), 3: (-2.4, 0.3), 4: (2.0, 4.4)}
 crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.2)
 cards = []
-for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
-    t = L['trees'][k]
-    anchor = [float(np.mean([l['at'][0] for l in t['lumps']])), float(np.mean([l['at'][1] for l in t['lumps']])), float(np.mean([l['z'] for l in t['lumps']]))]
+# the hex bushes (layout.py `bushes`, the HQ's boxes round each): anchored at their plates' height (objects.py hexplant: 0.6 of the width)
+BUSH_BOXES = [(785, 140, 945, 300), (685, 752, 885, 935), (1288, 355, 1440, 500)]
+JOBS = [(k, b, ('tree', k)) for k, b in enumerate(BOXES)] + [(100 + k, (*bb, 'hex'), ('bush', k)) for k, bb in enumerate(BUSH_BOXES)]
+for k, (x0, y0, x1, y1, kind), (what, idx) in JOBS:
+    if what == 'tree':
+        t = L['trees'][idx]
+        anchor = [float(np.mean([l['at'][0] for l in t['lumps']])), float(np.mean([l['at'][1] for l in t['lumps']])), float(np.mean([l['z'] for l in t['lumps']]))]
+    else:
+        bu = L['bushes'][idx]; anchor = [bu['at'][0], bu['at'][1], 0.6 * bu['r'] * 1.6 * 0.6]
     anchor = list(np.array(anchor) - VIEW * NEAR)      # (the card nearer the camera than the canopy's middle: in front of its trunk and what stands by it, as the HQ draws them)
     box = np.zeros(CLASS[kind].shape, bool); box[y0:y1, x0:x1] = True
     m = CLASS[kind] & box & mask()
     m = cv2.morphologyEx(m.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) > 0
+    if what == 'bush':
+        # its stems below the plates: the darker teal lines under them
+        stems = (hsv[..., 0] >= 70) & (hsv[..., 0] <= 100) & (hsv[..., 1] > 50) & (hsv[..., 2] > 100) & (hsv[..., 2] <= 200)
+        m |= stems & box & mask() & ~CLASS['gold']
     # the trunk where it shows between the lumps: dark navy and its white patches, inside the canopy's hull
     hull = np.zeros(m.shape, np.uint8)
     pts_ = cv2.findNonZero(m.astype(np.uint8))
-    if pts_ is not None: cv2.fillPoly(hull, [cv2.convexHull(pts_)], 1)
+    if pts_ is not None and what == 'tree': cv2.fillPoly(hull, [cv2.convexHull(pts_)], 1)
     navy = (hsv[..., 0] >= 105) & (hsv[..., 0] <= 135) & (hsv[..., 2] < 170)
     pale = (hsv[..., 1] < 45) & (hsv[..., 2] > 190)
     m |= (navy | pale) & (hull > 0) & box & mask()
@@ -79,6 +90,6 @@ for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
         dx_, dy_ = FIX.get(k, (0, 0))
         P = [on_card(float(px) - dx_, float(py) - 6 - dy_, anchor) for px, py in poly]          # (the game's view ~6 px lower than this camera model; FIX: each card's own residual)
         out.append(dict(pts=[[round(float(a), 3) for a in p] for p in P], colour=col))
-    cards.append(dict(tree=k, anchor=anchor, toward=[round(float(-a), 4) for a in VIEW], parts=out))
-    print('tree', k, kind, len(out), 'parts')
+    cards.append(dict(tree=k if what == 'tree' else None, bush=idx if what == 'bush' else None, anchor=anchor, toward=[round(float(-a), 4) for a in VIEW], parts=out))
+    print(what, idx, kind, len(out), 'parts')
 json.dump(dict(cards=cards), open('art/bridge_islands/cards.json', 'w'))
