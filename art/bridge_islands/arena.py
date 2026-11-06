@@ -109,7 +109,7 @@ for bw in L['bridge_walls']:
     for sl in bw['slabs']:
         cx_, cy_ = w(*sl['centre'])
         sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(sl['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
-                            by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.0), backSpeed=round(run / 0.32),
+                            by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.0),
                             lag=dict(out=sl['lag_out'], back=sl['lag_back']),
                             levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
     for j, fx in enumerate(bw['fixed']):
@@ -154,7 +154,7 @@ export const BRIDGE_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 
 /** The bridge's two walls (NW, SE): levers slide them in across the deck to meet on its middle line, and back (sliders.ts). */
 export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
-{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', backSpeed: ' + str(sl['backSpeed']) + ', lag: ' + obj(sl['lag']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
+{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', lag: ' + obj(sl['lag']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
 
 export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({{
   width: BRIDGE_ISLANDS_WIDTH,

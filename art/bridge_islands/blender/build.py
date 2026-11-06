@@ -776,19 +776,42 @@ if L['bridge']:
     flat('BRIDGE_seams', [([(x, y) for x, y in poly], col, dz) for poly, col, dz in seams], z=0.135)
 WALL_TOP, WALL_SIDE = lit('wall_top', HQ.lit('#828fc3', 0.98)), lit('wall_side', HQ.lit('#5f6ca3', 0.875))      # (the HQ walls' bright and dark medians, measured)
 # the bridge's two walls: chains of fat rounded bricks along the deck's long sides (A-B and C-D), a taller cap block at the far end of each
+def pillow(name, cx, cy, length, width, height, angle_deg, top_mat, side_mat, bevel=0.45, parent=None):
+    """A soft stone slab as the HQ draws its bridge walls: a block with every edge rounded (a bevelled cube, smooth-shaded: no fan creases),
+    standing from below the water up to `height`."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bot = STONE_BOTTOM
+    for v in bm.verts:
+        v.co.x *= length; v.co.y *= width; v.co.z = (v.co.z + 0.5) * (height - bot) + bot
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=min(bevel, width / 2 - 0.02, length / 2 - 0.02), segments=4, profile=0.5, affect='EDGES', clamp_overlap=True)
+    for f in bm.faces:
+        f.smooth = True; f.material_index = 0 if f.normal.z > 0.7 else 1
+    a = math.radians(angle_deg)
+    for v in bm.verts:
+        x, y = v.co.x, v.co.y
+        v.co.x, v.co.y = cx + x * math.cos(a) - y * math.sin(a), cy + x * math.sin(a) + y * math.cos(a)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(top_mat); me.materials.append(side_mat)
+    if parent is not None: o.parent = parent
+    return o
+
+
 # the bridge's two walls (layout.py `bridge_walls`): the slabs over the deck each ride their own slider (the glTF node SLIDER_<k>, k in the
 # rules' order: the NW wall's slabs from its south-west end, then the SE wall's), the pieces past the deck stay, the cap among them a taller cube
+CAP_TOP, CAP_SIDE = lit('cap_top', HQ.lit('#a9b6ec', 0.98)), lit('cap_side', HQ.lit('#8794d0', 0.875))      # (the HQ's cap: the island stone's lighter lavender)
 _k_slider = 0
 for bw in L.get('bridge_walls', []):
     ang_ = math.degrees(math.atan2(bw['u'][1], bw['u'][0])); wid = bw['width']
     for sl in bw['slabs']:
         node = bpy.data.objects.new('SLIDER_%d' % _k_slider, None); sc.collection.objects.link(node); _k_slider += 1
-        body(f'BWALL_{bw["tag"]}_s{_k_slider}', rounded_rect(sl['centre'][0], sl['centre'][1], sl['length'] - 0.08, wid, ang_, 0.45),
-             1.1 + rng.uniform(-0.06, 0.06), WALL_TOP, WALL_SIDE, top_r=0.28, corner_r=0.45, bottom=STONE_BOTTOM, soft=True, top_seg=3, parent=node)
+        # (the HQ's slabs are soft pillows: long, tall darker sides, a broad rounded top edge, a small gap between them)
+        pillow(f'BWALL_{bw["tag"]}_s{_k_slider}', sl['centre'][0], sl['centre'][1], sl['length'] - 0.15, wid, 1.3 + rng.uniform(-0.05, 0.05), ang_, WALL_TOP, WALL_SIDE,
+               bevel=0.5, parent=node)
     for j, fx in enumerate(bw['fixed']):
         cap = fx['cap']
-        body(f'BWALL_{bw["tag"]}_f{j}', rounded_rect(fx['centre'][0], fx['centre'][1], fx['length'] - 0.08 - (0.3 if cap else 0), wid + (0.35 if cap else 0), ang_, 0.45),
-             1.1 + (0.45 if cap else 0) + rng.uniform(-0.06, 0.06), WALL_TOP, WALL_SIDE, top_r=0.28, corner_r=0.45, bottom=STONE_BOTTOM, soft=True, top_seg=3)
+        pillow(f'BWALL_{bw["tag"]}_f{j}', fx['centre'][0], fx['centre'][1], fx['length'] - 0.08 - (0.3 if cap else 0), wid + (0.35 if cap else 0),
+               1.3 + (0.35 if cap else 0) + rng.uniform(-0.05, 0.05), ang_, CAP_TOP if cap else WALL_TOP, CAP_SIDE if cap else WALL_SIDE, bevel=0.5)
 # hex bushes, pots and the gong gate: the gong islands' own models (art/sky_islands/blender/objects.py), as they are
 for k, bu in enumerate(L['bushes']):
     if k in _BUSH_CARDS: card(f'BUSHCARD_{k}', _BUSH_CARDS[k]); continue      # (the HQ's bush painted on a card: cards.py)

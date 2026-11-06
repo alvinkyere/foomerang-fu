@@ -242,7 +242,7 @@ def _bridge_walls():
     the deck (the cap among them)."""
     A, B, C, D = [np.array(q, float) for q in bridge_poly]
     cd = (A + B + C + D) / 4; out = []
-    for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.2, 4.6, 2.0, 0.9), ('SE', D, C, 1.8, 4.2, 2.0, 0.8)):
+    for tag, p0, p1, e0, e1, wid, off in (('NW', A, B, 0.2, 4.6, 1.8, 0.9), ('SE', D, C, 1.8, 4.2, 1.8, 0.8)):
         u = (p1 - p0) / np.linalg.norm(p1 - p0); n = np.array([-u[1], u[0]])
         if ((p0 + p1) / 2 - cd) @ n < 0: n = -n
         # the cap (a taller near-cube, CAP long) stays at one end; the rest of the wall is the four slabs that slide (the HQ leaves only the cap)
@@ -257,7 +257,7 @@ def _bridge_walls():
         fixed = [dict(centre=r1([capc + n * off])[0], length=CAP, cap=True)]
         out.append(dict(tag=tag, u=r1([u])[0], n=r1([n])[0], width=wid, slide=r1([slide])[0], slabs=slabs, fixed=fixed))
     return out
-SLABS, LAG_OUT, LAG_BACK, CAP = 4, 0.13, 0.06, 1.8      # (the HQ: four slabs a wall; out 1:17.58-1:18.9, each ~0.85 s, a beat apart; back ~0.5 s in all)
+SLABS, LAG_OUT, LAG_BACK, CAP = 3, 0.17, 0.17, 1.8      # (the HQ: three slabs a wall (1:12 at rest, 1:18.3 mid-slide); out 1:17.58-1:18.9, each ~1 s, a beat apart; back the same way at the same pace: owner, 2026-11-06)
 bridge_walls = _bridge_walls()
 cubes = [dict(top=r1([unproject(x, y, CUBE_TOP)[0] for x, y in [(1600, 73), (1642, 112), (1597, 140), (1558, 103)]]), z=CUBE_TOP)]
 # the blocks standing on the east island (their top faces read off the frame, their heights from the front faces' pixels over 16 px a unit): the small
