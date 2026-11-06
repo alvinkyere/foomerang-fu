@@ -36,11 +36,13 @@ CLASS = {'red': ((hsv[..., 0] <= 12) | (hsv[..., 0] >= 170)) & (hsv[..., 1] > 80
 L = json.load(open('art/bridge_islands/layout.json'))
 # per tree: its box in the frame and colour class (fit_trees.py's), and its anchor: the canopy's middle, in the world (layout.py's lumps)
 BOXES = [(430, 110, 680, 330, 'red'), (300, 330, 560, 560, 'gold'), (1050, 440, 1330, 640, 'gold'), (1640, 100, 1920, 500, 'red'), (780, 0, 1000, 80, 'gold')]
+NEAR = 3.0
 crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.2)
 cards = []
 for k, (x0, y0, x1, y1, kind) in enumerate(BOXES):
     t = L['trees'][k]
     anchor = [float(np.mean([l['at'][0] for l in t['lumps']])), float(np.mean([l['at'][1] for l in t['lumps']])), float(np.mean([l['z'] for l in t['lumps']]))]
+    anchor = list(np.array(anchor) - VIEW * NEAR)      # (the card nearer the camera than the canopy's middle: in front of its trunk and what stands by it, as the HQ draws them)
     box = np.zeros(CLASS[kind].shape, bool); box[y0:y1, x0:x1] = True
     m = CLASS[kind] & box & mask()
     m = cv2.morphologyEx(m.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) > 0
