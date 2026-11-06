@@ -9,7 +9,7 @@ import numpy as np, cv2
 sys.path.insert(0, 'art/bridge_islands')
 from mapcmp import mask
 
-K, BAND = 6, 40
+K, BAND = 7, 80
 L = json.load(open('art/bridge_islands/layout.json')); WZ = L['water_z']
 CAM = json.load(open('art/sky_islands/camera.json')); SC = json.load(open('art/bridge_islands/scale.json'))
 Z = SC['hqZoom'] / SC['scale']; th = math.radians(CAM['pitchDeg'])
@@ -26,7 +26,13 @@ near = cv2.distanceTransform(water, cv2.DIST_L2, 5) <= BAND
 b = json.load(open('art/bridge_islands/beams.json')); ab = np.array(b['above'], float)
 Y, X = np.mgrid[0:1080, 0:1920]
 beyond = (Y <= np.interp(X, ab[:, 0], ab[:, 1])) & (X > 950)
-region = (water > 0) & near & ~beyond & mask()
+# under the beams the colour traced is the HQ's less the beams' light (the beams overlay adds it back over our shapes): fit_beams_grid.py's field
+sys.argv = ['x', 'art/bridge_islands/output/reference.png']
+_src = open('art/bridge_islands/fit_beams_grid.py').read().split('base = g - field(b)')[0]
+_ns = {}; exec(_src, _ns)
+light = _ns['field'](_ns['b'])[..., None] * np.array(_ns['ADD'])[::-1]       # (BGR)
+f = np.clip(f.astype(float) - light, 0, 255).astype(np.uint8)
+region = (water > 0) & (near | beyond) & mask()
 lab = cv2.cvtColor(f, cv2.COLOR_BGR2LAB).astype(np.float32)
 crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.2)
 _, lbl, _ = cv2.kmeans(lab[region], K, None, crit, 4, cv2.KMEANS_PP_CENTERS)
