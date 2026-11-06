@@ -65,16 +65,32 @@ for kind, mask in (('r', red), ('g', gold)):
     near = cv2.dilate(model, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))) > 0
     m = np.where(hidden, model > 0, np.where(band, m & near, m))
     # the surface: per grid point, the highest clump dome over it (a clump's dome: height r * 0.6 * sqrt(1 - d^2), d its ellipse distance)
-    gy, gx = np.mgrid[0:1080:STEP, 0:1920:STEP]
-    inside = m[gy, gx]      # (every canopy pixel belongs to a tree: away from its clumps, the nearest clump's height and tree)
+    # beyond the frame's edges (the game's camera sees past them; owner, 2026-11-05: crowns cut flat at the top): the model's clumps, and
+    # the frame's outline carried a little way out only near them (no straight seam at the edge)
+    PAD = 240
+    mp = np.zeros((1080 + 2 * PAD, 1920 + 2 * PAD), bool); mp[PAD:-PAD, PAD:-PAD] = m
+    modelp = np.zeros(mp.shape, np.uint8)
+    for cx, cy, ax, ay, *_ in clumps[kind]: cv2.ellipse(modelp, (int(cx) + PAD, int(cy) + PAD), (max(1, int(ax)), max(1, int(ay))), 0, 0, 360, 1, -1)
+    outside = np.ones(mp.shape, bool); outside[PAD:-PAD, PAD:-PAD] = False
+    carried = cv2.inpaint((mp * 255).astype(np.uint8), outside.astype(np.uint8) * 255, 9, cv2.INPAINT_TELEA) > 127
+    nearp = cv2.dilate(modelp, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))) > 0
+    mp = np.where(outside, (carried & nearp) | (modelp > 0), mp)
+    gy, gx = np.mgrid[-PAD:1080 + PAD:STEP, -PAD:1920 + PAD:STEP]
+    inside = mp[gy + PAD, gx + PAD]      # (every canopy pixel belongs to a tree: away from its clumps, the nearest clump's height and tree)
     best = np.full(gx.shape, -1e9); bz = np.zeros(gx.shape); bdist = np.full(gx.shape, 1e9); nz = np.zeros(gx.shape); bd = np.full(gx.shape, 1.2)
-    bk = -np.ones(gx.shape, int); nk = -np.ones(gx.shape, int)
-    for cx, cy, ax, ay, z, r, _x, _y, tk in clumps[kind]:
+    bk = -np.ones(gx.shape, int); nk = -np.ones(gx.shape, int); bc = -np.ones(gx.shape, int); ba = np.zeros(gx.shape)
+    for ci, (cx, cy, ax, ay, z, r, _x, _y, tk) in enumerate(clumps[kind]):
         d = np.sqrt(((gx - cx) / ax) ** 2 + ((gy - cy) / ay) ** 2)
         top = z + 0.6 * r * np.sqrt(np.clip(1 - d ** 2, 0, 1))
         on = (d < 1) & (top > best)
-        best = np.where(on, top, best); bz = np.where(on, top, bz); bd = np.where(on, d, bd); bk = np.where(on, tk, bk)
+        best = np.where(on, top, best); bz = np.where(on, top, bz); bd = np.where(on, d, bd); bk = np.where(on, tk, bk); bc = np.where(on, ci, bc); ba = np.where(on, np.arctan2(gy - cy, gx - cx), ba)
         near = (d < bdist); bdist = np.where(near, d, bdist); nz = np.where(near, z - 0.1 * r, nz); nk = np.where(near, tk, nk)
+    # under a higher clump's lower edge: in its shadow (the HQ's caps are told apart so: the upper one darkens the one below)
+    shadow = np.zeros(gx.shape, np.float32)
+    for k_ in (1, 2, 3):
+        up_c = np.roll(bc, k_, axis=0); up_t = np.roll(best, k_, axis=0)
+        shadow = np.maximum(shadow, ((up_c >= 0) & (up_c != bc) & (up_t > best + 0.2)).astype(np.float32) * (1.0 - 0.25 * (k_ - 1)))
+    shadow = cv2.GaussianBlur(shadow, (0, 0), 0.8)
     zs = np.where(best > -1e8, bz, nz)                                       # (outside every clump: the nearest clump's rim height)
     zs = cv2.GaussianBlur(zs.astype(np.float32), (0, 0), 1.2)                 # (no cliffs between neighbouring clumps)
     idx = -np.ones(gx.shape, int); verts = []
@@ -102,7 +118,7 @@ for kind, mask in (('r', red), ('g', gold)):
             if len(k) == 4: faces.append(q)
             elif len(k) == 3: faces.append(k)
     out[kind] = dict(verts=[[round(float(a), 3) for a in p] for p in plan], faces=[[int(v) for v in q] for q in faces],
-                     d=[round(float(bd[j, i]), 2) for (j, i) in pts], tree=[int(bk[j, i] if bk[j, i] >= 0 else nk[j, i]) for (j, i) in pts], own=[int(bk[j, i] >= 0) for (j, i) in pts])      # (how far into its clump each vertex is: the rims darken)
+                     d=[round(float(bd[j, i]), 2) for (j, i) in pts], tree=[int(bk[j, i] if bk[j, i] >= 0 else nk[j, i]) for (j, i) in pts], own=[int(bk[j, i] >= 0) for (j, i) in pts], shadow=[round(float(shadow[j, i]), 2) for (j, i) in pts], ang=[round(float(ba[j, i]), 2) for (j, i) in pts])      # (how far into its clump each vertex is: the rims darken)
     # check: the vertices' own projection lands on their pixels
     back = project(plan[:200]); err = np.abs(back - V_[:200, :2]).max()
     print(kind, len(plan), 'verts', len(faces), 'faces; reprojection error %.2f px' % err)

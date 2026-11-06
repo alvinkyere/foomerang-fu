@@ -257,15 +257,22 @@ def trunk(name, foot, top, r0, r1, rings=10, seg=10, via=()):
             if d <= lens[i + 1] or i == len(path) - 2:
                 u = 0.0 if lens[i + 1] == lens[i] else (d - lens[i]) / (lens[i + 1] - lens[i])
                 return path[i].lerp(path[i + 1], max(0.0, min(1.0, u)))
-    grid = []
+    grid = []; vc = {}
     for i in range(rings):
         t = i / (rings - 1); c = at_(t); r = r0 + (r1 - r0) * t
-        grid.append([bm.verts.new((c.x + math.cos(2 * math.pi * k / seg) * r, c.y + math.sin(2 * math.pi * k / seg) * r, c.z)) for k in range(seg)])
+        ring_ = [bm.verts.new((c.x + math.cos(2 * math.pi * k / seg) * r, c.y + math.sin(2 * math.pi * k / seg) * r, c.z)) for k in range(seg)]
+        for v_ in ring_: vc[v_] = c.copy()
+        grid.append(ring_)
     for i in range(rings - 1):
         for k in range(seg):
             f = bm.faces.new([grid[i][k], grid[i][(k + 1) % seg], grid[i + 1][(k + 1) % seg], grid[i + 1][k]])
-            spot = rng.random() < (0.32 if k % 3 else 0.12)                  # (the frame's birch: irregular dark dashes on white)
-            for loop in f.loops: loop[col] = lit_up(lin('#5b618b' if spot else '#bbc3e6'), loop.vert.co)
+            spot = rng.random() < (0.22 if k % 3 else 0.08)                  # (the HQ's birch: dark marks on near-white bark)
+            for loop in f.loops:
+                if spot: loop[col] = lin('#4f4757'); continue
+                nrm = (loop.vert.co - vc[loop.vert]).normalized() if (loop.vert.co - vc[loop.vert]).length > 1e-6 else Vector((0, -1, 0))
+                lit_ = max(0.0, nrm.dot(SUN_TO) * 0.5 + 0.5)                   # (the HQ's tones, beams out: #f8f8f6 #c8bbc6 #a396a6 #826f82)
+                a_, b_, c_ = Vector(lin('#826f82')[:3]), Vector(lin('#c8bbc6')[:3]), Vector(lin('#f2f0f1')[:3])
+                loop[col] = list(a_.lerp(b_, lit_ / 0.5) if lit_ < 0.5 else b_.lerp(c_, (lit_ - 0.5) / 0.5)) + [1.0]
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     return obj(name, me, [FLAT])
 
@@ -352,7 +359,7 @@ def canopy_mass(name, data, hi, mid, lo):
     normals, calibrated to the frame's lightness, mottled)."""
     bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
     vs = [bm.verts.new((x, YC + y, z)) for x, y, z in data['verts']]
-    dd = {v: d_ for v, d_ in zip(vs, data['d'])}
+    dd = {v: d_ for v, d_ in zip(vs, data['d'])}; sh_ = {v: x_ for v, x_ in zip(vs, data.get('shadow', [0.0] * len(vs)))}; an_ = {v: x_ for v, x_ in zip(vs, data.get('ang', [0.0] * len(vs)))}
     for q in data['faces']:
         try: bm.faces.new([vs[i] for i in q])
         except ValueError: pass
@@ -366,9 +373,10 @@ def canopy_mass(name, data, hi, mid, lo):
         for loop in f.loops:
             v = loop.vert.co; n = loop.vert.normal
             shade = -0.32 + 1.0 * max(0.0, n.dot(SUN_TO)) - 0.42 * max(0.0, -n.z)
-            shade += 0.09 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph) + 0.6 * math.sin(4.1 * v.x - 3.7 * v.y + ph))
             d_ = dd[loop.vert]
-            shade += 0.12 * (1 - min(d_, 1.0)) - 0.45 * max(0.0, min(d_, 1.1) - 0.72) / 0.38      # (a clump's heart lighter, its rim dark over the clump below)
+            # the HQ's caps are fans of leaves: soft wedges round each clump's middle, lighter and darker by turns (towards the rim)
+            shade += 0.05 * (math.sin(2.6 * v.x + ph) * math.sin(2.3 * v.y - ph)) + 0.055 * math.sin(7 * an_[loop.vert] + 0.8 * math.sin(3 * an_[loop.vert])) * min(1.0, d_ / 0.5)
+            shade += 0.12 * (1 - min(d_, 1.0)) - 0.45 * max(0.0, min(d_, 1.1) - 0.72) / 0.38 - 0.55 * sh_[loop.vert]      # (a higher clump's shadow)      # (a clump's heart lighter, its rim dark over the clump below)
             t = max(0.0, min(1.0, shade + 0.9 * max(0.0, shade - 0.55)))
             base = cl.lerp(cm, t / 0.6) if t < 0.6 else cm.lerp(ch, (t - 0.6) / 0.4)
             loop[col] = list(base) + [1.0]
@@ -431,7 +439,7 @@ for k, t in enumerate(L['trees']):
         trunk(f'TRUNK_{k}', foot[:2], (foot[0], foot[1], low['z']), 0.42, 0.32)
     for j, lump in sorted(enumerate(lumps), key=lambda q: q[1]['z']):
         cpx, cpy = to_px(foot[0] + lump['x'], foot[1], lump['z'])
-        if MASS is not None and 0 <= cpx < 1920 and 0 <= cpy < 1080: continue      # (in the frame: the measured canopy mass draws it)
+        if MASS is not None: continue      # (the measured canopy mass draws it, past the frame's edges too: canopy_mass.py)
         cauliflower(f'CANOPY_{k}_{j}', (foot[0] + lump['x'], foot[1], lump['z']), lump['r'] * 1.08, hi, mid, lo)
 
 
