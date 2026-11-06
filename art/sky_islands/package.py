@@ -48,3 +48,7 @@ json.dump(manifest, open(OUT + 'manifest.json', 'w'), indent=1)
 open(OUT + 'floor.json', 'w').write('{ "x0": -200.0, "x1": 200.0, "y0": -100.0, "y1": 300.0, "px_per_bu": 0.04, "size": [16, 16] }\n')
 cv2.imwrite(OUT + 'floor.webp', np.full((16, 16, 3), MIST, np.uint8), [cv2.IMWRITE_WEBP_QUALITY, 100])
 print('gong islands packaged:', os.path.getsize(OUT + 'plaza.glb') // 1024, 'kB model')
+# the hex plants are drawn by the game (owner, 2026-11-06: the meadow's physics wherever they grow): their plates go into the manifest
+import subprocess
+subprocess.run([sys.executable, 'art/hex_meadow/plants_from_glb.py', 'gong_islands', r'^HEXPLANT_\d+_plates$', r'^HEXPLANT_(\d+)_',
+                r'^HEXPLANT_\d+_dots$', r'^HEXPLANT_\d+_'], check=True)

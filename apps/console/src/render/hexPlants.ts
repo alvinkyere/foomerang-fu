@@ -15,16 +15,29 @@
  * Presentation only: the rules know nothing of the plants (they hide no one and stop nothing, as the HQ shows).
  */
 
-export type PadRow = readonly [x: number, z: number, shade: number, flower: boolean];
+/** A pad: its middle, its shade, whether it has a flower, and (where a map's model sets each plate's own) its height. */
+export type PadRow =
+  | readonly [x: number, z: number, shade: number, flower: boolean]
+  | readonly [x: number, z: number, shade: number, flower: boolean, height: number];
 
+/**
+ * One field of plants. The meadow's is one field; the gong islands' and the plaza's (owner, 2026-11-06: the same plants, the same
+ * physics on every map they grow on) are a field per plant, each as its model built it (art/hex_meadow/plants_from_glb.py).
+ */
 export interface PlantsData {
-  /** A pad's circumradius (a flat-topped hexagon). */
+  /** A pad's circumradius (a hexagon, flat-topped unless turned). */
   readonly s: number;
-  /** The stems' height: the pads' tops at rest. */
+  /** The stems' height: the pads' tops at rest (a pad's own height, where given, instead). */
   readonly height: number;
   readonly pads: readonly PadRow[];
   /** The pads' colours, darkest (lowest) to lightest (highest). */
   readonly shade: readonly string[];
+  /** The hexagons' turn about the upright: a corner's angle from the scene's +x toward its +z (radians; the meadow's 0). */
+  readonly turn?: number;
+  /** The flowers' (buds') colour, the stems', and how dark a pad's rim is against its middle; absent: the meadow's. */
+  readonly flower?: string;
+  readonly stem?: string;
+  readonly rim?: number;
 }
 
 export interface Pusher {
@@ -56,7 +69,14 @@ const SPRING = { k: 5, c: 4.2, maxLean: (65 * Math.PI) / 180, follow: 30 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** The manifest's `plants`, or undefined when it is absent or malformed (the map's own data: checked, not trusted). */
+/** The manifest's `plants`: one field or a list of them; none at all if any is malformed (the map's own data: checked, not trusted). */
+export function parsePlantGroups(raw: unknown): PlantsData[] {
+  const list = Array.isArray(raw) ? (raw as unknown[]) : [raw];
+  const groups = list.map(parsePlants);
+  return groups.every((g): g is PlantsData => g !== undefined) ? groups : [];
+}
+
+/** One field of the manifest's `plants`, or undefined when it is absent or malformed. */
 export function parsePlants(raw: unknown): PlantsData | undefined {
   if (raw === null || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
@@ -68,12 +88,25 @@ export function parsePlants(raw: unknown): PlantsData | undefined {
     return undefined;
   if (!Array.isArray(pads)) return undefined;
   for (const p of pads as unknown[]) {
-    if (!Array.isArray(p) || p.length !== 4) return undefined;
-    const [x, z, k, f] = p as unknown[];
+    if (!Array.isArray(p) || (p.length !== 4 && p.length !== 5)) return undefined;
+    const [x, z, k, f, h] = p as unknown[];
     if (!finite(x) || !finite(z) || !finite(k) || typeof f !== 'boolean') return undefined;
     if (!Number.isInteger(k) || k < 0 || k >= shade.length) return undefined;
+    if (p.length === 5 && (!finite(h) || h <= 0)) return undefined;
   }
-  return { s: r['s'], height: r['height'], pads: pads as PadRow[], shade: shade as string[] };
+  const colour = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
+  for (const k of ['flower', 'stem']) if (r[k] !== undefined && !colour(r[k])) return undefined;
+  for (const k of ['turn', 'rim']) if (r[k] !== undefined && !finite(r[k])) return undefined;
+  return {
+    s: r['s'],
+    height: r['height'],
+    pads: pads as PadRow[],
+    shade: shade as string[],
+    ...(finite(r['turn']) ? { turn: r['turn'] } : {}),
+    ...(colour(r['flower']) ? { flower: r['flower'] } : {}),
+    ...(colour(r['stem']) ? { stem: r['stem'] } : {}),
+    ...(finite(r['rim']) ? { rim: r['rim'] } : {}),
+  };
 }
 
 /** A pad's burn `t` seconds after it caught: its flame's colour, or smoke once it is gone; undefined before and after. */
@@ -104,6 +137,7 @@ export class PlantField {
   readonly data: PlantsData;
   /** Each pad's stem length and rest lean (its top's place at rest, off its foot). */
   readonly #len: Float64Array;
+  #tallest = 0;
   readonly #rx: Float64Array;
   readonly #rz: Float64Array;
   readonly #dx: Float64Array;
@@ -134,10 +168,15 @@ export class PlantField {
     this.#rz = new Float64Array(n);
     for (let i = 0; i < n; i += 1) {
       // (a sum of two uniforms: a soft bell, sd ~0.12 / ~0.04, never past 0.3 / 0.1 a side: the measured spread, held a little in so a field shows no ground between its pads)
-      this.#len[i] = data.height + 0.3 * (hash(i, 1) + hash(i, 2) - 1);
+      const own = (data.pads[i] as PadRow)[4];
+      this.#len[i] =
+        own !== undefined
+          ? own + 0.04 * (hash(i, 1) - 0.5)
+          : data.height + 0.3 * (hash(i, 1) + hash(i, 2) - 1);
       this.#rx[i] = 0.1 * (hash(i, 3) + hash(i, 4) - 1);
       this.#rz[i] = 0.1 * (hash(i, 5) + hash(i, 6) - 1);
     }
+    this.#tallest = Math.max(data.height, ...this.#len);
     this.#dx.set(this.#rx);
     this.#dz.set(this.#rz);
     this.#cell = 2 * data.s;
@@ -233,8 +272,7 @@ export class PlantField {
       }
     }
     // pushed: each pad top a pusher's body reaches moves out until it is clear (eased: `follow` per second)
-    const h = this.data.height;
-    const maxLean = (h + 0.35) * Math.sin(SPRING.maxLean);
+    const maxLean = (this.#tallest + 0.35) * Math.sin(SPRING.maxLean);
     const ease = 1 - Math.exp(-SPRING.follow * dt);
     for (const p of input.pushers)
       for (const i of this.#near(p.x, p.z, p.radius + maxLean)) {

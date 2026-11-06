@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BURN, burnAt, parsePlants, PlantField, type PlantsData } from '../src/render/hexPlants';
+import {
+  BURN,
+  burnAt,
+  parsePlantGroups,
+  parsePlants,
+  PlantField,
+  type PlantsData,
+} from '../src/render/hexPlants';
 
 // The hex meadow's plants (ff physics hq 2.mp4 20:02; art/hex_meadow/README.md): pads on stems that players and boomerangs push
 // aside and that spring back, and that fire burns pad by pad, spreading to the touching ones.
@@ -115,5 +122,31 @@ describe('the hex plants', () => {
     expect(burnAt(0.5)?.smoke).toBe(false);
     expect(burnAt(BURN.gone + 0.1)?.smoke).toBe(true);
     expect(burnAt(BURN.end + 0.01)).toBeUndefined();
+  });
+
+  it('wherever they grow (the gong islands, the plaza): groups of their own size, turn, colours and plate heights', () => {
+    const group = {
+      s: 0.5,
+      height: 2.4,
+      turn: Math.PI / 6,
+      shade: ['#6bc691', '#7ed39a'],
+      flower: '#f4d98c',
+      stem: '#6bc691',
+      pads: [
+        [0, 0, 0, true, 2.3],
+        [0.9, 0, 1, false, 2.5],
+      ],
+    };
+    const groups = parsePlantGroups([group, row(2)]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]?.turn).toBeCloseTo(Math.PI / 6);
+    expect(groups[0]?.flower).toBe('#f4d98c');
+    expect(parsePlantGroups(row(2))).toHaveLength(1);
+    expect(parsePlantGroups([group, { s: -1 }])).toHaveLength(0); // (one bad group: none trusted)
+    expect(parsePlantGroups({ ...group, flower: 'red' })).toHaveLength(0);
+    // a plate's own height is its stem's: no more than the field's own small spread off it
+    const f = new PlantField(groups[0] as PlantsData);
+    expect(Math.abs(f.pose(0).top - 2.3)).toBeLessThan(0.05);
+    expect(Math.abs(f.pose(1).top - 2.5)).toBeLessThan(0.05);
   });
 });

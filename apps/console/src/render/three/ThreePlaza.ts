@@ -47,7 +47,7 @@ import {
 import { DashTrail } from './dashTrail';
 import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
 import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
-import { parsePlants, type FireSource, type Pusher } from '../hexPlants';
+import { parsePlantGroups, type FireSource, type Pusher } from '../hexPlants';
 import { HexPlantsView } from './hexPlantsView';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
@@ -1175,8 +1175,9 @@ class Plaza {
   /** The ice blocks breaking: pieces thrown out (iceShards.ts). */
   readonly #shards: IceShards;
   readonly #blasts: Blasts;
-  /** The hex meadow's plants (render/hexPlants.ts): pushed aside, springing back, burning; absent on other maps. */
-  readonly #plants: HexPlantsView | undefined;
+  /** The hex plants (render/hexPlants.ts): pushed aside, springing back, burning; on every map they grow on (the meadow, the gong
+   *  islands, the plaza), none elsewhere. */
+  readonly #plants: HexPlantsView[];
   /** Fires set this step that last no longer than it (a blast's reach), for the plants. */
   #flashFires: FireSource[] = [];
   #lastBanner: string | undefined;
@@ -1333,6 +1334,25 @@ class Plaza {
     // ~780 separate meshes were too slow for a TV (owner, 2026-10-19): each object's parts are merged by look, and the
     // objects that never move, fade or break into one; crates and pots (they break), the water and the portals (their swirl
     // plays, their ring moves, they flash) and the cross pond's raft (it turns) stay as they are
+    this.#plants = parsePlantGroups((manifest as { plants?: unknown }).plants).map(
+      (g) => new HexPlantsView(this.scene, g),
+    );
+    // the hex plants the game draws itself (hexPlants.ts; manifest `plants`): the model's own still copies go (`plantsReplace`: the
+    // names of their nodes, a pattern from the map's own manifest, length-checked)
+    const replace = (manifest as { plantsReplace?: unknown }).plantsReplace;
+    if (
+      typeof replace === 'string' &&
+      replace.length > 0 &&
+      replace.length < 80 &&
+      this.#plants.length > 0
+    ) {
+      const pattern = new RegExp(replace);
+      const gone: THREE.Object3D[] = [];
+      gltf.traverse((o) => {
+        if (pattern.test(o.name)) gone.push(o);
+      });
+      for (const o of gone) o.removeFromParent();
+    }
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
@@ -1357,8 +1377,6 @@ class Plaza {
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
     this.#shards = new IceShards(this.scene);
     this.#blasts = new Blasts(this.scene);
-    const plants = parsePlants((manifest as { plants?: unknown }).plants);
-    this.#plants = plants === undefined ? undefined : new HexPlantsView(this.scene, plants);
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
     this.flipbooks = new Flipbooks(this.scene);
@@ -1777,7 +1795,8 @@ class Plaza {
     this.#closing.show(view.closing, (x, y) => this.#space.toScene(x, y));
     for (const e of view.events) this.#event(e, now);
     // a new round grows the plants back
-    if (view.banner === 'READY' && this.#lastBanner !== 'READY') this.#plants?.reset();
+    if (view.banner === 'READY' && this.#lastBanner !== 'READY')
+      for (const p of this.#plants) p.reset();
     this.#lastBanner = view.banner;
     const word = view.banner === 'READY' || view.banner === 'GO' ? view.banner : undefined;
     this.#word.show(word, view.bannerAge ?? 1, this.renderer.domElement);
@@ -2006,25 +2025,32 @@ class Plaza {
    * gaps round them, 1204.75 / 1205.50); a flying fire boomerang, a burning player and a blast set them alight.
    */
   #movePlants(time: number): void {
-    const plants = this.#plants;
-    if (plants === undefined) return;
-    const pushers: Pusher[] = [];
+    if (this.#plants.length === 0) return;
+    const bodies: (Pusher & { readonly boomerang: boolean })[] = [];
     const fires: FireSource[] = this.#flashFires;
     this.#flashFires = [];
-    const half = plants.data.s * 0.8;
     for (const c of this.#view?.circles ?? []) {
       if (c.dead) continue;
       const p = this.#space.toScene(c.x, c.y);
-      pushers.push({ x: p.x, z: p.z, radius: this.#space.length(c.radius) + half });
+      bodies.push({ x: p.x, z: p.z, radius: this.#space.length(c.radius), boomerang: false });
       if (c.burning === true) fires.push({ x: p.x, z: p.z, radius: this.#space.length(c.radius) });
     }
     for (const b of this.#view?.boomerangs ?? []) {
       if (b.spent || b.state === 'GROUNDED') continue;
       const p = this.#space.toScene(b.x, b.y);
-      pushers.push({ x: p.x, z: p.z, radius: this.#space.length(b.radius) + half * 1.4 });
+      bodies.push({ x: p.x, z: p.z, radius: this.#space.length(b.radius), boomerang: true });
       if (b.mark === 'fire') fires.push({ x: p.x, z: p.z, radius: this.#space.length(b.radius) });
     }
-    plants.frame(time, pushers, fires);
+    for (const plants of this.#plants) {
+      // (a body shoves the pad tops it reaches, and half a pad more: a boomerang a little further, as it flings them)
+      const half = plants.data.s * 0.8;
+      const pushers = bodies.map((b) => ({
+        x: b.x,
+        z: b.z,
+        radius: b.radius + half * (b.boomerang ? 1.4 : 1),
+      }));
+      plants.frame(time, pushers, fires);
+    }
   }
 
   /** Every armed Explosive lying with its fuse burning blooms and flashes white, faster as it nears the blast. */

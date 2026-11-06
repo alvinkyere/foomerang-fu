@@ -31,8 +31,8 @@ const corner = (k: number, r: number): [number, number] => {
 };
 
 /** One pad: a thin hexagonal plate, its top at y 0 (a lighter heart, a darker rim), its sides darker; colours multiply the shade. */
-function padGeometry(s: number): THREE.BufferGeometry {
-  const { thick, rim, rimShade, side, heart } = LOOK.pad;
+function padGeometry(s: number, turn: number, rimShade: number): THREE.BufferGeometry {
+  const { thick, rim, side, heart } = LOOK.pad;
   const pos: number[] = [];
   const col: number[] = [];
   const tri = (a: number[], b: number[], c: number[], ka: number, kb: number, kc: number): void => {
@@ -56,12 +56,14 @@ function padGeometry(s: number): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.rotateY(-turn); // (a corner from +x to `turn` toward +z: three turns +x toward -z)
   return g;
 }
 
-function hexGeometry(s: number): THREE.BufferGeometry {
+function hexGeometry(s: number, turn: number): THREE.BufferGeometry {
   const g = new THREE.CircleGeometry(s, 6);
   g.rotateX(-Math.PI / 2);
+  g.rotateY(-turn);
   return g;
 }
 
@@ -104,15 +106,23 @@ export class HexPlantsView {
         colour === undefined ? { vertexColors: true } : { color: colour },
       );
     // (a pad a little wider than its cell: neighbours at their own heights overlap, as the HQ's do, and no ground shows between them)
-    this.#pads = new THREE.InstancedMesh(padGeometry(data.s * LOOK.pad.overlap), flat(), n);
+    this.#pads = new THREE.InstancedMesh(
+      padGeometry(data.s * LOOK.pad.overlap, data.turn ?? 0, data.rim ?? LOOK.pad.rimShade),
+      flat(),
+      n,
+    );
     const stem = new THREE.CylinderGeometry(LOOK.stem.radius, LOOK.stem.radius, 1, 6, 1, true);
     stem.translate(0, 0.5, 0);
-    this.#stems = new THREE.InstancedMesh(stem, flat(LOOK.stem.colour), n);
+    this.#stems = new THREE.InstancedMesh(stem, flat(data.stem ?? LOOK.stem.colour), n);
     const flowers = data.pads.filter((p) => p[3]).length;
     const dot = new THREE.CircleGeometry(LOOK.flower.radius, 10);
     dot.rotateX(-Math.PI / 2);
     dot.translate(0, 0.004, 0);
-    this.#flowers = new THREE.InstancedMesh(dot, flat(LOOK.flower.colour), Math.max(1, flowers));
+    this.#flowers = new THREE.InstancedMesh(
+      dot,
+      flat(data.flower ?? LOOK.flower.colour),
+      Math.max(1, flowers),
+    );
     this.#flowers.count = flowers;
     this.#flowerOf = new Int32Array(n).fill(-1);
     let f = 0;
@@ -121,7 +131,7 @@ export class HexPlantsView {
     });
     const shadow = flat(LOOK.shadow.colour);
     shadow.depthWrite = false;
-    this.#shadows = new THREE.InstancedMesh(hexGeometry(data.s), shadow, n);
+    this.#shadows = new THREE.InstancedMesh(hexGeometry(data.s, data.turn ?? 0), shadow, n);
     this.#shadows.renderOrder = -1;
     const flame = new THREE.MeshBasicMaterial({
       transparent: true,

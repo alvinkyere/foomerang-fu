@@ -3776,5 +3776,105 @@
       }
     }
   },
-  "provenance": "art/reconstruction/environ2 (clean_environ2.py, layers_environ2.py, arena_environ2.py, package_environ2.py) from environ2.avif; character atlases: the previous plaza bake (bake_chars.py); moving objects: the 3D plaza (art/reconstruction/environ2/blender: animate.py, render_moving.py, package_moving.py)"
+  "provenance": "art/reconstruction/environ2 (clean_environ2.py, layers_environ2.py, arena_environ2.py, package_environ2.py) from environ2.avif; character atlases: the previous plaza bake (bake_chars.py); moving objects: the 3D plaza (art/reconstruction/environ2/blender: animate.py, render_moving.py, package_moving.py)",
+  "plants": [
+    {
+      "s": 0.805,
+      "height": 1.776,
+      "turn": 0.4743,
+      "shade": ["#f79762"],
+      "pads": [
+        [-10.978, -59.324, 0, false, 1.607],
+        [-13.057, -60.524, 0, false, 1.722],
+        [-13.749, -64.124, 0, false, 1.813],
+        [-12.364, -64.124, 0, false, 1.806],
+        [-11.671, -60.524, 0, false, 1.77],
+        [-10.285, -60.524, 0, false, 1.691],
+        [-13.749, -61.724, 0, false, 1.783],
+        [-12.364, -61.724, 0, false, 1.669],
+        [-10.978, -61.724, 0, false, 1.81],
+        [-14.442, -62.924, 0, false, 1.781],
+        [-13.057, -62.924, 0, false, 1.795],
+        [-11.671, -62.924, 0, false, 1.64]
+      ],
+      "stem": "#f59761",
+      "rim": 0.95
+    },
+    {
+      "s": 0.805,
+      "height": 2.319,
+      "turn": 0.4743,
+      "shade": ["#f79762"],
+      "pads": [
+        [10.216, -55.473, 0, false, 2.319],
+        [11.601, -55.473, 0, false, 2.348],
+        [10.909, -59.073, 0, false, 2.295],
+        [12.294, -59.073, 0, false, 2.159],
+        [13.68, -59.073, 0, false, 2.293],
+        [10.216, -60.273, 0, false, 2.372],
+        [11.601, -60.273, 0, false, 2.305],
+        [12.987, -60.273, 0, false, 2.313],
+        [14.373, -60.273, 0, false, 2.324],
+        [12.294, -61.473, 0, false, 2.237],
+        [13.68, -61.473, 0, false, 2.335],
+        [9.523, -56.673, 0, false, 2.347],
+        [10.909, -56.673, 0, false, 2.325],
+        [12.294, -56.673, 0, false, 2.169],
+        [13.68, -56.673, 0, false, 2.337],
+        [10.216, -57.873, 0, false, 2.372],
+        [11.601, -57.873, 0, false, 2.203],
+        [12.987, -57.873, 0, false, 2.352],
+        [9.523, -59.073, 0, false, 2.319]
+      ],
+      "stem": "#f59761",
+      "rim": 0.95
+    },
+    {
+      "s": 0.805,
+      "height": 2.402,
+      "turn": 0.5236,
+      "shade": ["#f79762"],
+      "pads": [
+        [25.118, -59.325, 0, false, 2.511],
+        [24.425, -60.525, 0, false, 2.43],
+        [25.811, -60.525, 0, false, 2.301],
+        [23.733, -61.725, 0, false, 2.429],
+        [25.118, -61.725, 0, false, 2.375],
+        [26.504, -61.725, 0, false, 2.47],
+        [23.04, -62.925, 0, false, 2.36],
+        [24.425, -62.925, 0, false, 2.445],
+        [25.811, -62.925, 0, false, 2.289],
+        [25.118, -64.125, 0, false, 2.297]
+      ],
+      "stem": "#f59761",
+      "rim": 0.95
+    },
+    {
+      "s": 0.805,
+      "height": 2.585,
+      "turn": 0.4743,
+      "shade": ["#f79762"],
+      "pads": [
+        [8.241, -83.765, 0, false, 2.623],
+        [6.163, -84.965, 0, false, 2.701],
+        [10.32, -87.365, 0, false, 2.586],
+        [11.705, -87.365, 0, false, 2.534],
+        [8.241, -88.565, 0, false, 2.725],
+        [9.627, -88.565, 0, false, 2.533],
+        [11.013, -88.565, 0, false, 2.565],
+        [12.398, -88.565, 0, false, 2.585],
+        [7.549, -84.965, 0, false, 2.578],
+        [8.934, -84.965, 0, false, 2.515],
+        [10.32, -84.965, 0, false, 2.68],
+        [8.241, -86.165, 0, false, 2.712],
+        [9.627, -86.165, 0, false, 2.55],
+        [11.013, -86.165, 0, false, 2.526],
+        [7.549, -87.365, 0, false, 2.713],
+        [8.934, -87.365, 0, false, 2.627]
+      ],
+      "stem": "#f59761",
+      "rim": 0.95
+    }
+  ],
+  "plantsReplace": "^TREE_2[5-8]_tree"
 }

@@ -67,3 +67,9 @@ json.dump(manifest, open(os.path.join(OUT, 'manifest.json'), 'w'), indent=1)
 size = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT) if not f.startswith('char_'))
 print('packaged', len(occluders), 'layers,', sum(len(o['slices']) for o in occluders), 'slices; composite max |diff|', proof,
       '; map art', round(size / 1e6, 2), 'MB')
+# the hex plants (TREE_25-28) are drawn by the game (owner, 2026-11-06: the meadow's physics wherever they grow): their plates go
+# into the manifest, the model's still copies hidden by the game
+import subprocess, sys
+if OUT.rstrip('/').endswith('market_plaza'):
+    subprocess.run([sys.executable, 'art/hex_meadow/plants_from_glb.py', 'market_plaza', r'^TREE_2[5-8]_tree_hex\d+$', r'^TREE_(2[5-8])_', '',
+                    r'^TREE_2[5-8]_tree'], check=True)
