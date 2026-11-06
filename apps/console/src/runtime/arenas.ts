@@ -35,6 +35,8 @@ import {
   BRIDGE_ISLANDS_BOOK_SPOTS,
   AUTUMN_GLADE_ARENA,
   AUTUMN_GLADE_BOOK_SPOTS,
+  HEX_MEADOW_ARENA,
+  HEX_MEADOW_BOOK_SPOTS,
   LILY_ISLAND_ARENA,
   LILY_ISLAND_BOOK_SPOTS,
   POND_CROSS_ARENA,
@@ -87,6 +89,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
     bookSpots: AUTUMN_GLADE_BOOK_SPOTS,
     named: true,
   },
+  hex_meadow: { arena: HEX_MEADOW_ARENA, bookSpots: HEX_MEADOW_BOOK_SPOTS, named: true },
   diamond_walls: { arena: DIAMOND_WALLS_ARENA, bookSpots: DIAMOND_WALLS_BOOK_SPOTS, named: true },
 });
 

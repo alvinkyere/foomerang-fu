@@ -89,6 +89,7 @@ export const ARENA_CHOICES = [
   'pond_cross',
   'lily_island',
   'autumn_glade',
+  'hex_meadow',
   'bridge_islands',
   'diamond_walls',
 ] as const;
@@ -96,6 +97,7 @@ export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice | undefined => {
   const given = new URLSearchParams(search).get('arena');
   // `?arena=pond`: the cross pond (the owner tests it there, 2026-10-27)
+  // `?arena=meadow`: the hex meadow (ff physics hq 2.mp4 20:02), tested outside the rotation
   // `?arena=glade`: the autumn glade (ff physics hq 2.mp4 10:26), tested outside the rotation (owner, 2026-11-01)
   // `?arena=lily` (or `island`): the lily island (HQ1 10:37), tested outside the rotation (owner, 2026-10-30)
   const value =
@@ -107,7 +109,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
           ? 'autumn_glade'
           : given === 'bridge'
             ? 'bridge_islands'
-            : given;
+            : given === 'meadow'
+              ? 'hex_meadow'
+              : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;

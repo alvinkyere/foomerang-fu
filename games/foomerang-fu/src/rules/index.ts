@@ -85,6 +85,15 @@ export {
   AUTUMN_GLADE_WALLS,
   AUTUMN_GLADE_WIDTH,
 } from './autumnGladeArena';
+export {
+  HEX_MEADOW_ARENA,
+  HEX_MEADOW_BOOK_SPOTS,
+  HEX_MEADOW_HEIGHT,
+  HEX_MEADOW_SAFE_ZONE,
+  HEX_MEADOW_SPAWNS,
+  HEX_MEADOW_WALLS,
+  HEX_MEADOW_WIDTH,
+} from './hexMeadowArena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';

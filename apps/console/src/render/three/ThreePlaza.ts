@@ -47,6 +47,8 @@ import {
 import { DashTrail } from './dashTrail';
 import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } from './portalSpin';
 import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
+import { parsePlants, type FireSource, type Pusher } from '../hexPlants';
+import { HexPlantsView } from './hexPlantsView';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1173,6 +1175,11 @@ class Plaza {
   /** The ice blocks breaking: pieces thrown out (iceShards.ts). */
   readonly #shards: IceShards;
   readonly #blasts: Blasts;
+  /** The hex meadow's plants (render/hexPlants.ts): pushed aside, springing back, burning; absent on other maps. */
+  readonly #plants: HexPlantsView | undefined;
+  /** Fires set this step that last no longer than it (a blast's reach), for the plants. */
+  #flashFires: FireSource[] = [];
+  #lastBanner: string | undefined;
   /** Fire and ice left on the ground by fire / ice boomerangs and burning players (groundMarks.ts). */
   readonly #marks: GroundMarks;
   /** BATTLE_ROYALE: the border closing in (closingBorder.ts). */
@@ -1350,6 +1357,8 @@ class Plaza {
     this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
     this.#shards = new IceShards(this.scene);
     this.#blasts = new Blasts(this.scene);
+    const plants = parsePlants((manifest as { plants?: unknown }).plants);
+    this.#plants = plants === undefined ? undefined : new HexPlantsView(this.scene, plants);
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
     this.flipbooks = new Flipbooks(this.scene);
@@ -1767,6 +1776,9 @@ class Plaza {
     this.#props.show(view, now);
     this.#closing.show(view.closing, (x, y) => this.#space.toScene(x, y));
     for (const e of view.events) this.#event(e, now);
+    // a new round grows the plants back
+    if (view.banner === 'READY' && this.#lastBanner !== 'READY') this.#plants?.reset();
+    this.#lastBanner = view.banner;
     const word = view.banner === 'READY' || view.banner === 'GO' ? view.banner : undefined;
     this.#word.show(word, view.bannerAge ?? 1, this.renderer.domElement);
     this.#banner.textContent = word === undefined ? (view.banner ?? '') : '';
@@ -1829,6 +1841,8 @@ class Plaza {
           this.#space.length(e.radius),
           now,
         );
+        // on foliage a blast sets alight everything it reaches (the reference: "an explosive's ring leaves a ring of fire")
+        this.#flashFires.push({ x: ground.x, z: ground.z, radius: this.#space.length(e.radius) });
       }
     } else if (e.type === 'SLASHED' && e.swing) {
       const reach = this.#space.length(e.swing.reach);
@@ -1987,6 +2001,32 @@ class Plaza {
     this.#marks.update(time);
   }
 
+  /**
+   * The hex meadow's plants: every living player and every flying boomerang pushes them aside (its body and half a pad: the HQ's
+   * gaps round them, 1204.75 / 1205.50); a flying fire boomerang, a burning player and a blast set them alight.
+   */
+  #movePlants(time: number): void {
+    const plants = this.#plants;
+    if (plants === undefined) return;
+    const pushers: Pusher[] = [];
+    const fires: FireSource[] = this.#flashFires;
+    this.#flashFires = [];
+    const half = plants.data.s * 0.8;
+    for (const c of this.#view?.circles ?? []) {
+      if (c.dead) continue;
+      const p = this.#space.toScene(c.x, c.y);
+      pushers.push({ x: p.x, z: p.z, radius: this.#space.length(c.radius) + half });
+      if (c.burning === true) fires.push({ x: p.x, z: p.z, radius: this.#space.length(c.radius) });
+    }
+    for (const b of this.#view?.boomerangs ?? []) {
+      if (b.spent || b.state === 'GROUNDED') continue;
+      const p = this.#space.toScene(b.x, b.y);
+      pushers.push({ x: p.x, z: p.z, radius: this.#space.length(b.radius) + half * 1.4 });
+      if (b.mark === 'fire') fires.push({ x: p.x, z: p.z, radius: this.#space.length(b.radius) });
+    }
+    plants.frame(time, pushers, fires);
+  }
+
   /** Every armed Explosive lying with its fuse burning blooms and flashes white, faster as it nears the blast. */
   #tick(): void {
     const ticking = new Set<string>();
@@ -2042,6 +2082,7 @@ class Plaza {
     for (const m of this.#moving) m.motion(time);
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#leaveMarks(time);
+    this.#movePlants(time);
     this.#tick();
     this.#props.frame(time);
     this.#remains.frame(time);

@@ -8,6 +8,7 @@ the rocks, the trees) take their neighbours' majority. Writes pads.json: [{i, j,
 """
 import json, math, sys
 import numpy as np, cv2
+HUD = np.load('art/hex_meadow/output/hud_hidden.npy')      # (the players' names' letters: hud_mask.py)
 sys.path.insert(0, 'art/hex_meadow')
 from measure import Yc, R as _R, F as _F, C as _C, Z as _Z
 
@@ -20,7 +21,9 @@ lab = cv2.cvtColor(f, cv2.COLOR_BGR2LAB)[..., 0].astype(float)
 ground = (Hh >= 28) & (Hh <= 50) & (S >= 60) & (V >= 150)
 hidden = ~(pad | ground)
 hidden = cv2.dilate(hidden.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
-hidden[95:375, :215] = True
+hidden[HUD] = True
+rockpx = (Hh >= 100) & (Hh <= 135) & (S >= 40) & (V >= 80); rockpx[HUD] = False
+for x0_, y0_, x1_, y1_ in ((425, 80, 600, 135), (1355, 110, 1480, 160), (380, 725, 570, 780), (1335, 740, 1575, 795), (440, 110, 590, 250), (1350, 140, 1500, 280), (395, 762, 555, 902), (1385, 778, 1545, 918)): rockpx[y0_:y1_, x0_:x1_] = False      # (badges, players)
 
 
 def project(P):
@@ -45,6 +48,8 @@ for k in np.nonzero(onscreen)[0]:
     if y0 < 0 or x0 < 0 or y1 > 1080 or x1 > 1920: continue
     pm, hm = pad[y0:y1, x0:x1], hidden[y0:y1, x0:x1]
     key = (int(I[k]), int(J[k]))
+    # a rock seen there: no pad (a pad on its 2.9 stem would stand in front of these low rocks and hide them)
+    if rockpx[y0:y1, x0:x1].mean() > 0.3: state[key] = 0; continue
     if hm.mean() > 0.4: state[key] = None; continue
     state[key] = 1 if pm.mean() > 0.55 else 0
     if state[key]:
@@ -60,6 +65,17 @@ for _ in range(12):
         vals = [state.get((key[0] + a, key[1] + b)) for a, b in nb]; vals = [q for q in vals if q is not None]
         if len(vals) >= 3: state[key] = int(sum(vals) * 2 >= len(vals)); changed = True
     if not changed: break
+# no pad stands where a rock does (the frame's hidden cells there were filled from round them): the rocks' fitted feet, grown by a pad
+ROCKS = json.load(open('art/hex_meadow/rocks.json'))
+def under_rock(x, y):
+    for rk in ROCKS:
+        c, sn = math.cos(math.radians(rk['yaw'])), math.sin(math.radians(rk['yaw']))
+        lx, ly = c * (x - rk['cx']) + sn * (y - rk['cy']), -sn * (x - rk['cx']) + c * (y - rk['cy'])
+        if abs(lx) < rk['w'] + 0.3 * s and abs(ly) < rk['d'] + 0.3 * s: return True
+    return False
+for key in list(state):
+    i, j = key; x = 1.5 * s * i; y = math.sqrt(3) * s * (j + i / 2.0)
+    if state[key] == 1 and under_rock(math.cos(th) * x - math.sin(th) * y + ox, math.sin(th) * x + math.cos(th) * y + oy): state[key] = 0
 Ls = np.array([d['L'] for d in info.values()]); lo, hi = np.percentile(Ls, 33), np.percentile(Ls, 66)
 pads = []
 for key, v in state.items():

@@ -36,6 +36,7 @@ export type ReconstructedArena = Extract<
   | 'pond_cross'
   | 'lily_island'
   | 'autumn_glade'
+  | 'hex_meadow'
   | 'bridge_islands'
   | 'harbour_fort'
   | 'sky_islands'
@@ -71,6 +72,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 1209, height: 1044 }),
       background: '#7aa8bb',
+    }),
+    // the HQ's hex meadow (art/hex_meadow, ff physics hq 2.mp4 20:02): the plaza's camera and characters, its plants drawn by the game
+    hex_meadow: Object.freeze({
+      id: 'hex_meadow',
+      assetDir: 'maps/hex_meadow/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 2017, height: 1703 }),
+      background: '#bee781',
     }),
     // the HQ's autumn glade (art/autumn_glade, ff physics hq 2.mp4 10:26): the plaza's camera and characters, its own clearing
     autumn_glade: Object.freeze({
