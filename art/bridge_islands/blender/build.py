@@ -519,6 +519,8 @@ for k, fe in enumerate(L.get('ferns', [])):
 _flat3d('FERNS', _tris)
 
 # the foam where the HQ draws it (foam.py: its strokes traced off the frame, unprojected onto the water): flat shapes on the water, each its own colour
+_WP = J('art/bridge_islands/water_paint.json')      # (water_paint.py: the HQ's water by the shores, traced tone by tone, under the foam)
+flat('WATER_PAINT', [([tuple(q) for q in sh['plan']], sh['colour'], 0.0002 * i) for i, sh in enumerate(_WP['shapes'])], z=_WP['z'] + 0.015)
 _FT = J('art/bridge_islands/foam.json')
 flat('FOAM_TRACED', [([tuple(q) for q in sh['plan']], sh['colour'], 0) for sh in _FT['shapes']], z=_FT['z'] + 0.03)
 
