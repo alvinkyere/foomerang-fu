@@ -666,3 +666,27 @@ Built as the owner describes it (2026-10-22):
 - Let go, its flight out ends there (a Multi throw splits, an Explosive lands and ticks) and it comes home the usual way.
 - With TELEPORT_BOOMERANG too: holding THROW steers it, and DASH takes the holder to where they steered it, with it in hand.
 - The badge as the videos show it: a purple bar (#b250ec), a horseshoe magnet open up and right on its disc.
+
+## The Explosive's blast, measured on the HQ (2026-11-05; not yet applied)
+
+Owner: "study the explosion power up and its animation… implement it perfectly, no low quality". The TV still plays a flipbook cut
+out of the 640x360 video (`ThreePlaza` BLASTED → `blast_ring` / `blast` flipbooks): the video's own pixels, blurry. Measured instead
+on `foomerang-fu physics hq.mp4`, the blast at 5:22.47 (frame 19347 = t 0), every frame, the camera's pan and shake taken out
+(`blast_hq.py`; table in `output/blast_hq.json`). R = the ring's final outer radius (270 px there) = the kill radius.
+
+| part            | measured                                                                                                                                                                                                                                                                                            |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| white ball      | a faceted solid white sphere, 0.27 R at once (t 0.017–0.067), shrinking to 0 by 0.15 s; a light-ray sparkle at 0.10                                                                                                                                                                                 |
+| yellow fireball | a see-through yellow dome from 0.10 s, filling the ring (the ring's inside stays filled until ~0.43 s)                                                                                                                                                                                              |
+| ring outer edge | 0.27 R at 0.10, 0.54 at 0.17, 0.65 at 0.20, 0.73 at 0.23, 0.78 at 0.27, 0.81 at 0.30, 0.84 at 0.33, 0.88 at 0.37, 0.90 at 0.40, 0.91 at 0.43, 0.94 at 0.47, 0.94 at 0.50, 0.96 at 0.53, 0.97 at 0.57, 0.97 at 0.60, 0.98 at 0.63, 0.99 at 0.67, 0.99 at 0.70, 1.0 at 0.73–0.75; gone at 0.78        |
+| ring inner edge | filled to ~0.43 s; then 0.56 R at 0.45, 0.77 at 0.48, 0.80 at 0.52, 0.84 at 0.57, 0.85 at 0.63, 0.87 at 0.67, 0.89 at 0.72, 0.92 at 0.75 (band 0.17 R → 0.08 R); soft (fades inward)                                                                                                                |
+| ring colour     | #fbfd73 (0.10) → saturated #fcfd1b (0.30–0.37) → #fcf529 (0.40) → #fddf36 (0.43) → #fdc443 (0.47) → #fca94d (0.50) → #fd915d (0.53) → #fd7b69 (0.57, the pinkest) → #fd7f6f (0.60) → #fea07d (0.67) → #feb581 (0.70) → #fdd283 (0.73, fading into the ground)                                       |
+| the ring's form | drawn ON the ground surface (on raised ground too, cut where cliffs are): a decal, not a wall; ~12% shorter top-bottom (perspective)                                                                                                                                                                |
+| fire balls      | flat-shaded faceted balls (hex silhouettes), in clusters of 3–6, ~0.10–0.13 R each, a ring of clusters ~0.7 R out plus a central cluster; appear 0.22 s; #e05805 (0.22) → #e44908 → #da2e0b (0.28) → #d43311 (0.30) → #be3422 (0.35) → #b73c30 (0.38) → #a9423c (0.43) → #9f4443 (0.47), then smoke |
+| smoke           | the balls turn dark purple-grey #826776 (peak area 0.52 s) and shrink into small dark specks drifting outward, grey #7a7c7f, gone ~1.0 s                                                                                                                                                            |
+| pale puffs      | large see-through pale (white-yellow) puffs inside the ring 0.30–0.65 s                                                                                                                                                                                                                             |
+| screen shake    | random each frame (not a wobble): vertical up to ±15–22 px of 1080 (≈2% of the screen) to 0.2 s, ±10 px to 0.35 s, gone by 0.5 s; sideways ~a third of that                                                                                                                                         |
+
+**To build (next):** a pure tested timeline (`render/explosionMotion.ts`, these tables) and our own 3D effect replacing the flipbook:
+faceted white sphere, see-through yellow dome, a ground ring with a soft inner edge (vertex alpha), icosahedron fire balls cooling to
+smoke specks, pale puffs, and the camera shake in `#frameCamera`. Never the video's pixels.
