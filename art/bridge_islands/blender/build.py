@@ -516,14 +516,9 @@ for k, fe in enumerate(L.get('ferns', [])):
         _tris.append(([base - n * 0.12, mid - n * ln * 0.24, mid + n * ln * 0.24], col)); _tris.append(([mid - n * ln * 0.24, tip, mid + n * ln * 0.24], col))
 _flat3d('FERNS', _tris)
 
-# the east islet's foam: the HQ draws a thick pale crescent round its foot on the camera's side (1:12, ~0.9 units out, ~0.5 wide)
-_ie = L['islet_e']; _ring = []
-for i in range(25):
-    a = math.radians(190 + i * 160 / 24)
-    _ring.append(a)
-_in_ = [(_ie['centre'][0] + math.cos(a) * (_ie['radius'] + 0.55), _ie['centre'][1] + math.sin(a) * (_ie['radius'] + 0.55)) for a in _ring]
-_ou_ = [(_ie['centre'][0] + math.cos(a) * (_ie['radius'] + 0.55 + 0.55 * math.sin((a - math.radians(190)) / math.radians(160) * math.pi)), _ie['centre'][1] + math.sin(a) * (_ie['radius'] + 0.55 + 0.55 * math.sin((a - math.radians(190)) / math.radians(160) * math.pi))) for a in _ring]
-flat('ISLET_E_foam', [([_in_[i], _in_[i + 1], _ou_[i + 1], _ou_[i]], '#b4e2f2', 0) for i in range(len(_ring) - 1)], z=WATER_Z + 0.03)
+# the foam where the HQ draws it (foam.py: its strokes traced off the frame, unprojected onto the water): flat shapes on the water, each its own colour
+_FT = J('art/bridge_islands/foam.json')
+flat('FOAM_TRACED', [([tuple(q) for q in sh['plan']], sh['colour'], 0) for sh in _FT['shapes']], z=_FT['z'] + 0.03)
 
 # the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
 INW = L['islet_nw']
@@ -568,7 +563,7 @@ for n, blk in SWB.items():
         if n != 's': ivy(f'SW_{n}_ivy', c[0] - 0.2, c[1] + 0.9, H + 0.05, 1.3, n=7, seed=hash(n) % 97)
 
 # ---------------------------------------------------------------------------------------------------------------- island life
-PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#79af77', '#86bd86', '#5f9a64', '#fbe8ec', '#f4c4d0'      # (the HQ pads' median, its lighter rim)
+PAD, PAD_RIM, PAD_DARK, FLOWER, FLOWER_HEART = '#79af77', '#86bd86', '#5f9a64', '#fbe2e8', '#f4c4d0'      # (the HQ pads' median, its lighter rim)
 for k, pad in enumerate(L['pads']):
     x, y = pad['at']
     r = pad['r']; z = WATER_Z + 0.06       # (fit_pads.py: the HQ's pads, their radii, notches and flowers measured)
@@ -587,9 +582,13 @@ for k, pad in enumerate(L['pads']):
         p0, p1 = Vector((x, y, 0)) + d * c0, Vector((x, y, 0)) + d * c1
         parts.append(([(p0.x - n.x, p0.y - n.y), (p0.x + n.x, p0.y + n.y), (p1.x + n.x, p1.y + n.y), (p1.x - n.x, p1.y - n.y)], PAD_DARK, 0.01))
     if pad.get('flower', k in (1, 3)):                              # (a flower: pale petals round a pink heart)
-        star = [(x + math.cos(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26), y + math.sin(i * math.pi / 8) * r * (0.5 if i % 2 == 0 else 0.26)) for i in range(16)]
-        parts.append((star, FLOWER, 0.03))
-        parts.append(([(x + math.cos(a) * r * 0.14, y + math.sin(a) * r * 0.14) for a in [i * math.pi / 4 for i in range(8)]], FLOWER_HEART, 0.04))
+        # (the HQ's flower: eight rounded petals, pale pink, round a small yellow heart)
+        for q in range(8):
+            a = a0 + q * math.pi / 4; d = Vector((math.cos(a), math.sin(a), 0)); n = Vector((-d.y, d.x, 0))
+            c = Vector((x, y, 0)) + d * r * 0.24
+            petal = [(c.x + d.x * r * 0.2 * math.cos(t) + n.x * r * 0.11 * math.sin(t), c.y + d.y * r * 0.2 * math.cos(t) + n.y * r * 0.11 * math.sin(t)) for t in [k * math.pi / 6 for k in range(12)]]
+            parts.append((petal, FLOWER, 0.03 + 0.001 * q))
+        parts.append(([(x + math.cos(t) * r * 0.08, y + math.sin(t) * r * 0.08) for t in [k * math.pi / 4 for k in range(8)]], '#ecd27e', 0.045))
     flat(f'PAD_{k}', parts, z=z)
 # the potted bamboo's grey pot (the HQ: by the gate, a squat grey-green pot)
 if L['bamboo']:

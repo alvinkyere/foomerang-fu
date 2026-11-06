@@ -24,10 +24,15 @@ for x0, y0, x1, y1 in REGIONS:
             (cx, cy), r = cv2.minEnclosingCircle(c); small.append([round(cx, 1), round(cy, 1), round(r, 1)]); continue
         hull = cv2.convexHull(c); (cx, cy), (w, h), ang = cv2.fitEllipse(hull)
         # the notch: the direction from the centre where the pad's own pixels are missing inside its hull
-        hm = np.zeros(green.shape, np.uint8); cv2.fillPoly(hm, [hull], 1)
-        miss = (hm > 0) & ~(lab == i)
-        ys, xs = np.nonzero(miss)
-        notch = math.degrees(math.atan2(ys.mean() - cy, xs.mean() - cx)) if len(xs) > 30 else None
+        # the notch: the direction (screen degrees, y down) in which a ray from the centre crosses the fewest of the pad's own pixels
+        pad = (lab == i); cover = []
+        for a in range(0, 360, 3):
+            t = np.linspace(0.15, 0.9, 25); ex, ey = cx + math.cos(math.radians(a)) * t * max(w, h) / 2, cy + math.sin(math.radians(a)) * t * min(w, h) / 2
+            ok = (ex >= 0) & (ex < 1920) & (ey >= 0) & (ey < 1080)
+            cover.append(pad[ey[ok].astype(int), ex[ok].astype(int)].mean() if ok.any() else 1.0)
+        cover = np.convolve(np.r_[cover[-3:], cover, cover[:3]], np.ones(5) / 5, 'same')[3:-3]
+        notch = float(np.argmin(cover) * 3) if cover.min() < 0.5 else None
+        notch = None if notch is None else (notch if notch <= 180 else notch - 360)
         fl = int((pink & (lab == i)).sum()) > 80
         pads.append(dict(c=[round(cx, 1), round(cy, 1)], axes=[round(max(w, h) / 2, 1), round(min(w, h) / 2, 1)], notch=None if notch is None else round(notch, 1), flower=fl))
 for p in pads: print(p)
