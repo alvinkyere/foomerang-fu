@@ -95,3 +95,7 @@ b = cv2.GaussianBlur(np.tile(b, (3, 3)), (0, 0), 7)[N:2 * N, N:2 * N]
 b = (np.clip((b - b.mean()) / (b.std() * 2.2) + 0.5, 0, 1) * 255).astype(np.uint8)
 cv2.imwrite(OUT + 'water.png', cv2.merge([b, g, r]), [cv2.IMWRITE_PNG_COMPRESSION, 9])
 print('pond packaged:', os.path.getsize(OUT + 'plaza.glb') // 1024, 'kB model')
+# the hex bushes are the game's own plants (owner, 2026-11-06: the meadow's physics wherever they grow): fitted to the frame into the
+# manifest, their painted cards hidden by the game
+import subprocess, sys as _sys
+subprocess.run([_sys.executable, 'art/hex_meadow/bridge_bushes.py'], check=True)
