@@ -14,7 +14,14 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
   await host.autoContinue(); // CPU-only: the TV presses CONTINUE between rounds
   await host.waitForDrawn(2);
 
-  const product = ['market_plaza', 'gong_islands', 'pond_cross', 'lily_island', 'autumn_glade'];
+  const product = [
+    'market_plaza',
+    'gong_islands',
+    'pond_cross',
+    'lily_island',
+    'autumn_glade',
+    'hex_meadow',
+  ];
   const played = async (): Promise<string | null> => {
     await expect.poll(async () => product.includes((await host.snapshot()).arena ?? '')).toBe(true);
     await host.waitForDrawn(2);
@@ -67,7 +74,14 @@ test('the product plays the rotation by default, a new map every round (no ?aren
   await host.addCpu('Hard');
   await host.start();
   await host.waitForDrawn(2);
-  const product = ['market_plaza', 'gong_islands', 'pond_cross', 'lily_island', 'autumn_glade'];
+  const product = [
+    'market_plaza',
+    'gong_islands',
+    'pond_cross',
+    'lily_island',
+    'autumn_glade',
+    'hex_meadow',
+  ];
   const first = (await host.snapshot()).arena;
   expect(product).toContain(first);
   await expect(host.continueButton).toBeVisible({ timeout: 120_000 });

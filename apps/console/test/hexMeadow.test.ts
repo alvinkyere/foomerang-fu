@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { HEX_MEADOW_ARENA } from '@foomerang/foomerang-fu';
 import { PLAYABLE_ARENAS } from '../src/runtime/arenas';
+import { PRODUCT_POOL } from '../src/runtime/mapRotation';
 import { productArena } from '../src/runtime/powerupMode';
 import { rendererKindFor } from '../src/render/rendererKind';
 import { RECONSTRUCTED_MAPS } from '../src/render/reconstructed/maps';
@@ -15,6 +16,7 @@ const dir = join(__dirname, '..', 'public', 'maps', 'hex_meadow');
 describe('the hex meadow', () => {
   it('is chosen by ?arena=meadow, drawn by the plaza’s renderer, a named playable arena', () => {
     expect(productArena('?arena=meadow')).toBe('hex_meadow');
+    expect(PRODUCT_POOL).toContain('hex_meadow'); // (owner, 2026-11-06: "put the meadow map in the rotation")
     expect(rendererKindFor('hex_meadow')).toBe('three');
     expect(PLAYABLE_ARENAS.hex_meadow.arena).toBe(HEX_MEADOW_ARENA);
     expect(PLAYABLE_ARENAS.hex_meadow.named).toBe(true);
