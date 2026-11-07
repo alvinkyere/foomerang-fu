@@ -66,6 +66,8 @@ export const INSIDE: Readonly<Record<string, string>> = {
   coffee: '#f4f1ea',
 };
 const INSIDE_DEFAULT = '#f3ecd2';
+/** A "cut" above the head: the whole character in its lower piece (a burnt one falls whole). */
+const WHOLE = 2;
 
 interface Part {
   readonly object: THREE.Object3D;
@@ -109,7 +111,8 @@ export class DeathRemains {
     const pieces =
       this.solid === undefined || v.kind === undefined || v.shatters
         ? undefined
-        : this.solid.models.cut(v.kind, CUT.height);
+        : // burnt: not cut, it falls whole onto its side (HQ1 9:57.6-10:01): its model "cut" above its head is the whole of it
+          this.solid.models.cut(v.kind, v.burnt === true ? WHOLE : CUT.height);
     if (pieces !== undefined && this.solid !== undefined) {
       if (v.spills !== undefined) {
         const colour = LIQUID[v.spills];
@@ -237,11 +240,16 @@ export class DeathRemains {
       this.scene.add(pivot);
       const axis = new THREE.Vector3(-top.direction.z, 0, top.direction.x);
       const up = new THREE.Vector3(0, 1, 0);
+      const forward = new THREE.Vector3();
+      solid.camera.getWorldDirection(forward);
+      const sideways = forward.setY(0).normalize();
       return {
         object: pivot,
         pose: (t) => {
-          for (const e of eyes) e.visible = t < DEAD_EYES_AT;
-          for (const e of dead) e.visible = t >= DEAD_EYES_AT;
+          // (burnt, the eyes are X's as it falls: HQ1 9:58.24)
+          const deadEyes = v.burnt === true || t >= DEAD_EYES_AT;
+          for (const e of eyes) e.visible = !deadEyes;
+          for (const e of dead) e.visible = deadEyes;
           pivot.position.set(v.at.x, v.at.y + CUT.height * H, v.at.z);
           pivot.quaternion.identity();
           if (isTop) {
@@ -253,7 +261,8 @@ export class DeathRemains {
           } else if (v.burnt === true) {
             // burnt: the bottom falls onto its side (fireMotion.ts burntTilt), turning about its feet
             const a = burntTilt(t);
-            const q = new THREE.Quaternion().setFromAxisAngle(axis, -a);
+            // (tipping sideways on the screen, about the camera's forward on the ground: its face stays towards us, as the HQ's)
+            const q = new THREE.Quaternion().setFromAxisAngle(sideways, -a);
             const lift = new THREE.Vector3(0, CUT.height * H, 0).applyQuaternion(q);
             pivot.position.set(v.at.x + lift.x, v.at.y + lift.y, v.at.z + lift.z);
             pivot.quaternion.copy(q);
@@ -261,8 +270,8 @@ export class DeathRemains {
         },
       };
     };
-    out.push(piece(above, true), piece(below, false));
-    out.push(...this.#goo(v, hit, W, H, owned));
+    if (v.burnt === true) out.push(piece(below, false));
+    else out.push(piece(above, true), piece(below, false), ...this.#goo(v, hit, W, H, owned));
     (out[0] as Part).object.userData['dispose'] = () => {
       for (const o of owned) o.dispose();
     };

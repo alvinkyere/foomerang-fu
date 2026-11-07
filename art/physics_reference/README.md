@@ -712,7 +712,8 @@ frame before the stop changed most (`zoom.py`): 56 in HQ1, 137 in HQ2 (menus and
 - the **eyes become black X's** at ≈ 0.7 s (3:19.99 on the 3:19.3 eggplant), the mouth unchanged.
 
 Variants: **explosive** (HQ1 4:14.3, 6:33.6, HQ2 16:56): the same cut inside the blast, the pieces flung several times as far;
-**fire** (HQ1 7:06.0, 9:58.2): the same cut, the pieces lying on their side still burning, then smoking; **frozen** when killed
+**fire** (HQ1 9:57.6–10:01): **not cut** — the burning body falls whole onto its side, X eyes already as it falls, and smokes
+(fireMotion.ts; the 3D model, whole); **frozen** when killed
 (HQ2 14:17.0): its ice block bursts with the goo; **the mug** (HQ1 7:23.7, 10:13.6): shatters (white shards, coffee goo, puddle);
 **falling** off an island or into water: no remains (fallMotion.ts).
 
