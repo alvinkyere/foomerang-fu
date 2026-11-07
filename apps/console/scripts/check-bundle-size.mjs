@@ -34,7 +34,10 @@ import { gzipSync } from 'node:zlib';
 // measured): lazy 592 kB.
 // Raised on purpose (owner-approved 2026-11-06, for the hex meadow): its rules data and its plants (render/hexPlants.ts, the
 // instanced pads, stems, shadows and fire) (lazy JS 596.8 kB measured): lazy 600 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 600_000 };
+// Raised on purpose (owner-approved 2026-11-07, "put it in now"): the deaths in 3D as both HQs show them (the cut, the goo, the
+// dead eyes: render/cutMotion.ts, three/meshCut.ts, three/characterModels.ts, three/deathRemains.ts) (lazy JS 598.7 kB on main
+// before, 606.0 kB measured with them): lazy 610 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 610_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

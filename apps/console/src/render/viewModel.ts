@@ -136,6 +136,8 @@ export interface ViewEvent {
   readonly propId?: string;
   /** For PROP_BROKEN: where whoever broke it stood (its pieces fly away from there); for HIT: where the killer stood. */
   readonly from?: Vec2;
+  /** For HIT: an explosion killed them: their pieces are flung several times as far (render/cutMotion.ts). */
+  readonly blown?: boolean;
   /** For HIT: they walked off the ground and fell (the sky islands): no remains, they drop away whole. */
   readonly fell?: true;
   /** For BLASTED: the blast radius, exactly as the rules resolve it. */

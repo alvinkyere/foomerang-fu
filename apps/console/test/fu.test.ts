@@ -1240,6 +1240,28 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(view.events[0]?.from).toBeUndefined();
   });
 
+  it('an explosion’s kill says so (its pieces are flung several times as far: render/cutMotion.ts)', () => {
+    const { state, entries, slots } = playing();
+    const hit = (source: 'BLAST' | 'BOOMERANG') =>
+      buildFuView(
+        state,
+        [
+          {
+            type: 'HIT',
+            byId: 'a',
+            victimId: 'b',
+            position: { x: 30, y: 40 },
+            source,
+            creditedTo: 'a',
+          },
+        ],
+        entries,
+        slots,
+      ).events[0];
+    expect(hit('BLAST')).toMatchObject({ type: 'HIT', actor: 'b', blown: true });
+    expect(hit('BOOMERANG')?.blown).toBeUndefined();
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

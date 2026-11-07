@@ -64,6 +64,7 @@ import { Blasts } from './blasts';
 import { PickupBadges } from './pickupBadges';
 import { POWER_BADGE } from '../powerBadge';
 import { DeathRemains, type Victim } from './deathRemains';
+import { CharacterModels } from './characterModels';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { waterMaterial, type WaterStyle } from './waterShader';
 import { batchPlaza } from './plazaBatch';
@@ -333,6 +334,8 @@ class Character {
   #burningAt: number | undefined;
   /** It was burning when last drawn (a death now is a death by fire). */
   wasBurning = false;
+  /** It was frozen when last drawn (a death now bursts its ice block too). */
+  wasFrozen = false;
   /** The video's own effects (flipbooks.ts) and one character width in scene units, once the plaza has them. */
   effects: { readonly flipbooks: Flipbooks; readonly w: number } | undefined;
   /** SHIELD: the bubble round it while it owns the Shield (render/shieldLook.ts). */
@@ -374,7 +377,8 @@ class Character {
   /** What its remains are made from, as it is now (its feet, its sprite and the frame it shows). */
   victim(
     id: string,
-    death: ReturnType<typeof deathOf> & { readonly burnt?: boolean; readonly videoSmoke?: boolean },
+    death: ReturnType<typeof deathOf> &
+      Partial<Pick<Victim, 'burnt' | 'videoSmoke' | 'kind' | 'handColour' | 'frozen' | 'blown'>>,
   ): Victim {
     const h = this.sprite.scale.y;
     return {
@@ -745,6 +749,7 @@ class Character {
   /** Frozen (ICE_BOOMERANG): blue inside a pale block of ice standing on its feet (the video, 6:54.55–6:56.38). */
   #frozen(c: CircleView, feet: THREE.Vector3, h: number, now: number): void {
     const on = c.frozen === true && !c.dead;
+    if (!c.dead) this.wasFrozen = on;
     if (on) this.#frozenAt ??= now;
     else if (this.#frozenAt !== undefined) {
       this.#frozenAt = undefined;
@@ -1097,6 +1102,13 @@ class Plaza {
   readonly #kinds = new Map<string, string>();
   /** The characters this map has art for. */
   readonly #hasArt = (kind: PackCharacter): boolean => this.manifest.characters[kind] !== undefined;
+  /** A character's hands' colour as drawn (its team's in Team Up), for its 3D remains. */
+  #handColour(kind: PackCharacter, side: CircleView['side']): { handColour?: string } {
+    const plain = parseHands(this.manifest.characters[kind]?.hands);
+    if (plain === undefined) return {};
+    return { handColour: side === undefined ? plain.colour : TEAM_HANDS[side] };
+  }
+
   /** A character's own hands, holding its boomerang in its colour (render/three/hands.ts). */
   #handsFor(hands: CharacterHands, kind: PackCharacter, scale: number): Hands {
     const own = new Hands(this.scene, hands, scale, this.#gradient);
@@ -1172,6 +1184,8 @@ class Plaza {
   #beams: ReturnType<typeof beamsOverlay> | null = null;
   readonly #props: PlazaProps;
   readonly #remains: DeathRemains;
+  /** The characters in 3D, for their deaths (render/three/characterModels.ts), loaded as each first plays. */
+  readonly #models = new CharacterModels(`${import.meta.env.BASE_URL}characters/3d/`);
   /** The ice blocks breaking: pieces thrown out (iceShards.ts). */
   readonly #shards: IceShards;
   readonly #blasts: Blasts;
@@ -1374,7 +1388,11 @@ class Plaza {
       }
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
-    this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u));
+    this.#remains = new DeathRemains(this.scene, (u) => this.#space.length(u), {
+      camera: this.camera,
+      models: this.#models,
+      gradient: this.#gradient,
+    });
     this.#shards = new IceShards(this.scene);
     this.#blasts = new Blasts(this.scene);
     this.#marks = new GroundMarks(this.scene);
@@ -1700,6 +1718,7 @@ class Plaza {
       }
       if (ch === undefined) {
         const kind = characterOf(this.map.roster, c, this.#hasArt);
+        this.#models.preload([kind]);
         const meta = this.manifest.characters[kind];
         const atlas =
           c.side === undefined
@@ -1828,7 +1847,14 @@ class Plaza {
       if (ch !== undefined && circle !== undefined) {
         const kind = characterOf(this.map.roster, circle, this.#hasArt);
         // burning when it died: it falls whole onto its side and smokes (deathRemains.ts)
-        const victim = ch.victim(e.actor, { ...deathOf(kind), burnt: ch.wasBurning });
+        const victim = ch.victim(e.actor, {
+          ...deathOf(kind),
+          burnt: ch.wasBurning,
+          kind,
+          frozen: ch.wasFrozen,
+          blown: e.blown === true,
+          ...this.#handColour(kind, circle.side),
+        });
         let hit: { x: number; z: number } | undefined;
         if (e.from !== undefined) {
           const f = this.#space.toScene(e.from.x, e.from.y);
@@ -2102,6 +2128,68 @@ class Plaza {
       }
   }
 
+  /**
+   * `?deathlab` (a developer's check, as `?frame=hq`): every 2.5 s the first character's remains are made beside it (two widths to
+   * its right, as if it died there, its hit coming from its left), so its sprite and its 3D cut can be looked at side by side; with
+   * the camera pinned (`&frame=hq&fz=3`) they are made under the middle of the screen. `?deathlab=fire`, `=frozen`, `=blown` die
+   * those ways; `&labkind=banana` makes it that character.
+   */
+  readonly #lab = new URLSearchParams(globalThis.location?.search ?? '').get('deathlab');
+  #labAt = -Infinity;
+  #deathLab(time: number): void {
+    if (this.#lab === null || time - this.#labAt < 2500) return;
+    const first = [...this.#characters.entries()][0];
+    const kind = first === undefined ? undefined : this.#kinds.get(first[0]);
+    if (first === undefined || kind === undefined) return;
+    this.#labAt = time;
+    const [id, ch] = first;
+    const v = ch.victim(`lab:${id}`, {
+      ...deathOf(kind),
+      kind,
+      burnt: this.#lab === 'fire',
+      frozen: this.#lab === 'frozen',
+      blown: this.#lab === 'blown',
+      ...this.#handColour(kind as PackCharacter, undefined),
+    });
+    let at = v.at.clone().add(new THREE.Vector3(2 * v.bodyHeight, 0, 0));
+    if (this.#pinnedCamera) {
+      // the camera pinned (`&frame=hq&fz=…`): on the ground under the middle of the screen, to look at closely
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+      const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -v.at.y);
+      at = ray.ray.intersectPlane(ground, new THREE.Vector3()) ?? at;
+    }
+    const other = new URLSearchParams(globalThis.location?.search ?? '').get(
+      'labkind',
+    ) as PackCharacter | null;
+    const meta = other === null ? undefined : this.manifest.characters[other];
+    // (a character not in play has no atlas loaded: the first one's then stands in, for its size only)
+    const atlas = (other === null ? undefined : this.#atlases.get(other)) ?? v.atlas;
+    if (other !== null && meta !== undefined) {
+      this.#models.preload([other]);
+      const own = atlas !== v.atlas;
+      this.#remains.burst(
+        {
+          ...v,
+          ...deathOf(other),
+          at,
+          kind: other,
+          atlas,
+          cell: own ? meta.cell : v.cell,
+          anchor: own ? meta.anchor : v.anchor,
+          colour: CHARACTER_COLOURS[other],
+          spriteHeight: own ? (v.spriteHeight * meta.cell) / v.cell : v.spriteHeight,
+          bodyHeight: own ? (v.bodyHeight * meta.cell) / v.cell : v.bodyHeight,
+          ...this.#handColour(other, undefined),
+        },
+        { x: 1, z: 0 },
+        time,
+      );
+      return;
+    }
+    this.#remains.burst({ ...v, at }, { x: 1, z: 0 }, time);
+  }
+
   #frame(t: number): void {
     const time = this.#virtual ?? t;
     this.#frameCamera(time);
@@ -2111,6 +2199,7 @@ class Plaza {
     this.#movePlants(time);
     this.#tick();
     this.#props.frame(time);
+    this.#deathLab(time);
     this.#remains.frame(time);
     this.#shards.frame(time);
     const w = this.#space.length(DRAWN_CHARACTER_WIDTH);

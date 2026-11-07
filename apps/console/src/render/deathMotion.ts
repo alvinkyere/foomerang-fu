@@ -14,7 +14,7 @@
  */
 
 /** A small deterministic generator (mulberry32) seeded from a string (FNV-1a). */
-function randomFrom(seed: string): () => number {
+export function randomFrom(seed: string): () => number {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i += 1) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
   let a = h >>> 0;

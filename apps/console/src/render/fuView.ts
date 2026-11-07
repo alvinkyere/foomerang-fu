@@ -296,6 +296,8 @@ export function buildFuView(
             color: styleOf(event.victimId, slots).color,
             actor: event.victimId,
             ...(event.source === 'FALL' ? { fell: true as const } : {}),
+            // an explosion's: its pieces are flung several times as far (render/cutMotion.ts)
+            ...(event.source === 'BLAST' ? { blown: true as const } : {}),
             // where the killer stood: the victim comes apart across the line of the hit (none for an environment death)
             ...(event.byId !== event.victimId && state.players.some((p) => p.id === event.byId)
               ? { from: positionOf(event.byId) }

@@ -151,6 +151,15 @@ def _bar(cx, cy, w, h, n=8):
     return pts
 
 
+def _cross(cx, cy, size, w):
+    """Two crossed bars with round ends (an X), centred at (cx, cy): `size` end to end, `w` thick."""
+    out = []
+    for a in (math.pi / 4, -math.pi / 4):
+        ca, sa = math.cos(a), math.sin(a)
+        out.append([(cx + x * ca - y * sa, cy + x * sa + y * ca) for x, y in _bar(0.0, 0.0, size, w)])
+    return out
+
+
 def _smile(cx, cy, w, h, n=24):
     """The open smile: flat on top, round below (a half ellipse hanging from its top edge at cy)."""
     return [(cx + math.cos(t) * w / 2, cy - math.sin(t) * h) for t in np.linspace(0, math.pi, n)]
@@ -207,6 +216,8 @@ def build_faces(mesh, name):
     if name == 'coffee':
         detail.append((_bar(mx, top - 0.13 * h, 0.82 * w, 0.2 * h), white))
     objs['happy_detail'] = _sticker(f'{name}_happy_detail', detail, plane, 2 * lift, surface)
+    # dead: each eye a black X about the eye's width (the HQ's killed characters, e.g. the eggplant at 2:03.7)
+    objs['dead_eyes'] = _sticker(f'{name}_dead_eyes', [(pts, black) for x, y in eyes2 for pts in _cross(x, y, 2.0 * r, 0.42 * r)], plane, lift, surface)
     # the pack's own eyes (with their highlights) and mouth, out of the body so each can be hidden
     objs['eyes'] = _separate(mesh, set(i for p in (eL, eR, *face['highlights']) for i in p['verts']), f'{name}_eyes')
     if face['mouth']:
@@ -215,5 +226,5 @@ def build_faces(mesh, name):
         left = _islands(mesh)
         idx = set(i for p in left for i in p['verts'] if any(np.allclose(p['c'], m['c'], atol=1e-4) for m in face['mouth']))
         objs['mouth'] = _separate(mesh, idx, f'{name}_mouth') if idx else None
-    shows = {'normal': ['eyes', 'mouth'], 'blink': ['blink_eyes', 'mouth'], 'happy': ['happy', 'happy_detail']}
+    shows = {'normal': ['eyes', 'mouth'], 'blink': ['blink_eyes', 'mouth'], 'happy': ['happy', 'happy_detail'], 'dead': ['dead_eyes', 'mouth']}
     return {k: v for k, v in objs.items() if v is not None}, shows

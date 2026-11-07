@@ -690,3 +690,31 @@ on `foomerang-fu physics hq.mp4`, the blast at 5:22.47 (frame 19347 = t 0), ever
 **To build (next):** a pure tested timeline (`render/explosionMotion.ts`, these tables) and our own 3D effect replacing the flipbook:
 faceted white sphere, see-through yellow dome, a ground ring with a soft inner edge (vertex alpha), icosahedron fire balls cooling to
 smoke specks, pale puffs, and the camera shake in `#frameCamera`. Never the video's pixels.
+
+## Every death in both HQs, surveyed (2026-11-06; applied in `render/cutMotion.ts`, `render/three/deathRemains.ts`)
+
+Owner: "observe all the character deaths in both HQs … the slicing, the burning, the crushing … animate it exactly so", in 3D (the
+old remains were flat sprite crops). Method: every frame of both HQs diffed against the one before (`scratchpad deaths/scan.py`);
+a kill stops the game dead for 0.1 s (5–9 identical frames), so every such stop was cut out and looked at, zoomed where the
+frame before the stop changed most (`zoom.py`): 56 in HQ1, 137 in HQ2 (menus and round ends among them).
+
+**There is one death, for every character and every lethal hit** (boomerang, slash, fire boomerang, explosive, ice boomerang):
+
+- the body is **cut level** at ≈ 0.55–0.6 of its height (eggplant 2:03.4, 3:19.3, 1:40.4; banana 0:25.6, 4:45.3; donut 0:07.6, 1:03.9;
+  toast HQ2 1:14.3, 3:08.5; bacon HQ2 0:53.3, 7:27.9; ice lolly HQ2 2:17.6; milk HQ2 10:03.5, 11:54.4 …). The face stays on whichever
+  piece carries it (the banana's and the ice lolly's on the top, the toast's and the eggplant's on the bottom);
+- the **top flies off along the hit**, comes down and slides to a stop turning (eggplant 3:19.3: ≈ 0.9 widths in ≈ 1.2 s; donut 1:03:
+  2.6 widths in 2.3 s); the **bottom stays standing**, showing a flat pale cut face (the eggplant's cream);
+- **goo** bursts from the cut in the body's own hue at full brightness (eggplant body (105, 73, 157) → goo (152, 118, 245)): a joined
+  splash rising out of the cut (blobs ≈ 0.18 W at 0.25–0.35 s), then up to ≈ 22 round blobs (≈ 0.09 W) spreading out (median
+  0.4 → 1.0 W, at most ≈ 2 W) and falling, the area largest at ≈ 0.55 s, all gone by ≈ 1.45 s (measure_cut.py on 3:19.3, W = its
+  width before the hit, 78 px);
+- the **eyes become black X's** at ≈ 0.7 s (3:19.99 on the 3:19.3 eggplant), the mouth unchanged.
+
+Variants: **explosive** (HQ1 4:14.3, 6:33.6, HQ2 16:56): the same cut inside the blast, the pieces flung several times as far;
+**fire** (HQ1 7:06.0, 9:58.2): the same cut, the pieces lying on their side still burning, then smoking; **frozen** when killed
+(HQ2 14:17.0): its ice block bursts with the goo; **the mug** (HQ1 7:23.7, 10:13.6): shatters (white shards, coffee goo, puddle);
+**falling** off an island or into water: no remains (fallMotion.ts).
+
+**Not in either HQ:** a crushing death (the two candidates, HQ2 5:37.6 and 12:46.2, are a sliding block and a moving bench beside a
+living milk carton). Not built; flagged to the owner.
