@@ -3,9 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parsePlantGroups } from '../src/render/hexPlants';
 
-// The hex plants move and burn the same on every map they grow on (owner, 2026-11-06): the meadow's, the gong islands', the plaza's and the
-// bridge islands' (its bushes were painted cards)
-// are all the game's own plants (render/hexPlants.ts), not still parts of a model (art/hex_meadow/plants_from_glb.py).
+// The hex plants move and burn the same on every map they grow on (owner, 2026-11-06): the meadow's, the gong islands', the plaza's and
+// the bridge islands' (painted cards before) are all the game's own plants (render/hexPlants.ts), not still parts of a model (art/hex_meadow/plants_from_glb.py).
 
 const maps = join(__dirname, '..', 'public', 'maps');
 const manifest = (map: string) =>
