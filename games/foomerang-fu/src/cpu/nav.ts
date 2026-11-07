@@ -17,14 +17,27 @@ import {
  */
 export const CELL = 25;
 
+/** What a dash link costs in the plan, in cells of walking: a little more than the cells it covers (a dash is a commitment). */
+const LEAP_EXTRA = 6;
+/** Ground beyond a body's radius all round where a planned dash lands. */
+export const LEAP_MARGIN = 4;
+
 export class NavGrid {
   readonly cols: number;
   readonly rows: number;
   readonly #free: Uint8Array;
+  /**
+   * Dash links over water (owner, 2026-11-06: a CPU dashes from land to land rather than dithering at the edge): from an edge cell, the
+   * cells a dash of `leap` lands in on other ground, where the line between meets no wall. `#into[t]`: the launch cells whose dash lands in t.
+   */
+  readonly #links = new Map<number, number[]>();
+  readonly #into = new Map<number, number[]>();
+  readonly #leapCost: number;
 
   constructor(
     readonly arena: FuArena,
     readonly radius: number,
+    readonly leap = 0,
   ) {
     this.cols = Math.ceil(arena.width / CELL);
     this.rows = Math.ceil(arena.height / CELL);
@@ -59,6 +72,84 @@ export class NavGrid {
           inside && grounded && !onPad && !circleHitsWalls(p, radius, walls) ? 1 : 0;
       }
     }
+    this.#leapCost = Math.ceil(leap / CELL) + LEAP_EXTRA;
+    if (leap > 0 && arena.ground !== undefined) {
+      for (let cy = 0; cy < this.rows; cy += 1) {
+        for (let cx = 0; cx < this.cols; cx += 1) {
+          if (!this.isFree(cx, cy)) continue;
+          // an edge cell: a neighbour not free
+          if (
+            [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+            ].every(([dx, dy]) => this.isFree(cx + (dx as number), cy + (dy as number)))
+          )
+            continue;
+          const from = this.centre(cx, cy);
+          const at = cy * this.cols + cx;
+          for (let k = 0; k < 16; k += 1) {
+            const a = (k * Math.PI) / 8;
+            // (it steps up to the very edge before it goes: its middle may be at the edge, so a dash starts up to a radius nearer the water
+            // than the cell; it lands with ground all round it and a margin)
+            const reach = leap + radius * 0.8;
+            const to = { x: from.x + Math.cos(a) * reach, y: from.y + Math.sin(a) * reach };
+            const [tx, ty] = this.cellOf(to);
+            if (!this.isFree(tx, ty)) continue;
+            const ring = radius + LEAP_MARGIN;
+            if (
+              ![0, 1, 2, 3, 4, 5, 6, 7].every((j) =>
+                onGround(
+                  {
+                    x: to.x + Math.cos((j * Math.PI) / 4) * ring,
+                    y: to.y + Math.sin((j * Math.PI) / 4) * ring,
+                  },
+                  fixed,
+                ),
+              )
+            )
+              continue;
+            // over something not free on the way (else it would simply walk), and through no wall
+            let gap = false;
+            let blocked = false;
+            for (let i = 1; i < 12; i += 1) {
+              const q = {
+                x: from.x + (to.x - from.x) * (i / 12),
+                y: from.y + (to.y - from.y) * (i / 12),
+              };
+              const [qx, qy] = this.cellOf(q);
+              if (!this.isFree(qx, qy)) gap = true;
+              if (circleHitsWalls(q, radius, walls)) blocked = true;
+            }
+            if (!gap || blocked) continue;
+            const t = ty * this.cols + tx;
+            this.#links.set(at, [...(this.#links.get(at) ?? []), t]);
+            this.#into.set(t, [...(this.#into.get(t) ?? []), at]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Where a dash from `from` should land to follow `field` (a dash link out of its cell that the plan goes by), or undefined when
+   * walking is the way.
+   */
+  leapAt(field: Int16Array, from: Vec2): Vec2 | undefined {
+    const [cx, cy] = this.cellOf(from);
+    const at = cy * this.cols + cx;
+    const here = field[at] as number;
+    if (here <= 0) return undefined;
+    for (const t of this.#links.get(at) ?? []) {
+      const d = field[t] as number;
+      if (d >= 0 && d + this.#leapCost <= here + 2) {
+        // (a launch about as good as the best: the dash from here)
+        const tx = t % this.cols;
+        return this.centre(tx, (t - tx) / this.cols);
+      }
+    }
+    return undefined;
   }
 
   centre(cx: number, cy: number): Vec2 {
@@ -86,30 +177,43 @@ export class NavGrid {
    * beside a wall still gets a field).
    */
   field(goal: Vec2, blocked: (cx: number, cy: number) => boolean): Int16Array {
-    const dist = new Int16Array(this.cols * this.rows).fill(-1);
-    const queue = new Int32Array(this.cols * this.rows);
+    // shortest steps over free cells, walking (1 a cell, 4-connected) or by a dash link (#leapCost): a bucket queue
+    const n = this.cols * this.rows;
+    const dist = new Int16Array(n).fill(-1);
     const [gx, gy] = this.cellOf(goal);
-    let head = 0;
-    let tail = 0;
+    const buckets: number[][] = [[gy * this.cols + gx]];
     dist[gy * this.cols + gx] = 0;
-    queue[tail++] = gy * this.cols + gx;
-    while (head < tail) {
-      const at = queue[head++] as number;
-      const cx = at % this.cols;
-      const cy = (at - cx) / this.cols;
-      for (const [dx, dy] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ] as const) {
-        const nx = cx + dx;
-        const ny = cy + dy;
-        if (!this.isFree(nx, ny) || blocked(nx, ny)) continue;
-        const n = ny * this.cols + nx;
-        if (dist[n] !== -1) continue;
-        dist[n] = (dist[at] as number) + 1;
-        queue[tail++] = n;
+    for (let d = 0; d < buckets.length; d += 1) {
+      const bucket = buckets[d];
+      if (bucket === undefined) continue;
+      for (const at of bucket) {
+        if ((dist[at] as number) !== d) continue;
+        const cx = at % this.cols;
+        const cy = (at - cx) / this.cols;
+        const relax = (nb: number, cost: number): void => {
+          const nd = d + cost;
+          const cur = dist[nb] as number;
+          if (cur !== -1 && cur <= nd) return;
+          dist[nb] = nd;
+          (buckets[nd] ??= []).push(nb);
+        };
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (!this.isFree(nx, ny) || blocked(nx, ny)) continue;
+          relax(ny * this.cols + nx, 1);
+        }
+        // a launch cell whose dash lands here is this far plus the dash's cost
+        for (const from of this.#into.get(at) ?? []) {
+          const fx = from % this.cols;
+          if (blocked(fx, (from - fx) / this.cols)) continue;
+          relax(from, this.#leapCost);
+        }
       }
     }
     return dist;
@@ -207,16 +311,17 @@ export class NavGrid {
 
 const grids = new WeakMap<FuArena, Map<number, NavGrid>>();
 /** One grid per arena and body size, built on first use and kept. */
-export function navGridFor(arena: FuArena, radius: number): NavGrid {
+export function navGridFor(arena: FuArena, radius: number, leap = 0): NavGrid {
   let bySize = grids.get(arena);
   if (bySize === undefined) {
     bySize = new Map();
     grids.set(arena, bySize);
   }
-  let grid = bySize.get(radius);
+  const key = radius * 100000 + Math.round(leap);
+  let grid = bySize.get(key);
   if (grid === undefined) {
-    grid = new NavGrid(arena, radius);
-    bySize.set(radius, grid);
+    grid = new NavGrid(arena, radius, leap);
+    bySize.set(key, grid);
   }
   return grid;
 }

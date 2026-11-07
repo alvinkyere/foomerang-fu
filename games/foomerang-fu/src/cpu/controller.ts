@@ -17,7 +17,7 @@ import {
 import type { FuPlayerInput } from '../rules/step';
 import type { FuState } from '../rules/state';
 import { gatesOf, inRect, systemsView, type SystemsView } from '../rules/systems';
-import { cellInRect, navGridFor } from './nav';
+import { LEAP_MARGIN, cellInRect, navGridFor } from './nav';
 import { PROFILES, type Difficulty, type Profile } from './profile';
 import { Rng } from './rng';
 
@@ -36,6 +36,8 @@ import { Rng } from './rng';
  */
 
 const MAX_HISTORY = 80;
+/** Close enough to a waiting place to stop there (a nav cell). */
+const CELL_NEAR = 25;
 
 /** A second boomerang may follow the first this soon (ticks): with two, the video's players throw them in quick succession. */
 const FOLLOW_UP_TICKS = 30;
@@ -190,6 +192,19 @@ export class CpuController {
   #dodge: { until: number; dir: Vec2 } | undefined;
   /** Which way it drifts while it holds its distance (+1 / −1); it changes its mind now and then. */
   #side = 1;
+  /** When it last changed the side it drifts to (a drift lasts a while: flipping every few ticks read as jitter). */
+  #sideSince = 0;
+  /** A planned dash over water (nav.ts dash links): the point it means to land on, set by #goTo while that is the way. */
+  #leap: Vec2 | undefined;
+  #leapSince = -9999;
+  /** Its heading is a step of its plan (nav.ts: a free cell or a dash's launch), not a stale or a free-styled one. */
+  #onPlan = false;
+  /** Which branch of its thinking set its heading last (for checks of its behaviour; it changes nothing). */
+  why = '';
+  #planned: Vec2 = { x: 0, y: 0 };
+  #plannedAt = -9999;
+  /** The way it last turned along an edge (keeps turning that way: one turn this way and the next that way was a jitter). */
+  #edgeTurn = 1;
   readonly #decided = new Set<string>();
   readonly #grudge = new Map<string, number>();
   #field: { key: string; at: number; data: Int16Array } | undefined;
@@ -306,10 +321,10 @@ export class CpuController {
         ...breakablesOf(arena).filter((b) => !state.broken.includes(b.id)),
       ];
       const stride = state.config.playerSpeed * DT;
-      const slidesOff = (d: Vec2): boolean => {
+      const slidesOff = (d: Vec2, strides = 12): boolean => {
         let x = here.x;
         let y = here.y;
-        for (let i = 0; i < 12; i += 1) {
+        for (let i = 0; i < strides; i += 1) {
           x += d.x * stride;
           y += d.y * stride;
           for (const solid of solids) {
@@ -335,19 +350,79 @@ export class CpuController {
         }
         return false;
       };
+      // (on its plan, whose cells keep a body's radius of ground all round, it only looks at its next steps: looking two radii ahead
+      // near an edge always saw water and stopped it short of where its plan, or a dash, was taking it)
+      const onPlan = this.#onPlan && dir.x * this.#planned.x + dir.y * this.#planned.y > 0.97;
       const unsafe = (d: Vec2): boolean =>
         [0.05, 0.1, 0.15, 0.2, 0.25].some((k) => off(d, k * r)) ||
-        [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].some((k) => offNear(d, k * r)) ||
-        slidesOff(d);
+        (!onPlan && [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].some((k) => offNear(d, k * r))) ||
+        slidesOff(d, onPlan ? 3 : 12);
+      // a planned dash over water (nav.ts): when it can dash at full length now and the dash lands it on ground all round, it goes;
+      // until then it waits on the edge, still
+      const leap = this.#leap;
+      const me = state.players.find((q) => q.id === this.#id);
+      if (leap !== undefined && me !== undefined && aimOverride === undefined) {
+        const to = norm(sub(leap, here));
+        const full = state.config.dashSpeed * state.config.dashSeconds;
+        const lands = [0, 1, 2, 3, 4, 5, 6, 7].every((k) =>
+          onGround(
+            {
+              x: here.x + to.x * full + Math.cos((k * Math.PI) / 4) * (r + LEAP_MARGIN),
+              y: here.y + to.y * full + Math.sin((k * Math.PI) / 4) * (r + LEAP_MARGIN),
+            },
+            arena,
+            state.roundTime,
+          ),
+        );
+        const ready =
+          me.dash.phase === 'READY' &&
+          me.slash.phase === 'READY' &&
+          me.fatigue.dashes < state.config.dashFreeCount &&
+          !me.inventory.includes('CAFFEINATED');
+        if (lands && ready) {
+          out.dash = true;
+          this.#lastDash = this.#tick;
+          this.stats.dashes += 1;
+          this.#leap = undefined;
+          this.#leapSince = -9999;
+          return this.#finish(to, out);
+        }
+        if (lands) {
+          delete out.dash;
+          return this.#finish({ x: 0, y: 0 }, out); // wait for the dash
+        }
+        // short of where a dash would land it: it steps up towards the edge (its middle never leaving the ground, with a few units
+        // to spare) and tries again; at the edge and still short, it waits
+        const stride = state.config.playerSpeed * DT;
+        const step = { x: here.x + to.x * stride * 2, y: here.y + to.y * stride * 2 };
+        const room = [0, 1, 2, 3, 4, 5, 6, 7].every((k) =>
+          onGround(
+            {
+              x: step.x + Math.cos((k * Math.PI) / 4) * 6,
+              y: step.y + Math.sin((k * Math.PI) / 4) * 6,
+            },
+            arena,
+            state.roundTime,
+          ),
+        );
+        delete out.dash;
+        return this.#finish(room ? to : { x: 0, y: 0 }, out);
+      }
       if (aimOverride === undefined && (dir.x !== 0 || dir.y !== 0) && unsafe(dir)) {
         const d = dir;
-        const turned = [30, -30, 60, -60, 90, -90]
+        const sign = this.#edgeTurn;
+        const zone = this.#zone;
+        const outside = zone !== undefined && !inRect(here, zone);
+        const turned = (outside ? [30, -30, 60, -60, 90, -90] : [20, -20, 35, -35])
+          .map((a) => a * sign) // (outside the border it must get back in, round whatever: every turn) // (a small turn round a corner; anything more and it stops: its plan never points it at the water, so a heading that does is stale, and sliding along the edge on it was a back-and-forth)
           .map((deg) => (deg * Math.PI) / 180)
           .map((a) => ({
             x: d.x * Math.cos(a) - d.y * Math.sin(a),
             y: d.x * Math.sin(a) + d.y * Math.cos(a),
           }))
           .find((t) => !unsafe(t));
+        // it keeps turning the way it last turned (not this way one tick and that way the next)
+        if (turned !== undefined) this.#edgeTurn = d.x * turned.y - d.y * turned.x >= 0 ? 1 : -1;
         dir = turned ?? { x: 0, y: 0 };
       }
       const dashReach = state.config.dashSpeed * state.config.dashSeconds + r;
@@ -357,6 +432,12 @@ export class CpuController {
       )
         delete out.dash;
     }
+    return this.#finish(dir, out);
+  }
+
+  /** The input it hands the rules: its heading, its actions, and THROW held while it pulls a dropped boomerang home. */
+  #finish(dir: Vec2, out: { throw?: true; slash?: true; dash?: true }): FuPlayerInput {
+    const state = this.#history[this.#history.length - 1] as FuState;
     // its boomerang dropped (it lies on the ground, or is being pulled home): hold THROW and pull it home, as a player can.
     // Calling means standing still (the calling pose), so not while it is dodging something.
     const dodging = this.#dodge !== undefined && this.#tick < this.#dodge.until;
@@ -395,6 +476,9 @@ export class CpuController {
     const { config } = state;
     const me = state.players.find((q) => q.id === this.#id);
     if (me === undefined) return;
+    // a dash it has chosen it keeps to for a while (choosing again every few ticks walked it up and down the edge between two launches)
+    if (this.#tick - this.#leapSince > 90) this.#leap = undefined;
+    this.#onPlan = false;
     const here = positionOf(state, this.#id);
     const mine = [...state.boomerangs, ...state.extraBoomerangs].filter(
       (b) => b.ownerId === this.#id,
@@ -446,6 +530,7 @@ export class CpuController {
         (h.phase === 'SAFE' && h.secondsToChange < p.hazardLookahead - 1);
       if (danger && inRect(here, h.rect) && !onPlatform) {
         this.#move = this.#exitFrom(h.rect, here, state);
+        this.why = 'hazard';
         return;
       }
     }
@@ -463,6 +548,7 @@ export class CpuController {
     }
     if (this.#dodge !== undefined && this.#tick < this.#dodge.until) {
       this.#move = this.#dodge.dir;
+      this.why = 'dodge';
       return;
     }
 
@@ -475,6 +561,7 @@ export class CpuController {
     // a Book is a lasting upgrade: unless a fight is right on top of it, it goes to fetch one
     if (book !== undefined && (foe === undefined || dist(here, foe.position) > 330)) {
       const before = this.#move;
+      this.why = 'book';
       this.#goTo(book, state, view, here);
       this.#settle(before, view, here);
       this.#maybeDash(out, state, view, here, book, me, dashAllowed, fatigued);
@@ -522,6 +609,7 @@ export class CpuController {
         const before = this.#move;
         this.#move = this.#coverFrom(foe.position, here, state, view);
         this.#settle(before, view, here);
+        this.why = 'cover';
         return;
       }
       if (book !== undefined && !hunted) {
@@ -555,12 +643,18 @@ export class CpuController {
         const before = this.#move;
         this.#move = away;
         this.#settle(before, view, here);
+        this.why = 'keepAway';
         return;
       }
       if (d > stand || !los) {
         const before = this.#move;
         this.#goTo(this.#approach(foe.position, state, view, here), state, view, here);
         this.#settle(before, view, here);
+        this.why =
+          'approach:' +
+          foe.id +
+          (this.#leap !== undefined ? ' LEAP' : '') +
+          (this.#onPlan ? ' plan' : ' noplan');
         // never a committed dash down an armed opponent's line of fire
         const loaded = los && foe.weapons > foe.weaponsAway;
         if (!loaded)
@@ -568,17 +662,31 @@ export class CpuController {
       } else {
         // at its distance it keeps moving, sideways to the line between them (a still target is an easy one)
         const before = this.#move;
-        if (this.#rng.chance(0.15)) this.#side = -this.#side;
+        if (this.#tick - this.#sideSince > 120 && this.#rng.chance(0.15)) {
+          this.#side = -this.#side;
+          this.#sideSince = this.#tick;
+        }
         const across = norm(sub(foe.position, here));
         const drift = (side: number): Vec2 => ({ x: -across.y * side, y: across.x * side });
         // never drifting into a floor it knows to be deadly: the other way, or not at all; between two, it holds still
-        if (this.#walksIntoDanger(drift(this.#side), here, view)) this.#side = -this.#side;
+        // (and never drifting on out of the border's safe zone, a long drift would carry it out)
+        const outward = (side: number): boolean => {
+          const z = this.#zone;
+          if (z === undefined) return false;
+          const d = drift(side);
+          return !inRect({ x: here.x + d.x * 160, y: here.y + d.y * 160 }, z);
+        };
+        if (this.#walksIntoDanger(drift(this.#side), here, view) || outward(this.#side)) {
+          this.#side = -this.#side;
+          this.#sideSince = this.#tick;
+        }
         const near = view.foes.filter((f) => dist(here, f.position) < stand).length;
         this.#move =
           near > 1 || this.#walksIntoDanger(drift(this.#side), here, view)
             ? { x: 0, y: 0 }
             : drift(this.#side);
         this.#settle(before, view, here);
+        this.why = 'strafe';
       }
       return;
     }
@@ -876,7 +984,7 @@ export class CpuController {
   #approach(foe: Vec2, state: FuState, view: Observation, here: Vec2): Vec2 {
     const { arena, playerRadius, throwRange } = state.config;
     if (arena.ground === undefined) return foe;
-    const grid = navGridFor(arena, playerRadius);
+    const grid = navGridFor(arena, playerRadius, state.config.dashSpeed * state.config.dashSeconds);
     const [fx, fy] = grid.cellOf(foe);
     const key = `${fx},${fy}`;
     if (this.#post === undefined || this.#post.key !== key || this.#tick - this.#post.at > 20) {
@@ -893,10 +1001,14 @@ export class CpuController {
     return this.#post.spot;
   }
 
-  #goTo(goal: Vec2, state: FuState, view: Observation, here: Vec2): void {
+  #goTo(goal: Vec2, state: FuState, view: Observation, here: Vec2, fallback = true): void {
     const p = this.#profile;
     const radius = state.config.playerRadius;
-    const grid = navGridFor(state.config.arena, radius);
+    const grid = navGridFor(
+      state.config.arena,
+      radius,
+      state.config.dashSpeed * state.config.dashSeconds,
+    );
     const clear = (a: Vec2, b: Vec2): boolean => {
       const n = Math.ceil(dist(a, b) / 12);
       for (let i = 1; i <= n; i += 1) {
@@ -941,9 +1053,60 @@ export class CpuController {
         );
       this.#field = { key, at: this.#tick, data };
     }
+    // the way goes over water by a dash from here: face the landing (decide dashes when it can, and waits on the edge till then)
+    const landing = this.#leap ?? grid.leapAt(this.#field.data, here);
+    if (landing !== undefined) {
+      if (this.#leap === undefined) this.#leapSince = this.#tick;
+      this.#leap = landing;
+      this.#onPlan = true;
+      this.#planned = this.#move;
+      this.#move = norm(sub(landing, here));
+      return;
+    }
     const next = grid.steer(this.#field.data, here, 8, clear);
     if (next !== undefined) {
-      this.#move = norm(sub(next, here));
+      let heading = norm(sub(next, here));
+      // a plan that turns it right round (the goal moved, and another way is now a little shorter) it takes only if that way is clearly
+      // better: two ways about as long, swapped every replan, walked it out and back (the owner: "the going back and forth")
+      const was = this.#planned;
+      const outside = this.#zone !== undefined && !inRect(here, this.#zone);
+      if (
+        !outside &&
+        this.#tick - this.#plannedAt < 40 &&
+        heading.x * was.x + heading.y * was.y < -0.2
+      ) {
+        const data = this.#field.data;
+        const ahead = (d: Vec2): number =>
+          grid.distanceAt(data, { x: here.x + d.x * 50, y: here.y + d.y * 50 });
+        const keep = ahead(was);
+        const turn = ahead(heading);
+        if (
+          keep >= 0 &&
+          turn >= 0 &&
+          keep <= turn + 4 &&
+          !circleHitsWalls({ x: here.x + was.x * 30, y: here.y + was.y * 30 }, radius, view.solids)
+        )
+          heading = was;
+      }
+      this.#move = heading;
+      this.#plannedAt = this.#tick;
+      this.#onPlan = true;
+      this.#planned = this.#move;
+      return;
+    }
+    // no way there at all (another island no dash can reach): to the place it CAN reach nearest the goal, and it waits there,
+    // still (walking at the water and being turned back by the edge was the back-and-forth the owner saw)
+    if (
+      fallback &&
+      state.config.arena.ground !== undefined &&
+      turntableUnder(here, state.config.arena, state.roundTime) === undefined
+    ) {
+      const near = this.#nearestReachable(grid, here, goal);
+      if (near !== undefined && dist(near, here) > CELL_NEAR) {
+        this.#goTo(near, state, view, here, false);
+        return;
+      }
+      this.#move = { x: 0, y: 0 };
       return;
     }
     // no planned way: straight for the goal; but carried on a turntable (the cross pond's raft, where its plan has no
@@ -956,6 +1119,24 @@ export class CpuController {
       onGround(ahead, state.config.arena, t)
         ? straight
         : { x: 0, y: 0 };
+  }
+
+  /** The cell it can walk (or dash) to from `here` that lies nearest `goal` as the crow flies. */
+  #nearestReachable(grid: ReturnType<typeof navGridFor>, here: Vec2, goal: Vec2): Vec2 | undefined {
+    const steps = grid.field(here, () => false);
+    let best: Vec2 | undefined;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < steps.length; i += 1) {
+      if ((steps[i] as number) < 0) continue;
+      const cx = i % grid.cols;
+      const c = grid.centre(cx, (i - cx) / grid.cols);
+      const d = dist(c, goal);
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
   }
 
   /** DASH to cover ground or to take a shortcut through a wall (only if it owns PHASE_DASH: the rules make that true or false). */
