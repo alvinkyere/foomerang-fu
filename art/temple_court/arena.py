@@ -39,8 +39,10 @@ for wg in L['wings']:
     (ax, ay), (bx, by) = wg['a'], wg['b']; nx, ny = FACE[wg['face']]
     back, front = -Wd['w'] / 2 - 0.25, Wd['w'] / 2 + Wd['plinth_out']
     mid = (back + front) / 2
-    cx, cy = (ax + bx) / 2 + nx * mid, (ay + by) / 2 + ny * mid
-    length = math.hypot(bx - ax, by - ay) + 0.6
+    pa, pb = wg.get('plinth_a', 0.0), wg.get('plinth_b', 0.0)
+    length = math.hypot(bx - ax, by - ay) + 0.6 + pa + pb
+    ux, uy = (bx - ax) / math.hypot(bx - ax, by - ay), (by - ay) / math.hypot(bx - ax, by - ay)
+    cx, cy = (ax + bx) / 2 + nx * mid + ux * (pb - pa) / 2, (ay + by) / 2 + ny * mid + uy * (pb - pa) / 2
     yaw = math.atan2(by - ay, bx - ax)
     turned_box(f'WING_{wg["name"]}', cx, cy, length / 2, (front - back) / 2, yaw)
 for k, (x, y) in enumerate(L['towers']): turned_box(f'TOWER_{k}', x, y, 1.05, 1.05)

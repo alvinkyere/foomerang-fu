@@ -148,21 +148,38 @@ def box(m, cx, cy, hw, hd, z0, z1, top, side, back=None, yaw=0.0):
 
 
 # ------------------------------------------------------------------------------------------------------------------------ palette
-P = dict(ground='#f8e68a', ground_shadow='#cbcb81', court='#f9f7e4', court_joint='#efecd6', court_shadow='#f3e8a9', tree_shadow='#d6e3df',
+P = dict(ground='#f8e68a', ground_shadow='#cbcb81', court='#f9f7e4', court_joint='#efecd8', court_shadow='#f3e8a9', tree_shadow='#d6e3df',
          stone_top='#a28cb4', stone_side='#7d6f9f', stone_back='#6c5f8c', stone_inner='#6a5f80', soil='#dbda7d', soil_leaf='#c9cf6a',
-         trunk='#7a6c9d', trunk_dark='#615683', leaf=['#cbd884', '#b8c96c', '#aabf5f', '#98b154'],
+         trunk='#7a6c9d', trunk_dark='#615683', leaf=['#cdd986', '#bccb6e', '#adc161', '#9db657'],
          shoji='#f2e8cf', shoji_shade='#e0d4b8', timber='#3e2c2f', roof='#d0545a', roof_light='#e06664', roof_dark='#a83e47', ridge='#3e2c2f',
          beam='#584846', beam_dark='#3f3232', fork='#8fb08f', fork_dark='#76987a', blade='#7fa088', handle='#6e4b3a', eye='#1a1a1a',
          cloth='#efe9dc', cloth_shade='#d7d0c2', pole='#3a2f2e', lantern='#f3a032', lantern_light='#ffcf5a', lamp_stone='#8f86a6')
 
 # ------------------------------------------------------------------------------------------------------------------------ ground
+GF = J('art/temple_court/ground_field.json')
+bgr_hex = lambda c: '#%02x%02x%02x' % (c[2], c[1], c[0])
+edge = bgr_hex(GF['bgr'][0])
 g = Mesh('GROUND')
-g.poly([(-140, -100), (140, -100), (140, 110), (-140, 110)], 0.0, P['ground'])
+g.poly([(-140, -100), (140, -100), (140, 110), (-140, 110)], -0.01, bgr_hex(GF['bgr'][GF['nx'] * (GF['ny'] // 2)]))
+# the measured field (ground_field.py): each corner its cell's colour, smooth across the faces
+for j in range(GF['ny'] - 1):
+    for i in range(GF['nx'] - 1):
+        x0, y0 = GF['x0'] + i * GF['dx'], GF['y0'] + j * GF['dx']; x1, y1 = x0 + GF['dx'], y0 + GF['dx']
+        c = lambda ii, jj: bgr_hex(GF['bgr'][jj * GF['nx'] + ii])
+        g.face([(x0, YC + y0, 0), (x1, YC + y0, 0), (x1, YC + y1, 0), (x0, YC + y1, 0)], [c(i, j), c(i + 1, j), c(i + 1, j + 1), c(i, j + 1)])
 g.done()
 fl = Mesh('PAVING')
 for k, band in enumerate(FL['bands']):
-    for poly in band['polys']: fl.poly(poly, 0.004 + 0.002 * k, band['colour'])
+    for poly in band['polys']: fl.poly(poly, 0.02 + 0.015 * k, band['colour'])
+for x0, y0, x1, y1 in J('art/temple_court/joints.json'):          # (the flagstones' faint joints: joints.py)
+    d = Vector((x1 - x0, y1 - y0)); n = Vector((-d.y, d.x)).normalized() * 0.045
+    fl.poly([(x0 - n.x, y0 - n.y), (x1 - n.x, y1 - n.y), (x1 + n.x, y1 + n.y), (x0 + n.x, y0 + n.y)], 0.125, P['court_joint'])
 fl.done()
+# the still shadows (shadow_mass.py): warm and cool on the paving, olive on the yellow ground under it
+SM = J('art/temple_court/shadow_mass.json'); sh = Mesh('SHADOWS')
+for name, z in (('olive', 0.008), ('warm', 0.14), ('cool', 0.15)):
+    for poly in SM[name]['polys']: sh.poly(poly['pts'], z, SM[name]['colour'])
+sh.done()
 
 # ------------------------------------------------------------------------------------------------------------------------ planters
 SOIL_DROP, RING = 0.45, 0.72                       # (the soil below the rim; the ring's width: planter 17's top at 4x)
@@ -192,11 +209,11 @@ for name, p in PL.items():
     m.poly(inner, h - SOIL_DROP, P['soil'])
     # fallen leaves on the big planters' soil
     if name.startswith('big'):
-        for _ in range(int(ia * ib * 2.2)):
+        for _ in range(int(ia * ib * 3.2)):
             x, y = p['cx'] + rng.uniform(-ia * 0.9, ia * 0.9), p['cy'] + rng.uniform(-ib * 0.85, ib * 0.85)
-            r, a0 = rng.uniform(0.18, 0.3), rng.uniform(0, math.pi)
+            r, a0 = rng.uniform(0.24, 0.38), rng.uniform(0, math.pi)
             m.poly([(x + r * math.cos(a0 + t) * (1 if j % 2 == 0 else 0.55), y + r * 0.6 * math.sin(a0 + t)) for j, t in enumerate([i * math.pi / 4 for i in range(8)])],
-                   h - SOIL_DROP + 0.01, rng.choice([P['soil_leaf'], '#bfcb62', '#d0d36f']))
+                   h - SOIL_DROP + 0.01, rng.choice(['#b9c65c', '#b1c158', '#c2cb62', '#a9bc55']))
     m.done()
 
 # ------------------------------------------------------------------------------------------------------------------------ trees
@@ -218,16 +235,32 @@ def bezier(p0, p1, p2, n=8):
     return [tuple((1 - t) ** 2 * Vector(p0) + 2 * (1 - t) * t * Vector(p1) + t * t * Vector(p2)) for t in [i / (n - 1) for i in range(n)]]
 
 
+def leaf_tone(lit):
+    """The leaves' green for a facing (lit: its normal against the sun), blended smoothly between the measured four."""
+    stops = [(-0.6, P['leaf'][3]), (-0.1, P['leaf'][2]), (0.35, P['leaf'][1]), (0.85, P['leaf'][0])]
+    if lit <= stops[0][0]: return stops[0][1]
+    for (a0, c0), (a1, c1) in zip(stops, stops[1:]):
+        if lit <= a1: return mix(c0, c1, (lit - a0) / (a1 - a0))
+    return stops[-1][1]
+
+
+CROWN = [None]                                   # (the crown being built: its middle and size, for toning it as one mass)
+
+
 def blob(m, centre, r, squash=0.8, detail=2):
-    """A low-poly leafy lump: an icosphere, jittered, flat-toned in the leaves' four greens by its facing."""
+    """A soft leafy lump: an icosphere, uneven, each corner toned mostly by where it is on the whole crown (lit from the sun's side)
+    and a little by its own facing: the HQ's crowns read as one soft mass with lumps, not as balls."""
     tmp = bmesh.new(); bmesh.ops.create_icosphere(tmp, subdivisions=detail, radius=r)
     for v in tmp.verts:
-        v.co.z *= squash; v.co *= rng.uniform(0.93, 1.06)
+        v.co.z *= squash; v.co *= rng.uniform(0.9, 1.08)
+    tmp.normal_update()
+    cc, cr = CROWN[0] if CROWN[0] is not None else (Vector(centre), r)
+    def tone(v):
+        p = Vector(centre) + v.co; g = ((p - cc) / cr)
+        g.z *= 1.2
+        return leaf_tone(0.7 * g.normalized().dot(SUN) * min(1.0, g.length) + 0.3 * v.normal.dot(SUN))
     for f in tmp.faces:
-        f.normal_update(); n = f.normal
-        lit = n.dot(SUN)
-        c = P['leaf'][0] if lit > 0.8 else P['leaf'][1] if lit > 0.2 else P['leaf'][2] if lit > -0.45 else P['leaf'][3]
-        m.face([tuple(Vector(centre) + v.co) for v in f.verts], c)
+        m.face([tuple(Vector(centre) + v.co) for v in f.verts], [tone(v) for v in f.verts])
     tmp.free()
 
 
@@ -235,19 +268,25 @@ for k, t in enumerate(L['trees']):
     root = bpy.data.objects.new(f'TREE_{k}_tree', None); sc.collection.objects.link(root)
     fx, fy = t['foot']; cx, cy, cz = t['crown']; r = t['r']
     m = Mesh(f'TREE_{k}_trunk')
-    foot = (fx, YC + fy, 0.9); top = (cx, YC + cy, cz - r * 0.5)
+    rz_ = t.get('rz', r); foot = (fx, YC + fy, 0.9); top = (cx, YC + cy, cz - rz_ * 0.4)
     mid = ((fx + cx) / 2 + 0.6, YC + (fy + cy) / 2 - 0.2, (0.9 + cz) / 2)
     tube(m, bezier(foot, mid, top), 0.32, 0.16, P['trunk'], P['trunk_dark'])
     fork = bezier(foot, mid, top)[4]
-    tube(m, bezier(fork, (fork[0] - 0.9, fork[1] + 0.2, fork[2] + 0.9), (cx - r * 0.55, YC + cy - 0.4, cz - r * 0.6), 5), 0.15, 0.08, P['trunk'], P['trunk_dark'])
+    tube(m, bezier(fork, (fork[0] - 0.9, fork[1] + 0.2, fork[2] + 0.9), (cx - r * 0.55, YC + cy - 0.4, cz - rz_ * 0.65), 5), 0.15, 0.08, P['trunk'], P['trunk_dark'])
     m.done(root)
     m = Mesh(f'TREE_{k}_crown')
-    # leafy clusters: a big one on top, smaller ones round it, one hanging low on the left (the HQ's crowns, 121.5 s)
-    blob(m, (cx + 0.2, YC + cy + 0.3, cz + r * 0.35), r * 0.62, 0.8, 3)
-    for j in range(7):
-        a = 2 * math.pi * j / 7 + rng.uniform(-0.25, 0.25)
-        blob(m, (cx + math.cos(a) * r * 0.5, YC + cy + math.sin(a) * r * 0.42, cz + rng.uniform(-0.5, 0.4)), r * rng.uniform(0.38, 0.5), 0.8, 2)
-    blob(m, (cx - r * 0.5, YC + cy - 0.6, cz - r * 0.7), r * 0.4, 0.8, 2)
+    # leafy clusters stacked upright, filling the crown's fitted ellipsoid (fit_crowns.py: r across, rz up; the HQ's crowns are taller
+    # than wide): a lower ring, a middle ring, a top lump, one hanging low on the left by the side branch
+    rz = t.get('rz', r); CROWN[0] = (Vector((cx, YC + cy, cz)), max(r, rz))
+    for j in range(5):
+        a = 2 * math.pi * j / 5 + rng.uniform(-0.3, 0.3)
+        blob(m, (cx + math.cos(a) * r * 0.48, YC + cy + math.sin(a) * r * 0.36, cz - rz * 0.42 + rng.uniform(-0.1, 0.1)), r * rng.uniform(0.46, 0.54), 0.95, 2)
+    for j in range(4):
+        a = 2 * math.pi * j / 4 + rng.uniform(-0.3, 0.3) + 0.4
+        blob(m, (cx + math.cos(a) * r * 0.36, YC + cy + math.sin(a) * r * 0.28, cz + rz * 0.12), r * rng.uniform(0.46, 0.52), 0.95, 2)
+    blob(m, (cx + 0.08 * r, YC + cy + 0.08 * r, cz + rz * 0.55), r * 0.46, 1.0, 2)
+    blob(m, (cx - r * 0.6, YC + cy - 0.4, cz - rz * 0.72), r * 0.36, 0.9, 2)
+    CROWN[0] = None
     m.done(root)
 
 # ------------------------------------------------------------------------------------------------------------------------ buildings
@@ -283,8 +322,9 @@ def wing(w):
     L_ = math.hypot(bx - ax, by - ay); ux, uy = (bx - ax) / L_, (by - ay) / L_
     # the plinth: from behind the wall out to the face side
     back, front = -WW / 2 - 0.25, WW / 2 + PO
-    corners = [(ax + nx * back - ux * 0.3, ay + ny * back - uy * 0.3), (bx + nx * back + ux * 0.3, by + ny * back + uy * 0.3),
-               (bx + nx * front + ux * 0.3, by + ny * front + uy * 0.3), (ax + nx * front - ux * 0.3, ay + ny * front - uy * 0.3)]
+    ea, eb = 0.3 + w.get('plinth_a', 0.0), 0.3 + w.get('plinth_b', 0.0)
+    corners = [(ax + nx * back - ux * ea, ay + ny * back - uy * ea), (bx + nx * back + ux * eb, by + ny * back + uy * eb),
+               (bx + nx * front + ux * eb, by + ny * front + uy * eb), (ax + nx * front - ux * ea, ay + ny * front - uy * ea)]
     stone(m, corners, 0, PH, 0.28, 0.07)
     # the wall
     wc = [(ax + nx * -WW / 2, ay + ny * -WW / 2), (bx + nx * -WW / 2, by + ny * -WW / 2), (bx + nx * WW / 2, by + ny * WW / 2), (ax + nx * WW / 2, ay + ny * WW / 2)]
@@ -462,6 +502,45 @@ for k, (x, y) in enumerate(L['stone_lanterns']):
     box(m, x, y, 0.4, 0.4, 1.5, 1.7, P['lamp_stone'], '#756c8c', '#61597a')
     m.done()
 
+# ------------------------------------------------------------------------------------------------------------------------ outskirts
+# big autumn trees round the court (layout.py OUTER_TREES): a lavender trunk, a soft crown of red or golden lumps, leaves under it
+CROWNS = dict(red=['#f26a55', '#e8584d', '#d64a47', '#c03f45'], gold=['#f6c45c', '#eeb24f', '#e2a046', '#cf8e40'])
+for k, t in enumerate(L['outer_trees']):
+    fx, fy = t['foot']; lx, ly = t['lean']; r = t['r']
+    root = bpy.data.objects.new(f'TREE_{10 + k}_tree', None); sc.collection.objects.link(root)
+    m = Mesh(f'OTREE_{k}_trunk'); top = (fx + lx, YC + fy + ly, 8.5)
+    tube(m, bezier((fx, YC + fy, 0), (fx + lx * 0.3, YC + fy + ly * 0.4, 4.5), top), 0.75, 0.45, P['trunk'], '#5b5490')
+    m.done(root)
+    m = Mesh(f'OTREE_{k}_crown'); keep = P['leaf']; P['leaf'] = list(reversed(CROWNS[t['crown']]))[::-1]
+    CROWN[0] = (Vector((top[0], top[1], 10.0)), r)
+    for j in range(7):
+        a = 2 * math.pi * j / 7 + rng.uniform(-0.3, 0.3)
+        blob(m, (top[0] + math.cos(a) * r * 0.55, top[1] + math.sin(a) * r * 0.45, 9.8 + rng.uniform(-0.5, 0.8)), r * rng.uniform(0.45, 0.6), 0.8, 2)
+    blob(m, (top[0], top[1], 10.8), r * 0.6, 0.8, 2)
+    CROWN[0] = None; P['leaf'] = keep
+    m.done(root)
+    m = Mesh(f'OLEAVES_{k}')
+    for _ in range(26):
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0.5, r * 1.3)
+        x, y = fx + lx * 0.7 + math.cos(a) * d, fy + ly * 0.5 + math.sin(a) * d * 0.8
+        lr, a0 = rng.uniform(0.25, 0.4), rng.uniform(0, math.pi)
+        m.poly([(x + lr * math.cos(a0 + q) * (1 if i % 2 == 0 else 0.55), y + lr * 0.6 * math.sin(a0 + q)) for i, q in enumerate([i * math.pi / 4 for i in range(8)])],
+               0.02, rng.choice(CROWNS[t['crown']][1:]))
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ the plants at rest (render only)
+if PLANTS:
+    HF = J('art/temple_court/hexfields.json'); s_, HH = HF['s'], HF['H']; th = HF['turn']
+    hexpts = lambda x, y, r: [(x + r * math.cos(th + k * math.pi / 3), y + r * math.sin(th + k * math.pi / 3)) for k in range(6)]
+    m = Mesh('PLANTS_render')
+    for p in HF['pads']: m.poly(hexpts(p['x'] - 0.75 * HH, p['y'] - 0.1 * HH, s_), 0.009, '#c2c883')
+    for p in sorted(HF['pads'], key=lambda p: -p['y']):
+        x, y = p['x'], p['y']
+        box(m, x, y, 0.06, 0.06, 0, HH, '#b5683f', '#b5683f')
+        m.poly(hexpts(x, y, s_ * 1.04), HH, HF['shade'][p['shade']])
+        if p['flower']: m.poly([(x + 0.1 * math.cos(a), y + 0.1 * math.sin(a)) for a in [i * math.pi / 4 for i in range(8)]], HH + 0.01, '#f6b88a')
+    m.done()
+
 # ------------------------------------------------------------------------------------------------------------------------ camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
@@ -472,6 +551,8 @@ next(n for n in world.node_tree.nodes if n.type == 'BACKGROUND').inputs['Color']
 sc.view_settings.view_transform = 'Standard'
 os.makedirs(OUT, exist_ok=True)
 bpy.ops.object.select_all(action='SELECT'); co.select_set(False)
+for o in bpy.data.objects:
+    if o.name.startswith('PLANTS_render'): o.select_set(False)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'court.glb'), export_format='GLB', use_selection=True, export_cameras=False,
                           export_lights=False, export_apply=True, export_yup=True)
 if RENDER:

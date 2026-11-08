@@ -22,13 +22,13 @@ BORDER = dict(x0=-32.0, x1=mx(-32.0), y0=-20.16, y1=21.15)
 # line's ends, `face` the side the plinth stands out to (and the roof slopes down to), `roof` 'shed' or 'gable'
 WALL_W, WALL_H, PLINTH_H, PLINTH_OUT = 0.55, 4.7, 1.1, 1.1
 WINGS = [
-    dict(name='NW_N', a=(-30.5, 19.9), b=(-21.0, 19.9), face='S', roof='gable'),
-    dict(name='NW_W', a=(-30.5, 19.9), b=(-30.5, 8.0), face='E', roof='gable'),
-    dict(name='SW_W', a=(-30.5, -6.9), b=(-30.5, -19.3), face='E', roof='gable'),
+    dict(name='NW_N', a=(-30.5, 19.9), b=(-22.0, 19.9), face='S', roof='gable', plinth_b=3.6),
+    dict(name='NW_W', a=(-30.5, 19.9), b=(-30.5, 11.6), face='E', roof='gable', plinth_b=3.6),
+    dict(name='SW_W', a=(-30.5, -9.6), b=(-30.5, -19.3), face='E', roof='gable', plinth_a=2.4),
     dict(name='SW_S', a=(-30.5, -19.3), b=(-21.6, -19.3), face='S', roof='gable'),
 ]
 WINGS += [dict(name=w['name'].replace('W', 'E').replace('NE_N', 'NE_N'), a=(mx(w['a'][0]), w['a'][1]), b=(mx(w['b'][0]), w['b'][1]),
-               face={'E': 'W', 'W': 'E'}.get(w['face'], w['face']), roof=w['roof']) for w in WINGS]
+               face={'E': 'W', 'W': 'E'}.get(w['face'], w['face']), roof=w['roof'], **{k: w[k] for k in ('plinth_a', 'plinth_b') if k in w}) for w in WINGS]
 # the east wall is one wall top to bottom, its middle the arch gate over the east lane (the lanterns' stones at y 5.65 / -3.49)
 WINGS = [w for w in WINGS if w['name'] not in ('NE_E', 'SE_E')]
 EAST_GATE = dict(y0=-2.4, y1=4.6, x=mx(-30.5))
@@ -45,17 +45,25 @@ SLAB = dict(x0=-5.58, x1=6.06, y0=18.58, y1=21.0, h=0.8)
 STATUES = [dict(kind='fork', x=-2.6, y=19.9), dict(kind='knife', x=1.75, y=19.9)]
 
 # the banners: a dark pole, a crossbar, a cream cloth with a grey sign (by the wings' ends)
-BANNERS = [dict(x=-20.4, y=19.4), dict(x=mx(-20.4), y=19.4), dict(x=-29.4, y=8.9), dict(x=-29.4, y=-6.1)]
+BANNERS = [dict(x=-19.5, y=19.1), dict(x=19.9, y=19.1), dict(x=-30.9, y=8.9), dict(x=-29.1, y=-7.7)]
 # the orange lanterns on the east wall and the towers, and the east gate's two stone lanterns on purple stones
 LANTERNS = [(mx(-30.5), 20.3), (mx(-30.5), 5.2), (mx(-30.5), -3.1), (-30.5, 20.3)]
 STONE_LANTERNS = [(29.4, 5.65), (29.4, -3.49)]
 
 # the trees in the big planters: trunk foot (on the soil), the crown's middle and size (frame 121.5 s)
-TREES = [dict(foot=(-18.3, 10.25), crown=(-18.2, 13.2, 7.0), r=2.9),
-         dict(foot=(-17.2, 0.6), crown=(-18.0, 3.9, 7.0), r=3.0),
-         dict(foot=(-18.2, -10.4), crown=(-18.4, -8.6, 7.0), r=2.6)]
+TREES = [dict(foot=(-18.3, 10.25), crown=(-18.2, 13.4, 8.0), r=3.5),
+         dict(foot=(-17.2, 0.6), crown=(-18.0, 4.1, 8.0), r=3.6),
+         dict(foot=(-18.2, -10.4), crown=(-18.4, -8.4, 7.6), r=3.1)]
 
-json.dump(dict(AX=AX, border=BORDER, wings=WINGS, wall=dict(w=WALL_W, h=WALL_H, plinth_h=PLINTH_H, plinth_out=PLINTH_OUT),
+# the outskirts' big autumn trees (seen at the round's edges, 119.8-146 s): lavender trunks leaning up out of the frame, red crowns to
+# the east, golden to the west and north, fallen leaves under them; beyond the court, never in play
+OUTER_TREES = [dict(foot=(32.5, 17.0), lean=(1.5, 3.0), crown='red', r=4.2), dict(foot=(36.0, 9.0), lean=(1.0, 2.5), crown='red', r=3.6),
+               dict(foot=(-34.0, 15.0), lean=(-3.5, 4.0), crown='gold', r=4.5), dict(foot=(-12.5, 28.8), lean=(-0.5, 3.0), crown='gold', r=3.8),
+               dict(foot=(7.7, 29.4), lean=(0.5, 3.0), crown='gold', r=3.6), dict(foot=(-37.0, -14.0), lean=(-2.0, 1.0), crown='gold', r=3.8),
+               dict(foot=(36.5, -13.0), lean=(2.0, 1.0), crown='red', r=3.8), dict(foot=(-2.0, -27.0), lean=(0.5, -1.5), crown='gold', r=3.5),
+               dict(foot=(22.0, 31.0), lean=(0.5, 3.0), crown='red', r=3.8), dict(foot=(-26.0, 30.0), lean=(-0.5, 3.0), crown='gold', r=4.0)]
+
+json.dump(dict(AX=AX, outer_trees=OUTER_TREES, border=BORDER, wings=WINGS, wall=dict(w=WALL_W, h=WALL_H, plinth_h=PLINTH_H, plinth_out=PLINTH_OUT),
                towers=TOWERS, east_gate=EAST_GATE, gates=GATES, gate=GATE, slab=SLAB, statues=STATUES, banners=BANNERS,
                lanterns=LANTERNS, stone_lanterns=STONE_LANTERNS, trees=TREES), open('art/temple_court/layout.json', 'w'), indent=1)
 print(len(WINGS), 'wings', len(GATES), 'gates')

@@ -3,7 +3,7 @@
 #   art/temple_court/run.sh [package]
 # (slow, their json committed: mosaic.py ~10 min (local output/ only), fit_planters.py, fit_big_planters.py, hexfields.py --fit ~4 min)
 PY=art/audio/output/venv/bin/python; T=${TMPDIR%/}/temple
-for s in layout floor hexfields arena; do $PY art/temple_court/$s.py >/dev/null || exit 1; done
+for s in layout fit_crowns floor hexfields shadow_mass ground_field joints arena; do $PY art/temple_court/$s.py >/dev/null || exit 1; done
 /Applications/Blender.app/Contents/MacOS/Blender -b --python art/temple_court/blender/build.py -- $T render plants 2>&1 | grep -E "Error|Traceback|court built"
 cp $T/render.png art/temple_court/output/render.png
 if [[ "$1" == package ]]; then
