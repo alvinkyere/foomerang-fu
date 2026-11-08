@@ -38,7 +38,7 @@ TOWERS = [(-30.5, 19.9), (mx(-30.5), 19.9), (-30.5, -19.3), (mx(-30.5), -19.3)]
 
 # the two gates at the bottom: two dark posts on purple stone bases, a heavy dark beam, a red tiled roof on it
 GATES = [dict(posts=(-19.7, -6.9), y=-18.9), dict(posts=(mx(-6.9), mx(-19.7)), y=-18.9)]
-GATE = dict(post_r=0.32, beam_z=5.9, beam_h=0.8, beam_d=0.75, beam_over=1.4, roof_h=1.0, base=(4.6, 2.4, 1.2))
+GATE = dict(post_r=0.32, beam_z=5.9, beam_h=0.8, beam_d=0.95, beam_over=1.4, roof_h=1.0, base=(4.6, 2.4, 1.2))
 
 # the statues' slab (front foot y 18.58, x -5.58 .. 6.06) and its fork and knife (their faces' eyes on frame 130.8 s)
 SLAB = dict(x0=-5.58, x1=6.06, y0=18.58, y1=21.0, h=0.8)
@@ -47,7 +47,8 @@ STATUES = [dict(kind='fork', x=-2.6, y=19.9), dict(kind='knife', x=1.75, y=19.9)
 # the banners: a dark pole, a crossbar, a cream cloth with a grey sign (by the wings' ends)
 BANNERS = [dict(x=-19.5, y=19.1), dict(x=19.9, y=19.1), dict(x=-30.9, y=8.9), dict(x=-29.1, y=-7.7)]
 # the orange lanterns on the east wall and the towers, and the east gate's two stone lanterns on purple stones
-LANTERNS = [(mx(-30.5), 20.3), (mx(-30.5), 5.2), (mx(-30.5), -3.1), (-30.5, 20.3)]
+# (x, y, z of its foot): on the towers' tops by the wall, and hung on the east gate's posts on the court side at ~4 (frame 121.5 s)
+LANTERNS = [(mx(-30.5) - 0.6, 19.9, 6.0), (29.75, 4.0, 3.8), (29.7, -2.4, 3.8), (-30.5 + 0.6, 19.9, 6.0)]
 STONE_LANTERNS = [(29.4, 5.65), (29.4, -3.49)]
 
 # the trees in the big planters: trunk foot (on the soil), the crown's middle and size (frame 121.5 s)

@@ -16,7 +16,7 @@ function seeded(seed: number) {
 describe('the map changes every match', () => {
   it('the pool is exactly the maps built from the rendered files: no Garden, no test arenas', () => {
     expect([...MAP_POOL].sort()).toEqual(Object.keys(RECONSTRUCTED_MAPS).sort());
-    expect(MAP_POOL).toHaveLength(20); // (with the gong islands, 2026-10-22, the cross pond, 2026-10-27, the lily island, 2026-10-30, the autumn glade, 2026-11-01, and the hex meadow, 2026-11-06)
+    expect(MAP_POOL).toHaveLength(21); // (with the gong islands, 2026-10-22, the cross pond, 2026-10-27, the lily island, 2026-10-30, the autumn glade, 2026-11-01, the hex meadow, 2026-11-06, and the temple court, 2026-11-07)
     for (const excluded of ['garden', 'primitive', 'systems']) {
       expect(MAP_POOL as readonly string[]).not.toContain(excluded);
     }

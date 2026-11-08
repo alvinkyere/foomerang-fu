@@ -391,13 +391,19 @@ EG = L['east_gate']; m = Mesh('EAST_GATE')
 x = EG['x']
 for y in (EG['y0'], EG['y1']):
     box(m, x, y, 0.35, 0.35, 0, PH + WH + 0.3, P['timber'], P['timber'], P['beam_dark'])
-n = 16; zb = PH + WH + 0.3
+# its roof: the wall's gable roof sweeping up into an arch over the lane (frame 131.8 s), ribbed, its eaves dark
+n = 20; zb = PH + WH; ylo, yhi = EG['y0'] - 1.6, EG['y1'] + 1.6; half = WW / 2 + 0.6
 for i in range(n):
     t0, t1 = i / n, (i + 1) / n
-    ya, yb = EG['y0'] - 0.6 + (EG['y1'] - EG['y0'] + 1.2) * t0, EG['y0'] - 0.6 + (EG['y1'] - EG['y0'] + 1.2) * t1
-    za, zb_ = zb + 0.9 * math.sin(math.pi * t0), zb + 0.9 * math.sin(math.pi * t1)
-    for s in (1, -1):
-        m.face([(x, YC + ya, za + 0.9), (x, YC + yb, zb_ + 0.9), (x + s * 1.2, YC + yb, zb_ + 0.1), (x + s * 1.2, YC + ya, za + 0.1)], P['roof'] if s < 0 else P['roof_dark'], flip_up=True)
+    ya, yb = ylo + (yhi - ylo) * t0, ylo + (yhi - ylo) * t1
+    za, zb_ = zb + 1.8 * math.sin(math.pi * t0) ** 0.8, zb + 1.8 * math.sin(math.pi * t1) ** 0.8
+    for s_ in (1, -1):
+        col = P['roof'] if s_ < 0 else P['roof_dark']
+        if i % 2: col = mix(col, P['roof_dark'], 0.35)
+        m.face([(x, YC + ya, za + 0.85), (x, YC + yb, zb_ + 0.85), (x + s_ * half, YC + yb, zb_ + 0.05), (x + s_ * half, YC + ya, za + 0.05)], col, flip_up=True)
+        m.face([(x + s_ * half, YC + ya, za + 0.05), (x + s_ * half, YC + yb, zb_ + 0.05), (x + s_ * half, YC + yb, zb_ - 0.25), (x + s_ * half, YC + ya, za - 0.25)], P['roof_dark'])
+    m.face([(x - 0.12, YC + ya, za + 0.97), (x + 0.12, YC + ya, za + 0.97), (x + 0.12, YC + yb, zb_ + 0.97), (x - 0.12, YC + yb, zb_ + 0.97)], P['ridge'], flip_up=True)
+box(m, x, (EG['y0'] + EG['y1']) / 2, 0.2, (EG['y1'] - EG['y0']) / 2, zb - 0.4, zb, P['beam'], P['beam'], P['beam_dark'])
 m.done()
 
 # ------------------------------------------------------------------------------------------------------------------------ the gates
@@ -410,12 +416,18 @@ for k, gate in enumerate(L['gates']):
         stone(m, [(xp - bw / 2, y - bd / 2), (xp + bw / 2, y - bd / 2), (xp + bw / 2, y + bd / 2), (xp - bw / 2, y + bd / 2)], 0, bh, 0.35, 0.12)
         box(m, xp, y, G['post_r'], G['post_r'], bh, G['beam_z'], P['beam'], P['beam'], P['beam_dark'])
     x0, x1 = min(xa, xb) - G['beam_over'], max(xa, xb) + G['beam_over']
-    box(m, (x0 + x1) / 2, y, (x1 - x0) / 2, G['beam_d'] / 2, G['beam_z'], G['beam_z'] + G['beam_h'], P['beam'], P['beam'], P['beam_dark'])
-    box(m, (x0 + x1) / 2, y, (x1 - x0) / 2 - 0.4, 0.12, G['beam_z'] - 0.7, G['beam_z'], P['beam_dark'], P['beam_dark'])
+    # the beam: deep and dark, in front of the roof, pale end caps, a row of round knobs under it (frame 121.5 s, 4x)
+    box(m, (x0 + x1) / 2, y, (x1 - x0) / 2, G['beam_d'] / 2, G['beam_z'], G['beam_z'] + G['beam_h'], '#4f403f', P['beam'], P['beam_dark'])
+    for xe in (x0, x1):
+        m.face([(xe + (0.01 if xe > x0 else -0.01), YC + y - G['beam_d'] / 2, G['beam_z']), (xe + (0.01 if xe > x0 else -0.01), YC + y + G['beam_d'] / 2, G['beam_z']),
+                (xe + (0.01 if xe > x0 else -0.01), YC + y + G['beam_d'] / 2, G['beam_z'] + G['beam_h']), (xe + (0.01 if xe > x0 else -0.01), YC + y - G['beam_d'] / 2, G['beam_z'] + G['beam_h'])][::(1 if xe > x0 else -1)], '#e9c9b3')
+    for i in range(9):
+        u = x0 + 1.0 + (x1 - x0 - 2.0) * i / 8
+        box(m, u, y - G['beam_d'] / 2 + 0.12, 0.13, 0.13, G['beam_z'] - 0.22, G['beam_z'], P['beam_dark'], P['beam_dark'])
     # the tiled roof (frame 121.5 s, 4x): a red roof on the beam, its front 1.3 high, its top a row of seven rounded tiles, a dark
     # knob where two meet; it runs back 1.2 and is lower behind
-    zr = G['beam_z'] + G['beam_h']; xs0, xs1 = x0 + 0.75, x1 - 0.75; nb = 7; H0, HUMP = 0.95, 0.45
-    yf, yb = y - 0.45, y + 0.75
+    zr = G['beam_z'] + 0.2; xs0, xs1 = x0 + 0.9, x1 - 0.9; nb = 7; H0, HUMP = 1.35, 0.4
+    yf, yb = y + G['beam_d'] / 2 + 0.05, y + 1.6
     prof = []
     for i in range(nb):
         for j in range(8):
@@ -431,7 +443,7 @@ for k, gate in enumerate(L['gates']):
     m.face([(xs0, YC + yf - 0.01, zr), (xs1, YC + yf - 0.01, zr), (xs1, YC + yf - 0.01, zr + 0.18), (xs0, YC + yf - 0.01, zr + 0.18)], P['roof_dark'])
     for i in range(nb + 1):
         u = xs0 + (xs1 - xs0) * i / nb
-        box(m, u, yf + 0.15, 0.15, 0.15, zr + H0 - 0.05, zr + H0 + 0.25, P['beam_dark'], P['beam_dark'])
+        box(m, u, yf + 0.15, 0.13, 0.13, zr + H0 - 0.05, zr + H0 + 0.22, P['beam_dark'], P['beam_dark'])
     # the posts' pale rope rings under the beam
     for xp in (xa, xb):
         box(m, xp, y, G['post_r'] + 0.04, G['post_r'] + 0.04, G['beam_z'] - 0.65, G['beam_z'] - 0.5, '#efe6d2', '#e2d8c2')
@@ -489,11 +501,11 @@ for k, b in enumerate(L['banners']):
     m.done()
 
 # ------------------------------------------------------------------------------------------------------------------------ lanterns
-for k, (x, y) in enumerate(L['lanterns']):
+for k, (x, y, z) in enumerate(L['lanterns']):
     m = Mesh(f'LANTERN_{k}')
-    z = PH + WH + 0.2
-    box(m, x - 0.6, y, 0.3, 0.3, z, z + 0.55, P['lantern_light'], P['lantern'], '#d27c22')
-    box(m, x - 0.6, y, 0.34, 0.34, z + 0.55, z + 0.68, P['beam_dark'], P['beam_dark'])
+    box(m, x, y, 0.3, 0.3, z, z + 0.55, P['lantern_light'], P['lantern'], '#d27c22')
+    box(m, x, y, 0.34, 0.34, z + 0.55, z + 0.68, P['beam_dark'], P['beam_dark'])
+    box(m, x, y, 0.05, 0.05, z + 0.68, z + 1.0, P['beam_dark'], P['beam_dark'])
     m.done()
 for k, (x, y) in enumerate(L['stone_lanterns']):
     m = Mesh(f'STONELAMP_{k}')
