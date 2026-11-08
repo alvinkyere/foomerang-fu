@@ -38,6 +38,21 @@ describe('the hex plants', () => {
     expect(parsePlants(row(3))?.pads).toHaveLength(3);
   });
 
+  it('takes a map’s own shadow (colour and fall per unit of height: the temple court’s sun is in the east), checked', () => {
+    const own = parsePlants({ ...row(2), shadow: { colour: '#c2c883', perHeight: [-0.7, -0.1] } });
+    expect(own?.shadow).toEqual({ colour: '#c2c883', perHeight: [-0.7, -0.1] });
+    expect(parsePlants(row(2))?.shadow).toBeUndefined(); // (the meadow's own, in the view)
+    expect(
+      parsePlants({ ...row(2), shadow: { colour: 'red', perHeight: [0, 0] } }),
+    ).toBeUndefined();
+    expect(
+      parsePlants({ ...row(2), shadow: { colour: '#c2c883', perHeight: [0] } }),
+    ).toBeUndefined();
+    expect(
+      parsePlants({ ...row(2), shadow: { colour: '#c2c883', perHeight: [Number.NaN, 0] } }),
+    ).toBeUndefined();
+  });
+
   it('stand still untouched, each at its own rest: heights within ~0.3 of the stems’, leaning a little (measured: sd 0.2, 0.1)', () => {
     const f = new PlantField(row(40));
     const rest = Array.from({ length: 40 }, (_, i) => f.pose(i));

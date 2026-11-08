@@ -37,6 +37,7 @@ export type ReconstructedArena = Extract<
   | 'lily_island'
   | 'autumn_glade'
   | 'hex_meadow'
+  | 'temple_court'
   | 'bridge_islands'
   | 'harbour_fort'
   | 'sky_islands'
@@ -87,6 +88,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 2017, height: 1703 }),
       background: '#bee781',
+    }),
+    // the HQ's temple court (art/temple_court, ff physics hq 2.mp4 2:01): the plaza's camera and characters, its hex fields drawn by the game
+    temple_court: Object.freeze({
+      id: 'temple_court',
+      assetDir: 'maps/temple_court/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 2429, height: 1795 }),
+      background: '#f8e68a',
     }),
     // the HQ's autumn glade (art/autumn_glade, ff physics hq 2.mp4 10:26): the plaza's camera and characters, its own clearing
     autumn_glade: Object.freeze({

@@ -1,0 +1,481 @@
+"""The temple court in 3D, object by object (2026-11-07): ff physics hq 2.mp4 2:01 (121.5 s), seen through the game's camera.
+
+  Blender -b --python art/temple_court/blender/build.py -- <out_dir> [render [plants]]
+
+Our own models, flat-coloured as the HQ's are (unlit vertex colours: each face its measured tone, lit from the east as the frame's
+shadows fall west): the paving and its painted border (floor.py), the lavender planters (fit_planters.py), the three trees, the
+buildings' wings (plinth, shoji wall, red tiled roof), the corner towers, the east wall's arch gate, the two gates at the bottom,
+the statues' slab with its fork and knife, the banners, the lanterns, the still shadows, and the outskirts. The hex fields are the
+game's (render/three/hexPlantsView.ts, manifest `plants`); with `plants` the render adds them at rest, for comparing with the frame.
+Exports court.glb; with `render`, also render.png through the HQ's camera.
+"""
+import bpy, bmesh, json, math, os, random, sys
+from mathutils import Vector, Matrix
+from mathutils.geometry import tessellate_polygon
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+args = sys.argv[sys.argv.index('--') + 1:]
+OUT, RENDER, PLANTS = args[0], 'render' in args[1:], 'plants' in args[1:]
+J = lambda p: json.load(open(os.path.join(ROOT, p)))
+HAS = lambda p: os.path.exists(os.path.join(ROOT, p))
+CAM = J('art/sky_islands/camera.json')
+L = J('art/temple_court/layout.json')
+FL = J('art/temple_court/floor.json')
+PL = J('art/temple_court/planters.json')
+YC = 73.72                                       # (measure.py: the ground point under the frame's centre)
+bpy.ops.wm.read_factory_settings(use_empty=True)
+sc = bpy.context.scene
+rng = random.Random(7)
+SUN = Vector((0.8, 0.25, 0.75)).normalized()     # (towards the light: the frame's shadows fall west, a little south)
+
+
+def lin(h):
+    c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    return [(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4) for v in c] + [1.0]
+
+
+def mix(a, b, t):
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]; cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return '#%02x%02x%02x' % tuple(max(0, min(255, round(x + (y - x) * t))) for x, y in zip(ca, cb))
+
+
+def unlit(name):
+    m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree
+    for n in list(nt.nodes):
+        if n.type != 'OUTPUT_MATERIAL': nt.nodes.remove(n)
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    attr = nt.nodes.new('ShaderNodeVertexColor'); attr.layer_name = 'Col'
+    bg = nt.nodes.new('ShaderNodeBackground')
+    nt.links.new(attr.outputs['Color'], bg.inputs['Color']); nt.links.new(bg.outputs[0], out.inputs['Surface'])
+    return m
+
+
+FLAT = unlit('flat')
+
+
+class Mesh:
+    """A mesh built face by face, each face one colour (hex) or a colour per corner."""
+
+    def __init__(self, name):
+        self.name, self.bm = name, bmesh.new(); self.col = self.bm.loops.layers.float_color.new('Col')
+
+    def face(self, pts, colour, flip_up=False):
+        vs = [self.bm.verts.new(p) for p in pts]
+        try: f = self.bm.faces.new(vs)
+        except ValueError: return None
+        f.normal_update()
+        if flip_up and f.normal.z < 0: f.normal_flip()
+        cs = colour if isinstance(colour, list) else [colour] * len(vs)
+        for loop, c in zip(f.loops, cs if not (flip_up and f.normal.z < 0) else cs): loop[self.col] = lin(c)
+        return f
+
+    def poly(self, pts2, z, colour):
+        """A flat polygon (plan x, y) at height z, facing up, triangulated."""
+        vs = [self.bm.verts.new((x, YC + y, z)) for x, y in pts2]
+        for tri in tessellate_polygon([[Vector((x, y, 0)) for x, y in pts2]]):
+            try: f = self.bm.faces.new([vs[i] for i in tri])
+            except ValueError: continue
+            f.normal_update()
+            if f.normal.z < 0: f.normal_flip()
+            for loop in f.loops: loop[self.col] = lin(colour)
+
+    def done(self, parent=None):
+        me = bpy.data.meshes.new(self.name); self.bm.to_mesh(me); self.bm.free()
+        o = bpy.data.objects.new(self.name, me); sc.collection.objects.link(o); me.materials.append(FLAT)
+        if parent is not None: o.parent = parent
+        return o
+
+
+def shade(top, side, n, back=None):
+    """A face's tone from its normal: `top` facing up, `side` facing us (south), lighter to the east, darker to the west."""
+    n = Vector(n).normalized()
+    t = max(0.0, n.z)
+    c = mix(side, top, t)
+    lit = n.x * 0.5                                  # (east +, west -)
+    if lit > 0: c = mix(c, top, min(1, lit * 0.6))
+    elif back is not None: c = mix(c, back, min(1, -lit * 1.2))
+    return c
+
+
+def prism(m, poly, z0, z1, top, side, back=None, top_colour=None):
+    """A vertical prism over a plan polygon (counter-clockwise), its sides toned by their facing."""
+    n = len(poly)
+    for i in range(n):
+        (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
+        nx, ny = (y1 - y0), -(x1 - x0)
+        m.face([(x0, YC + y0, z0), (x1, YC + y1, z0), (x1, YC + y1, z1), (x0, YC + y0, z1)], shade(top, side, (nx, ny, 0), back))
+    m.poly(poly, z1, top_colour or top)
+
+
+def offset_poly(poly, d):
+    """A convex counter-clockwise polygon moved in by d (its corners on the bisectors)."""
+    n = len(poly); out = []
+    for i in range(n):
+        p0, p1, p2 = Vector(poly[i - 1]), Vector(poly[i]), Vector(poly[(i + 1) % n])
+        e0, e1 = (p1 - p0).normalized(), (p2 - p1).normalized()
+        n0, n1 = Vector((-e0.y, e0.x)), Vector((-e1.y, e1.x))
+        b = (n0 + n1); b = b / max(1e-6, b.length); cosh = max(0.3, b.dot(n0))
+        out.append(tuple(p1 + b * d / cosh))
+    return out
+
+
+def stone(m, poly, z0, z1, bevel=0.3, jitter=0.08, top=None, side=None, back=None):
+    """A rough lavender stone: a prism whose top edges are bevelled, its corners a little uneven (the HQ's chunky stones)."""
+    top, side, back = top or P['stone_top'], side or P['stone_side'], back or P['stone_back']
+    poly = ccw(poly); n = len(poly)
+    J = lambda: rng.uniform(-jitter, jitter)
+    lo = [(x + J(), y + J(), z0) for x, y in poly]
+    mid = [(x + J(), y + J(), z1 - bevel + J()) for x, y in poly]
+    up = [(x + J(), y + J(), z1 + J() * 0.5) for x, y in offset_poly(poly, bevel)]
+    for i in range(n):
+        j = (i + 1) % n
+        nx, ny = (poly[j][1] - poly[i][1]), -(poly[j][0] - poly[i][0])
+        c = shade(top, side, (nx, ny, 0), back)
+        m.face([(a[0], YC + a[1], a[2]) for a in (lo[i], lo[j], mid[j], mid[i])], c)
+        m.face([(a[0], YC + a[1], a[2]) for a in (mid[i], mid[j], up[j], up[i])], mix(c, top, 0.55))
+    m.poly([(u[0], u[1]) for u in up], sum(u[2] for u in up) / n, top)
+
+
+def ccw(poly):
+    a = sum(poly[i][0] * poly[(i + 1) % len(poly)][1] - poly[(i + 1) % len(poly)][0] * poly[i][1] for i in range(len(poly)))
+    return poly if a > 0 else poly[::-1]
+
+
+def box(m, cx, cy, hw, hd, z0, z1, top, side, back=None, yaw=0.0):
+    c, s = math.cos(yaw), math.sin(yaw)
+    pts = [(cx + c * x - s * y, cy + s * x + c * y) for x, y in [(-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd)]]
+    prism(m, pts, z0, z1, top, side, back)
+
+
+# ------------------------------------------------------------------------------------------------------------------------ palette
+P = dict(ground='#f8e68a', ground_shadow='#cbcb81', court='#f9f7e4', court_joint='#efecd6', court_shadow='#f3e8a9', tree_shadow='#d6e3df',
+         stone_top='#a28cb4', stone_side='#7d6f9f', stone_back='#6c5f8c', stone_inner='#6a5f80', soil='#dbda7d', soil_leaf='#c9cf6a',
+         trunk='#7a6c9d', trunk_dark='#615683', leaf=['#cbd884', '#b8c96c', '#aabf5f', '#98b154'],
+         shoji='#f2e8cf', shoji_shade='#e0d4b8', timber='#3e2c2f', roof='#d0545a', roof_light='#e06664', roof_dark='#a83e47', ridge='#3e2c2f',
+         beam='#584846', beam_dark='#3f3232', fork='#8fb08f', fork_dark='#76987a', blade='#7fa088', handle='#6e4b3a', eye='#1a1a1a',
+         cloth='#efe9dc', cloth_shade='#d7d0c2', pole='#3a2f2e', lantern='#f3a032', lantern_light='#ffcf5a', lamp_stone='#8f86a6')
+
+# ------------------------------------------------------------------------------------------------------------------------ ground
+g = Mesh('GROUND')
+g.poly([(-140, -100), (140, -100), (140, 110), (-140, 110)], 0.0, P['ground'])
+g.done()
+fl = Mesh('PAVING')
+for k, band in enumerate(FL['bands']):
+    for poly in band['polys']: fl.poly(poly, 0.004 + 0.002 * k, band['colour'])
+fl.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ planters
+SOIL_DROP, RING = 0.45, 0.72                       # (the soil below the rim; the ring's width: planter 17's top at 4x)
+
+
+def octagon(cx, cy, a, b, k):
+    return [(cx + sx, cy + sy) for sx, sy in [(a, b * (1 - k)), (a * (1 - k), b), (-a * (1 - k), b), (-a, b * (1 - k)), (-a, -b * (1 - k)),
+                                             (-a * (1 - k), -b), (a * (1 - k), -b), (a, -b * (1 - k))]]
+
+
+for name, p in PL.items():
+    m = Mesh(f'PLANTER_{name}')
+    h = p['h']; outer = octagon(p['cx'], p['cy'], p['a'], p['b'], p['k'])
+    ia, ib = p['a'] - RING, p['b'] - RING
+    inner = octagon(p['cx'], p['cy'], ia, ib, p['k'] * min(1.0, (p['a'] / ia)) * 0.9)
+    # the ring: eight stones, each its own block (the HQ's seams), the top a touch uneven
+    for i in range(8):
+        o0, o1, i0, i1 = outer[i], outer[(i + 1) % 8], inner[i], inner[(i + 1) % 8]
+        dz = rng.uniform(-0.05, 0.05)
+        top = [(o0[0], YC + o0[1], h + dz), (o1[0], YC + o1[1], h + dz), (i1[0], YC + i1[1], h + dz), (i0[0], YC + i0[1], h + dz)]
+        m.face(top[::-1] if True else top, mix(P['stone_top'], '#ffffff', rng.uniform(-0.02, 0.05)), flip_up=True)
+        nx, ny = (o1[1] - o0[1]), -(o1[0] - o0[0])
+        m.face([(o0[0], YC + o0[1], 0), (o1[0], YC + o1[1], 0), (o1[0], YC + o1[1], h + dz), (o0[0], YC + o0[1], h + dz)],
+               shade(P['stone_top'], P['stone_side'], (nx, ny, 0), P['stone_back']))
+        m.face([(i1[0], YC + i1[1], h - SOIL_DROP), (i0[0], YC + i0[1], h - SOIL_DROP), (i0[0], YC + i0[1], h + dz), (i1[0], YC + i1[1], h + dz)],
+               mix(P['stone_inner'], P['stone_side'], 0.4 if ny > 0 else 0.0))
+    m.poly(inner, h - SOIL_DROP, P['soil'])
+    # fallen leaves on the big planters' soil
+    if name.startswith('big'):
+        for _ in range(int(ia * ib * 2.2)):
+            x, y = p['cx'] + rng.uniform(-ia * 0.9, ia * 0.9), p['cy'] + rng.uniform(-ib * 0.85, ib * 0.85)
+            r, a0 = rng.uniform(0.18, 0.3), rng.uniform(0, math.pi)
+            m.poly([(x + r * math.cos(a0 + t) * (1 if j % 2 == 0 else 0.55), y + r * 0.6 * math.sin(a0 + t)) for j, t in enumerate([i * math.pi / 4 for i in range(8)])],
+                   h - SOIL_DROP + 0.01, rng.choice([P['soil_leaf'], '#bfcb62', '#d0d36f']))
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ trees
+def tube(m, path, r0, r1, col, col_dark, seg=7):
+    rings = []
+    for i, p in enumerate(path):
+        t = i / (len(path) - 1); r = r0 + (r1 - r0) * t
+        d = (Vector(path[min(i + 1, len(path) - 1)]) - Vector(path[max(i - 1, 0)])).normalized()
+        a = d.orthogonal().normalized(); b = d.cross(a)
+        rings.append([Vector(p) + (a * math.cos(2 * math.pi * k / seg) + b * math.sin(2 * math.pi * k / seg)) * r for k in range(seg)])
+    for i in range(len(rings) - 1):
+        for k in range(seg):
+            q = [rings[i][k], rings[i][(k + 1) % seg], rings[i + 1][(k + 1) % seg], rings[i + 1][k]]
+            n = (q[1] - q[0]).cross(q[3] - q[0])
+            m.face([tuple(v) for v in q], col if n.x + 0.3 * n.y < 0.2 else col_dark)
+
+
+def bezier(p0, p1, p2, n=8):
+    return [tuple((1 - t) ** 2 * Vector(p0) + 2 * (1 - t) * t * Vector(p1) + t * t * Vector(p2)) for t in [i / (n - 1) for i in range(n)]]
+
+
+def blob(m, centre, r, squash=0.8, detail=2):
+    """A low-poly leafy lump: an icosphere, jittered, flat-toned in the leaves' four greens by its facing."""
+    tmp = bmesh.new(); bmesh.ops.create_icosphere(tmp, subdivisions=detail, radius=r)
+    for v in tmp.verts:
+        v.co.z *= squash; v.co *= rng.uniform(0.93, 1.06)
+    for f in tmp.faces:
+        f.normal_update(); n = f.normal
+        lit = n.dot(SUN)
+        c = P['leaf'][0] if lit > 0.8 else P['leaf'][1] if lit > 0.2 else P['leaf'][2] if lit > -0.45 else P['leaf'][3]
+        m.face([tuple(Vector(centre) + v.co) for v in f.verts], c)
+    tmp.free()
+
+
+for k, t in enumerate(L['trees']):
+    root = bpy.data.objects.new(f'TREE_{k}_tree', None); sc.collection.objects.link(root)
+    fx, fy = t['foot']; cx, cy, cz = t['crown']; r = t['r']
+    m = Mesh(f'TREE_{k}_trunk')
+    foot = (fx, YC + fy, 0.9); top = (cx, YC + cy, cz - r * 0.5)
+    mid = ((fx + cx) / 2 + 0.6, YC + (fy + cy) / 2 - 0.2, (0.9 + cz) / 2)
+    tube(m, bezier(foot, mid, top), 0.32, 0.16, P['trunk'], P['trunk_dark'])
+    fork = bezier(foot, mid, top)[4]
+    tube(m, bezier(fork, (fork[0] - 0.9, fork[1] + 0.2, fork[2] + 0.9), (cx - r * 0.55, YC + cy - 0.4, cz - r * 0.6), 5), 0.15, 0.08, P['trunk'], P['trunk_dark'])
+    m.done(root)
+    m = Mesh(f'TREE_{k}_crown')
+    # leafy clusters: a big one on top, smaller ones round it, one hanging low on the left (the HQ's crowns, 121.5 s)
+    blob(m, (cx + 0.2, YC + cy + 0.3, cz + r * 0.35), r * 0.62, 0.8, 3)
+    for j in range(7):
+        a = 2 * math.pi * j / 7 + rng.uniform(-0.25, 0.25)
+        blob(m, (cx + math.cos(a) * r * 0.5, YC + cy + math.sin(a) * r * 0.42, cz + rng.uniform(-0.5, 0.4)), r * rng.uniform(0.38, 0.5), 0.8, 2)
+    blob(m, (cx - r * 0.5, YC + cy - 0.6, cz - r * 0.7), r * 0.4, 0.8, 2)
+    m.done(root)
+
+# ------------------------------------------------------------------------------------------------------------------------ buildings
+W = L['wall']; WW, WH, PH, PO = W['w'], W['h'], W['plinth_h'], W['plinth_out']
+FACE = dict(N=(0, 1), S=(0, -1), E=(1, 0), W=(-1, 0))
+
+
+def shoji(m, a, b, n, z0, z1, off):
+    """Cream panels in dark timber on a wall's face from a to b (plan), n its outward normal: two tall panels a bay over a lower row
+    of three, the middle one slatted (frame 131.8 s, the north-east wing)."""
+    ax, ay = a; bx, by = b; L_ = math.hypot(bx - ax, by - ay); ux, uy = (bx - ax) / L_, (by - ay) / L_
+    ox, oy = n[0] * off, n[1] * off
+    P3 = lambda s, z, o=0.0: (ax + ux * s + ox + n[0] * o, YC + ay + uy * s + oy + n[1] * o, z)
+    quad = lambda s0, s1, za, zb, c, o=0.0: m.face([P3(s0, za, o), P3(s1, za, o), P3(s1, zb, o), P3(s0, zb, o)] if (ux * n[1] - uy * n[0]) < 0 else
+                                                  [P3(s1, za, o), P3(s0, za, o), P3(s0, zb, o), P3(s1, zb, o)], c)
+    quad(0, L_, z0, z1, P['timber'])
+    T = 0.13; bays = max(1, round(L_ / 4.2)); bw = L_ / bays
+    zl = z0 + (z1 - z0) * 0.36
+    for i in range(bays):
+        s0 = i * bw
+        quad(s0 + T, s0 + bw / 2 - T / 2, zl + T / 2, z1 - T, P['shoji'], 0.01)
+        quad(s0 + bw / 2 + T / 2, s0 + bw - T, zl + T / 2, z1 - T, P['shoji'], 0.01)
+        thirds = [s0 + T, s0 + bw * 0.3, s0 + bw * 0.7, s0 + bw - T]
+        for j in range(3):
+            quad(thirds[j] + (T / 2 if j else 0), thirds[j + 1] - (T / 2 if j < 2 else 0), z0 + T, zl - T / 2, P['shoji'], 0.01)
+        for zz in (z0 + (zl - z0) * 0.4, z0 + (zl - z0) * 0.62):
+            quad(thirds[1] + T / 2, thirds[2] - T / 2, zz - 0.05, zz + 0.05, P['timber'], 0.02)
+
+
+def wing(w):
+    m = Mesh(f'WING_{w["name"]}')
+    (ax, ay), (bx, by) = w['a'], w['b']; nx, ny = FACE[w['face']]
+    L_ = math.hypot(bx - ax, by - ay); ux, uy = (bx - ax) / L_, (by - ay) / L_
+    # the plinth: from behind the wall out to the face side
+    back, front = -WW / 2 - 0.25, WW / 2 + PO
+    corners = [(ax + nx * back - ux * 0.3, ay + ny * back - uy * 0.3), (bx + nx * back + ux * 0.3, by + ny * back + uy * 0.3),
+               (bx + nx * front + ux * 0.3, by + ny * front + uy * 0.3), (ax + nx * front - ux * 0.3, ay + ny * front - uy * 0.3)]
+    stone(m, corners, 0, PH, 0.28, 0.07)
+    # the wall
+    wc = [(ax + nx * -WW / 2, ay + ny * -WW / 2), (bx + nx * -WW / 2, by + ny * -WW / 2), (bx + nx * WW / 2, by + ny * WW / 2), (ax + nx * WW / 2, ay + ny * WW / 2)]
+    prism(m, ccw(wc), PH, PH + WH, P['timber'], P['shoji_shade'], P['shoji_shade'], top_colour=P['timber'])
+    for s in (1, -1):
+        shoji(m, (ax, ay), (bx, by), (nx * s, ny * s), PH, PH + WH, WW / 2)
+    # the roof: red tiles over the wall, a dark ridge; shed (sloping down to the face side) or gable (both ways)
+    z0 = PH + WH; over = 0.35
+    A = (ax - ux * over, ay - uy * over); B = (bx + ux * over, by + uy * over)
+    P3 = lambda p, o, z: (p[0] + nx * o, YC + p[1] + ny * o, z)
+    if w['roof'] == 'shed':
+        hi, lo = (-WW / 2 - 0.2, z0 + 1.0), (WW / 2 + 1.1, z0 + 0.1)
+        slope = [P3(A, hi[0], hi[1]), P3(B, hi[0], hi[1]), P3(B, lo[0], lo[1]), P3(A, lo[0], lo[1])]
+        m.face(slope, P['roof'], flip_up=True)
+        m.face([P3(A, lo[0], lo[1]), P3(B, lo[0], lo[1]), P3(B, lo[0], lo[1] - 0.3), P3(A, lo[0], lo[1] - 0.3)], P['roof_dark'])
+        m.face([P3(A, hi[0], hi[1] + 0.12), P3(B, hi[0], hi[1] + 0.12), P3(B, hi[0] + 0.25, hi[1] + 0.02), P3(A, hi[0] + 0.25, hi[1] + 0.02)], P['ridge'], flip_up=True)
+        m.face([P3(A, hi[0], hi[1] + 0.12), P3(B, hi[0], hi[1] + 0.12), P3(B, hi[0], z0), P3(A, hi[0], z0)], P['ridge'])
+        for e in (A, B):
+            m.face([P3(e, hi[0], hi[1]), P3(e, lo[0], lo[1]), P3(e, lo[0], lo[1] - 0.3), P3(e, hi[0], z0)], P['roof_dark'])
+        ribs = int(L_ / 0.75)
+        for i in range(1, ribs):
+            s = i / ribs; p = (A[0] + (B[0] - A[0]) * s, A[1] + (B[1] - A[1]) * s)
+            m.face([(P3(p, hi[0] + 0.05, hi[1] + 0.01)[0] - ux * 0.05, P3(p, hi[0] + 0.05, hi[1] + 0.01)[1] - uy * 0.05, hi[1] + 0.01),
+                    (P3(p, hi[0] + 0.05, hi[1] + 0.01)[0] + ux * 0.05, P3(p, hi[0] + 0.05, hi[1] + 0.01)[1] + uy * 0.05, hi[1] + 0.01),
+                    (P3(p, lo[0], lo[1])[0] + ux * 0.05, P3(p, lo[0], lo[1])[1] + uy * 0.05, lo[1] + 0.01),
+                    (P3(p, lo[0], lo[1])[0] - ux * 0.05, P3(p, lo[0], lo[1])[1] - uy * 0.05, lo[1] + 0.01)], P['roof_dark'], flip_up=True)
+    else:
+        half = WW / 2 + 0.48; zr = z0 + 0.75
+        for s, col in ((1, P['roof']), (-1, P['roof_light'] if nx * -1 > 0 else P['roof'])):
+            m.face([P3(A, 0, zr), P3(B, 0, zr), P3(B, s * half, z0 + 0.05), P3(A, s * half, z0 + 0.05)], col, flip_up=True)
+            m.face([P3(A, s * half, z0 + 0.05), P3(B, s * half, z0 + 0.05), P3(B, s * half, z0 - 0.2), P3(A, s * half, z0 - 0.2)], P['roof_dark'])
+        m.face([P3(A, -0.13, zr + 0.13), P3(B, -0.13, zr + 0.13), P3(B, 0.13, zr + 0.13), P3(A, 0.13, zr + 0.13)], P['ridge'], flip_up=True)
+        for e in (A, B):
+            m.face([P3(e, -half, z0 + 0.05), P3(e, half, z0 + 0.05), P3(e, 0, zr)], P['roof_dark'])
+        ribs = int(L_ / 0.75)
+        for i in range(1, ribs):
+            s_ = i / ribs; p = (A[0] + (B[0] - A[0]) * s_, A[1] + (B[1] - A[1]) * s_)
+            for s in (1, -1):
+                m.face([(P3(p, 0, 0)[0] - ux * 0.05, P3(p, 0, 0)[1] - uy * 0.05, zr + 0.01), (P3(p, 0, 0)[0] + ux * 0.05, P3(p, 0, 0)[1] + uy * 0.05, zr + 0.01),
+                        (P3(p, s * half, 0)[0] + ux * 0.05, P3(p, s * half, 0)[1] + uy * 0.05, z0 + 0.06), (P3(p, s * half, 0)[0] - ux * 0.05, P3(p, s * half, 0)[1] - uy * 0.05, z0 + 0.06)],
+                       P['roof_dark'], flip_up=True)
+    m.done()
+
+
+for w in L['wings']: wing(w)
+
+for k, (x, y) in enumerate(L['towers']):
+    m = Mesh(f'TOWER_{k}')
+    s = 0.75; z1 = PH + WH + 1.5
+    box(m, x, y, s + 0.3, s + 0.3, 0, PH, P['stone_top'], P['stone_side'], P['stone_back'])
+    box(m, x, y, s, s, PH, z1, P['timber'], P['shoji'], P['shoji_shade'])
+    for dx, dy in ((-s, -s), (s, -s), (-s, s), (s, s)):
+        box(m, x + dx * 0.95, y + dy * 0.95, 0.09, 0.09, PH, z1, P['timber'], P['timber'])
+    box(m, x, y, s + 0.03, s + 0.03, z1 - 0.9, z1 - 0.75, P['timber'], P['timber'])
+    r = s + 0.55; zt = z1 + 1.2
+    base = [(x - r, y - r), (x + r, y - r), (x + r, y + r), (x - r, y + r)]
+    for i in range(4):
+        a, b = base[i], base[(i + 1) % 4]
+        m.face([(a[0], YC + a[1], z1), (b[0], YC + b[1], z1), (x, YC + y, zt)], P['roof'] if i in (0, 1) else P['roof_dark'], flip_up=True)
+    m.done()
+
+# the east wall's arch gate: posts each side of the lane, a curved red roof over it
+EG = L['east_gate']; m = Mesh('EAST_GATE')
+x = EG['x']
+for y in (EG['y0'], EG['y1']):
+    box(m, x, y, 0.35, 0.35, 0, PH + WH + 0.3, P['timber'], P['timber'], P['beam_dark'])
+n = 16; zb = PH + WH + 0.3
+for i in range(n):
+    t0, t1 = i / n, (i + 1) / n
+    ya, yb = EG['y0'] - 0.6 + (EG['y1'] - EG['y0'] + 1.2) * t0, EG['y0'] - 0.6 + (EG['y1'] - EG['y0'] + 1.2) * t1
+    za, zb_ = zb + 0.9 * math.sin(math.pi * t0), zb + 0.9 * math.sin(math.pi * t1)
+    for s in (1, -1):
+        m.face([(x, YC + ya, za + 0.9), (x, YC + yb, zb_ + 0.9), (x + s * 1.2, YC + yb, zb_ + 0.1), (x + s * 1.2, YC + ya, za + 0.1)], P['roof'] if s < 0 else P['roof_dark'], flip_up=True)
+m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ the gates
+G = L['gate']
+for k, gate in enumerate(L['gates']):
+    m = Mesh(f'GATE_{k}')
+    xa, xb = gate['posts']; y = gate['y']
+    bw, bd, bh = G['base']
+    for xp in (xa, xb):
+        stone(m, [(xp - bw / 2, y - bd / 2), (xp + bw / 2, y - bd / 2), (xp + bw / 2, y + bd / 2), (xp - bw / 2, y + bd / 2)], 0, bh, 0.35, 0.12)
+        box(m, xp, y, G['post_r'], G['post_r'], bh, G['beam_z'], P['beam'], P['beam'], P['beam_dark'])
+    x0, x1 = min(xa, xb) - G['beam_over'], max(xa, xb) + G['beam_over']
+    box(m, (x0 + x1) / 2, y, (x1 - x0) / 2, G['beam_d'] / 2, G['beam_z'], G['beam_z'] + G['beam_h'], P['beam'], P['beam'], P['beam_dark'])
+    box(m, (x0 + x1) / 2, y, (x1 - x0) / 2 - 0.4, 0.12, G['beam_z'] - 0.7, G['beam_z'], P['beam_dark'], P['beam_dark'])
+    # the tiled roof (frame 121.5 s, 4x): a red roof on the beam, its front 1.3 high, its top a row of seven rounded tiles, a dark
+    # knob where two meet; it runs back 1.2 and is lower behind
+    zr = G['beam_z'] + G['beam_h']; xs0, xs1 = x0 + 0.75, x1 - 0.75; nb = 7; H0, HUMP = 0.95, 0.45
+    yf, yb = y - 0.45, y + 0.75
+    prof = []
+    for i in range(nb):
+        for j in range(8):
+            t = j / 8; prof.append((xs0 + (xs1 - xs0) * (i + t) / nb, zr + H0 + HUMP * math.sin(math.pi * t) ** 0.6))
+    prof.append((xs1, zr + H0))
+    for (xa_, za_), (xb_, zb2) in zip(prof, prof[1:]):
+        m.face([(xa_, YC + yf, zr), (xb_, YC + yf, zr), (xb_, YC + yf, zb2), (xa_, YC + yf, za_)], P['roof'])
+        up = (zb2 - za_) / max(1e-6, xb_ - xa_)
+        m.face([(xa_, YC + yf, za_), (xb_, YC + yf, zb2), (xb_, YC + yb, zb2 - 0.35), (xa_, YC + yb, za_ - 0.35)],
+               P['roof_light'] if up > 0.3 else P['roof_dark'] if up < -0.3 else mix(P['roof'], P['roof_light'], 0.4), flip_up=True)
+    for xe in (xs0, xs1):
+        m.face([(xe, YC + yf, zr), (xe, YC + yb, zr), (xe, YC + yb, zr + H0 - 0.35), (xe, YC + yf, zr + H0)], P['roof_dark'])
+    m.face([(xs0, YC + yf - 0.01, zr), (xs1, YC + yf - 0.01, zr), (xs1, YC + yf - 0.01, zr + 0.18), (xs0, YC + yf - 0.01, zr + 0.18)], P['roof_dark'])
+    for i in range(nb + 1):
+        u = xs0 + (xs1 - xs0) * i / nb
+        box(m, u, yf + 0.15, 0.15, 0.15, zr + H0 - 0.05, zr + H0 + 0.25, P['beam_dark'], P['beam_dark'])
+    # the posts' pale rope rings under the beam
+    for xp in (xa, xb):
+        box(m, xp, y, G['post_r'] + 0.04, G['post_r'] + 0.04, G['beam_z'] - 0.65, G['beam_z'] - 0.5, '#efe6d2', '#e2d8c2')
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ statues
+S = L['slab']; m = Mesh('SLAB')
+stone(m, [(S['x0'], S['y0']), (S['x1'], S['y0']), (S['x1'], S['y1']), (S['x0'], S['y1'])], 0, S['h'], 0.35, 0.15)
+m.done()
+
+
+def face_eyes(m, x, y, z, w):
+    for s in (-1, 1):
+        cxe = x + s * w
+        m.face([(cxe + 0.17 * math.cos(a), YC + y - 0.3, z + 0.17 * math.sin(a)) for a in [i * math.pi / 5 for i in range(10)]][::-1], '#ffffff')
+        m.face([(cxe + 0.12 * math.cos(a), YC + y - 0.32, z + 0.12 * math.sin(a)) for a in [i * math.pi / 5 for i in range(10)]][::-1], P['eye'])
+    m.face([(x - 0.25, YC + y - 0.31, z - 0.12), (x + 0.25, YC + y - 0.31, z - 0.12), (x + 0.2, YC + y - 0.31, z - 0.2), (x - 0.2, YC + y - 0.31, z - 0.2)], P['eye'])
+
+
+for st in L['statues']:
+    m = Mesh(f'STATUE_{st["kind"]}')
+    x, y = st['x'], st['y']; z0 = S['h']
+    if st['kind'] == 'fork':
+        box(m, x, y, 0.28, 0.25, z0, z0 + 4.2, P['fork'], P['fork'], P['fork_dark'])
+        box(m, x, y, 0.85, 0.25, z0 + 4.2, z0 + 4.8, P['fork'], P['fork'], P['fork_dark'])
+        for dx in (-0.72, -0.24, 0.24, 0.72):
+            box(m, x + dx, y, 0.12, 0.2, z0 + 4.8, z0 + 6.4, P['fork'], P['fork'], P['fork_dark'])
+        face_eyes(m, x, y, z0 + 5.4, 0.5)
+    else:
+        box(m, x, y, 0.38, 0.38, z0, z0 + 2.4, P['handle'], P['handle'], '#563a2e')
+        blade = [(x - 0.45, z0 + 2.4), (x + 0.5, z0 + 2.4), (x + 0.55, z0 + 5.6), (x - 0.05, z0 + 6.6), (x - 0.45, z0 + 5.4)]
+        for yy, c in ((y - 0.15, P['blade']), (y + 0.15, P['blade'])):
+            m.face([(bx_, YC + yy, bz) for bx_, bz in (blade if yy > y else blade[::-1])], c)
+        for i in range(len(blade)):
+            (a, za), (b, zb3) = blade[i], blade[(i + 1) % len(blade)]
+            m.face([(a, YC + y - 0.15, za), (b, YC + y - 0.15, zb3), (b, YC + y + 0.15, zb3), (a, YC + y + 0.15, za)], mix(P['blade'], '#ffffff', 0.1))
+        face_eyes(m, x, y, z0 + 5.0, 0.48)
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ banners
+for k, b in enumerate(L['banners']):
+    m = Mesh(f'BANNER_{k}_pole')
+    x, y = b['x'], b['y']; ht = 6.0
+    box(m, x, y, 0.09, 0.09, 0, ht, P['pole'], P['pole'])
+    box(m, x - 0.8, y, 1.05, 0.08, ht - 0.35, ht - 0.2, P['pole'], P['pole'])
+    m.done()
+    m = Mesh(f'BUNTING_pennant_banner_{k}')
+    x0, x1 = x - 1.6, x - 0.15; zt, zb_ = ht - 0.4, ht - 2.6
+    m.face([(x0, YC + y, zb_), (x1, YC + y, zb_ + 0.15), (x1, YC + y, zt), (x0, YC + y, zt)], P['cloth'])
+    m.face([(x0, YC + y + 0.02, zb_), (x0, YC + y + 0.02, zt), (x1, YC + y + 0.02, zt), (x1, YC + y + 0.02, zb_ + 0.15)], P['cloth_shade'])
+    cx_, cz = (x0 + x1) / 2, (zt + zb_) / 2
+    m.face([(cx_ - 0.35 + 0.25 * math.cos(a) * 0.6, YC + y - 0.02, cz + 0.3 * math.sin(a)) for a in [math.pi / 2 + i * math.pi / 6 for i in range(7)]], '#a19b90')
+    for zz in (zb_ + 0.35, zb_ + 0.6):
+        m.face([(x0 + 0.25, YC + y - 0.02, zz), (x1 - 0.25, YC + y - 0.02, zz), (x1 - 0.25, YC + y - 0.02, zz + 0.07), (x0 + 0.25, YC + y - 0.02, zz + 0.07)], '#c9c2b4')
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ lanterns
+for k, (x, y) in enumerate(L['lanterns']):
+    m = Mesh(f'LANTERN_{k}')
+    z = PH + WH + 0.2
+    box(m, x - 0.6, y, 0.3, 0.3, z, z + 0.55, P['lantern_light'], P['lantern'], '#d27c22')
+    box(m, x - 0.6, y, 0.34, 0.34, z + 0.55, z + 0.68, P['beam_dark'], P['beam_dark'])
+    m.done()
+for k, (x, y) in enumerate(L['stone_lanterns']):
+    m = Mesh(f'STONELAMP_{k}')
+    stone(m, [(x - 0.9, y - 0.9), (x + 0.9, y - 0.9), (x + 0.9, y + 0.9), (x - 0.9, y + 0.9)], 0, 0.75, 0.2, 0.06)
+    box(m, x, y, 0.22, 0.22, 0.75, 1.5, P['lamp_stone'], '#756c8c', '#61597a')
+    box(m, x, y, 0.4, 0.4, 1.5, 1.7, P['lamp_stone'], '#756c8c', '#61597a')
+    m.done()
+
+# ------------------------------------------------------------------------------------------------------------------------ camera, export
+cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
+co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
+cam.sensor_fit = 'HORIZONTAL'; cam.sensor_width = 36; cam.lens = CAM['focalPx'] * CAM['referenceZoom'] / 1920 * 36; cam.clip_end = 5000
+sc.render.resolution_x, sc.render.resolution_y = 1920, 1080
+world = bpy.data.worlds.new('w'); sc.world = world; world.use_nodes = True
+next(n for n in world.node_tree.nodes if n.type == 'BACKGROUND').inputs['Color'].default_value = (0.52, 0.52, 0.52, 1)
+sc.view_settings.view_transform = 'Standard'
+os.makedirs(OUT, exist_ok=True)
+bpy.ops.object.select_all(action='SELECT'); co.select_set(False)
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'court.glb'), export_format='GLB', use_selection=True, export_cameras=False,
+                          export_lights=False, export_apply=True, export_yup=True)
+if RENDER:
+    try: sc.render.engine = 'BLENDER_EEVEE_NEXT'
+    except TypeError: sc.render.engine = 'BLENDER_EEVEE'
+    sc.render.filepath = os.path.join(OUT, 'render.png'); bpy.ops.render.render(write_still=True)
+print('court built: polygons', sum(len(o.data.polygons) for o in bpy.data.objects if o.type == 'MESH'))

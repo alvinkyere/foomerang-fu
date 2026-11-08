@@ -38,6 +38,8 @@ export interface PlantsData {
   readonly flower?: string;
   readonly stem?: string;
   readonly rim?: number;
+  /** The pads' shadow on the ground: its colour and where it falls per unit of a pad's height (scene x, z); absent: the meadow's. */
+  readonly shadow?: { readonly colour: string; readonly perHeight: readonly [number, number] };
 }
 
 export interface Pusher {
@@ -97,6 +99,21 @@ export function parsePlants(raw: unknown): PlantsData | undefined {
   const colour = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
   for (const k of ['flower', 'stem']) if (r[k] !== undefined && !colour(r[k])) return undefined;
   for (const k of ['turn', 'rim']) if (r[k] !== undefined && !finite(r[k])) return undefined;
+  let shadow: PlantsData['shadow'];
+  if (r['shadow'] !== undefined) {
+    const sh = r['shadow'] as Record<string, unknown> | null;
+    const ph = sh?.['perHeight'];
+    if (
+      sh === null ||
+      typeof sh !== 'object' ||
+      !colour(sh['colour']) ||
+      !Array.isArray(ph) ||
+      ph.length !== 2 ||
+      !ph.every(finite)
+    )
+      return undefined;
+    shadow = { colour: sh['colour'], perHeight: [ph[0] as number, ph[1] as number] };
+  }
   return {
     s: r['s'],
     height: r['height'],
@@ -106,6 +123,7 @@ export function parsePlants(raw: unknown): PlantsData | undefined {
     ...(colour(r['flower']) ? { flower: r['flower'] } : {}),
     ...(colour(r['stem']) ? { stem: r['stem'] } : {}),
     ...(finite(r['rim']) ? { rim: r['rim'] } : {}),
+    ...(shadow !== undefined ? { shadow } : {}),
   };
 }
 

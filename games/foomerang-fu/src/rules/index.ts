@@ -94,6 +94,15 @@ export {
   HEX_MEADOW_WALLS,
   HEX_MEADOW_WIDTH,
 } from './hexMeadowArena';
+export {
+  TEMPLE_COURT_ARENA,
+  TEMPLE_COURT_BOOK_SPOTS,
+  TEMPLE_COURT_HEIGHT,
+  TEMPLE_COURT_SAFE_ZONE,
+  TEMPLE_COURT_SPAWNS,
+  TEMPLE_COURT_WALLS,
+  TEMPLE_COURT_WIDTH,
+} from './templeCourtArena';
 
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';

@@ -90,6 +90,7 @@ export const ARENA_CHOICES = [
   'lily_island',
   'autumn_glade',
   'hex_meadow',
+  'temple_court',
   'bridge_islands',
   'diamond_walls',
 ] as const;
@@ -98,6 +99,7 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
   const given = new URLSearchParams(search).get('arena');
   // `?arena=pond`: the cross pond (the owner tests it there, 2026-10-27)
   // `?arena=meadow`: the hex meadow (ff physics hq 2.mp4 20:02), tested outside the rotation
+  // `?arena=temple`: the temple court (ff physics hq 2.mp4 2:01), outside the rotation
   // `?arena=glade`: the autumn glade (ff physics hq 2.mp4 10:26), tested outside the rotation (owner, 2026-11-01)
   // `?arena=lily` (or `island`): the lily island (HQ1 10:37), tested outside the rotation (owner, 2026-10-30)
   const value =
@@ -111,7 +113,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
             ? 'bridge_islands'
             : given === 'meadow'
               ? 'hex_meadow'
-              : given;
+              : given === 'temple'
+                ? 'temple_court'
+                : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;
