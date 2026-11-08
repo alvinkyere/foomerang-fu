@@ -37,6 +37,7 @@ import { FIRE_BURN_SECONDS } from './fire';
 import { zoneAt } from './battleRoyale';
 import { EXPLOSIVE_FUSE } from './explosive';
 import { separateBodies } from './collision';
+import { remainsOf, stepRemains } from './remains';
 import {
   DASH_READY,
   RESTED,
@@ -449,8 +450,16 @@ function fullPlayers(state: FuState): { ids: readonly string[]; team: number | u
   };
 }
 
-function stepRoundOver(state: FuState, world: FuState['world'], dt: number): FuStepResult {
+function stepRoundOver(state: FuState, given: FuState['world'], dt: number): FuStepResult {
   const over = state.roundOver;
+  // (the dead's pieces finish sliding through the end of the round: nobody moves them now)
+  const world = given;
+  if (state.remains !== undefined && state.remains.length > 0)
+    state = {
+      ...state,
+      remains: stepRemains(state.remains, [], state.config.arena.walls ?? [], world.arena, dt)
+        .remains,
+    };
   const remaining = (over?.resetInSeconds ?? 0) - dt;
   const elapsed = state.elapsed + dt;
   // On the scoreboard: time passes, nothing else happens, until somebody continues.
@@ -2392,11 +2401,35 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   });
 
+  // The dead's pieces (remains.ts): this step's kills come apart where they died (the top off along the hit: away from whoever
+  // killed them; an explosion's three times as far); the living shove the pieces they walk into.
+  const fresh = events.flatMap((e) => {
+    if (e.type !== 'HIT' || e.source === 'FALL') return [];
+    const killer = world.bodies.find((b) => b.id === e.byId && b.id !== e.victimId);
+    const hit =
+      killer === undefined
+        ? undefined
+        : { x: e.position.x - killer.position.x, y: e.position.y - killer.position.y };
+    const burnt = state.players.some((p) => p.id === e.victimId && p.burning !== undefined);
+    return remainsOf(e.victimId, e.position, hit, e.source === 'BLAST', config.playerRadius, burnt);
+  });
+  const livingIds = new Set(finalPlayers.filter((p) => p.alive).map((p) => p.id));
+  const pieces = stepRemains(
+    [...(state.remains ?? []), ...fresh],
+    world.bodies
+      .filter((b) => livingIds.has(b.id))
+      .map((b) => ({ id: b.id, position: b.position, radius: b.radius })),
+    bodyWalls,
+    world.arena,
+    dt,
+  );
+
   return {
     state: Object.freeze({
       ...state,
       elapsed: state.elapsed + dt,
       roundTime: tFinal,
+      ...(pieces.remains.length > 0 ? { remains: pieces.remains } : {}),
       gatesShut: Object.freeze(gatesShut),
       ...(sliderSpecs.length === 0
         ? {}

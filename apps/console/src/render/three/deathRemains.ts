@@ -91,6 +91,13 @@ export class DeathRemains {
   readonly #parts = new Map<string, { born: number; parts: Part[] }>();
 
   readonly #heights = new WeakMap<object, Map<number, readonly [number, number]>>();
+  /** Where the rules have each piece now (`<id>:top` / `<id>:bottom`, scene; the rules: remains.ts, solid and pushed about). */
+  #placed: ReadonlyMap<string, THREE.Vector3> = new Map();
+
+  /** The pieces' places from the rules, this frame. */
+  place(placed: ReadonlyMap<string, THREE.Vector3>): void {
+    this.#placed = placed;
+  }
 
   constructor(
     readonly scene: THREE.Scene,
@@ -250,11 +257,19 @@ export class DeathRemains {
           const deadEyes = v.burnt === true || t >= DEAD_EYES_AT;
           for (const e of eyes) e.visible = !deadEyes;
           for (const e of dead) e.visible = deadEyes;
-          pivot.position.set(v.at.x, v.at.y + CUT.height * H, v.at.z);
+          // on the ground where the rules have it (solid, shoved about by the living), else as it slides off by itself
+          const ruled = this.#placed.get(`${v.id}:${isTop ? 'top' : 'bottom'}`);
+          pivot.position.set(ruled?.x ?? v.at.x, v.at.y + CUT.height * H, ruled?.z ?? v.at.z);
           pivot.quaternion.identity();
           if (isTop) {
             const q = topAt(top, t);
-            pivot.position.add(new THREE.Vector3(q.x * W, q.y * H, q.z * W));
+            pivot.position.add(
+              new THREE.Vector3(
+                ruled === undefined ? q.x * W : 0,
+                q.y * H,
+                ruled === undefined ? q.z * W : 0,
+              ),
+            );
             pivot.quaternion
               .setFromAxisAngle(up, q.turn)
               .multiply(new THREE.Quaternion().setFromAxisAngle(axis, q.tip));
@@ -264,7 +279,8 @@ export class DeathRemains {
             // (tipping sideways on the screen, about the camera's forward on the ground: its face stays towards us, as the HQ's)
             const q = new THREE.Quaternion().setFromAxisAngle(sideways, -a);
             const lift = new THREE.Vector3(0, CUT.height * H, 0).applyQuaternion(q);
-            pivot.position.set(v.at.x + lift.x, v.at.y + lift.y, v.at.z + lift.z);
+            const feet = ruled ?? v.at;
+            pivot.position.set(feet.x + lift.x, v.at.y + lift.y, feet.z + lift.z);
             pivot.quaternion.copy(q);
           }
         },

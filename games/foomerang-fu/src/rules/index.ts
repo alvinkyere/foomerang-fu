@@ -273,3 +273,5 @@ export {
   BRIDGE_ISLANDS_WALLS,
   BRIDGE_ISLANDS_WIDTH,
 } from './bridgeIslandsArena';
+export { REMAINS, remainsOf, stepRemains } from './remains';
+export type { Pusher, Remain } from './remains';

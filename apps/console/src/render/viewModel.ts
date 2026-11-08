@@ -275,6 +275,14 @@ export interface ArenaView {
   }[];
   /** The ids of the arena's breakable props broken this round (none at a round's start). */
   readonly broken: readonly string[];
+  /** The dead's pieces, where the rules have them (solid; pushed about by the living): absent if none. */
+  readonly remains?: readonly {
+    readonly id: string;
+    readonly ownerId: string;
+    readonly piece: 'top' | 'bottom';
+    readonly x: number;
+    readonly y: number;
+  }[];
   readonly events: readonly ViewEvent[];
   /** Text to show big: while a round is over, and READY / GO at a round's start (render/roundIntro.ts). */
   readonly banner: string | undefined;

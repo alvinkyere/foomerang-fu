@@ -1262,6 +1262,21 @@ describe('buildFuView: Fu state → what Phaser draws', () => {
     expect(hit('BOOMERANG')?.blown).toBeUndefined();
   });
 
+  it('the dead’s pieces are in the view where the rules have them (they are solid and get pushed about)', () => {
+    const { state, entries, slots } = playing();
+    const piece = {
+      id: 'b:top',
+      ownerId: 'b',
+      piece: 'top' as const,
+      position: { x: 120, y: 340 },
+      velocity: { x: 0, y: 0 },
+      radius: 22,
+    };
+    const view = buildFuView({ ...state, remains: [piece] }, [], entries, slots);
+    expect(view.remains).toEqual([{ id: 'b:top', ownerId: 'b', piece: 'top', x: 120, y: 340 }]);
+    expect(buildFuView(state, [], entries, slots).remains).toBeUndefined();
+  });
+
   it('is pure: the same inputs give the same view', () => {
     const { state, entries, slots } = playing();
     expect(buildFuView(state, [], entries, slots)).toEqual(buildFuView(state, [], entries, slots));

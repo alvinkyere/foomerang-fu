@@ -1757,6 +1757,15 @@ class Plaza {
     }
     // back alive (a new round): their remains go
     for (const c of view.circles) if (!c.dead && this.#remains.has(c.id)) this.#remains.clear(c.id);
+    // the dead's pieces where the rules have them: solid, shoved about by the living (rules/remains.ts)
+    this.#remains.place(
+      new Map(
+        (view.remains ?? []).map((r) => {
+          const at = this.#space.toScene(r.x, r.y);
+          return [r.id, new THREE.Vector3(at.x, 0, at.z)] as const;
+        }),
+      ),
+    );
     for (const [id, ch] of this.#characters)
       if (!present.has(id)) {
         ch.destroy(this.scene);

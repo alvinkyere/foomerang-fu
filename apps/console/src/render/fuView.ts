@@ -494,6 +494,17 @@ export function buildFuView(
           })),
         }),
     broken: state.broken,
+    ...(state.remains === undefined || state.remains.length === 0
+      ? {}
+      : {
+          remains: state.remains.map((r) => ({
+            id: r.id,
+            ownerId: r.ownerId,
+            piece: r.piece,
+            x: r.position.x,
+            y: r.position.y,
+          })),
+        }),
     events: viewEvents,
     banner,
     ...(bannerAge === undefined ? {} : { bannerAge }),

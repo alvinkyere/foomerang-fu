@@ -1,3 +1,4 @@
+import type { Remain } from './remains';
 import { SLIDER_HOME, type SliderState } from './sliders';
 import { createWorld, type Vec2, type WorldState } from '@foomerang/game-core';
 import type { Boomerang } from './boomerang';
@@ -118,6 +119,8 @@ export interface FuState {
   readonly tiebreak: boolean;
   /** Slice 8: set once someone has won; phase is then MATCH_OVER. */
   readonly matchOver: FuMatchOver | undefined;
+  /** The dead's pieces (remains.ts): solid, pushed about by the living; cleared with the round. Absent: none. */
+  readonly remains?: readonly Remain[];
   /** Portals (portals.ts): each player still on the pad they came out on, by id (they are not sent back until they leave it). */
   readonly portalLocks?: Readonly<Record<string, string>>;
 }
