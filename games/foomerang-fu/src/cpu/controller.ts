@@ -477,7 +477,7 @@ export class CpuController {
     const me = state.players.find((q) => q.id === this.#id);
     if (me === undefined) return;
     // a dash it has chosen it keeps to for a while (choosing again every few ticks walked it up and down the edge between two launches)
-    if (this.#tick - this.#leapSince > 90) this.#leap = undefined;
+    if (this.#tick - this.#leapSince > 240) this.#leap = undefined;
     this.#onPlan = false;
     const here = positionOf(state, this.#id);
     const mine = [...state.boomerangs, ...state.extraBoomerangs].filter(
@@ -650,11 +650,7 @@ export class CpuController {
         const before = this.#move;
         this.#goTo(this.#approach(foe.position, state, view, here), state, view, here);
         this.#settle(before, view, here);
-        this.why =
-          'approach:' +
-          foe.id +
-          (this.#leap !== undefined ? ' LEAP' : '') +
-          (this.#onPlan ? ' plan' : ' noplan');
+        this.why = 'approach';
         // never a committed dash down an armed opponent's line of fire
         const loaded = los && foe.weapons > foe.weaponsAway;
         if (!loaded)
