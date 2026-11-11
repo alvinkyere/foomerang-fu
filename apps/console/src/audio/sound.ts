@@ -1,5 +1,5 @@
 import type { ArenaView } from '../render/viewModel';
-import { musicPlayer } from './musicPlayer';
+import { music } from './music';
 import type { SoundEngine } from './soundEngine';
 
 /**
@@ -23,14 +23,14 @@ export function loadSound(): Promise<void> {
 export const sound = {
   /** An arena is up: the matches' music (musicPlayer.ts) and the effects. */
   start(): void {
-    musicPlayer.want('match');
+    music.want('match');
     wanted = true;
     if (engine === undefined) void loadSound();
     else engine.start();
   },
   /** The arena is gone: back to the menus' music. */
   stop(): void {
-    musicPlayer.want('menu');
+    music.want('menu');
     wanted = false;
     engine?.stop();
   },

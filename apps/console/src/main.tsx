@@ -1,7 +1,7 @@
 import { createSocketIOTransportFactory } from '@foomerang/controller-sdk';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { musicPlayer } from './audio/musicPlayer';
+import { music } from './audio/music';
 import { loadSound } from './audio/sound';
 import { parseGameParam, resolveConsoleConfig } from './config';
 import { createConsoleRuntime } from './consoleRuntime';
@@ -107,6 +107,5 @@ if (!config.ok) {
   // the sound arrives after the first screen (its own chunk): the menus' blips work from the lobby on
   void loadSound();
   // the music: the menus' tracks from the first screen (they start on the first key or tap: browsers hold audio until then)
-  musicPlayer.start();
-  musicPlayer.want('menu');
+  music.want('menu');
 }
