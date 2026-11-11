@@ -16,6 +16,8 @@ measured from them.
 | `fit_planters.py`     | the four small planters: octagonal prisms fitted to the mosaic's lavender by silhouette (IoU 0.90–0.92)          |
 | `fit_big_planters.py` | the three big planters under the trees: fitted to their silhouettes' boxes read off the frame                    |
 | `layout.py`           | the walls' wings, towers, gates, slab and statues, banners, lanterns, trees' feet, outskirts' trees; the border  |
+| `fit_rings.py`        | the four small rings refitted to their stone and soil at once (ring width, soil depth; overlap 0.93–0.94)        |
+| `tree_mass.py`        | the trees as the frame shows them: leafy outlines and four traced leaf tones on the fitted crowns, forked trunks |
 | `fit_crowns.py`       | the three trees' crowns: ellipsoids fitted to the frame's canopy green (IoU 0.69–0.81)                           |
 | `floor.py`            | the paving and its painted border (three grey lines, a kerb), read across the mosaic with `profile.py`           |
 | `hexfields.py`        | the two orange hex fields: the lattice (s 0.603, turn −1.16°) and 176 pads, their three oranges, their buds      |
@@ -30,8 +32,9 @@ measured from them.
 **Solid:** the wings (plinth and wall), towers, all seven planters, the gates' stone bases, the statues' slab, the east gate's
 posts, its stone lanterns and the banners' poles. **Not solid:** the hex fields — the game's own plants (render/hexPlants.ts:
 pushed aside, springing back, burning), with this map's own oranges, brown stems and their shadow falling west (the court's sun
-is in the east: manifest `plants.shadow`). **Animated:** the plants; the court's trees and the outskirts' trees sway and fade
-when a player is behind them (the renderer's `TREE_<k>_tree`); the banners swing from their crossbars (`BUNTING_pennant_*`).
+is in the east: manifest `plants.shadow`). **Animated:** the plants only. The court stands still and nothing turns see-through
+(manifest `scenery: {fade: false, sway: false}`, render/three/sceneryMotion.ts; owner, 2026-11-11): measured over the READY
+stretch (121.05–122.6 s, frames registered), the HQ's crowns move under 1 px against their planters and its banners hang still.
 
 **Last measured (2026-11-07, render vs the round's mosaic inside the READY frame, the names masked):** mean Lab difference
 7.5 (median 1.9); 23% of pixels over 10. At the start: 14.0 (median 10.6).
