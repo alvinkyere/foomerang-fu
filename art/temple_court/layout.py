@@ -48,7 +48,9 @@ STATUES = [dict(kind='fork', x=-2.6, y=19.9), dict(kind='knife', x=1.75, y=19.9)
 BANNERS = [dict(x=-19.5, y=19.1), dict(x=19.9, y=19.1), dict(x=-30.9, y=8.9), dict(x=-29.1, y=-7.7)]
 # the orange lanterns on the east wall and the towers, and the east gate's two stone lanterns on purple stones
 # (x, y, z of its foot): on the towers' tops by the wall, and hung on the east gate's posts on the court side at ~4 (frame 121.5 s)
-LANTERNS = [(mx(-30.5) - 0.6, 19.9, 6.0), (29.75, 4.0, 3.8), (29.7, -2.4, 3.8), (-30.5 + 0.6, 19.9, 6.0)]
+# (the north corners' sit on the wings' roof ridges, 6.6 up, where the frame's pixels (1775, 25) and (155, 30) put them: at 6.0 they were
+# inside the roofs and never showed)
+LANTERNS = [(30.95, 18.85, 6.6), (29.75, 4.0, 3.8), (29.7, -2.4, 3.8), (-30.55, 18.65, 6.6)]
 STONE_LANTERNS = [(29.4, 5.65), (29.4, -3.49)]
 
 # the trees in the big planters: trunk foot (on the soil), the crown's middle and size (frame 121.5 s)
