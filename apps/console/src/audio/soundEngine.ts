@@ -1,6 +1,5 @@
 import type { ArenaView } from '../render/viewModel';
 import { soundHooks, type SoundCue } from '../shell/sound';
-import { EIGHTH, hitRecipe, hitsAt } from './music';
 import { CUE_SOUNDS, EVENT_SOUNDS, EXTRA_SOUNDS, type ExtraSound, type Recipe } from './recipes';
 import { createBuses, playRecipe } from './synth';
 
@@ -11,9 +10,6 @@ export type ContextFactory = () => AudioContext | undefined;
 const MAX_VOICES = 40;
 /** Least seconds between two sounds of one kind. */
 const MIN_GAP = 0.035;
-/** How far ahead the music is scheduled, and how often. */
-const AHEAD = 0.35;
-const TICK_MS = 100;
 const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchstart'] as const;
 
 const defaultFactory: ContextFactory = () => {
@@ -25,7 +21,7 @@ const defaultFactory: ContextFactory = () => {
 };
 
 /**
- * The game's sound: a music bed while an arena is up, an effect for every match event, and the menus' blips. It listens; it
+ * The game's sound effects: one for every match event, and the menus' blips (the music is the owner's tracks: musicPlayer.ts). It listens; it
  * never decides anything (the rules do not know it exists). Browsers keep audio locked until a key or a tap, so the context
  * is resumed on the first one (and tried again while it waits). OFF BY DEFAULT (the owner, 2026-10-28: "it's bad, turn it off"):
  * `?sound=on` turns it on, until the sounds are right.
@@ -35,10 +31,7 @@ export class SoundEngine {
   readonly #enabled: boolean;
   #ctx: AudioContext | undefined;
   #sfx: GainNode | undefined;
-  #music: GainNode | undefined;
-  #timer: ReturnType<typeof setInterval> | undefined;
-  #eighth = 0;
-  #nextTime = 0;
+  #listening = false;
   #active = 0;
   #played = 0;
   #lastTry = 0;
@@ -58,20 +51,17 @@ export class SoundEngine {
     return this.#played;
   }
 
-  /** An arena is up: wait for the first key or tap if the browser is still holding the sound back, and start the music. */
+  /** An arena is up: wait for the first key or tap if the browser is still holding the sound back. */
   start(): void {
-    if (!this.#enabled || this.#timer !== undefined) return;
+    if (!this.#enabled || this.#listening) return;
     if (this.#context() === undefined) return;
     for (const type of UNLOCK_EVENTS) globalThis.addEventListener?.(type, this.#unlock);
-    this.#nextTime = 0;
-    this.#timer = setInterval(() => this.#tick(), TICK_MS);
-    this.#tick();
+    this.#listening = true;
   }
 
-  /** The arena is gone: the music stops (the effects of the menus stay available). */
+  /** The arena is gone (the effects of the menus stay available). */
   stop(): void {
-    if (this.#timer !== undefined) clearInterval(this.#timer);
-    this.#timer = undefined;
+    this.#listening = false;
     for (const type of UNLOCK_EVENTS) globalThis.removeEventListener?.(type, this.#unlock);
     this.#boomerangs.clear();
     this.#champion = undefined;
@@ -114,7 +104,6 @@ export class SoundEngine {
     if (ctx === undefined) return undefined;
     const buses = createBuses(ctx);
     this.#sfx = buses.sfx;
-    this.#music = buses.music;
     this.#ctx = ctx;
     return ctx;
   }
@@ -154,21 +143,6 @@ export class SoundEngine {
     playRecipe(ctx, out, recipe, when, recipe.level ?? 1, pitch, () => {
       this.#active -= 1;
     });
-  }
-
-  /** Keeps the music a little ahead of the clock: each eighth's hits are scheduled at its exact time. */
-  #tick(): void {
-    const ctx = this.#running();
-    const bus = this.#music;
-    if (ctx === undefined || bus === undefined) return;
-    // first time (or after a long stall: a hidden tab): start again from now rather than playing the backlog at once
-    if (this.#nextTime === 0 || this.#nextTime < ctx.currentTime - 0.5)
-      this.#nextTime = ctx.currentTime + 0.06;
-    while (this.#nextTime < ctx.currentTime + AHEAD) {
-      for (const hit of hitsAt(this.#eighth)) playRecipe(ctx, bus, hitRecipe(hit), this.#nextTime);
-      this.#eighth += 1;
-      this.#nextTime += EIGHTH;
-    }
   }
 }
 

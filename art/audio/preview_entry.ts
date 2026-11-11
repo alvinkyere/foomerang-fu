@@ -1,4 +1,3 @@
-import { EIGHTH, LOOP_EIGHTHS, hitRecipe, hitsAt } from '../../apps/console/src/audio/music';
 import {
   CUE_SOUNDS,
   EVENT_SOUNDS,
@@ -19,7 +18,7 @@ async function render(
   return Array.from(data);
 }
 
-/** Every sound and the music loop, as samples at 44.1 kHz (the engine's bus gains applied). */
+/** Every sound, as samples at 44.1 kHz (the engine's bus gains applied). */
 export async function renderAll(): Promise<Record<string, number[]>> {
   const out: Record<string, number[]> = {};
   const one = async (name: string, r: Recipe) => {
@@ -30,9 +29,5 @@ export async function renderAll(): Promise<Record<string, number[]>> {
   for (const [k, r] of Object.entries(EVENT_SOUNDS)) await one(`event:${k}`, r);
   for (const [k, r] of Object.entries(EXTRA_SOUNDS)) await one(`extra:${k}`, r);
   for (const [k, r] of Object.entries(CUE_SOUNDS)) await one(`cue:${k}`, r);
-  out['music:loop'] = await render(LOOP_EIGHTHS * EIGHTH + 0.5, (ctx, { music }) => {
-    for (let e = 0; e < LOOP_EIGHTHS; e += 1)
-      for (const h of hitsAt(e)) playRecipe(ctx, music, hitRecipe(h), 0.05 + e * EIGHTH);
-  });
   return out;
 }

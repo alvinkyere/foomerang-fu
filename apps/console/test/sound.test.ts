@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BPM, EIGHTH, LOOP_EIGHTHS, hitRecipe, hitsAt } from '../src/audio/music';
 import { CUE_SOUNDS, EVENT_SOUNDS, EXTRA_SOUNDS, type Recipe } from '../src/audio/recipes';
 import { SoundEngine } from '../src/audio/soundEngine';
 import { recipeSeconds } from '../src/audio/synth';
 import type { ArenaView } from '../src/render/viewModel';
 
 // The game's sound (owner, 2026-10-28: "get the sound for everything and implement it"): our own synthesis, one recipe for
-// each match event, the music at the videos' 120 bpm pulse.
+// each match event (the music is the owner's tracks since 2026-11-11: musicPlaylist.test.ts, musicPlayer.test.ts).
 
 const ALL: [string, Recipe][] = [
   ...Object.entries(EVENT_SOUNDS),
@@ -28,36 +27,6 @@ describe('the recipes', () => {
           expect(f).toBeLessThanOrEqual(12_000);
         }
     }
-  });
-});
-
-describe('the music', () => {
-  it('beats at the videos pulse: 120 bpm, an eighth a quarter of a second', () => {
-    expect(BPM).toBe(120);
-    expect(EIGHTH).toBeCloseTo(0.25);
-  });
-
-  it('is a loop of eight bars: kick on 1 and 3, snare on 2 and 4, the lead only in the second half', () => {
-    expect(LOOP_EIGHTHS).toBe(64);
-    const parts = (e: number) => hitsAt(e).map((h) => h.part);
-    expect(parts(0)).toContain('kick');
-    expect(parts(4)).toContain('kick');
-    expect(parts(2)).toContain('snare');
-    expect(parts(6)).toContain('snare');
-    expect(parts(1)).toContain('hat');
-    for (let e = 0; e < 32; e += 1) expect(parts(e)).not.toContain('lead');
-    expect(Array.from({ length: 32 }, (_, i) => parts(32 + i)).flat()).toContain('lead');
-    // it wraps
-    expect(hitsAt(LOOP_EIGHTHS + 3)).toEqual(hitsAt(3));
-  });
-
-  it('every hit is a sane recipe, and every note is in the key of C', () => {
-    const inC = new Set([0, 2, 4, 5, 7, 9, 11]);
-    for (let e = 0; e < LOOP_EIGHTHS; e += 1)
-      for (const h of hitsAt(e)) {
-        expect(recipeSeconds(hitRecipe(h))).toBeLessThan(0.5);
-        if (h.midi !== undefined) expect(inC.has(h.midi % 12), `${h.part} ${h.midi}`).toBe(true);
-      }
   });
 });
 
@@ -178,31 +147,16 @@ describe('the sound engine', () => {
     expect(engine.played).toBe(1);
   });
 
-  it('keeps the music a little ahead of the clock, on the beat', () => {
+  it('plays no music of its own: an arena starting makes no sound until something happens (the music is the owner’s tracks)', () => {
     vi.useFakeTimers();
     const f = fakeContext();
     const engine = new SoundEngine(() => f.ctx);
     engine.start();
-    const first = f.started.oscillators + f.started.noises;
-    expect(first).toBeGreaterThan(0); // (the first eighths are scheduled at once)
     for (let i = 0; i < 20; i += 1) {
       f.advance(0.1);
       vi.advanceTimersByTime(100);
     }
-    // two seconds on: about eight more eighths, each with its drums, bass and pluck
-    expect(f.started.oscillators + f.started.noises).toBeGreaterThan(first * 3);
-    engine.stop();
-  });
-
-  it('after a long stall (a hidden tab) it starts again from now rather than playing the backlog at once', () => {
-    vi.useFakeTimers();
-    const f = fakeContext();
-    const engine = new SoundEngine(() => f.ctx);
-    engine.start();
-    const first = f.started.oscillators + f.started.noises;
-    f.advance(60);
-    vi.advanceTimersByTime(100);
-    expect(f.started.oscillators + f.started.noises - first).toBeLessThan(first * 2);
+    expect(f.started.oscillators + f.started.noises).toBe(0);
     engine.stop();
   });
 

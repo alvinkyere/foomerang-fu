@@ -1,6 +1,6 @@
 /**
- * Renders the game's sounds to WAV files you can listen to (2026-10-28): every recipe (audio/recipes.ts) and the music loop
- * (audio/music.ts), offline, in real headless Chrome through the same synth the game uses, into art/audio/output/preview/.
+ * Renders the game's sounds to WAV files you can listen to (2026-10-28): every recipe (audio/recipes.ts) (the music is
+ * the owner's tracks since 2026-11-11), offline, in real headless Chrome through the same synth the game uses, into art/audio/output/preview/.
  * Prints each sound's length, peak and brightness (spectral centroid) so a silent, clipping or dull one shows at once.
  *
  *   node art/audio/preview.mjs        (from the repository root; needs the integration package installed)
