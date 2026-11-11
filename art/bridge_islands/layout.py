@@ -198,7 +198,7 @@ _PS = json.load(open('art/bridge_islands/props.json')) if os.path.exists('art/br
 _mv = lambda name, xy: (xy[0] + _PS.get(name, [0, 0])[0], xy[1] + _PS.get(name, [0, 0])[1])
 BUSHES = [(*_mv('bush0', (860, 240)), 80), (*_mv('bush1', (770, 879)), 80), (*_mv('bush2', (1356, 470)), 76)]      # (centroids and sizes matched to the HQ's)
 # pots: (x, y) of the foot in the frame, width, height, the height it stands at (the one on the round boulder stands on its top)
-POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1218, 415, 1.1, 1.2, 0.0), (1135, 150, 1.3, 1.1, 0.0), (1150, 803, 1.35, 1.75, 0.0),
+POTS = [(1062, 215, 1.5, 1.8, 0.0), (1092, 200, 1.3, 1.6, 0.0), (1127, 296, 1.2, 1.3, 2.8), (1234, 420, 1.1, 1.2, 0.0), (1135, 150, 1.3, 1.1, 0.0), (1150, 803, 1.35, 1.75, 0.0),
         (1105, 806, 1.2, 1.25, 0.0), (1150, 600, 0.8, 0.9, 0.0), (890, 180, 0.8, 0.9, 0.0)]
 CRATES = [_mv('crate0', (1130, 605)), _mv('crate0', (1175, 635))]
 BAMBOO = [(1398, 352), (1222, 215), (1268, 200), (1360, 560), (1372, 595), (1420, 615), (365, 500)]

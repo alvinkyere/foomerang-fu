@@ -24,6 +24,7 @@ import {
   distanceToSolid,
   lineClearTo,
   lineIsClear,
+  pushOutOfSolid,
   sweepCircle,
   wallsOf,
   type Breakable,
@@ -996,15 +997,16 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // one sub-step.)
   // LEVERS (sliders.ts): a flying boomerang over a lever, or a slash's reach on it, works its rock: counted once, as the touch begins
   const hotNow: boolean[] = [];
+  const hotBy: (string | undefined)[] = []; // who touched each lever (a boomerang's thrower, a slasher)
   sliderSpecs.forEach((spec) => {
     spec.levers.forEach((lever) => {
       const at: Vec2 = { x: lever.x, y: lever.y };
-      const byBoomerang = startWeapons.some(
+      const byBoomerang = startWeapons.find(
         (w) =>
           (w.state === 'THROWN' || w.state === 'RETURNING' || w.state === 'DEFLECTED') &&
           distanceSquared(w.position, at) < (lever.radius + config.boomerangRadius) ** 2,
       );
-      const bySlash = state.players.some(
+      const bySlash = state.players.find(
         (p) =>
           p.alive &&
           p.slash.phase === 'ACTIVE' &&
@@ -1015,7 +1017,8 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
             config,
           ),
       );
-      hotNow.push(byBoomerang || bySlash);
+      hotNow.push(byBoomerang !== undefined || bySlash !== undefined);
+      hotBy.push(byBoomerang?.ownerId ?? bySlash?.id);
     });
   });
   {
@@ -1024,7 +1027,9 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       spec.levers.forEach((lever, j) => {
         const was = state.leverHot?.[at] === true;
         if (hotNow[at] === true && !was) {
-          sliders[k] = toggleSlider(sliders[k] as SliderState, spec);
+          const toggled = toggleSlider(sliders[k] as SliderState, spec);
+          const by = hotBy[at];
+          sliders[k] = by === undefined ? toggled : { ...toggled, by };
           events.push({
             type: 'LEVER',
             slider: k,
@@ -1038,6 +1043,17 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     });
   }
   const solid = new Set(state.players.filter((p) => p.alive).map((p) => p.id));
+  // SHOVES (owner, 2026-11-11): who last shoved whom, till when: a player walking into another, or a moving slab worked by someone's
+  // lever. A fall soon after is that shover's kill; a fall nobody caused is nobody's.
+  const shoves = new Map<string, { by: string; until: number }>(Object.entries(state.shoves ?? {}));
+  const crushed = new Map<string, string | undefined>(); // victim -> the lever puller whose slab pinned them
+  const SHOVE_SECONDS = 1.2;
+  const sliderMoving = (k: number): boolean =>
+    (sliders[k] as SliderState).dir !== 0 && ((sliders[k] as SliderState).wait ?? 0) <= 0;
+  const overlapDepth = (b: { position: Vec2; radius: number }, box: Solid): number => {
+    const out = pushOutOfSolid(b.position.x, b.position.y, b.radius, box, 0);
+    return out === undefined ? 0 : Math.hypot(out[0] - b.position.x, out[1] - b.position.y);
+  };
   const subSteps = Math.max(1, Math.ceil(dt / FIXED_TIMESTEP_SECONDS - 1e-9));
   const h = dt / subSteps;
   let world = state.world;
@@ -1130,7 +1146,58 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       const id = (state.players[j] as FuPlayer).id;
       dashes[j] = advanceDashing(dash, h, carried.ends.has(id));
     }
+    // shoves, seen before the bodies are pushed apart: a living player walking into another (its stick towards them) shoves them; a
+    // moving slab overlapping a player shoves them on behalf of whoever worked its lever
+    {
+      const living = world.bodies.filter((b) => solid.has(b.id));
+      for (let i = 0; i < living.length; i += 1) {
+        for (let j = i + 1; j < living.length; j += 1) {
+          const a = living[i] as (typeof living)[number];
+          const b = living[j] as (typeof living)[number];
+          const dx = b.position.x - a.position.x;
+          const dy = b.position.y - a.position.y;
+          const d = Math.hypot(dx, dy);
+          if (d >= a.radius + b.radius + 1 || d === 0) continue;
+          const pushes = (who: string, ux: number, uy: number): boolean => {
+            const index = ownerOf.get(who);
+            const m = index === undefined ? undefined : entries[index]?.move;
+            const dashing = index !== undefined && (dashes[index] as DashState).phase === 'DASHING';
+            return (
+              dashing ||
+              (m !== undefined &&
+                Math.hypot(m.x, m.y) > deadZone &&
+                (m.x * ux + m.y * uy) / Math.hypot(m.x, m.y) > 0.3)
+            );
+          };
+          const ab = pushes(a.id, dx / d, dy / d);
+          const ba = pushes(b.id, -dx / d, -dy / d);
+          if (ab && !ba) shoves.set(b.id, { by: a.id, until: tEnd + SHOVE_SECONDS });
+          if (ba && !ab) shoves.set(a.id, { by: b.id, until: tEnd + SHOVE_SECONDS });
+        }
+      }
+      sliderSpecs.forEach((spec, k) => {
+        if (!sliderMoving(k)) return;
+        const by = (sliders[k] as SliderState).by;
+        if (by === undefined) return;
+        const box = sliderBox(spec, (sliders[k] as SliderState).progress);
+        living.forEach((b) => {
+          if (b.id !== by && overlapDepth(b, box) > 0)
+            shoves.set(b.id, { by, until: tEnd + SHOVE_SECONDS });
+        });
+      });
+    }
     world = separateBodies(world, (id) => solid.has(id), bodyWalls);
+    // CRUSHED: a living player a slab still overlaps after the push-out (pinned: there was nowhere to push them) dies, the lever puller's
+    sliderSpecs.forEach((spec, k) => {
+      const box = sliderBox(spec, (sliders[k] as SliderState).progress);
+      world.bodies.forEach((b) => {
+        if (!solid.has(b.id) || crushed.has(b.id)) return;
+        const index = ownerOf.get(b.id);
+        if (index !== undefined && (dashes[index] as DashState).phase === 'DASHING') return;
+        if (overlapDepth(b, box) > b.radius * 0.35)
+          crushed.set(b.id, (sliders[k] as SliderState).by);
+      });
+    });
     // Hazards: an ACTIVE strip is lethal to a living body whose centre is on it — unless it is riding a
     // platform over it, or an earlier shield already met this window.
     hazards.forEach((hazard, hi) => {
@@ -2087,16 +2154,35 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // Falling: a living player whose middle has left the ground falls and dies (no shield can stop it; nobody is credited).
   // Not mid-dash: a dash carries them over a gap, and where it ends is what counts (the HQ videos: players reach the gong
   // islands' south island, which no bridge joins; the bread at ff physics hq 2.mp4 8:03.6 falls where its dash ended)
+  // (a fall soon after a shove is the shover's kill: SHOVES above)
+  const shoverOf = (id: string): number => {
+    const sh = shoves.get(id);
+    if (sh === undefined || sh.until < state.roundTime + dt || sh.by === id) return -1;
+    return ownerOf.get(sh.by) ?? -1;
+  };
   players.forEach((p, v) => {
     if (!p.alive || (dashes[v] as DashState).phase === 'DASHING') return;
     if (onGround(positionOf(p.id), config.arena, state.roundTime + dt)) return;
     exploding.add(v);
+    const credit = shoverOf(p.id);
     (contacts[v] as Contact[]).push({
-      attacker: count,
+      attacker: credit < 0 ? count : credit,
       rank: 3,
       weapon: -1,
       source: 'FALL',
-      credit: -1,
+      credit,
+    });
+  });
+  players.forEach((p, v) => {
+    if (!p.alive || !crushed.has(p.id)) return;
+    const by = crushed.get(p.id);
+    const credit = by === undefined || by === p.id ? -1 : (ownerOf.get(by) ?? -1);
+    (contacts[v] as Contact[]).push({
+      attacker: credit < 0 ? count : credit,
+      rank: 3,
+      weapon: -1,
+      source: 'CRUSH',
+      credit,
     });
   });
   const hazardSpared: number[][] = state.players.map((p) => [...p.hazardSpared]);
@@ -2220,7 +2306,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
         victim.id,
         killing.source === 'HAZARD' ||
           killing.source === 'OUT_OF_BOUNDS' ||
-          killing.source === 'FALL'
+          ((killing.source === 'FALL' || killing.source === 'CRUSH') && killing.credit < 0)
           ? ARENA_ID
           : (players[killing.attacker] as FuPlayer).id,
       );
@@ -2434,6 +2520,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
       ...(sliderSpecs.length === 0
         ? {}
         : { sliders: Object.freeze(sliders), leverHot: Object.freeze(hotNow) }),
+      ...(() => {
+        const kept = [...shoves].filter(([, v]) => v.until >= tFinal);
+        return kept.length === 0
+          ? { shoves: undefined }
+          : { shoves: Object.freeze(Object.fromEntries(kept)) };
+      })(),
       broken: brokenNow.length === state.broken.length ? state.broken : Object.freeze(brokenNow),
       world,
       // A round that has just ended shows no half-finished burst: everyone is READY until the reset.

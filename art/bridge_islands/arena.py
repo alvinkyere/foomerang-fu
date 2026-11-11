@@ -53,6 +53,9 @@ land = raster(_land)
 cs, _ = cv2.findContours(land, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 ground = [[(round(float(c) * CELL * S), round(float(r) * CELL * S)) for c, r in cv2.approxPolyDP(k, 1.0, True).reshape(-1, 2)]
           for k in cs if cv2.contourArea(k) > 20]
+# (owner, 2026-11-11: "no tight spaces where there is obviously walking space"): the rocks' solids are pulled in half a unit, inside the
+# drawn rock's soft foot (row boxes of the traced tops stood out past it, closing gaps a player visibly fits through)
+solid_wall = cv2.erode(solid_wall, np.ones((5, 5), np.uint8))
 # the walls as boxes: where a wall lies within 3 units of a bank (no one reaches the rest), rows of half a unit merged downward
 near = solid_wall
 ROW = 2                                               # (half a unit: the boxes reach no further into the bank)
@@ -129,7 +132,7 @@ for bw in L['bridge_walls']:
         cx_, cy_ = w(*sl['centre'])
         sliders.append(dict(wall=dict(shape='box', x=cx_, y=cy_, halfWidth=round(sl['length'] / 2 * S, 1), halfHeight=round(max(bw['width'] / 2 * S, 19), 1), angle=round(ang, 4)),
                             by=dict(x=round(bw['slide'][0] * S), y=round(-bw['slide'][1] * S)), speed=round(run / 1.0),
-                            lag=dict(out=sl['lag_out'], back=sl['lag_back']),
+                            lag=dict(out=sl['lag_out'], back=sl['lag_back']), reverseOnHit=True,
                             levers=[dict(x=w(*lv['knob'])[0], y=w(*lv['knob'])[1], radius=36) for lv in L['levers']]))
     for j, fx in enumerate(bw['fixed']):
         cx_, cy_ = w(*fx['centre'])
@@ -178,7 +181,7 @@ export const BRIDGE_ISLANDS_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
 
 /** The bridge's two walls (NW, SE): levers slide them in across the deck to meet on its middle line, and back (sliders.ts). */
 export const BRIDGE_ISLANDS_SLIDERS: readonly SliderSpec[] = Object.freeze([
-{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', lag: ' + obj(sl['lag']) + ', levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
+{''.join('  Object.freeze({ wall: ' + obj(sl['wall']).replace("'box'", "'box' as const") + ', by: ' + obj(sl['by']) + ', speed: ' + str(sl['speed']) + ', lag: ' + obj(sl['lag']) + ', reverseOnHit: true, levers: [' + ', '.join(obj(l) for l in sl['levers']) + '] }),\n' for sl in sliders)}]);
 
 export const BRIDGE_ISLANDS_ARENA: FuArena = Object.freeze({{
   width: BRIDGE_ISLANDS_WIDTH,

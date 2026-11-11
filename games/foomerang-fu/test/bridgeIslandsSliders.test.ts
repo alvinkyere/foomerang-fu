@@ -52,6 +52,16 @@ describe('the bridge islands’ sliding bridge walls', () => {
     }
   });
 
+  it('move as one bridge: a hit part way sends every slab back at once (none pauses, none carries on)', () => {
+    const mid = sliders.map((spec) => {
+      let st: SliderState = toggleSlider(SLIDER_HOME, spec);
+      for (let t = 0; t < 0.6; t += 1 / 60) st = advanceSlider(spec, st, 1 / 60);
+      return toggleSlider(st, spec);
+    });
+    for (const st of mid) expect(st.aim).toBe(-1);
+    for (const st of mid) if (st.progress > 0) expect(st.dir).toBe(-1);
+  });
+
   it('go back exactly as they came: the same pace and the same staircase, the other way', () => {
     const out = run(true, 0.5);
     const back = run(false, 0.5);
