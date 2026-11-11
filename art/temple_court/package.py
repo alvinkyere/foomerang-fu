@@ -44,6 +44,9 @@ manifest = {
     # (the round's camera goes in up to 1.48x its READY view: 119.8-146 s)
     'followFrame': {'minZoom': round(ZOOM, 4), 'maxZoom': round(ZOOM * 1.45, 4)},
     'plants': plants,
+    # the court stands still and its trees never turn see-through, as the HQ's (owner, 2026-11-11; measured: the crowns move under 1 px
+    # against their planters while the camera holds, the banners hang still): render/three/sceneryMotion.ts
+    'scenery': {'fade': False, 'sway': False},
     'characters': gong['characters'],
     'provenance': 'art/temple_court (measure.py, mosaic.py, floor.py, fit_planters.py, hexfields.py, layout.py, arena.py, blender/build.py, package.py) from ff physics hq 2.mp4 2:01',
 }

@@ -213,6 +213,7 @@
       [14.642, -88.178, 0, true]
     ]
   },
+  "scenery": { "fade": false, "sway": false },
   "characters": {
     "bread": {
       "file": "char_bread.webp",

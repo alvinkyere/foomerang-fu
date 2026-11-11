@@ -120,6 +120,61 @@ def offset_poly(poly, d):
 
 
 def stone(m, poly, z0, z1, bevel=0.3, jitter=0.08, top=None, side=None, back=None):
+    """A soft lavender pillow stone (owner, 2026-11-11: the HQ's look; the frame's slab, gate bases and plinths at 3x): a rounded,
+    slightly uneven outline with a chip here and there, its sides bulging a little, its top edges rounded off into a broad top;
+    each face toned by its facing. A four-cornered footprint (a rectangle, turned or not); any other: the old bevelled prism."""
+    if len(poly) != 4: return stone_prism(m, poly, z0, z1, bevel, jitter, top, side, back)
+    top, side, back = top or P['stone_top'], side or P['stone_side'], back or P['stone_back']
+    poly = ccw(poly); c = sum((Vector(q) for q in poly), Vector((0, 0))) / 4
+    ux = (Vector(poly[1]) - Vector(poly[0])); hw = ux.length / 2; ux.normalize()
+    uy = (Vector(poly[3]) - Vector(poly[0])); hd = uy.length / 2; uy.normalize()
+    rc = min(hw, hd) * 0.28; N = 64
+    ph = [rng.uniform(0, 6.28) for _ in range(3)]
+    chips = [(rng.uniform(0, 1), rng.uniform(0.04, 0.09), rng.uniform(0.08, 0.2)) for _ in range(rng.choice((1, 2, 3)))]
+    def outline(d):
+        """The rounded rectangle d in from the footprint (N points, counter-clockwise), with the stone's own unevenness."""
+        a_, b_, r_ = hw - d, hd - d, max(0.02, rc - d); pts = []
+        for i in range(N):
+            t = i / N; th = 2 * math.pi * t
+            # (a point of the rounded rectangle: the perimeter walked by length, straight sides and quarter circles r_ at the corners)
+            x, y = rounded_rect(a_, b_, r_, t)
+            n = 1 + jitter * 0.5 * (math.sin(3 * th + ph[0]) + 0.6 * math.sin(7 * th + ph[1]) + 0.4 * math.sin(13 * th + ph[2])) / max(a_, b_)
+            for at, w, depth in chips:
+                dt = min(abs(t - at), 1 - abs(t - at))
+                if dt < w: n -= depth * (1 - dt / w) / max(a_, b_)
+            pts.append(c + ux * x * n + uy * y * n)
+        return pts
+    H_ = z1 - z0; bv = min(bevel, H_ * 0.45)
+    rings = [(outline(0.0), z0), (outline(-0.04), z0 + H_ * 0.35), (outline(0.0), z1 - bv), (outline(bv * 0.45), z1 - bv * 0.2), (outline(bv), z1)]
+    for (ra, za), (rb, zb) in zip(rings, rings[1:]):
+        for i in range(N):
+            j = (i + 1) % N
+            q = [(ra[i].x, YC + ra[i].y, za), (ra[j].x, YC + ra[j].y, za), (rb[j].x, YC + rb[j].y, zb), (rb[i].x, YC + rb[i].y, zb)]
+            n_ = (Vector(q[1]) - Vector(q[0])).cross(Vector(q[3]) - Vector(q[0]))
+            if n_.length < 1e-9: continue
+            m.face(q, shade(top, side, tuple(n_.normalized()), back))
+    m.poly([(v.x, v.y) for v in rings[-1][0]], z1, top)
+
+
+def rounded_rect(a, b, r, t):
+    """The point at fraction t round a rectangle 2a x 2b with corners rounded by r (counter-clockwise, from its east side's middle):
+    each quarter is a straight run then a quarter circle then a straight run, by arc length."""
+    r = max(1e-4, min(r, a, b)); t = t % 1.0
+    q = int(t * 4); u = t * 4 - q                                  # (which quarter, and how far into it)
+    sx, sy = [(1, 1), (-1, 1), (-1, -1), (1, -1)][q]
+    l1, l2, arc = b - r, a - r, math.pi * r / 2                    # (the quarter: up the side, round the corner, along the top)
+    if q % 2: l1, l2 = l2, l1
+    d = u * (l1 + arc + l2)
+    if q % 2 == 0:
+        if d <= l1: return sx * a, sy * d
+        if d <= l1 + arc: th = (d - l1) / r; return sx * ((a - r) + r * math.cos(th)), sy * ((b - r) + r * math.sin(th))
+        return sx * (a - r - (d - l1 - arc)), sy * b
+    if d <= l1: return sx * d, sy * b
+    if d <= l1 + arc: th = (d - l1) / r; return sx * ((a - r) + r * math.sin(th)), sy * ((b - r) + r * math.cos(th))
+    return sx * a, sy * (b - r - (d - l1 - arc))
+
+
+def stone_prism(m, poly, z0, z1, bevel=0.3, jitter=0.08, top=None, side=None, back=None):
     """A rough lavender stone: a prism whose top edges are bevelled, its corners a little uneven (the HQ's chunky stones)."""
     top, side, back = top or P['stone_top'], side or P['stone_side'], back or P['stone_back']
     poly = ccw(poly); n = len(poly)
@@ -193,19 +248,37 @@ def octagon(cx, cy, a, b, k):
 for name, p in PL.items():
     m = Mesh(f'PLANTER_{name}')
     h = p['h']; outer = octagon(p['cx'], p['cy'], p['a'], p['b'], p['k'])
-    ia, ib = p['a'] - RING, p['b'] - RING
-    inner = octagon(p['cx'], p['cy'], ia, ib, p['k'] * min(1.0, (p['a'] / ia)) * 0.9)
-    # the ring: eight stones, each its own block (the HQ's seams), the top a touch uneven
+    # (the small rings' width and soil depth fitted with them: fit_rings.py; the big ones' measured at 4x)
+    ring, SOIL_DROP = p.get('ring', RING), p.get('drop', 0.45)
+    ia, ib = p['a'] - ring, p['b'] - ring
+    inner = octagon(p['cx'], p['cy'], ia, ib, p['k']) if 'ring' in p else octagon(p['cx'], p['cy'], ia, ib, p['k'] * min(1.0, (p['a'] / ia)) * 0.9)
+    # the ring: eight chunky stones, each its own block (owner, 2026-11-11: the HQ's look; the frame's rings at 3x): a dark seam
+    # between neighbours, each top edge rounded off (a bevel a little lighter than the side), each block's height and tone its own
+    G_, BV = 0.05, 0.16
     for i in range(8):
         o0, o1, i0, i1 = outer[i], outer[(i + 1) % 8], inner[i], inner[(i + 1) % 8]
-        dz = rng.uniform(-0.05, 0.05)
-        top = [(o0[0], YC + o0[1], h + dz), (o1[0], YC + o1[1], h + dz), (i1[0], YC + i1[1], h + dz), (i0[0], YC + i0[1], h + dz)]
-        m.face(top[::-1] if True else top, mix(P['stone_top'], '#ffffff', rng.uniform(-0.02, 0.05)), flip_up=True)
-        nx, ny = (o1[1] - o0[1]), -(o1[0] - o0[0])
-        m.face([(o0[0], YC + o0[1], 0), (o1[0], YC + o1[1], 0), (o1[0], YC + o1[1], h + dz), (o0[0], YC + o0[1], h + dz)],
-               shade(P['stone_top'], P['stone_side'], (nx, ny, 0), P['stone_back']))
-        m.face([(i1[0], YC + i1[1], h - SOIL_DROP), (i0[0], YC + i0[1], h - SOIL_DROP), (i0[0], YC + i0[1], h + dz), (i1[0], YC + i1[1], h + dz)],
+        # (each block pulled back from its ends by half the seam)
+        sh = lambda a, b, t: (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+        lo0, lo1 = math.hypot(o1[0] - o0[0], o1[1] - o0[1]), math.hypot(i1[0] - i0[0], i1[1] - i0[1])
+        o0, o1 = sh(o0, o1, G_ / lo0), sh(o0, o1, 1 - G_ / lo0); i0, i1 = sh(i0, i1, G_ / lo1), sh(i0, i1, 1 - G_ / lo1)
+        dz = rng.uniform(-0.07, 0.07); hz = h + dz
+        nx, ny = (o1[1] - o0[1]), -(o1[0] - o0[0]); nl = math.hypot(nx, ny); nx, ny = nx / nl, ny / nl
+        tone = mix(P['stone_top'], '#ffffff', rng.uniform(-0.03, 0.06))
+        side = shade(P['stone_top'], P['stone_side'], (nx, ny, 0), P['stone_back'])
+        # the top, set in from the outer edge by the bevel; the bevel; the outer side
+        oi0, oi1 = (o0[0] - nx * BV, o0[1] - ny * BV), (o1[0] - nx * BV, o1[1] - ny * BV)
+        m.face([(oi0[0], YC + oi0[1], hz), (oi1[0], YC + oi1[1], hz), (i1[0], YC + i1[1], hz), (i0[0], YC + i0[1], hz)][::-1], tone, flip_up=True)
+        m.face([(o0[0], YC + o0[1], hz - BV), (o1[0], YC + o1[1], hz - BV), (oi1[0], YC + oi1[1], hz), (oi0[0], YC + oi0[1], hz)], mix(side, tone, 0.5), flip_up=True)
+        m.face([(o0[0], YC + o0[1], 0), (o1[0], YC + o1[1], 0), (o1[0], YC + o1[1], hz - BV), (o0[0], YC + o0[1], hz - BV)], side)
+        m.face([(i1[0], YC + i1[1], h - SOIL_DROP), (i0[0], YC + i0[1], h - SOIL_DROP), (i0[0], YC + i0[1], hz), (i1[0], YC + i1[1], hz)],
                mix(P['stone_inner'], P['stone_side'], 0.4 if ny > 0 else 0.0))
+        # the block's ends (seen through the seam: dark)
+        for a_, b_ in ((o0, i0), (o1, i1)):
+            m.face([(a_[0], YC + a_[1], 0), (b_[0], YC + b_[1], 0), (b_[0], YC + b_[1], hz), (a_[0], YC + a_[1], hz)], P['stone_back'])
+    # the seams' dark floor, under the ring (what shows between two blocks)
+    for i in range(8):
+        a_, b_ = outer[i], inner[i]
+        m.face([(a_[0], YC + a_[1], 0.05), (b_[0], YC + b_[1], 0.05), (b_[0], YC + b_[1], h - 0.1), (a_[0], YC + a_[1], h - 0.1)], '#5a4f78')
     m.poly(inner, h - SOIL_DROP, P['soil'])
     # fallen leaves on the big planters' soil
     if name.startswith('big'):
@@ -264,7 +337,44 @@ def blob(m, centre, r, squash=0.8, detail=2):
     tmp.free()
 
 
-for k, t in enumerate(L['trees']):
+TM = J('art/temple_court/tree_mass.json') if HAS('art/temple_court/tree_mass.json') else None      # (tree_mass.py)
+
+
+def smooth_boundary(bm, iters=3):
+    bnd = {}
+    for e in bm.edges:
+        if len(e.link_faces) == 1:
+            a, b = e.verts; bnd.setdefault(a, []).append(b); bnd.setdefault(b, []).append(a)
+    for _ in range(iters):
+        new = {v: v.co.copy() for v in bnd}
+        for v, nb in bnd.items():
+            if len(nb) == 2: new[v] = v.co * 0.5 + (nb[0].co + nb[1].co) * 0.25
+        for v, c in new.items(): v.co = c
+
+
+for k, t in enumerate(L['trees'] if TM is not None else []):
+    # the trees as the frame shows them (tree_mass.py): the crown its outline and its traced leaf tones on the fitted volume, the trunk
+    # forking into its arms (the frame's: #746e97 lit, a darker shaded side)
+    root = bpy.data.objects.new(f'TREE_{k}_tree', None); sc.collection.objects.link(root)
+    tm = TM[k]; m = Mesh(f'TREE_{k}_trunk')
+    for j, arm in enumerate(tm['arms']):
+        path = [(x, YC + y, z) for x, y, z in arm]      # (its upper part back in the crown: tree_mass.py)
+        if j == 0: path = [(path[0][0], path[0][1], 0.0)] + path
+        # (the frame's trunk ~20 px across at the soil, its arms about half that)
+        tube(m, path, 0.55 if j == 0 else 0.27, 0.4 if j == 0 else 0.15, '#746e97', '#5f5a80')
+    m.done(root)
+    bm = bmesh.new(); col = bm.loops.layers.float_color.new('Col')
+    vs = [bm.verts.new((x, YC + y, z)) for x, y, z in tm['verts']]; tone_of = {v: tm['tones'][q] for v, q in zip(vs, tm['tone'])}
+    for q in tm['faces']:
+        try: f_ = bm.faces.new([vs[i] for i in q])
+        except ValueError: continue
+        f_.normal_update()
+        for loop in f_.loops: loop[col] = lin(tone_of[loop.vert])
+    smooth_boundary(bm)
+    me = bpy.data.meshes.new(f'TREE_{k}_crown'); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(f'TREE_{k}_crown', me); sc.collection.objects.link(o); me.materials.append(FLAT); o.parent = root
+
+for k, t in enumerate(L['trees'] if TM is None else []):
     root = bpy.data.objects.new(f'TREE_{k}_tree', None); sc.collection.objects.link(root)
     fx, fy = t['foot']; cx, cy, cz = t['crown']; r = t['r']
     m = Mesh(f'TREE_{k}_trunk')
@@ -466,14 +576,16 @@ def face_eyes(m, x, y, z, w):
 for st in L['statues']:
     m = Mesh(f'STATUE_{st["kind"]}')
     x, y = st['x'], st['y']; z0 = S['h']
+    # (round, as the frame's: soft shading across; and each throws its shadow over the slab, south-west, as the frame's at 3x)
+    m.poly([(x - 0.3, y + 0.05), (x + 0.3, y - 0.05), (x - 2.4, y - 1.5), (x - 3.0, y - 1.3)], z0 + 0.012, '#9584b6')
     if st['kind'] == 'fork':
-        box(m, x, y, 0.28, 0.25, z0, z0 + 4.2, P['fork'], P['fork'], P['fork_dark'])
+        tube(m, [(x, YC + y, z0), (x, YC + y, z0 + 4.2)], 0.3, 0.3, P['fork'], P['fork_dark'], seg=12)
         box(m, x, y, 0.85, 0.25, z0 + 4.2, z0 + 4.8, P['fork'], P['fork'], P['fork_dark'])
         for dx in (-0.72, -0.24, 0.24, 0.72):
             box(m, x + dx, y, 0.12, 0.2, z0 + 4.8, z0 + 6.4, P['fork'], P['fork'], P['fork_dark'])
         face_eyes(m, x, y, z0 + 5.4, 0.5)
     else:
-        box(m, x, y, 0.38, 0.38, z0, z0 + 2.4, P['handle'], P['handle'], '#563a2e')
+        tube(m, [(x, YC + y, z0), (x, YC + y, z0 + 2.4)], 0.4, 0.4, P['handle'], '#563a2e', seg=12)
         blade = [(x - 0.45, z0 + 2.4), (x + 0.5, z0 + 2.4), (x + 0.55, z0 + 5.6), (x - 0.05, z0 + 6.6), (x - 0.45, z0 + 5.4)]
         for yy, c in ((y - 0.15, P['blade']), (y + 0.15, P['blade'])):
             m.face([(bx_, YC + yy, bz) for bx_, bz in (blade if yy > y else blade[::-1])], c)

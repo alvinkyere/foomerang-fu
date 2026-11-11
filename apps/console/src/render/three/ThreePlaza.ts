@@ -49,6 +49,7 @@ import { flashAt, frameAt, parsePortalSpin, ringAt, spinAt, type PortalSpin } fr
 import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
 import { parsePlantGroups, type FireSource, type Pusher } from '../hexPlants';
 import { HexPlantsView } from './hexPlantsView';
+import { sceneryMotion } from './sceneryMotion';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1374,8 +1375,10 @@ class Plaza {
           ? 'leave'
           : 'shared',
     );
+    // (a map whose HQ never turns its trees see-through keeps them solid: sceneryMotion.ts)
+    const scenery = sceneryMotion(manifest);
     for (const root of gltf.children) {
-      if (FADEABLE.test(root.name)) {
+      if (scenery.fade && FADEABLE.test(root.name)) {
         const materials: THREE.Material[] = [];
         root.traverse((o) => {
           if (o instanceof THREE.Mesh) {
@@ -1398,7 +1401,7 @@ class Plaza {
     this.#marks = new GroundMarks(this.scene);
     this.#closing = new ClosingBorder(this.scene);
     this.flipbooks = new Flipbooks(this.scene);
-    this.#animate(gltf);
+    this.#animate(gltf, scenery.sway);
     this.#banner = document.createElement('div');
     Object.assign(this.#banner.style, {
       position: 'absolute',
@@ -1431,14 +1434,17 @@ class Plaza {
     this.renderer.domElement.style.marginTop = `${Math.max(0, (h0 - (w * CANVAS.height) / CANVAS.width) / 2)}px`;
   }
 
-  /** The plaza's own motion: pennants swing on the rope, canopies sway on their legs, the round tree breathes, water ripples. */
-  #animate(gltf: THREE.Group): void {
+  /**
+   * The plaza's own motion: pennants swing on the rope, canopies sway on their legs, the round tree breathes, water ripples. A map
+   * whose scenery stands still (`sway` false: sceneryMotion.ts) keeps only its water.
+   */
+  #animate(gltf: THREE.Group, sway: boolean): void {
     const T = 4000;
     const wave = (amp: number, phase: number, t: number, speed = 1) =>
       amp * (Math.sin((2 * Math.PI * speed * t) / T + phase) - Math.sin(phase));
     const box = new THREE.Box3();
     let pennant = 0;
-    for (const root of [...gltf.children]) {
+    for (const root of sway ? [...gltf.children] : []) {
       if (root.name.startsWith('BUNTING_pennant')) {
         box.setFromObject(root);
         const top = new THREE.Vector3(
