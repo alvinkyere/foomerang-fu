@@ -22,7 +22,7 @@ flat = cv2.warpPerspective(M, Hm, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INV
 seen = cv2.warpPerspective(np.full(M.shape[:2], 255, np.uint8), Hm, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP) > 0
 seen = cv2.erode(seen.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
 hsv = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV).astype(int); lab = cv2.cvtColor(flat, cv2.COLOR_BGR2Lab).astype(int)
-plain = seen & (hsv[..., 0] >= 14) & (hsv[..., 0] <= 34) & (hsv[..., 1] >= 70) & (lab[..., 0] >= 212)
+plain = seen & (hsv[..., 0] >= 12) & (hsv[..., 0] <= 34) & (hsv[..., 1] >= 70) & (lab[..., 0] >= 165)      # (L from 165: the apricot ground east of the walls in the late light, 2026-11-11)
 nx, ny = int((X1 - X0) / DX) + 1, int((Y1 - Y0) / DX) + 1
 F = np.full((ny, nx, 3), np.nan)
 for j in range(ny):

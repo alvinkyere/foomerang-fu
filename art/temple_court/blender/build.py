@@ -482,18 +482,31 @@ def wing(w):
 for w in L['wings']: wing(w)
 
 for k, (x, y) in enumerate(L['towers']):
+    # the corner caps as the HQ's (the round's mosaic, 3x): no tower, a small red gabled house on the corner of the walls: a red block on
+    # the wall's top, a steep gable roof whose ridge runs east-west, each gable end a cream triangle framed in dark timber, a dark post
+    # standing up from the ridge
     m = Mesh(f'TOWER_{k}')
-    s = 0.75; z1 = PH + WH + 1.5
-    box(m, x, y, s + 0.3, s + 0.3, 0, PH, P['stone_top'], P['stone_side'], P['stone_back'])
-    box(m, x, y, s, s, PH, z1, P['timber'], P['shoji'], P['shoji_shade'])
-    for dx, dy in ((-s, -s), (s, -s), (-s, s), (s, s)):
-        box(m, x + dx * 0.95, y + dy * 0.95, 0.09, 0.09, PH, z1, P['timber'], P['timber'])
-    box(m, x, y, s + 0.03, s + 0.03, z1 - 0.9, z1 - 0.75, P['timber'], P['timber'])
-    r = s + 0.55; zt = z1 + 1.2
-    base = [(x - r, y - r), (x + r, y - r), (x + r, y + r), (x - r, y + r)]
-    for i in range(4):
-        a, b = base[i], base[(i + 1) % 4]
-        m.face([(a[0], YC + a[1], z1), (b[0], YC + b[1], z1), (x, YC + y, zt)], P['roof'] if i in (0, 1) else P['roof_dark'], flip_up=True)
+    s = 0.95; zb = PH + WH; zc = zb + 3.0; zr = zc + 1.8      # (the gables' windows ~10 up: the mosaic's caps through the camera)
+    box(m, x, y, 0.45, 0.45, PH, zb, P['timber'], P['timber'])      # (the corner post the walls meet at)
+    box(m, x, y, s, s, zb, zc, P['roof_light'], P['roof'], P['roof_dark'])
+    for zz in (zb + 0.9, zb + 2.1):      # (dark timber bands round the red body)
+        box(m, x, y, s + 0.02, s + 0.02, zz, zz + 0.16, P['timber'], P['timber'])
+    o = s + 0.25
+    for sx, col in ((1, P['roof_light']), (-1, P['roof_dark'])):
+        m.face([(x, YC + y - o, zr), (x, YC + y + o, zr), (x + sx * o, YC + y + o, zc - 0.1), (x + sx * o, YC + y - o, zc - 0.1)], col, flip_up=True)
+    for sy in (1, -1):
+        yy = y + sy * (o - 0.02)
+        tri = [(x - o, YC + yy, zc - 0.1), (x + o, YC + yy, zc - 0.1), (x, YC + yy, zr)]
+        m.face(tri if sy < 0 else tri[::-1], P['roof'])
+        # the gable's window: a dark frame, a cream triangle in it
+        yw = y + sy * (o + 0.01); k1, k2 = 0.62, 0.42
+        fr = [(x - o * k1, YC + yw, zc + 0.05), (x + o * k1, YC + yw, zc + 0.05), (x, YC + yw, zc + 0.05 + (zr - zc) * 0.78)]
+        m.face(fr if sy < 0 else fr[::-1], P['timber'])
+        yw2 = y + sy * (o + 0.02); zt = zc + 0.05 + (zr - zc) * 0.78
+        cr = [(x - o * k2, YC + yw2, zc + 0.2), (x + o * k2, YC + yw2, zc + 0.2), (x, YC + yw2, zt - 0.28)]
+        m.face(cr if sy < 0 else cr[::-1], P['shoji'])
+    box(m, x, y, o + 0.02, 0.1, zr - 0.05, zr + 0.12, P['ridge'], P['ridge'])
+    box(m, x + 0.25, y, 0.14, 0.14, zr, zr + 1.0, P['timber'], P['timber'], P['beam_dark'])
     m.done()
 
 # the east wall's arch gate: posts each side of the lane, a curved red roof over it
@@ -627,6 +640,11 @@ for k, (x, y) in enumerate(L['stone_lanterns']):
     m.done()
 
 # ------------------------------------------------------------------------------------------------------------------------ outskirts
+# the big navy block behind the north-east corner (the round's mosaic: its foot on the ochre ground from (32.9, 19.4) to (37.8, 21.8),
+# its top ~8 up; its tones k-means of its pixels: #5b5c95 sides, #4b4c79 the shaded, a lighter top)
+m = Mesh('NAVY_BLOCK')
+stone(m, [(28.0, 21.0), (44.0, 21.0), (44.0, 31.0), (28.0, 31.0)], 0, 8.0, 0.9, 0.35, top='#6d6eb0', side='#5b5c95', back='#4b4c79')
+m.done()
 # big autumn trees round the court (layout.py OUTER_TREES): a lavender trunk, a soft crown of red or golden lumps, leaves under it
 CROWNS = dict(red=['#f26a55', '#e8584d', '#d64a47', '#c03f45'], gold=['#f6c45c', '#eeb24f', '#e2a046', '#cf8e40'])
 for k, t in enumerate(L['outer_trees']):
