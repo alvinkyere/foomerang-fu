@@ -139,7 +139,7 @@ describe('every match is on a different map, always', () => {
     expect(c.runtime.arena()).toBe('hedge_maze');
   });
 
-  it('the product rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow and the temple court: never the same map twice running', async () => {
+  it('the product rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow, the temple court and the bridge islands: never the same map twice running', async () => {
     expect(PRODUCT_POOL).toEqual([
       'market_plaza',
       'gong_islands',
@@ -148,6 +148,7 @@ describe('every match is on a different map, always', () => {
       'autumn_glade',
       'hex_meadow',
       'temple_court',
+      'bridge_islands',
     ]);
     const c = await console('product');
     const seen: (string | undefined)[] = [];

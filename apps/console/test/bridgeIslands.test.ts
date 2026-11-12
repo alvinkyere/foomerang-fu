@@ -5,7 +5,7 @@ import { PRODUCT_POOL } from '../src/runtime/mapRotation';
 import { productArena } from '../src/runtime/powerupMode';
 import { rendererKindFor } from '../src/render/rendererKind';
 
-// The lily island (art/bridge_islands, the HQ's foomerang-fu physics hq.mp4 10:37): tested at ?arena=island, outside the rotation
+// The lily island (art/bridge_islands, the HQ's foomerang-fu physics hq.mp4 10:37): in the rotation since 2026-11-11, and at ?arena=bridge
 // (the owner, 2026-10-30), on the plaza's renderer, its camera fixed on the whole island.
 
 const scale = JSON.parse(
@@ -19,9 +19,9 @@ const manifest = JSON.parse(
 };
 
 describe('the lily island', () => {
-  it('is chosen by ?arena=bridge and is not in the rotation', () => {
+  it('is chosen by ?arena=bridge and is in the rotation (owner, 2026-11-11: "now put this in the rotation")', () => {
     expect(productArena('?arena=bridge')).toBe('bridge_islands');
-    expect(PRODUCT_POOL).not.toContain('bridge_islands');
+    expect(PRODUCT_POOL).toContain('bridge_islands');
   });
 
   it('is drawn by the plaza’s renderer', () => {
