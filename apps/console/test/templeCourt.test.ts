@@ -14,10 +14,10 @@ import { parsePlantGroups } from '../src/render/hexPlants';
 const dir = join(__dirname, '..', 'public', 'maps', 'temple_court');
 
 describe('the temple court', () => {
-  it('is chosen by ?arena=temple, drawn by the plaza’s renderer, a named playable arena outside the rotation', () => {
+  it('is chosen by ?arena=temple, drawn by the plaza’s renderer, a named playable arena in the rotation', () => {
     expect(productArena('?arena=temple')).toBe('temple_court');
     expect(productArena('?arena=temple_court')).toBe('temple_court');
-    expect(PRODUCT_POOL).not.toContain('temple_court');
+    expect(PRODUCT_POOL).toContain('temple_court'); // (owner, 2026-11-11: "put this in the rotation")
     expect(rendererKindFor('temple_court')).toBe('three');
     expect(PLAYABLE_ARENAS.temple_court.arena).toBe(TEMPLE_COURT_ARENA);
     expect(PLAYABLE_ARENAS.temple_court.named).toBe(true);

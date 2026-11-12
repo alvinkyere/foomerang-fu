@@ -21,6 +21,7 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
     'lily_island',
     'autumn_glade',
     'hex_meadow',
+    'temple_court',
   ];
   const played = async (): Promise<string | null> => {
     await expect.poll(async () => product.includes((await host.snapshot()).arena ?? '')).toBe(true);
@@ -81,6 +82,7 @@ test('the product plays the rotation by default, a new map every round (no ?aren
     'lily_island',
     'autumn_glade',
     'hex_meadow',
+    'temple_court',
   ];
   const first = (await host.snapshot()).arena;
   expect(product).toContain(first);
