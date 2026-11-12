@@ -27,6 +27,7 @@ const session = createControllerSession({
       search: window.location.search,
       protocol: window.location.protocol,
       hostname: window.location.hostname,
+      port: window.location.port,
       envUrl: import.meta.env['VITE_SERVER_URL'] as string | undefined,
       allowOverride: import.meta.env.DEV,
     }),

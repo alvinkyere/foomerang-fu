@@ -39,3 +39,14 @@ alternative renderers (three.js for the plaza, Phaser for every other map), and 
 ## Not dependencies (tools run outside the repository)
 
 During verification, a throwaway QR decoder and the system `openssl` were used to check the QR pixels and to create throwaway TLS certificates for tests. Neither is a repository dependency; `openssl` is required by the TLS tests and the TLS E2E variant (present on macOS and the CI image).
+
+## Deployment images (2026-11-12; `Dockerfile`, `render.yaml`)
+
+The game is deployed on Render as one Docker web service (owner, 2026-11-12): Caddy serves the TV page (`/`) and the phone page
+(`/controller`) and passes `/socket.io` to the game server on localhost; Render terminates TLS. No package is added to the
+workspace; two base images are used, pinned by version to releases outside the package-age window:
+
+| Image | Version | Why | Registry facts |
+| ----- | ------- | --- | -------------- |
+| `node` | `24.22.0-bookworm-slim` | builds the apps (pnpm via corepack) and runs the server; the same major as development (Node 24) | 24.22.0 published 2026-10-21 (24.22.1–24.22.3 since are inside the window) |
+| `caddy` | `2.11.7-alpine` (its binary only) | the one public door: static files and the WebSocket proxy, no configuration in the app | v2.11.7 released 2026-10-03; v2.11.8 (2026-11-04) and v2.11.9 (2026-11-05) are inside the window |

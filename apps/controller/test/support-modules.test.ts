@@ -46,6 +46,19 @@ describe('which server to talk to', () => {
     );
   });
 
+  it('a page served without a port (one deployment, behind a proxy: Render) finds the server at its own address', () => {
+    expect(
+      resolveServerUrl({
+        ...base,
+        protocol: 'https:',
+        hostname: 'foomerang.onrender.com',
+        port: '',
+      }),
+    ).toBe('https://foomerang.onrender.com');
+    // (a page on a port, as in development on the LAN, still means the server's own port)
+    expect(resolveServerUrl({ ...base, port: '5173' })).toBe('http://192.168.1.20:3001');
+  });
+
   it('honours an explicit build-time URL', () => {
     expect(resolveServerUrl({ ...base, envUrl: 'https://api.example:8443' })).toBe(
       'https://api.example:8443',

@@ -1,0 +1,26 @@
+# Render: plain HTTP on $PORT (Render terminates TLS); one address for everything.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:{$PORT:10000} {
+	encode zstd gzip
+	# the game server (WebSocket only)
+	handle /socket.io* {
+		reverse_proxy 127.0.0.1:3001
+	}
+	# the phone page (built with base /controller/; the QR link is /controller?room=XXXXXX)
+	handle_path /controller* {
+		root * /app/apps/controller/dist
+		try_files {path} /index.html
+		file_server
+	}
+	# the TV page
+	handle {
+		root * /app/apps/console/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

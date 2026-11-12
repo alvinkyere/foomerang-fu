@@ -1,0 +1,11 @@
+# Render Blueprint: Foomerang Fu as ONE web service (Dockerfile): the TV page at /, the phone page at /controller, the game server
+# at /socket.io. Free plan: it sleeps after 15 minutes with nobody connected (the first visit then waits about a minute).
+services:
+  - type: web
+    name: foomerang
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeployTrigger: commit

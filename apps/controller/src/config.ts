@@ -14,6 +14,8 @@ export interface ServerUrlInputs {
   readonly search: string;
   readonly protocol: string;
   readonly hostname: string;
+  /** The page's own port ('' when served on the default port: one deployment behind a proxy, the server at the same address). */
+  readonly port?: string;
   /** A build-time URL (`VITE_SERVER_URL`), if configured. */
   readonly envUrl: string | undefined;
   /** Only development builds honour `?server=`: a link must not be able to repoint a production controller. */
@@ -33,7 +35,8 @@ function httpOrigin(value: string): string | undefined {
 
 /**
  * Where the server is. Default: port 3001 on the machine that served this page — which is exactly
- * right for a phone loading the controller from a dev laptop over the LAN.
+ * right for a phone loading the controller from a dev laptop over the LAN; a page served on the default port (a deployment,
+ * everything behind one proxy) uses its own address.
  */
 export function resolveServerUrl(inputs: ServerUrlInputs): string {
   if (inputs.allowOverride) {
@@ -44,5 +47,7 @@ export function resolveServerUrl(inputs: ServerUrlInputs): string {
   if (inputs.envUrl !== undefined && inputs.envUrl !== '') {
     return httpOrigin(inputs.envUrl) ?? inputs.envUrl.replace(/\/+$/, '');
   }
+  // served without a port: deployed as one (Render: the pages and the server behind one proxy), so the server is at this address
+  if (inputs.port === '') return `${inputs.protocol}//${inputs.hostname}`;
   return `${inputs.protocol}//${inputs.hostname}:${DEFAULT_SERVER_PORT}`;
 }

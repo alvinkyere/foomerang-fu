@@ -1,0 +1,14 @@
+# Only what the build needs (the apps, the game, the packages): no art work area, docs, reference videos or local builds.
+.git
+**/node_modules
+**/dist
+**/dist-tv
+**/.turbo
+/art
+/docs
+/*.mp4
+/*.jpg
+/*.avif
+environ2 assets
+certs
+.vercel
