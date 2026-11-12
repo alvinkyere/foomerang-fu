@@ -39,7 +39,7 @@ manifest = {
     # (1.4% of the water), three thin ribbons as the lily island's
     # the moat's water as the round shows it (stabilised 8-12 s): a calm blue, a few pale spindle-shaped streaks 0.5-1.4 units off the
     # banks that come and go over about a second (no foam hugging the banks), a faint darker dashed line down the channel's middle
-    'water': {'base': '#5a96d9', 'light': '#62a0e0', 'foam': '#9fdcf7', 'glowWidth': 0.5, 'foamSpacing': 1.0, 'foamWidth': 0.2,
+    'water': {'base': '#64a8e8', 'light': '#64a8e8', 'foam': '#9fdcf7', 'glowWidth': 0.5, 'foamSpacing': 1.0, 'foamWidth': 0.2,
               'foamReach': 1.0, 'drift': 0.07,
               'cartoon': {'fps': 1.0, 'wobble': 0.08, 'scale': 0.7, 'wobbleScale': 0.85, 'presence': [0.62, 0.78], 'motion': 0.6, 'glow': 0.12,
                           'ribbons': [{'centre': 0.85, 'width': 0.14, 'sway': 0.25}]}},

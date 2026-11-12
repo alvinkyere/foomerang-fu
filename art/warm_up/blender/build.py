@@ -28,7 +28,7 @@ sc = bpy.context.scene
 WATER_Z = -0.95           # (the far banks' lavender faces: ~15 px tall at the frame's middle)
 RIM = 0.4                 # (the kerb's light top, as wide on every bank)
 GLOW = 0.5                # (the grass's pale green glow along every bank)
-COL = dict(rim='#a3b8e6', face='#8794d2', water='#5a96d9', glow='#c3ec9f')
+COL = dict(rim='#a6b4e9', face='#8694d1', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
 
 
 def lin(h):
@@ -63,9 +63,11 @@ class Mesh:
         for loop, c in zip(f.loops, cs): loop[self.col] = lin(c) if isinstance(c, str) else c
         return f
 
-    def poly(self, pts2, z, colour):
-        vs = [self.bm.verts.new((x, YC + y, z)) for x, y in pts2]
-        for tri in tessellate_polygon([[Vector((x, y, 0)) for x, y in pts2]]):
+    def poly(self, pts2, z, colour, holes=()):
+        loops = [pts2] + [h for h in holes]
+        flat_ = [p for lp in loops for p in lp]
+        vs = [self.bm.verts.new((x, YC + y, z)) for x, y in flat_]
+        for tri in tessellate_polygon([[Vector((x, y, 0)) for x, y in lp] for lp in loops]):
             try: f = self.bm.faces.new([vs[i] for i in tri])
             except ValueError: continue
             f.normal_update()
@@ -112,7 +114,7 @@ for j in range(ny):
 g.done()
 sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
-    sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'])
+    sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'], s.get('holes', []))
 sh.done()
 
 
@@ -153,6 +155,13 @@ for key, island in (('outer', False), ('inner', True)):
         # the kerb's top (over the grass's ragged hole) and its face down to the water
         m.face([(P0[i].x, YC + P0[i].y, 0.02), (P0[j].x, YC + P0[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[i].x, YC + Pr[i].y, 0.02)], COL['rim'])
         m.face([(Pr[i].x, YC + Pr[i].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, WATER_Z), (Pr[i].x, YC + Pr[i].y, WATER_Z)], COL['face'])
+        # the bright line where a far wall (its face turned to the camera: the water south of it) meets the water (frame 0.0 s: 1-2 px
+        # of #aee0fe under the face)
+        dwat = (Pr[i] - P0[i]); dwat = dwat.normalized() if dwat.length > 1e-6 else dwat
+        if dwat.y < -0.3:
+            Pw = [Pr[i] + dwat * 0.09, Pr[j] + (Pr[j] - P0[j]).normalized() * 0.09]
+            m.face([(Pr[i].x, YC + Pr[i].y, WATER_Z + 0.01), (Pr[j].x, YC + Pr[j].y, WATER_Z + 0.01), (Pw[1].x, YC + Pw[1].y, WATER_Z + 0.01),
+                    (Pw[0].x, YC + Pw[0].y, WATER_Z + 0.01)], COL['line'])
 m.done()
 w = Mesh('FOUNTAIN_water')
 outer_w = offset(MOAT['outer'], RIM, False); inner_w = offset(MOAT['inner'], RIM, True)
@@ -255,7 +264,7 @@ bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'warm_up.glb'), export_form
                           export_lights=False, export_apply=True, export_yup=True)
 if WIDE:      # (the mosaic has no pens: the round opened them)
     for o in bpy.data.objects:
-        if o.name.startswith('PEN_'): o.hide_render = True
+        if o.name.startswith(('PEN_', 'CARD_')): o.hide_render = True      # (and no cards: cards.py traces against it)
 if RENDER:
     try: sc.render.engine = 'BLENDER_EEVEE_NEXT'
     except TypeError: sc.render.engine = 'BLENDER_EEVEE'

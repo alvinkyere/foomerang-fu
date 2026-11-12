@@ -32,6 +32,7 @@ r = cv2.imread(sys.argv[1]); m = cv2.imread('art/warm_up/output/mosaic_chrome.pn
 d = np.abs(r.astype(int) - m.astype(int)).max(2)
 h = cv2.cvtColor(m, cv2.COLOR_BGR2HSV).astype(int)
 teal = (h[..., 0] >= 68) & (h[..., 0] <= 92) & (h[..., 1] >= 60) & (h[..., 2] >= 140)
+water = (h[..., 0] >= 96) & (h[..., 0] <= 112) & (h[..., 1] >= 90)            # (the moat's water: never part of an object)
 cam = _C * 100
 VIEW = _R.T @ np.array([0.0, 0.0, 1.0])
 
@@ -43,7 +44,7 @@ def ray(px, py):
 
 out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
-    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal)[y0:y1, x0:x1]
+    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water)[y0:y1, x0:x1]
     mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue

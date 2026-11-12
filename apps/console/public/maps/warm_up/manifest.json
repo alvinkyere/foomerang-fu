@@ -65,8 +65,8 @@
     "maxZoom": 1.3989
   },
   "water": {
-    "base": "#5a96d9",
-    "light": "#62a0e0",
+    "base": "#64a8e8",
+    "light": "#64a8e8",
     "foam": "#9fdcf7",
     "glowWidth": 0.5,
     "foamSpacing": 1.0,
