@@ -132,6 +132,11 @@ export interface FuConfig {
    */
   readonly roundAdvance?: 'AUTO' | 'ON_CONTINUE';
   /**
+   * A practice round (the warm-up at the start of every match, the HQ foomerang-fu physics hq.mp4 0:00-0:31): kills in it count for nothing.
+   * Continuing to the next round's arena ends it. Absent: the round counts.
+   */
+  readonly practice?: boolean;
+  /**
    * Each round opens with the reference video's intro (0:30.96–0:33.8: the characters land one by one, READY, then GO):
    * nobody moves or acts for this long, seconds. Absent or 0: a round starts at once. The console sets the measured 2.84.
    */

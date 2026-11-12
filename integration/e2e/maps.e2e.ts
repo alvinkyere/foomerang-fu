@@ -22,6 +22,7 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
     'autumn_glade',
     'hex_meadow',
     'temple_court',
+    'bridge_islands',
   ];
   const played = async (): Promise<string | null> => {
     await expect.poll(async () => product.includes((await host.snapshot()).arena ?? '')).toBe(true);
@@ -65,7 +66,7 @@ test('every round is on another map: CONTINUE on the scoreboard brings up the ot
   expect((await host.snapshot()).game?.round).toBe(2);
 });
 
-test('the product plays the rotation by default, a new map every round (no ?arena=: the owner, 2026-10-27)', async ({
+test('the product opens every match with the warm-up, then plays the rotation, a new map every round (no ?arena=: the owner, 2026-10-27, 2026-11-12)', async ({
   hostAt,
 }) => {
   test.setTimeout(240_000);
@@ -83,9 +84,10 @@ test('the product plays the rotation by default, a new map every round (no ?aren
     'autumn_glade',
     'hex_meadow',
     'temple_court',
+    'bridge_islands',
   ];
   const first = (await host.snapshot()).arena;
-  expect(product).toContain(first);
+  expect(first).toBe('warm_up'); // every match opens with the warm-up, the practice round (owner, 2026-11-12)
   await expect(host.continueButton).toBeVisible({ timeout: 120_000 });
   await host.continueButton.click();
   await expect.poll(async () => (await host.snapshot()).game?.round).toBe(2);

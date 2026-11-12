@@ -108,6 +108,7 @@ describe('every match is on a different map, always', () => {
     const c = await console('product');
     await c.enter('PLAYING');
     const first = c.runtime.arena();
+    expect(first).toBe('warm_up'); // (every match opens with the warm-up: owner, 2026-11-12)
     // the match's runtime, stood on its scoreboard (the real one gets there only after a kill)
     const continued: (string | undefined)[] = [];
     const real = c.runtime.director.runtime;
@@ -122,6 +123,7 @@ describe('every match is on a different map, always', () => {
     }
     expect(continued).toEqual(seen.slice(1)); // the rules are told the map the screen is
     for (let i = 1; i < seen.length; i += 1) expect(seen[i]).not.toBe(seen[i - 1]);
+    for (const m of seen.slice(1)) expect(PRODUCT_POOL).toContain(m); // (after the warm-up: the rotation)
     expect(c.changes).toEqual(seen);
   });
 
@@ -139,7 +141,7 @@ describe('every match is on a different map, always', () => {
     expect(c.runtime.arena()).toBe('hedge_maze');
   });
 
-  it('the product rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow, the temple court and the bridge islands: never the same map twice running', async () => {
+  it('every product match opens with the warm-up, then rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow, the temple court and the bridge islands: never the same map twice running', async () => {
     expect(PRODUCT_POOL).toEqual([
       'market_plaza',
       'gong_islands',
@@ -151,13 +153,11 @@ describe('every match is on a different map, always', () => {
       'bridge_islands',
     ]);
     const c = await console('product');
-    const seen: (string | undefined)[] = [];
-    for (let i = 0; i < 6; i += 1) {
+    // every match opens with the warm-up (owner, 2026-11-12: the practice round at the start of every match), then the rotation
+    for (let i = 0; i < 3; i += 1) {
       await c.enter('PLAYING');
-      seen.push(c.runtime.arena());
+      expect(c.runtime.arena()).toBe('warm_up');
       await c.enter('LOBBY');
     }
-    for (const m of seen) expect(PRODUCT_POOL).toContain(m);
-    for (let i = 1; i < seen.length; i += 1) expect(seen[i]).not.toBe(seen[i - 1]);
   });
 });

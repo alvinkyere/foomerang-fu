@@ -99,7 +99,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
         : options.arena === 'rotate'
           ? rotation.next()
           : options.arena === 'product'
-            ? product.next()
+            ? 'warm_up' // every match opens with the warm-up, the practice round (owner, 2026-11-12); its CONTINUE goes to the rotation
             : options.arena;
     arena = choice;
     for (const listener of [...arenaListeners]) listener();

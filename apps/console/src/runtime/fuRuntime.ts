@@ -22,6 +22,7 @@ import {
   type FuEvent,
   type FuPlayerInput,
   type FuState,
+  WARM_UP_ARENA,
 } from '@foomerang/foomerang-fu';
 import type { RosterEntry } from '@foomerang/protocol';
 import type { PlayerAction } from '../host';
@@ -195,6 +196,8 @@ export class FuRuntime implements MatchRuntime {
         ...(this.#given === undefined ? {} : { startingPowers: this.#given }),
         ...FREE_FOR_ALL,
         roundAdvance: 'ON_CONTINUE', // the scoreboard waits for CONTINUE between rounds (owner, 2026-10-19)
+        // the warm-up is a practice round: its kills count for nothing; the match proper starts on the map its CONTINUE goes to
+        ...(this.#arena === WARM_UP_ARENA ? { practice: true } : {}),
         ...(this.#roundIntroSeconds > 0 ? { roundIntroSeconds: this.#roundIntroSeconds } : {}),
         ...(this.#targetKills === undefined ? {} : { targetKills: this.#targetKills }),
         // first to 14 kills wins at once; nine rounds are regulation, then overtime; what players own lasts until the match ends

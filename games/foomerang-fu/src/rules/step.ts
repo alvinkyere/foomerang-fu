@@ -519,7 +519,7 @@ export function continueRound(state: FuState, next?: NextArena): FuStepResult {
   if (next === undefined) return nextRound(state, state.elapsed);
   // every round on another map (the HQ videos): the next round is played on the arena CONTINUE names, with its Book spots
   const kept = Object.fromEntries(
-    Object.entries(state.config).filter(([key]) => key !== 'powerups'),
+    Object.entries(state.config).filter(([key]) => key !== 'powerups' && key !== 'practice'), // (the practice round ends here)
   ) as Omit<FuConfig, 'powerups'>;
   const config: FuConfig = Object.freeze({
     ...kept,
@@ -2357,10 +2357,12 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // 6b. The kill race (Slice 8): this step's deaths, in the order of the players, become changes of the meters.
   const scored = applyDeaths(
     state.scores,
-    survivors.flatMap((p) => {
-      const d = deathOf.get(p.id);
-      return d === undefined ? [] : [d];
-    }),
+    config.practice === true // (the warm-up: its kills count for nothing)
+      ? []
+      : survivors.flatMap((p) => {
+          const d = deathOf.get(p.id);
+          return d === undefined ? [] : [d];
+        }),
   );
   for (const change of scored.changes) events.push({ type: 'SCORE', ...change });
   const sides =
