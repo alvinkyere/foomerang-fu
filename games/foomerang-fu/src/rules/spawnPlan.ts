@@ -8,6 +8,7 @@ import {
   breakablesOf,
   fencesOf,
   type FuArena,
+  inBorderFrame,
 } from './arena';
 import type { FuConfig } from './config';
 import { spawnPosition } from './spawn';
@@ -55,10 +56,10 @@ function floorOf(arena: FuArena, radius: number): readonly Vec2[] {
   const zone = arena.safeZone ?? { x: 0, y: 0, width: arena.width, height: arena.height };
   const margin = radius + 4;
   const blocked = (p: Vec2): boolean =>
-    p.x - margin < zone.x ||
-    p.y - margin < zone.y ||
-    p.x + margin > zone.x + zone.width ||
-    p.y + margin > zone.y + zone.height ||
+    inBorderFrame(arena, p).x - margin < zone.x ||
+    inBorderFrame(arena, p).y - margin < zone.y ||
+    inBorderFrame(arena, p).x + margin > zone.x + zone.width ||
+    inBorderFrame(arena, p).y + margin > zone.y + zone.height ||
     // over ground a body's width all round (where falling kills)
     (arena.ground !== undefined &&
       [0, 1, 2, 3, 4, 5, 6, 7, 8].some(

@@ -71,6 +71,11 @@ export interface FuArena<W extends Solid = Solid> {
    */
   readonly safeZone?: Rect;
   /**
+   * The border turned about its middle (radians, clockwise on the screen, as walls turn): the warm-up's square border round its moat, at
+   * 45 degrees (the HQ, foomerang-fu physics hq.mp4 0:00). Absent: upright.
+   */
+  readonly safeZoneTurn?: number;
+  /**
    * Where there is ground (the sky islands' tops and bridges: owner, 2026-10-22): polygons of world points. A player whose
    * middle leaves every one of them falls and dies. Absent: ground everywhere.
    */
@@ -581,4 +586,16 @@ export function nearestWallNormal(p: Vec2, walls: readonly Solid[]): Vec2 | unde
   if (best === undefined || bestDistance === 0) return undefined;
   const c = closestPointOn(p, best);
   return { x: (p.x - c.x) / bestDistance, y: (p.y - c.y) / bestDistance };
+}
+
+/** A point turned into the frame of the arena's border (its `safeZoneTurn` undone about the border's middle): then the upright tests apply. */
+export function inBorderFrame(arena: FuArena, p: Vec2): Vec2 {
+  const turn = arena.safeZoneTurn ?? 0;
+  const zone = arena.safeZone;
+  if (turn === 0 || zone === undefined) return p;
+  const cx = zone.x + zone.width / 2;
+  const cy = zone.y + zone.height / 2;
+  const c = Math.cos(-turn);
+  const s = Math.sin(-turn);
+  return { x: cx + (p.x - cx) * c - (p.y - cy) * s, y: cy + (p.x - cx) * s + (p.y - cy) * c };
 }

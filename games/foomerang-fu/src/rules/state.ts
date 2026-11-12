@@ -96,7 +96,8 @@ export interface FuState {
   /** Per lever (every slider's, in order): whether something touched it on the last step, so a hit counts once as it begins. */
   readonly leverHot?: readonly boolean[];
   /** Who last shoved each player and till when (round seconds): a fall before then is the shover's kill (step.ts SHOVES). */
-  readonly shoves?: Readonly<Record<string, { readonly by: string; readonly until: number }>> | undefined;
+  readonly shoves?:
+    Readonly<Record<string, { readonly by: string; readonly until: number }>> | undefined;
   /** BATTLE_ROYALE: the round time it was taken at; the border has been closing in since (battleRoyale.ts). Absent: it is not. */
   readonly closingSince?: number;
   /** The ids of the arena's breakables broken this round, in the order they broke (a new round starts with none). */

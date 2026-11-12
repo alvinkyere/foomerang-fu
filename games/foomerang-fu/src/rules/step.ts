@@ -29,6 +29,7 @@ import {
   wallsOf,
   type Breakable,
   type Solid,
+  inBorderFrame,
 } from './arena';
 import { deflectionDirection } from './deflect';
 import { homeStep } from './homing';
@@ -59,7 +60,14 @@ import {
   type DeathCause,
   type ScoreChange,
 } from './scoring';
-import { SLIDER_HOME, advanceSlider, sliderBox, toggleSlider, type SliderState } from './sliders';
+import {
+  SLIDER_HOME,
+  advanceSlider,
+  sliderBox,
+  sliderDown,
+  toggleSlider,
+  type SliderState,
+} from './sliders';
 import { advanceSlash, inSlashRegion, SLASH_READY, startSlash, type SlashState } from './slash';
 import {
   awardPool,
@@ -756,7 +764,11 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   const sliderSpecs = config.arena.sliders ?? [];
   let sliders: SliderState[] = sliderSpecs.map((_, k) => state.sliders?.[k] ?? SLIDER_HOME);
   const sliderWalls = (): Solid[] =>
-    sliderSpecs.map((spec, k) => sliderBox(spec, (sliders[k] as SliderState).progress));
+    sliderSpecs.flatMap((spec, k) =>
+      sliderDown(spec, sliders[k] as SliderState)
+        ? [] // (a dropped pen wall: gone)
+        : [sliderBox(spec, (sliders[k] as SliderState).progress)],
+    );
   let walls: readonly Solid[] = [
     ...solidNow(staticWalls, gates, gatesShut),
     ...turntableWalls(config.arena, state.roundTime),
@@ -1026,7 +1038,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     sliderSpecs.forEach((spec, k) => {
       spec.levers.forEach((lever, j) => {
         const was = state.leverHot?.[at] === true;
-        if (hotNow[at] === true && !was) {
+        if (hotNow[at] === true && !was && !sliderDown(spec, sliders[k] as SliderState)) {
           const toggled = toggleSlider(sliders[k] as SliderState, spec);
           const by = hotBy[at];
           sliders[k] = by === undefined ? toggled : { ...toggled, by };
@@ -1189,6 +1201,7 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
     world = separateBodies(world, (id) => solid.has(id), bodyWalls);
     // CRUSHED: a living player a slab still overlaps after the push-out (pinned: there was nowhere to push them) dies, the lever puller's
     sliderSpecs.forEach((spec, k) => {
+      if (sliderDown(spec, sliders[k] as SliderState)) return;
       const box = sliderBox(spec, (sliders[k] as SliderState).progress);
       world.bodies.forEach((b) => {
         if (!solid.has(b.id) || crushed.has(b.id)) return;
@@ -2134,8 +2147,10 @@ function stepPlaying(state: FuState, inputs: FuInputs, dt: number): FuStepResult
   // The border: time outside the safe zone, continuous; at the limit the player explodes (no shield can stop it)
   // (Battle Royale: the border as it has closed in by the end of this step)
   const zone = zoneAt(config.arena, closingSince, state.roundTime + dt);
+  // (a turned border: the point turned back about the border's own middle, then the upright test)
+  const local = (q: Vec2): Vec2 => inBorderFrame(config.arena, q);
   const outsideFor = players.map((p) =>
-    zone === undefined || !p.alive || inRect(positionOf(p.id), zone)
+    zone === undefined || !p.alive || inRect(local(positionOf(p.id)), zone)
       ? 0
       : (state.players.find((q) => q.id === p.id)?.outsideFor ?? 0) + dt,
   );

@@ -133,3 +133,29 @@ describe('outside the dashed lines', () => {
     ).toThrow(/outsideLimitSeconds/);
   });
 });
+
+// The warm-up's border (the HQ, foomerang-fu physics hq.mp4 0:00): a square turned 45 degrees round the moat. `safeZoneTurn` turns the safe
+// zone about its middle (radians, clockwise on the screen, as walls turn).
+describe('a turned border', () => {
+  const TURNED: FuArena = Object.freeze({
+    ...ARENA,
+    safeZone: Object.freeze({ x: 500, y: 150, width: 600, height: 600 }),
+    safeZoneTurn: Math.PI / 4,
+  });
+  const turned = (): FuState =>
+    createFuMatch(
+      [
+        { id: 'a', slot: 0 },
+        { id: 'b', slot: 1 },
+      ],
+      { arena: TURNED, seed: 3 },
+    );
+  it('a point in the upright square’s corner but outside the turned one is outside', () => {
+    // (the corner (520, 170) of the upright square: from the middle (800, 450) 396 along the diagonal; the turned square's half is 300)
+    expect(player(run(put(turned(), 520, 170), 1).s, 'a').outsideFor).toBeGreaterThan(0.9);
+  });
+  it('a point past the upright square’s side but inside the turned one is inside', () => {
+    // (straight left of the middle by 400: past the upright square's side at 300, inside the turned one's corner at 424)
+    expect(player(run(put(turned(), 400, 450), 1).s, 'a').outsideFor).toBe(0);
+  });
+});

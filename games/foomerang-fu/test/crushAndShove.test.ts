@@ -36,9 +36,12 @@ const arena = (): FuArena => ({
   spawns: [150, 350, 550, 1100, 1220, 1340].map((y, i) => ({ x: i % 2 === 0 ? 150 : 400, y })),
   sliders: [A, B],
 });
-const world = (): FuState => place(place(make(['a', 'b'], { ...STRAIGHT, arena: arena() }), 'a', 150, 150), 'b', 400, 1300);
+const world = (): FuState =>
+  place(place(make(['a', 'b'], { ...STRAIGHT, arena: arena() }), 'a', 150, 150), 'b', 400, 1300);
 const hit = (events: readonly FuEvent[], victim: string) =>
-  events.find((e): e is Extract<FuEvent, { type: 'HIT' }> => e.type === 'HIT' && e.victimId === victim);
+  events.find(
+    (e): e is Extract<FuEvent, { type: 'HIT' }> => e.type === 'HIT' && e.victimId === victim,
+  );
 
 describe('the bridge as one: a hit sends it the other way, never pauses it', () => {
   it('a hit while it closes sends it back open at once', () => {
@@ -62,7 +65,13 @@ describe('the bridge as one: a hit sends it the other way, never pauses it', () 
 describe('crushed by the bridge', () => {
   it('a player pinned between the closing walls dies, CRUSHED, and the kill is the lever puller’s', () => {
     let s = place(world(), 'b', 1000, 750);
-    s = { ...s, sliders: [{ progress: 0.2, dir: 1, last: -1, aim: 1, by: 'a' }, { progress: 0.2, dir: 1, last: -1, aim: 1, by: 'a' }] };
+    s = {
+      ...s,
+      sliders: [
+        { progress: 0.2, dir: 1, last: -1, aim: 1, by: 'a' },
+        { progress: 0.2, dir: 1, last: -1, aim: 1, by: 'a' },
+      ],
+    };
     const r = run(s, 120);
     const h = hit(r.events, 'b');
     expect(player(r.state, 'b').alive).toBe(false);

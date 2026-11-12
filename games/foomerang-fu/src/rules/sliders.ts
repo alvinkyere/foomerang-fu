@@ -36,6 +36,11 @@ export interface SliderSpec {
    * to its original position or the other way round"). Every slider worked by the same levers then always agrees on where it is going.
    */
   readonly reverseOnHit?: boolean;
+  /**
+   * A pen's wall (the warm-up, the HQ foomerang-fu physics hq.mp4 0:00-0:06): a hit on its lever drops it at once, and it stays down (no longer
+   * solid) for the rest of the round; struck again, nothing comes back. `by` and `speed` are not used.
+   */
+  readonly drops?: boolean;
 }
 
 export interface SliderState {
@@ -62,9 +67,14 @@ export const sliderBox = (spec: SliderSpec, progress: number): TurnedBox => ({
   y: spec.wall.y + spec.by.y * progress,
 });
 
+/** A dropped pen wall: no longer anything (sliders.ts `drops`). */
+export const sliderDown = (spec: SliderSpec, s: SliderState): boolean =>
+  spec.drops === true && s.progress >= 1;
+
 /** A lever was hit (`spec`: its lag, if it has one). */
 export const toggleSlider = (s: SliderState, spec?: SliderSpec): SliderState => {
   const keep = s.by === undefined ? {} : { by: s.by };
+  if (spec?.drops === true) return { progress: 1, dir: 0, last: 1, ...keep };
   if (spec?.reverseOnHit === true) {
     const aim: -1 | 1 = (s.aim ?? (s.progress >= 0.5 ? 1 : -1)) === 1 ? -1 : 1;
     const there = aim === 1 ? s.progress >= 1 : s.progress <= 0;

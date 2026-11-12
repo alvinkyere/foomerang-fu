@@ -5,6 +5,7 @@ import {
   distanceToSolid,
   onGround,
   type FuArena,
+  inBorderFrame,
 } from './arena';
 import {
   SPAWN_RATES,
@@ -351,7 +352,7 @@ export function assertValidConfig(config: FuConfig): void {
       zone.y + zone.height > arena.height
     )
       throw new RangeError('the safe zone must lie inside the arena');
-    if (slots.some((slot) => !inRect(spawnPosition(slot, arena), zone)))
+    if (slots.some((slot) => !inRect(inBorderFrame(arena, spawnPosition(slot, arena)), zone)))
       throw new RangeError('every spawn must be inside the safe zone');
   }
   if (slots.some((slot) => !onGround(spawnPosition(slot, arena), arena)))
