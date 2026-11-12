@@ -39,6 +39,8 @@ stretch (121.05–122.6 s, frames registered), the HQ's crowns move under 1 px a
 **Last measured (2026-11-07, render vs the round's mosaic inside the READY frame, the names masked):** mean Lab difference
 7.5 (median 1.9); 23% of pixels over 10. At the start: 14.0 (median 10.6).
 
-**Known gaps:** the outskirts (beyond the border) are our own autumn trees placed where the round shows trees, not traced tree
-by tree; the planters' stones are uniform blocks (the HQ's are a little chunkier and uneven); the buildings' shoji panel layout
+**Since 2026-11-11:** in the rotation; corner caps as the HQ's (red gabled houses, cream gable windows), the apricot ground
+beyond the east walls, the navy block north-east.
+
+**Known gaps:** the outskirts' trees are our own autumn trees placed where the round shows trees, not traced tree by tree; the buildings' shoji panel layout
 is one pattern for every wing; the fork and knife are simple shapes (no bevels); no fallen leaves on the court's paving.
