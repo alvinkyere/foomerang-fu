@@ -112,7 +112,6 @@ for j in range(ny):
 g.done()
 sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
-    if all(in_moat(p) for p in s['pts'][:3]): continue
     sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'])
 sh.done()
 

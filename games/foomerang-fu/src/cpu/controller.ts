@@ -175,6 +175,11 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
  * the pen the rectangle its two long walls and two short walls enclose), or undefined.
  */
 export function penLever(state: FuState, here: Vec2): Vec2 | undefined {
+  return penOf(state, here)?.lever;
+}
+
+/** The pen `here` is walled in by (penLever), with the way along its length towards the lever (the pens cross the water at right angles). */
+export function penOf(state: FuState, here: Vec2): { lever: Vec2; along: Vec2 } | undefined {
   const specs = state.config.arena.sliders ?? [];
   for (let k = 0; k + 3 < specs.length; k += 4) {
     const group = specs.slice(k, k + 4);
@@ -189,7 +194,11 @@ export function penLever(state: FuState, here: Vec2): Vec2 | undefined {
     const dy = here.y - my;
     if (Math.abs(dx * cs - dy * sn) <= a.halfWidth && Math.abs(dx * sn + dy * cs) <= c.halfHeight) {
       const l = group[0]?.levers[0];
-      if (l !== undefined) return { x: l.x, y: l.y };
+      if (l !== undefined) {
+        const ax = { x: Math.cos(a.angle), y: Math.sin(a.angle) };
+        const sign = (l.x - here.x) * ax.x + (l.y - here.y) * ax.y >= 0 ? 1 : -1;
+        return { lever: { x: l.x, y: l.y }, along: { x: ax.x * sign, y: ax.y * sign } };
+      }
     }
   }
   return undefined;
@@ -222,6 +231,8 @@ export class CpuController {
   #sideSince = 0;
   /** A planned dash over water (nav.ts dash links): the point it means to land on, set by #goTo while that is the way. */
   #leap: Vec2 | undefined;
+  /** The leap out of a pen: a landing with its middle well on ground will do (a player falls only when its middle leaves it). */
+  #leapLoose = false;
   #leapSince = -9999;
   /** Its heading is a step of its plan (nav.ts: a free cell or a dash's launch), not a stale or a free-styled one. */
   #onPlan = false;
@@ -393,8 +404,14 @@ export class CpuController {
         const lands = [0, 1, 2, 3, 4, 5, 6, 7].every((k) =>
           onGround(
             {
-              x: here.x + to.x * full + Math.cos((k * Math.PI) / 4) * (r + LEAP_MARGIN),
-              y: here.y + to.y * full + Math.sin((k * Math.PI) / 4) * (r + LEAP_MARGIN),
+              x:
+                here.x +
+                to.x * full +
+                Math.cos((k * Math.PI) / 4) * (this.#leapLoose ? r * 0.4 : r + LEAP_MARGIN),
+              y:
+                here.y +
+                to.y * full +
+                Math.sin((k * Math.PI) / 4) * (this.#leapLoose ? r * 0.4 : r + LEAP_MARGIN),
             },
             arena,
             state.roundTime,
@@ -550,8 +567,9 @@ export class CpuController {
     }
 
     // 0b. walled in a pen (the warm-up: sliders.ts `drops`): get to its lever, across the water at the pen's far end, and strike it
-    const lever = penLever(state, here);
-    if (lever !== undefined) {
+    const pen = penOf(state, here);
+    const lever = pen?.lever;
+    if (pen !== undefined && lever !== undefined) {
       if (slashReady && dist(here, lever) < config.slashReach * 0.8) {
         out.slash = true;
         this.stats.slashes += 1;
@@ -571,8 +589,10 @@ export class CpuController {
           (k) => !onGround(at(config.playerRadius * k), state.config.arena, state.roundTime),
         )
       ) {
-        // (the water between: a planned leap, which steps up to the edge and goes when the landing is safe)
-        this.#leap = at(leap);
+        // (the water between: a planned leap straight along the pen, across the water at its narrowest, which steps up to the edge
+        // and goes when the landing is safe)
+        this.#leap = { x: here.x + pen.along.x * leap, y: here.y + pen.along.y * leap };
+        this.#leapLoose = true;
         this.#leapSince = this.#tick;
       }
       this.why = 'pen';
@@ -1117,6 +1137,7 @@ export class CpuController {
     if (landing !== undefined) {
       if (this.#leap === undefined) this.#leapSince = this.#tick;
       this.#leap = landing;
+      this.#leapLoose = false;
       this.#onPlan = true;
       this.#planned = this.#move;
       this.#move = norm(sub(landing, here));

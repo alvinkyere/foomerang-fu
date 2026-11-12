@@ -14,6 +14,9 @@ water = (h[..., 0] >= 96) & (h[..., 0] <= 112) & (h[..., 1] >= 90)
 lav = (h[..., 0] >= 112) & (h[..., 0] <= 135) & (h[..., 1] >= 40) & (h[..., 2] >= 120)
 # (the walls' faces only where they meet the water: the pens' walls left in the mosaic from the round's first frames are not the moat)
 ring = water | (lav & (cv2.dilate(water.astype(np.uint8), np.ones((31, 31), np.uint8)) > 0))
+# (where a hex field's pads hang over the water, the water goes on under them)
+teal = (h[..., 0] >= 66) & (h[..., 0] <= 92) & (h[..., 1] >= 50) & (h[..., 2] >= 130)
+ring = ring | (teal & (cv2.dilate(water.astype(np.uint8), np.ones((41, 41), np.uint8)) > 0))
 ring = cv2.morphologyEx(ring.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
 ring = cv2.morphologyEx(ring, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21)))
 n, lab, st, _ = cv2.connectedComponentsWithStats(ring); ring = (lab == 1 + int(np.argmax(st[1:, 4]))).astype(np.uint8)
@@ -58,10 +61,22 @@ def rectilinear(pts, step=0.6):
     return corners
 
 
+def soften(pts, r):
+    """Each corner cut by a short arc (5 points), up to `r` back along both runs (no more than a third of the shorter one)."""
+    P = [np.array(q, float) for q in pts]; n = len(P); out = []
+    for i in range(n):
+        a, b, c = P[i - 1], P[i], P[(i + 1) % n]
+        ra = min(r, np.linalg.norm(b - a) / 3, np.linalg.norm(c - b) / 3)
+        u, v = (a - b) / max(np.linalg.norm(a - b), 1e-9), (c - b) / max(np.linalg.norm(c - b), 1e-9)
+        p0, p2 = b + u * ra, b + v * ra
+        for t in np.linspace(0, 1, 5): out.append(tuple((1 - t) ** 2 * p0 + 2 * (1 - t) * t * b + t * t * p2))
+    return out
+
+
 out = {}
 for name, k in (('outer', outer), ('inner', inner)):
     p = plan([(x + OX, y + OY) for x, y in cs[k][:, 0, :]])
-    s = cv2.approxPolyDP(np.float32(p).reshape(-1, 1, 2), 0.12, True)[:, 0, :]      # (its measured outline: the HQ's corners are soft)
+    s = soften(rectilinear(cv2.approxPolyDP(np.float32(p).reshape(-1, 1, 2), 0.15, True)[:, 0, :], step=0.9), 0.45)      # (straight runs, soft corners: the HQ's)
     out[name] = [[round(float(x), 2), round(float(y), 2)] for x, y in s]
     print(name, len(cs[k]), 'px ->', len(s), 'corners')
 json.dump(out, open('art/warm_up/moat.json', 'w'))

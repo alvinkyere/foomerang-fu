@@ -39,7 +39,7 @@ red = ((Hu <= 10) | (Hu >= 165)) & (S >= 110) & (V >= 120)                      
 gold = (Hu >= 10) & (Hu <= 24) & (S >= 110) & (V >= 150)                             # (the gold trees)
 teal = (Hu >= 68) & (Hu <= 95) & (S >= 70) & (V >= 150)                              # (the hex fields' pads)
 lav = (Hu >= 105) & (Hu <= 150) & (S >= 35) & (V >= 90)                              # (trunks, the stump, the remains, pots)
-obj = (red | gold | teal | lav).astype(np.uint8)
+obj = (red | gold | lav).astype(np.uint8)
 obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), np.ones((9, 9), np.uint8))
 # boxes (plan x0, y0, x1, y1): what colour alone misses (bamboo, the trees' and fields' stems and shadows' feet, the names' smudges)
 BOXES = [(-40.5, 8, -34, 19),        # the bamboo and the names' smudges at the west edge
@@ -52,6 +52,10 @@ for x, y in ((-11.0, 2.8), (3.7, -13.7)): cv2.circle(cut, (int((x - X0) * PX), i
 cv2.circle(cut, (int((-3.5 - X0) * PX), int((Y1 - 4.0) * PX)), int(4.2 * PX), 1, -1)      # (the red tree and its fallen leaves)
 hole = ((cut > 0) | (obj > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
+# under the hex fields' pads (the game draws the pads, which hide this ground from the fixed camera): their shadow's colour, so the
+# shadow the frame shows south of them runs on under them unbroken
+padm = cv2.dilate(cv2.morphologyEx(teal.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8)), np.ones((5, 5), np.uint8)) > 0
+ground[padm] = (0x8b, 0xc0, 0x7e)
 
 # ---- the base: the plain grass (not in a patch, a shadow or the dark), blurred; then the shapes by their departure from it
 lab = cv2.cvtColor(ground, cv2.COLOR_BGR2Lab).astype(np.float32); L = lab[..., 0] * 100 / 255 * 2.55     # (OpenCV's L, 0-255)
@@ -78,6 +82,8 @@ d = L - cv2.cvtColor(np.clip(base, 0, 255).astype(np.uint8), cv2.COLOR_BGR2Lab)[
 d = cv2.GaussianBlur(d, (0, 0), 1.0)
 inside = cv2.erode(seen.astype(np.uint8), np.ones((31, 31), np.uint8)) > 0      # (no shapes along the mosaic's edge: the fill beyond it)
 d[~inside] = 0
+moat_only = np.zeros((Hh, W), np.uint8); cv2.fillPoly(moat_only, [to_px(moat['outer'])], 1); cv2.fillPoly(moat_only, [to_px(moat['inner'])], 0)
+d[moat_only > 0] = 0      # (no ground shape over the water)
 shapes = []
 k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 for li, lv in enumerate(LEVELS):

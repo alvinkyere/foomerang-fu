@@ -65,32 +65,27 @@
     "maxZoom": 1.3989
   },
   "water": {
-    "base": "#64a6e8",
-    "light": "#6aa9e6",
-    "foam": "#aad8f4",
-    "glowWidth": 0.6,
+    "base": "#5a96d9",
+    "light": "#62a0e0",
+    "foam": "#9fdcf7",
+    "glowWidth": 0.5,
     "foamSpacing": 1.0,
     "foamWidth": 0.2,
     "foamReach": 1.0,
     "drift": 0.07,
     "cartoon": {
-      "fps": 0.17,
-      "wobble": 0.22,
-      "scale": 0.95,
+      "fps": 1.0,
+      "wobble": 0.08,
+      "scale": 0.7,
       "wobbleScale": 0.85,
-      "presence": [0.12, 0.35],
-      "motion": 0.5,
-      "glow": 0.3,
+      "presence": [0.62, 0.78],
+      "motion": 0.6,
+      "glow": 0.12,
       "ribbons": [
         {
-          "centre": 0.45,
-          "width": 0.16,
-          "sway": 0.04
-        },
-        {
-          "centre": 0.9,
-          "width": 0.12,
-          "sway": 0.04
+          "centre": 0.85,
+          "width": 0.14,
+          "sway": 0.25
         }
       ]
     }
