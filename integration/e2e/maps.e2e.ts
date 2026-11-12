@@ -25,7 +25,17 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
     'bridge_islands',
   ];
   const played = async (): Promise<string | null> => {
-    await expect.poll(async () => product.includes((await host.snapshot()).arena ?? '')).toBe(true);
+    // (each match opens with the warm-up: its round plays out first, the CPUs getting out of their pens)
+    await expect
+      .poll(
+        async () => {
+          if (await host.continueButton.isVisible())
+            await host.continueButton.click({ timeout: 2_000, force: true }).catch(() => undefined);
+          return product.includes((await host.snapshot()).arena ?? '');
+        },
+        { timeout: 120_000 },
+      )
+      .toBe(true);
     await host.waitForDrawn(2);
     return (await host.snapshot()).arena;
   };
