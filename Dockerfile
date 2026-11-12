@@ -14,7 +14,11 @@ RUN VITE_BASE_URL=/controller/ pnpm --filter @foomerang/controller build \
 FROM caddy:2.11.7-alpine AS caddy
 
 FROM node:24.22.0-bookworm-slim
-COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
+# (the official binary carries a file capability for ports below 1024; a host that does not grant it, as Render, then refuses to
+# run it at all: "Operation not permitted". We listen on 10000, so it is copied without the capability: `install` copies the
+# bytes only)
+COPY --from=caddy /usr/bin/caddy /tmp/caddy
+RUN install -m 0755 /tmp/caddy /usr/local/bin/caddy && rm /tmp/caddy
 WORKDIR /app
 COPY --from=build /app /app
 ENV NODE_ENV=production
