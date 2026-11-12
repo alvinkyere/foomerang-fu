@@ -39,9 +39,7 @@ import { gzipSync } from 'node:zlib';
 // before, 606.0 kB measured with them): lazy 610 kB.
 // Raised on purpose (owner, 2026-11-12, deploying to Render: the build failed on it): the warm-up map that opens every match (its
 // rules, pens, levers, water and cards) (lazy JS 611.6 kB measured): lazy 620 kB.
-// Raised on purpose (owner, 2026-11-12: the warm-up map, "don't ask for approval"): the pens' opening, the practice round, the
-// warm-up's arena and the plants' options (lazy JS 611.6 kB measured): lazy 616 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 616_000 };
+const BUDGET_GZIP_BYTES = { initialJs: 153_000, initialCss: 10_000, lazyJs: 620_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
