@@ -56,6 +56,8 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     A = np.array([fx, Yc + fy, 0.0])                       # (plan units, as the camera's centre x 100 is)
     def on_card(px, py):
         d_ = ray(px + OX, py + OY); t = ((A - cam) @ VIEW) / (d_ @ VIEW); p = cam + d_ * t
+        if p[2] < 0.01:      # (below the ground on the card: what lies on the ground in front of the foot, fallen leaves: flat on it)
+            t = (0.01 - cam[2]) / d_[2]; p = cam + d_ * t
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
     px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
