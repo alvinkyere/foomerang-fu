@@ -16,7 +16,9 @@ await page.evaluate(async () => {
   const v = globalThis.document.querySelector('video');
   v.pause();
   v.controls = false;
-  await new Promise((r) => (v.readyState >= 1 ? r() : v.addEventListener('loadedmetadata', r, { once: true })));
+  await new Promise((r) =>
+    v.readyState >= 1 ? r() : v.addEventListener('loadedmetadata', r, { once: true }),
+  );
 });
 for (const arg of process.argv.slice(2)) {
   const t = Number(arg);
@@ -26,6 +28,8 @@ for (const arg of process.argv.slice(2)) {
     await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
   }, t);
   await page.waitForTimeout(300);
-  await page.locator('video').screenshot({ path: `art/warm_up/output/chrome_${Math.round(t * 1000)}.png` });
+  await page
+    .locator('video')
+    .screenshot({ path: `art/warm_up/output/chrome_${Math.round(t * 1000)}.png` });
 }
 await browser.close();
