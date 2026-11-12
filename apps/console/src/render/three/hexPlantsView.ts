@@ -129,10 +129,13 @@ export class HexPlantsView {
     data.pads.forEach((p, i) => {
       if (p[3]) this.#flowerOf[i] = f++;
     });
-    const shadow = flat(data.shadow?.colour ?? LOOK.shadow.colour);
+    const shadow = flat(
+      (data.shadow === false ? undefined : data.shadow?.colour) ?? LOOK.shadow.colour,
+    );
     shadow.depthWrite = false;
     this.#shadows = new THREE.InstancedMesh(hexGeometry(data.s, data.turn ?? 0), shadow, n);
     this.#shadows.renderOrder = -1;
+    this.#shadows.visible = data.shadow !== false;
     const flame = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.88,
@@ -247,7 +250,9 @@ export class HexPlantsView {
     if (f >= 0) this.#flowers.setMatrixAt(f, this.#m);
     this.#m.compose(this.#v.set(x, 0, z), this.#q, this.#sc.set(1, len, 1));
     this.#stems.setMatrixAt(i, this.#m);
-    const [kx, kz] = this.data.shadow?.perHeight ?? LOOK.shadow.perHeight;
+    const [kx, kz] =
+      (this.data.shadow === false ? undefined : this.data.shadow?.perHeight) ??
+      LOOK.shadow.perHeight;
     this.#p.set(x + dx + kx * top, 0.04, z + dz + kz * top);
     this.#m.compose(this.#p, this.#q.identity(), this.#sc.set(1, 1, 1));
     this.#shadows.setMatrixAt(i, this.#m);

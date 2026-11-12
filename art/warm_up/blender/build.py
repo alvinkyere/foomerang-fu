@@ -15,13 +15,14 @@ from mathutils.geometry import tessellate_polygon
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 args = sys.argv[sys.argv.index('--') + 1:]
-OUT, RENDER = args[0], 'render' in args[1:]
+OUT, RENDER, WIDE = args[0], 'render' in args[1:], 'wide' in args[1:]      # (wide: the round's mosaic's view, 2160 x 1240, the frame in its middle)
 J = lambda p: json.load(open(os.path.join(ROOT, p)))
 HAS = lambda p: os.path.exists(os.path.join(ROOT, p))
 CAM = J('art/sky_islands/camera.json'); ZOOM = J('art/warm_up/zoom.json')['zoom']
 YC = 73.72                                                     # (measure.py: the ground point under the frame's centre)
 G = J('art/warm_up/ground.json'); MOAT = J('art/warm_up/moat.json')
 bpy.ops.wm.read_factory_settings(use_empty=True)
+os.makedirs(OUT, exist_ok=True)
 sc = bpy.context.scene
 
 WATER_Z = -0.95           # (the far banks' lavender faces: ~15 px tall at the frame's middle)
@@ -172,6 +173,25 @@ for sx in (-1, 1):
 json.dump(dict(cx=mx, cy=my, half=span / 2 * 1.03), open(os.path.join(OUT, 'water_box.json'), 'w'))
 w.done()
 
+# ---------------------------------------------------------------------------------------------------------------- what stands
+# the trees, stump, pots, bunting, aloe, tufts and bamboo as traced cards (cards.py): upright planes through each foot, facing the camera
+# (the game's camera never turns), each tone a flat shape, the later tones a hair nearer the camera; the trees' named TREE_<k>_tree
+CAMV = Vector(tuple(v * 100 for v in CAM['centre'])); _pth = math.radians(CAM['pitchDeg'])
+TOWARD = Vector((0, -math.cos(_pth), math.sin(_pth)))     # (from the scene towards the camera: its view direction reversed)
+if HAS('art/warm_up/cards.json'):
+    for c in J('art/warm_up/cards.json'):
+        m = Mesh(f'CARD_{c["name"]}')
+        for sh in c['shapes']:
+            off = TOWARD * (0.004 * sh['layer'])
+            loops = [[Vector((x, YC + y, z)) + off for x, y, z in lp] for lp in sh['loops']]
+            # (triangulated in the card's own plane: the points' screen layout)
+            up_ = TOWARD.cross(Vector((1, 0, 0)))
+            flat_ = [[Vector((v.x, (v - loops[0][0]).dot(up_), 0)) for v in lp] for lp in loops]
+            verts = [v for lp in loops for v in lp]
+            for tri in tessellate_polygon(flat_):
+                f_ = m.face([tuple(verts[i]) for i in tri], sh['colour'])
+        m.done()
+
 # ---------------------------------------------------------------------------------------------------------------- the pens
 # each pen (fit_pens.py) four soft lavender walls round a player at the start, its lever (a tan box, a pink stem, a cyan knob) on the island
 # end; named PEN_<k>_wall<j> and PEN_<k>_lever in the rules' order (warmUpArena.ts: W, N, E, S): the game tints and drops them when the
@@ -225,7 +245,8 @@ for k, name in enumerate(('W', 'N', 'E', 'S')):
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
 cam.sensor_fit = 'HORIZONTAL'; cam.sensor_width = 36; cam.lens = CAM['focalPx'] * ZOOM / 1920 * 36; cam.clip_end = 5000
-sc.render.resolution_x, sc.render.resolution_y = 1920, 1080
+sc.render.resolution_x, sc.render.resolution_y = (2160, 1240) if WIDE else (1920, 1080)
+if WIDE: cam.sensor_width = 36 * 2160 / 1920
 world = bpy.data.worlds.new('w'); sc.world = world; world.use_nodes = True
 next(n for n in world.node_tree.nodes if n.type == 'BACKGROUND').inputs['Color'].default_value = (0.52, 0.52, 0.52, 1)
 sc.view_settings.view_transform = 'Standard'
@@ -233,6 +254,9 @@ os.makedirs(OUT, exist_ok=True)
 bpy.ops.object.select_all(action='SELECT'); co.select_set(False)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'warm_up.glb'), export_format='GLB', use_selection=True, export_cameras=False,
                           export_lights=False, export_apply=True, export_yup=True)
+if WIDE:      # (the mosaic has no pens: the round opened them)
+    for o in bpy.data.objects:
+        if o.name.startswith('PEN_'): o.hide_render = True
 if RENDER:
     try: sc.render.engine = 'BLENDER_EEVEE_NEXT'
     except TypeError: sc.render.engine = 'BLENDER_EEVEE'

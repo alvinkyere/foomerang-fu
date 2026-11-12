@@ -71,6 +71,7 @@ describe('the temple court', () => {
     const field = groups[0];
     if (field === undefined) throw new Error('no plants');
     expect(field.pads.length).toBeGreaterThan(150);
+    if (field.shadow === false) throw new Error('no shadow');
     expect(field.shadow?.perHeight[0]).toBeLessThan(0); // (west: the court's sun is in the east)
   });
 });

@@ -164,4 +164,9 @@ describe('the hex plants', () => {
     expect(Math.abs(f.pose(0).top - 2.3)).toBeLessThan(0.05);
     expect(Math.abs(f.pose(1).top - 2.5)).toBeLessThan(0.05);
   });
+
+  it('a map whose ground already draws its plants\u2019 shadows says so: no shadow of their own (the warm-up)', () => {
+    const g = parsePlants({ ...row(2), shadow: false });
+    expect(g?.shadow).toBe(false);
+  });
 });

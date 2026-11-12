@@ -17,6 +17,7 @@ OUT = 'apps/console/public/maps/warm_up/'
 A = json.load(open('art/warm_up/arena.json')); MOAT = json.load(open('art/warm_up/moat.json'))
 ZOOM = json.load(open('art/warm_up/zoom.json'))['zoom']; YC = 73.72
 GRASS = '#9cc98a'
+STEM = '#64ab8c'      # (the fields' thin stems: a little darker than the darkest teal under them in the mosaic, #78b889, as thin lines read)
 os.makedirs(OUT, exist_ok=True)
 shutil.copyfile(sys.argv[1], OUT + 'plaza.glb')
 gong = json.load(open('apps/console/public/maps/gong_islands/manifest.json'))
@@ -40,6 +41,8 @@ manifest = {
               'foamReach': 1.0, 'drift': 0.07,
               'cartoon': {'fps': 0.17, 'wobble': 0.22, 'scale': 0.95, 'wobbleScale': 0.85, 'presence': [0.12, 0.35], 'motion': 0.5, 'glow': 0.3,
                           'ribbons': [{'centre': 0.45, 'width': 0.16, 'sway': 0.04}, {'centre': 0.9, 'width': 0.12, 'sway': 0.04}]}},
+    # the four hex fields: the game's own plants (hexfields.py), their shadows already in the ground's drawing (ground.py)
+    'plants': [dict(g, stem=STEM, shadow=False) for g in json.load(open('art/warm_up/hexfields.json'))],
     'characters': gong['characters'],
     'provenance': 'art/warm_up (measure.py, mosaic.py, ground.py, moat.py, fit_pens.py, layout.py, arena.py, blender/build.py, package.py) from foomerang-fu physics hq.mp4 0:00',
 }

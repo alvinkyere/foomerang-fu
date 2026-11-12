@@ -39,7 +39,8 @@ export interface PlantsData {
   readonly stem?: string;
   readonly rim?: number;
   /** The pads' shadow on the ground: its colour and where it falls per unit of a pad's height (scene x, z); absent: the meadow's. */
-  readonly shadow?: { readonly colour: string; readonly perHeight: readonly [number, number] };
+  readonly shadow?:
+    { readonly colour: string; readonly perHeight: readonly [number, number] } | false;
 }
 
 export interface Pusher {
@@ -100,7 +101,9 @@ export function parsePlants(raw: unknown): PlantsData | undefined {
   for (const k of ['flower', 'stem']) if (r[k] !== undefined && !colour(r[k])) return undefined;
   for (const k of ['turn', 'rim']) if (r[k] !== undefined && !finite(r[k])) return undefined;
   let shadow: PlantsData['shadow'];
-  if (r['shadow'] !== undefined) {
+  if (r['shadow'] === false)
+    shadow = false; // (the map's ground already draws them: the warm-up's)
+  else if (r['shadow'] !== undefined) {
     const sh = r['shadow'] as Record<string, unknown> | null;
     const ph = sh?.['perHeight'];
     if (
