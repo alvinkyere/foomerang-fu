@@ -25,8 +25,8 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 os.makedirs(OUT, exist_ok=True)
 sc = bpy.context.scene
 
-WATER_Z = -0.95           # (the far banks' lavender faces: ~15 px tall at the frame's middle)
-RIM = 0.4                 # (the kerb's light top, as wide on every bank)
+WATER_Z = -0.8            # (the far banks' lavender faces: 15-22 px tall in the frame)
+RIM = 0.3                 # (the far banks' kerb's light top)
 GLOW = 0.5                # (the grass's pale green glow along every bank)
 COL = dict(rim='#a6b4e9', face='#8694d1', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
 
@@ -152,12 +152,13 @@ for key, island in (('outer', False), ('inner', True)):
         # the glow on the grass: the edge pale green, fading to the ground's base GLOW in
         m.face([(Pg[i].x, YC + Pg[i].y, 0.006), (Pg[j].x, YC + Pg[j].y, 0.006), (P0[j].x, YC + P0[j].y, 0.006), (P0[i].x, YC + P0[i].y, 0.006)],
                [base_at(Pg[i].x, Pg[i].y), base_at(Pg[j].x, Pg[j].y), COL['glow'], COL['glow']])
-        # the kerb's top (over the grass's ragged hole) and its face down to the water
-        m.face([(P0[i].x, YC + P0[i].y, 0.02), (P0[j].x, YC + P0[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[i].x, YC + Pr[i].y, 0.02)], COL['rim'])
-        m.face([(Pr[i].x, YC + Pr[i].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, WATER_Z), (Pr[i].x, YC + Pr[i].y, WATER_Z)], COL['face'])
-        # the bright line where a far wall (its face turned to the camera: the water south of it) meets the water (frame 0.0 s: 1-2 px
-        # of #aee0fe under the face)
+        # a far bank (the water south of it: its face turned to the camera) has the kerb's light top and its face down to the water;
+        # a near bank shows neither (the frame: the water runs straight to the grass's glow there)
         dwat = (Pr[i] - P0[i]); dwat = dwat.normalized() if dwat.length > 1e-6 else dwat
+        if dwat.y < -0.3:
+            m.face([(P0[i].x, YC + P0[i].y, 0.02), (P0[j].x, YC + P0[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[i].x, YC + Pr[i].y, 0.02)], COL['rim'])
+            m.face([(Pr[i].x, YC + Pr[i].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, WATER_Z), (Pr[i].x, YC + Pr[i].y, WATER_Z)], COL['face'])
+        # the bright line where a far wall meets the water (frame 0.0 s: 1-2 px of #aee0fe under the face)
         if dwat.y < -0.3:
             Pw = [Pr[i] + dwat * 0.09, Pr[j] + (Pr[j] - P0[j]).normalized() * 0.09]
             m.face([(Pr[i].x, YC + Pr[i].y, WATER_Z + 0.01), (Pr[j].x, YC + Pr[j].y, WATER_Z + 0.01), (Pw[1].x, YC + Pw[1].y, WATER_Z + 0.01),
