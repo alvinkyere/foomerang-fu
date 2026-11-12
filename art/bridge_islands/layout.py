@@ -182,7 +182,7 @@ TREES = [  # foot, lumps (x, y, rx, ry: fit_lumps.py, ellipses fitted to the HQ'
 tree_out = []
 for t in TREES:
     height = 3.4
-    base = {'islet_e': ISLET_E['height'], 'islet_nw': ISLET_NW['height']}.get(t.get('base'), 0.0)
+    base = {'islet_e': ISLET_E['height'], 'islet_nw': min(ISLET_NW['height'], 0.3)}.get(t.get('base'), 0.0)
     lumps = []
     for x, y, rx, ry in t['lumps']:
         z = base + float(np.clip(2.0 + 3.0 * (t['foot'][1] - y) / 260.0, 2.0, 5.2))

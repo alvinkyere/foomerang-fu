@@ -44,7 +44,7 @@ def _islet_e():
     return [(e['centre'][0] + e['radius'] * math.cos(math.pi / 8 + i * math.pi / 4), e['centre'][1] + e['radius'] * math.sin(math.pi / 8 + i * math.pi / 4)) for i in range(8)]
 
 
-solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 6, 7, 9, 11, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e(), _islet_nw()])      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
+solid_wall = raster([b['top'] for i, b in enumerate(STONES) if i not in (SLIDER_BLOCK, 0, 2, 3, 5, 6, 7, 9, 11, 14)] + [c['top'] for c in json.load(open('art/bridge_islands/layout.json'))['cubes']] + [r['grass'] for r in json.load(open('art/bridge_islands/layout.json'))['raised']] + [json.load(open('art/bridge_islands/ne_wall.json'))['footprint'], _islet_e()])      # (the north-west tree's islet is ground: a player can dash onto it and stand; owner, 2026-11-11)      # (3: the north-east wall, measured by ne_wall.py)                                      # (the stones' own footprints: slabs and boulders as the frame shows them)
 # the ground is exactly the land as drawn (owner, 2026-11-06: "no player can walk on water"): each island to where its side meets the water
 # (layout.py `measured`: the water lines of the two big islands), the small islets' banks, and the bridge's deck. A player whose middle leaves
 # it falls. (It used to reach a unit out over the water, so players stood on the water.)

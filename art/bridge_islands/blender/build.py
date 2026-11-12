@@ -527,8 +527,9 @@ flat('FOAM_TRACED', [([tuple(q) for q in sh['plan']], sh['colour'], 0) for sh in
 # the north-west islet (islet_e.py nw: fitted): a raised hexagonal platform, thick lavender walls, its grass on top, the red tree standing there
 INW = L['islet_nw']
 _hx = [(INW['centre'][0] + INW['radius'] * math.cos(math.pi / 6 + i * math.pi / 3), INW['centre'][1] + INW['radius'] * math.sin(math.pi / 6 + i * math.pi / 3)) for i in range(6)]
-paint_flat(body('ISLET_NW', _hx, INW['height'], FLAT, FLAT, top_r=0.25, corner_r=0.5, bottom=STONE_BOTTOM, soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
-flat('ISLET_NW_grass', [(chaikin([(INW['centre'][0] + (x - INW['centre'][0]) * 0.78, INW['centre'][1] + (y - INW['centre'][1]) * 0.78) for x, y in _hx], 2), '#c4ea9c', 0)], z=INW['height'] + 0.02)
+INW_H = min(INW['height'], 0.3)      # (a low platform: players dash onto it and stand on it, drawn at the ground's height)
+paint_flat(body('ISLET_NW', _hx, INW_H, FLAT, FLAT, top_r=0.25, corner_r=0.5, bottom=STONE_BOTTOM, soft=True, top_seg=2), '#a7b5ea', '#7e8bc2', '#94a2dc')
+flat('ISLET_NW_grass', [(chaikin([(INW['centre'][0] + (x - INW['centre'][0]) * 0.78, INW['centre'][1] + (y - INW['centre'][1]) * 0.78) for x, y in _hx], 2), '#c4ea9c', 0)], z=INW_H + 0.02)
 
 # ---------------------------------------------------------------------------------------------------------------- the south-west section's blocks
 # (measured by sw_blocks.py: top face and side of each, from the HQ frame): soft cushions, a pale top rolled over into darker sides; the west one is a stack of two
