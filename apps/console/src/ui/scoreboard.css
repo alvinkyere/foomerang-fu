@@ -222,3 +222,13 @@
   background: var(--band);
   font-size: calc(2.4 * var(--u));
 }
+
+/* The warm-up's scoreboard (the HQ, foomerang-fu physics hq.mp4 30.8 s): WARM UP ROUND in white under the trophy, no scores. */
+.sb__practice {
+  margin: 0.6em 0 0;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: calc(2.4 * var(--u));
+  letter-spacing: 0.04em;
+  text-align: center;
+}

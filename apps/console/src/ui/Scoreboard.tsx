@@ -71,37 +71,40 @@ function Board({
           <circle cx="18.5" cy="10" r="1.2" className="sb__trophy-eye" />
         </svg>
       </p>
-      {hud.tiebreak.length > 1 && (
+      {hud.practice === true && <p className="sb__practice">WARM UP ROUND</p>}
+      {hud.practice !== true && hud.tiebreak.length > 1 && (
         <p className="sb__note" role="status">
           TIEBREAK:{' '}
           {hud.tiebreak.map((id) => hud.entries.find((e) => e.id === id)?.label).join(' and ')}
         </p>
       )}
-      <ol className="sb__bands" aria-label="Scores">
-        {hud.teams !== undefined
-          ? ([0, 1] as const).map((side) => (
-              <TeamBand
-                key={side}
-                side={side}
-                kills={(hud.teams as NonNullable<HudView['teams']>).kills[side]}
-                target={target}
-                winner={
-                  winnerId === undefined
-                    ? undefined
-                    : (hud.teams as NonNullable<HudView['teams']>).winner === side
-                }
-              />
-            ))
-          : bySeat.map((entry) => (
-              <Band
-                key={entry.id}
-                entry={entry}
-                target={target}
-                leader={best > 0 && entry.kills === best}
-                winner={winnerId === undefined ? undefined : entry.id === winnerId}
-              />
-            ))}
-      </ol>
+      {hud.practice !== true && (
+        <ol className="sb__bands" aria-label="Scores">
+          {hud.teams !== undefined
+            ? ([0, 1] as const).map((side) => (
+                <TeamBand
+                  key={side}
+                  side={side}
+                  kills={(hud.teams as NonNullable<HudView['teams']>).kills[side]}
+                  target={target}
+                  winner={
+                    winnerId === undefined
+                      ? undefined
+                      : (hud.teams as NonNullable<HudView['teams']>).winner === side
+                  }
+                />
+              ))
+            : bySeat.map((entry) => (
+                <Band
+                  key={entry.id}
+                  entry={entry}
+                  target={target}
+                  leader={best > 0 && entry.kills === best}
+                  winner={winnerId === undefined ? undefined : entry.id === winnerId}
+                />
+              ))}
+        </ol>
+      )}
       {showContinue && (
         <button type="button" className="sb__continue" onClick={onContinue} {...proceed}>
           CONTINUE

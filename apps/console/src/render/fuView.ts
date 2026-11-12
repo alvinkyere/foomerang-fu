@@ -447,6 +447,7 @@ export function buildFuView(
         : [],
     scoreEvents,
     waiting: [],
+    ...(state.config.practice === true ? { practice: true as const } : {}),
     ...(state.config.teams === undefined
       ? {}
       : {

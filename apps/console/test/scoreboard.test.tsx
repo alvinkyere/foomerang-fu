@@ -129,3 +129,33 @@ describe('Scoreboard', () => {
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });
+
+// The warm-up's scoreboard (the HQ, foomerang-fu physics hq.mp4 30.8 s): the trophy between its lines, WARM UP ROUND under it, no
+// scores (its kills count for nothing), CONTINUE.
+describe('the warm-up’s scoreboard', () => {
+  const practice = (): FuState => {
+    const s = atScoreboard({});
+    return { ...s, config: { ...s.config, practice: true } };
+  };
+  it('the HUD knows the round is practice', () => {
+    expect(buildFuView(practice(), [], roster, slots(), characters).hud?.practice).toBe(true);
+    expect(
+      buildFuView(atScoreboard({}), [], roster, slots(), characters).hud?.practice,
+    ).toBeUndefined();
+  });
+  it('says WARM UP ROUND and shows no scores, CONTINUE going on', () => {
+    const onContinue = vi.fn();
+    render(
+      <FocusManager>
+        <Scoreboard
+          hud={buildFuView(practice(), [], roster, slots(), characters).hud as HudView}
+          onContinue={onContinue}
+        />
+      </FocusManager>,
+    );
+    expect(screen.getByText('WARM UP ROUND')).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Scores' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'CONTINUE' }));
+    expect(onContinue).toHaveBeenCalled();
+  });
+});

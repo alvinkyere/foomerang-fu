@@ -234,6 +234,8 @@ export interface HudView {
   readonly target: number | undefined;
   /** "ROUND 3 / 9", "OVERTIME ROUND 1", "TIEBREAK". */
   readonly roundLabel: string;
+  /** The warm-up's practice round (rules config.practice): its kills count for nothing; its scoreboard says WARM UP ROUND. */
+  readonly practice?: true;
   /** SCOREBOARD: the round's end beat is over and the scoreboard waits for a CONTINUE. */
   readonly phase: 'PLAYING' | 'ROUND_OVER' | 'SCOREBOARD' | 'MATCH_OVER';
   /** In player order (stable: the same row for the same player all match). */
