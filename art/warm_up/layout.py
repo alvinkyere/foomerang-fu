@@ -10,12 +10,15 @@ sys.path.insert(0, 'art/warm_up')
 from measure import plan, plan_at
 
 LEVER_KNOBS = {'W': (515, 405), 'N': (818, 175), 'E': (1295, 552), 'S': (993, 815)}
-KNOB_Z = 0.6
+KNOB_Z = 1.4
+HOUSINGS = {'W': (500, 395), 'N': (810, 165), 'E': (1285, 540), 'S': (985, 800)}      # (their tan boxes' middles, 1.8 up)
+HOUSING_Z = 1.8
 # (pixel foot, radius in plan units): the three trees' trunks, the bamboo clumps, the potted aloes
 FEET = [((880, 490), 0.6), ((300, 300), 0.6), ((1650, 590), 0.7)]
 PLAN_SOLIDS = [(-37.5, 13.0, 0.9), (-23.0, -13.0, 0.9), (32.5, -1.0, 0.9), (29.0, -12.0, 0.5), (-33.5, -1.5, 0.8), (27.5, 27.0, 0.8)]
 R2 = math.sqrt(2)
-out = dict(levers={k: [round(float(v), 3) for v in plan_at([p], KNOB_Z)[0]] for k, p in LEVER_KNOBS.items()},
+out = dict(housings={k: [round(float(v), 3) for v in plan_at([p], HOUSING_Z)[0]] for k, p in HOUSINGS.items()},
+           levers={k: [round(float(v), 3) for v in plan_at([p], KNOB_Z)[0]] for k, p in LEVER_KNOBS.items()},
            solids=[[round(float(x), 3), round(float(y), 3), r] for (p, r) in FEET for x, y in [plan([p])[0]]] + [list(s) for s in PLAN_SOLIDS],
            # the border in the moat's axes (u north-east, v north-west): u -22.1..22.2 read (the west corner at u -21.3, v 19.1; the
            # north-east side at u 22.1-22.3); v up to 19.2 read, its other side mirrored about the moat's middle (v 0.7)

@@ -14,6 +14,7 @@ import {
   type Rect,
   type Solid,
 } from '../rules/arena';
+import { fromBorderFrame, inBorderFrame, type TurnedBox } from '../rules/arena';
 import type { FuPlayerInput } from '../rules/step';
 import type { FuState } from '../rules/state';
 import { gatesOf, inRect, systemsView, type SystemsView } from '../rules/systems';
@@ -167,6 +168,31 @@ function observe(past: FuState, earlier: FuState, selfId: string): Observation {
     },
   );
   return { foes, shots, books: past.pickups.map((p) => p.position), systems, solids };
+}
+
+/**
+ * The lever of the pen `here` is walled in by, while its walls stand (the warm-up: four `drops` sliders a pen, in a row, sharing one lever;
+ * the pen the rectangle its two long walls and two short walls enclose), or undefined.
+ */
+export function penLever(state: FuState, here: Vec2): Vec2 | undefined {
+  const specs = state.config.arena.sliders ?? [];
+  for (let k = 0; k + 3 < specs.length; k += 4) {
+    const group = specs.slice(k, k + 4);
+    if (!group.every((g) => g.drops === true)) continue;
+    if ((state.sliders?.[k]?.progress ?? 0) >= 1) continue; // (open)
+    const [a, b, c] = group.map((g) => g.wall) as [TurnedBox, TurnedBox, TurnedBox];
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const cs = Math.cos(-a.angle);
+    const sn = Math.sin(-a.angle);
+    const dx = here.x - mx;
+    const dy = here.y - my;
+    if (Math.abs(dx * cs - dy * sn) <= a.halfWidth && Math.abs(dx * sn + dy * cs) <= c.halfHeight) {
+      const l = group[0]?.levers[0];
+      if (l !== undefined) return { x: l.x, y: l.y };
+    }
+  }
+  return undefined;
 }
 
 export class CpuController {
@@ -412,7 +438,7 @@ export class CpuController {
         const d = dir;
         const sign = this.#edgeTurn;
         const zone = this.#zone;
-        const outside = zone !== undefined && !inRect(here, zone);
+        const outside = zone !== undefined && !inRect(inBorderFrame(arena, here), zone);
         const turned = (outside ? [30, -30, 60, -60, 90, -90] : [20, -20, 35, -35])
           .map((a) => a * sign) // (outside the border it must get back in, round whatever: every turn) // (a small turn round a corner; anything more and it stops: its plan never points it at the water, so a heading that does is stale, and sliding along the edge on it was a back-and-forth)
           .map((deg) => (deg * Math.PI) / 180)
@@ -511,14 +537,45 @@ export class CpuController {
     // 0. the border: outside the safe zone a player explodes, so a CPU that finds itself out there heads straight back in
     const zone = zoneOf(state); // (Battle Royale: the border as it has closed in)
     this.#zone = zone;
-    if (zone !== undefined && !inRect(here, zone)) {
+    const local = inBorderFrame(state.config.arena, here); // (a turned border: the warm-up's)
+    if (zone !== undefined && !inRect(local, zone)) {
       const margin = state.config.playerRadius + 30;
-      const to = {
-        x: Math.min(Math.max(here.x, zone.x + margin), zone.x + zone.width - margin),
-        y: Math.min(Math.max(here.y, zone.y + margin), zone.y + zone.height - margin),
-      };
+      const to = fromBorderFrame(state.config.arena, {
+        x: Math.min(Math.max(local.x, zone.x + margin), zone.x + zone.width - margin),
+        y: Math.min(Math.max(local.y, zone.y + margin), zone.y + zone.height - margin),
+      });
       // round what is in the way (a stall in a corner would stop a straight line home until it explodes)
       this.#goTo(to, state, view, here);
+      return;
+    }
+
+    // 0b. walled in a pen (the warm-up: sliders.ts `drops`): get to its lever, across the water at the pen's far end, and strike it
+    const lever = penLever(state, here);
+    if (lever !== undefined) {
+      if (slashReady && dist(here, lever) < config.slashReach * 0.8) {
+        out.slash = true;
+        this.stats.slashes += 1;
+        this.#move = norm(sub(lever, here));
+        this.#leap = undefined; // (facing the lever as it strikes, not the leap it was waiting on)
+        this.why = 'pen';
+        return;
+      }
+      // (straight at it: inside the pen the line is clear, the planner knows nothing of the pen's walls; at the water's edge, a dash
+      // that lands on the far side)
+      const dir = norm(sub(lever, here));
+      this.#move = dir;
+      const leap = config.dashSpeed * config.dashSeconds;
+      const at = (d: number): Vec2 => ({ x: here.x + dir.x * d, y: here.y + dir.y * d });
+      if (
+        [1.6, 2.5, 3.5].some(
+          (k) => !onGround(at(config.playerRadius * k), state.config.arena, state.roundTime),
+        )
+      ) {
+        // (the water between: a planned leap, which steps up to the edge and goes when the landing is safe)
+        this.#leap = at(leap);
+        this.#leapSince = this.#tick;
+      }
+      this.why = 'pen';
       return;
     }
 
@@ -670,7 +727,7 @@ export class CpuController {
           const z = this.#zone;
           if (z === undefined) return false;
           const d = drift(side);
-          return !inRect({ x: here.x + d.x * 160, y: here.y + d.y * 160 }, z);
+          return !this.#inZone({ x: here.x + d.x * 160, y: here.y + d.y * 160 }, z);
         };
         if (this.#walksIntoDanger(drift(this.#side), here, view) || outward(this.#side)) {
           this.#side = -this.#side;
@@ -728,13 +785,19 @@ export class CpuController {
   }
 
   /** Would walking along `heading` for the next third of a second put it on a hazard it considers dangerous? */
+  /** Inside the border (turned, where the arena's is: the warm-up's). */
+  #inZone(p: Vec2, zone: Rect): boolean {
+    const state = this.#history[this.#history.length - 1];
+    return inRect(state === undefined ? p : inBorderFrame(state.config.arena, p), zone);
+  }
+
   #walksIntoDanger(heading: Vec2, here: Vec2, view: Observation): boolean {
     const p = this.#profile;
     const zone = this.#zone;
-    if (zone !== undefined && inRect(here, zone))
+    if (zone !== undefined && this.#inZone(here, zone))
       for (const k of [0.15, 0.3]) {
         const reach = 420 * k;
-        if (!inRect({ x: here.x + heading.x * reach, y: here.y + heading.y * reach }, zone))
+        if (!this.#inZone({ x: here.x + heading.x * reach, y: here.y + heading.y * reach }, zone))
           return true;
       }
     for (const h of view.systems.hazards) {
@@ -1065,7 +1128,7 @@ export class CpuController {
       // a plan that turns it right round (the goal moved, and another way is now a little shorter) it takes only if that way is clearly
       // better: two ways about as long, swapped every replan, walked it out and back (the owner: "the going back and forth")
       const was = this.#planned;
-      const outside = this.#zone !== undefined && !inRect(here, this.#zone);
+      const outside = this.#zone !== undefined && !this.#inZone(here, this.#zone);
       if (
         !outside &&
         this.#tick - this.#plannedAt < 40 &&

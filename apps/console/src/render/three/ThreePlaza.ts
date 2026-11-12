@@ -50,6 +50,7 @@ import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
 import { parsePlantGroups, type FireSource, type Pusher } from '../hexPlants';
 import { HexPlantsView } from './hexPlantsView';
 import { sceneryMotion } from './sceneryMotion';
+import { penWallAt } from '../penOpening';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -1140,6 +1141,17 @@ class Plaza {
   readonly #raft: THREE.Object3D | null;
   /** Rocks that levers move (the glTF nodes SLIDER_<k>: the lily island's rock, the bridge islands' walls), each with where it stands at home. */
   readonly #sliders: { node: THREE.Object3D; index: number; home: THREE.Vector3 }[] = [];
+  /** The warm-up's pen walls (PEN_<k>_wall<j>: rules slider 4k + j) and levers, and when each wall's lever was struck (penOpening.ts). */
+  readonly #penWalls: {
+    node: THREE.Object3D;
+    index: number;
+    pivot: THREE.Vector3;
+    out: THREE.Vector3;
+    materials: THREE.MeshBasicMaterial[];
+    own: THREE.Color[];
+  }[] = [];
+  readonly #penLevers: { node: THREE.Object3D; index: number }[] = [];
+  readonly #penStruck = new Map<number, { at: number; colour: THREE.Color }>();
   readonly #banner: HTMLDivElement;
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
   readonly #word = readyGoOverlay();
@@ -1371,7 +1383,7 @@ class Plaza {
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$|^SLIDER_/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$|^SLIDER_|^PEN_/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1388,6 +1400,41 @@ class Plaza {
           }
         });
         this.#fadeable.push({ root, materials, opacity: 1 });
+      }
+    }
+    // the warm-up's pens (PEN_<k>_wall<j> is rules slider 4k + j): each wall tips over outwards about its outer foot (penOpening.ts)
+    for (const root of gltf.children) {
+      const pen = /^PEN_(\d+)$/.exec(root.name);
+      if (pen === null) continue;
+      const centre = new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3());
+      for (const node of [...root.children]) {
+        // (the lever goes with its pen: the HQ's is gone with the walls)
+        if (/^PEN_\d+_lever$/.test(node.name))
+          this.#penLevers.push({ node, index: 4 * Number(pen[1]) });
+        const wall = /^PEN_\d+_wall(\d+)$/.exec(node.name);
+        if (wall === null || !(node instanceof THREE.Mesh)) continue;
+        const box = new THREE.Box3().setFromObject(node);
+        const mid = box.getCenter(new THREE.Vector3());
+        const out = new THREE.Vector3(mid.x - centre.x, 0, mid.z - centre.z);
+        out.normalize();
+        const pivot = new THREE.Vector3(mid.x + out.x * 30, box.min.y, mid.z + out.z * 30);
+        pivotAt(node, pivot);
+        const materials = (Array.isArray(node.material) ? node.material : [node.material]).map(
+          (m) => {
+            const c = (m as THREE.MeshBasicMaterial).clone();
+            c.transparent = true;
+            return c;
+          },
+        );
+        node.material = materials.length === 1 ? (materials[0] as THREE.Material) : materials;
+        this.#penWalls.push({
+          node,
+          index: 4 * Number(pen[1]) + Number(wall[1]),
+          pivot,
+          out,
+          materials,
+          own: materials.map((m) => m.color.clone()),
+        });
       }
     }
     this.#props = new PlazaProps(this.scene, gltf, this.#space, gradient);
@@ -1709,6 +1756,13 @@ class Plaza {
       s.node.position.set(s.home.x + d.x, s.home.y, s.home.z + d.z);
     }
     const now = this.#virtual ?? performance.now();
+    // the pens: a wall whose lever was struck starts opening now (a new round's walls stand again)
+    for (const w of this.#penWalls) {
+      const by = view.sliders?.[w.index]?.droppedBy;
+      if (by === undefined) this.#penStruck.delete(w.index);
+      else if (!this.#penStruck.has(w.index))
+        this.#penStruck.set(w.index, { at: now, colour: new THREE.Color(by) });
+    }
     const present = new Set<string>();
     this.#circles = [];
     const scale = this.characterScale;
@@ -2094,6 +2148,30 @@ class Plaza {
     }
   }
 
+  /** The warm-up's pen walls: tinted the striker's colour, tipping over outwards, fading (render/penOpening.ts). */
+  #openPens(time: number): void {
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const w of this.#penWalls) {
+      const struck = this.#penStruck.get(w.index);
+      const pose = penWallAt(struck === undefined ? undefined : (time - struck.at) / 1000);
+      w.node.visible = pose.visible;
+      // tipping outwards: about the horizontal line along the wall's outer foot
+      const axis = new THREE.Vector3().crossVectors(up, w.out).normalize();
+      w.node.quaternion.setFromAxisAngle(axis, (pose.tip * Math.PI) / 2);
+      w.materials.forEach((m, k) => {
+        m.color.copy(w.own[k] as THREE.Color);
+        if (struck !== undefined) m.color.lerp(struck.colour, pose.tint * 0.85);
+        m.opacity = pose.opacity;
+      });
+    }
+    for (const l of this.#penLevers) {
+      const struck = this.#penStruck.get(l.index);
+      l.node.visible = penWallAt(
+        struck === undefined ? undefined : (time - struck.at) / 1000,
+      ).visible;
+    }
+  }
+
   /** Every armed Explosive lying with its fuse burning blooms and flashes white, faster as it nears the blast. */
   #tick(): void {
     const ticking = new Set<string>();
@@ -2212,6 +2290,7 @@ class Plaza {
     for (const b of this.#boomerangs.values()) b.spin(time);
     this.#leaveMarks(time);
     this.#movePlants(time);
+    this.#openPens(time);
     this.#tick();
     this.#props.frame(time);
     this.#deathLab(time);

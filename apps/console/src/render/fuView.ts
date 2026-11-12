@@ -488,10 +488,17 @@ export function buildFuView(
     ...(state.config.arena.sliders === undefined
       ? {}
       : {
-          sliders: state.config.arena.sliders.map((spec, k) => ({
-            progress: state.sliders?.[k]?.progress ?? 0,
-            by: spec.by,
-          })),
+          sliders: state.config.arena.sliders.map((spec, k) => {
+            const st = state.sliders?.[k];
+            const dropped = spec.drops === true && (st?.progress ?? 0) >= 1;
+            return {
+              progress: st?.progress ?? 0,
+              by: spec.by,
+              ...(dropped
+                ? { droppedBy: st?.by === undefined ? '#ffffff' : styleOf(st.by, slots).color }
+                : {}),
+            };
+          }),
         }),
     broken: state.broken,
     ...(state.remains === undefined || state.remains.length === 0

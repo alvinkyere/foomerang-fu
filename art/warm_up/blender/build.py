@@ -172,6 +172,55 @@ for sx in (-1, 1):
 json.dump(dict(cx=mx, cy=my, half=span / 2 * 1.03), open(os.path.join(OUT, 'water_box.json'), 'w'))
 w.done()
 
+# ---------------------------------------------------------------------------------------------------------------- the pens
+# each pen (fit_pens.py) four soft lavender walls round a player at the start, its lever (a tan box, a pink stem, a cyan knob) on the island
+# end; named PEN_<k>_wall<j> and PEN_<k>_lever in the rules' order (warmUpArena.ts: W, N, E, S): the game tints and drops them when the
+# lever is struck (render/penOpening.ts)
+PENS = J('art/warm_up/pens.json'); LV = J('art/warm_up/layout.json')['levers']
+PCOL = dict(top='#a8b5e3', side='#909ad5', back='#96a3dc')
+
+
+def box3(m, corners, z0, z1, top, side, back, bevel=0.08):
+    """A wall: a box over a plan quad (counter-clockwise), its top edges softly bevelled, each side toned by its facing."""
+    n = 4; c = Vector((sum(p[0] for p in corners) / 4, sum(p[1] for p in corners) / 4))
+    inset = [c + (Vector(p) - c) * (1 - bevel / max(0.2, (Vector(p) - c).length)) for p in corners]
+    for i in range(n):
+        j = (i + 1) % n; a_, b_ = Vector(corners[i]), Vector(corners[j]); d = b_ - a_; nrm = Vector((d.y, -d.x)).normalized()
+        col = side if nrm.y < -0.3 else back
+        m.face([(a_.x, YC + a_.y, z0), (b_.x, YC + b_.y, z0), (b_.x, YC + b_.y, z1 - bevel), (a_.x, YC + a_.y, z1 - bevel)], col)
+        m.face([(a_.x, YC + a_.y, z1 - bevel), (b_.x, YC + b_.y, z1 - bevel), (inset[j].x, YC + inset[j].y, z1), (inset[i].x, YC + inset[i].y, z1)], top)
+    m.face([(p.x, YC + p.y, z1) for p in inset], top)
+
+
+for k, name in enumerate(('W', 'N', 'E', 'S')):
+    p = PENS['pens'][name]; a_, b_, t_, h_ = PENS['a'], PENS['b'], PENS['t'], PENS['h']
+    ang = math.radians(45 + p['turn']); ux, uy = math.cos(ang), math.sin(ang); vx, vy = -uy, ux
+    P = lambda s_, r_: (p['cx'] + ux * s_ + vx * r_, p['cy'] + uy * s_ + vy * r_)
+    root = bpy.data.objects.new(f'PEN_{k}', None); sc.collection.objects.link(root)
+    walls = [(-a_, -b_, a_, -b_ + t_), (-a_, b_ - t_, a_, b_), (-a_, -b_ + t_, -a_ + t_, b_ - t_), (a_ - t_, -b_ + t_, a_, b_ - t_)]
+    for j, (s0, r0, s1, r1) in enumerate(walls):
+        m = Mesh(f'PEN_{k}_wall{j}')
+        box3(m, [P(s0, r0), P(s1, r0), P(s1, r1), P(s0, r1)], WATER_Z if False else -0.05, h_, PCOL['top'], PCOL['side'], PCOL['back'])
+        m.done(root)
+    # the lever where the frame has it (layout.py): its tan housing 1.8 up, its knob in front of it 1.4 up
+    kx, ky = LV[name]; hx, hy = J('art/warm_up/layout.json')['housings'][name]
+    m = Mesh(f'PEN_{k}_lever')
+    d = Vector((kx - hx, ky - hy)); dl = d.length or 1; d /= dl; e = Vector((-d.y, d.x))
+    hq = [Vector((hx, hy)) + d * sx * 0.35 + e * sy * 0.5 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    box3(m, [(q.x, q.y) for q in hq], 1.35, 2.2, '#e6c3a0', '#d2a785', '#dcb592', bevel=0.12)
+    # the stem: a short pink bar from the housing down to the knob
+    s0 = Vector((hx, hy)); s1 = Vector((kx, ky))
+    sq = [s0 + e * 0.1, s1 + e * 0.1, s1 - e * 0.1, s0 - e * 0.1]
+    box3(m, [(q.x, q.y) for q in sq], 1.45, 1.65, '#efcfd6', '#d9a9b5', '#e2b8c3', bevel=0.04)
+    tmp = bmesh.new(); bmesh.ops.create_uvsphere(tmp, u_segments=16, v_segments=10, radius=0.33)
+    tmp.normal_update()
+    for f_ in tmp.faces:
+        pts = [(kx + v.co.x, YC + ky + v.co.y, 1.4 + v.co.z) for v in f_.verts]
+        lit_ = max(0.0, f_.normal.dot(Vector((-0.3, -0.5, 0.8)).normalized()))
+        m.face(pts, '#8aeaff' if lit_ > 0.6 else '#62d6f6' if lit_ > 0.2 else '#45b8de')
+    tmp.free()
+    m.done(root)
+
 # ---------------------------------------------------------------------------------------------------------------- camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)

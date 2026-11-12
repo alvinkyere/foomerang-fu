@@ -599,3 +599,15 @@ export function inBorderFrame(arena: FuArena, p: Vec2): Vec2 {
   const s = Math.sin(-turn);
   return { x: cx + (p.x - cx) * c - (p.y - cy) * s, y: cy + (p.x - cx) * s + (p.y - cy) * c };
 }
+
+/** The inverse of `inBorderFrame`: a point of the border's upright frame turned back into the arena. */
+export function fromBorderFrame(arena: FuArena, p: Vec2): Vec2 {
+  const turn = arena.safeZoneTurn ?? 0;
+  const zone = arena.safeZone;
+  if (turn === 0 || zone === undefined) return p;
+  const cx = zone.x + zone.width / 2;
+  const cy = zone.y + zone.height / 2;
+  const c = Math.cos(turn);
+  const s = Math.sin(turn);
+  return { x: cx + (p.x - cx) * c - (p.y - cy) * s, y: cy + (p.x - cx) * s + (p.y - cy) * c };
+}

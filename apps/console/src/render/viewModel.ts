@@ -272,6 +272,8 @@ export interface ArenaView {
   readonly sliders?: readonly {
     readonly progress: number;
     readonly by: { readonly x: number; readonly y: number };
+    /** A pen wall (sliders.ts `drops`) dropped: the colour of who struck its lever (render/penOpening.ts). */
+    readonly droppedBy?: string;
   }[];
   /** The ids of the arena's breakable props broken this round (none at a round's start). */
   readonly broken: readonly string[];
