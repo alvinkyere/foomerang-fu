@@ -37,6 +37,8 @@ import {
   AUTUMN_GLADE_BOOK_SPOTS,
   HEX_MEADOW_ARENA,
   HEX_MEADOW_BOOK_SPOTS,
+  WARM_UP_ARENA,
+  WARM_UP_BOOK_SPOTS,
   TEMPLE_COURT_ARENA,
   TEMPLE_COURT_BOOK_SPOTS,
   LILY_ISLAND_ARENA,
@@ -92,6 +94,7 @@ export const PLAYABLE_ARENAS: Readonly<Record<ArenaChoice, PlayableArena>> = Obj
     named: true,
   },
   hex_meadow: { arena: HEX_MEADOW_ARENA, bookSpots: HEX_MEADOW_BOOK_SPOTS, named: true },
+  warm_up: { arena: WARM_UP_ARENA, bookSpots: WARM_UP_BOOK_SPOTS, named: true },
   temple_court: { arena: TEMPLE_COURT_ARENA, bookSpots: TEMPLE_COURT_BOOK_SPOTS, named: true },
   diamond_walls: { arena: DIAMOND_WALLS_ARENA, bookSpots: DIAMOND_WALLS_BOOK_SPOTS, named: true },
 });

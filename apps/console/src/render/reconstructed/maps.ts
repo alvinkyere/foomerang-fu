@@ -37,6 +37,7 @@ export type ReconstructedArena = Extract<
   | 'lily_island'
   | 'autumn_glade'
   | 'hex_meadow'
+  | 'warm_up'
   | 'temple_court'
   | 'bridge_islands'
   | 'harbour_fort'
@@ -73,6 +74,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 1209, height: 1044 }),
       background: '#7aa8bb',
+    }),
+    // the HQ's warm-up (art/warm_up, foomerang-fu physics hq.mp4 0:00): the practice round's island, moat and pens
+    warm_up: Object.freeze({
+      id: 'warm_up',
+      assetDir: 'maps/warm_up/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 2198, height: 2143 }),
+      background: '#9cc98a',
     }),
     // the HQ's hex meadow (art/hex_meadow, ff physics hq 2.mp4 20:02): the plaza's camera and characters, its plants drawn by the game
     hex_meadow: Object.freeze({

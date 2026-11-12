@@ -90,6 +90,7 @@ export const ARENA_CHOICES = [
   'lily_island',
   'autumn_glade',
   'hex_meadow',
+  'warm_up',
   'temple_court',
   'bridge_islands',
   'diamond_walls',
@@ -98,6 +99,7 @@ export type ArenaChoice = (typeof ARENA_CHOICES)[number];
 export const parseArenaParam = (search: string): ArenaChoice | undefined => {
   const given = new URLSearchParams(search).get('arena');
   // `?arena=pond`: the cross pond (the owner tests it there, 2026-10-27)
+  // `?arena=warmup`: the warm-up (foomerang-fu physics hq.mp4 0:00), the practice round at the start of every match
   // `?arena=meadow`: the hex meadow (ff physics hq 2.mp4 20:02), tested outside the rotation
   // `?arena=temple`: the temple court (ff physics hq 2.mp4 2:01), outside the rotation
   // `?arena=glade`: the autumn glade (ff physics hq 2.mp4 10:26), tested outside the rotation (owner, 2026-11-01)
@@ -115,7 +117,9 @@ export const parseArenaParam = (search: string): ArenaChoice | undefined => {
               ? 'hex_meadow'
               : given === 'temple'
                 ? 'temple_court'
-                : given;
+                : given === 'warmup'
+                  ? 'warm_up'
+                  : given;
   return (ARENA_CHOICES as readonly (string | null)[]).includes(value)
     ? (value as ArenaChoice)
     : undefined;
