@@ -159,3 +159,39 @@ describe('the water’s place on the screen (a map’s grade and shafts are laid
     expect(m.fragmentShader).not.toMatch(/\bhalf\b/);
   });
 });
+
+describe('a water whose colour changes across it (the warm-up: lighter under the far banks, darker by the near ones)', () => {
+  // art/warm_up/water_across.py: the HQ's moat water #66afec under a far bank, #629cde along a near one; baked into the water
+  // sheet's vertex colours (linear, as glTF keeps them), the shader writing them as the canvas shows them (sRGB)
+  const style = {
+    base: '#64a8e8',
+    light: '#64a8e8',
+    foam: '#9fdcf7',
+    baseFromVertices: true,
+    cartoon: {
+      fps: 1,
+      wobble: 0.3,
+      scale: 1.5,
+      wobbleScale: 1.3,
+      presence: [0.62, 0.78] as const,
+      motion: 1,
+      glow: 0.5,
+      ribbons: [{ centre: 0.85, width: 0.14, sway: 0.1 }],
+    },
+  };
+  const m = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, style);
+  it('reads the vertices’ colours and draws them, not one uniform blue', () => {
+    expect(m.vertexColors).toBe(true);
+    expect(m.vertexShader).toContain('hereBase');
+    expect(m.fragmentShader).toContain('hereBase');
+    expect(m.fragmentShader).not.toMatch(/mix\(base, light/);
+  });
+  it('is unchanged for every other water', () => {
+    const plain = waterMaterial(new THREE.Texture(), { x: 0, z: 0, half: 40 }, 2, {
+      ...style,
+      baseFromVertices: false,
+    });
+    expect(plain.vertexColors).toBe(false);
+    expect(plain.fragmentShader).not.toContain('hereBase');
+  });
+});

@@ -171,6 +171,37 @@ for key, island in (('outer', False), ('inner', True)):
             m.face([(Pr[i].x, YC + Pr[i].y, WATER_Z + 0.01), (Pr[j].x, YC + Pr[j].y, WATER_Z + 0.01), (Pw[1].x, YC + Pw[1].y, WATER_Z + 0.01),
                     (Pw[0].x, YC + Pw[0].y, WATER_Z + 0.01)], COL['line'])
 m.done()
+# the water's colour across its channel (water_across.py: lighter under a far bank, darker by a near one): how far across a spot
+# lies, 0 at a far bank, 1 at a near one, from its distances to the outlines' far and near edges
+ACROSS = J('art/warm_up/water_across.json')
+BANK_EDGES = []
+for key, island in (('outer', False), ('inner', True)):
+    for a_, b_, nrm in ring_edges(MOAT[key], island):
+        BANK_EDGES.append((a_, b_, nrm.y < -0.3))
+
+
+def seg_dist(p, a_, b_):
+    d = b_ - a_; L2 = d.length_squared or 1e-9; t = max(0.0, min(1.0, (p - a_).dot(d) / L2)); return (a_ + d * t - p).length
+
+
+def across_colour(x, y):
+    p = Vector((x, y)); df = min(seg_dist(p, a_, b_) for a_, b_, far in BANK_EDGES if far)
+    dn = min(seg_dist(p, a_, b_) for a_, b_, far in BANK_EDGES if not far); t = df / max(df + dn, 1e-6)
+    for (t0, c0), (t1, c1) in zip(ACROSS, ACROSS[1:]):
+        if t <= t1 or (t1, c1) == tuple(ACROSS[-1]):
+            u = max(0.0, min(1.0, (t - t0) / (t1 - t0)))
+            a0 = [int(c0[i:i + 2], 16) for i in (1, 3, 5)]; a1 = [int(c1[i:i + 2], 16) for i in (1, 3, 5)]
+            return lin('#%02x%02x%02x' % tuple(int(round(a0[k] + (a1[k] - a0[k]) * u)) for k in range(3)))
+    return lin(ACROSS[-1][1])
+
+
+ACROSS_AT = {}
+def across_at(x, y):
+    k = (round(x, 3), round(y, 3))
+    if k not in ACROSS_AT: ACROSS_AT[k] = across_colour(x, y)
+    return ACROSS_AT[k]
+
+
 w = Mesh('FOUNTAIN_water')
 outer_w = offset(MOAT['outer'], RIM, False); inner_w = offset(MOAT['inner'], RIM, True)
 # (the ring as one sheet: a quad strip between the two outlines would cross; a coarse grid of the ring's cells instead)
@@ -178,7 +209,8 @@ for j in range(int(90 / 0.5)):
     for i in range(int(90 / 0.5)):
         x0, y0 = -45 + i * 0.5, -45 + j * 0.5
         if in_moat((x0 + 0.25, y0 + 0.25)) or any(in_moat(p) for p in ((x0, y0), (x0 + 0.5, y0 + 0.5), (x0 + 0.5, y0), (x0, y0 + 0.5))):
-            w.face([(x0, YC + y0, WATER_Z), (x0 + 0.5, YC + y0, WATER_Z), (x0 + 0.5, YC + y0 + 0.5, WATER_Z), (x0, YC + y0 + 0.5, WATER_Z)], COL['water'])
+            q = [(x0, y0), (x0 + 0.5, y0), (x0 + 0.5, y0 + 0.5), (x0, y0 + 0.5)]
+            w.face([(x, YC + y, WATER_Z) for x, y in q], [across_at(x, y) for x, y in q])
 # (the game reads the water's field over a square: the sheet's x-half widened 3% about its middle (ThreePlaza.ts); the sheet reaches as
 # far in x as in y, under the land where the moat is narrower: hidden there)
 xs = [v.co.x for v in w.bm.verts]; ys = [v.co.y - YC for v in w.bm.verts]

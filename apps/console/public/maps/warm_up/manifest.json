@@ -73,6 +73,7 @@
     "foamWidth": 0.2,
     "foamReach": 1.0,
     "drift": 0.07,
+    "baseFromVertices": true,
     "cartoon": {
       "fps": 1.0,
       "wobble": 0.08,

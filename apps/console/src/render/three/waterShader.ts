@@ -63,6 +63,12 @@ export type WaterStyle = {
    * through that, so it keeps it; the bridge islands use this).
    */
   readonly exactScreen?: boolean;
+  /**
+   * The water's colour from its sheet's vertex colours (linear, as glTF keeps them; written as the canvas shows them) in place of one
+   * `base` and its glow: a water that changes across itself (the warm-up's moat: lighter under the far banks, art/warm_up/water_across.py).
+   * The cartoon water only.
+   */
+  readonly baseFromVertices?: boolean;
   readonly shafts?: {
     readonly angle: number;
     readonly stops: readonly (readonly [number, number])[];
@@ -89,11 +95,27 @@ export function waterMaterial(
   // written as they are (sRGB, as the canvas shows them): read straight from the hex
   const rgb = (c: string) =>
     new THREE.Vector3(...[1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255));
-  const fragment =
+  const fromVertices = style.cartoon !== undefined && style.baseFromVertices === true;
+  const cartoon =
     style.cartoon === undefined
       ? fountainFragment(glsl, far)
       : cartoonFragment(style.cartoon, far, style.shafts, style.grade);
+  const fragment = fromVertices
+    ? cartoon
+        .replace('varying vec2 at;', 'varying vec2 at; varying vec3 hereBase;')
+        .replace('vec3 col = mix(base, light, glow * 0.85);', 'vec3 col = hereBase;')
+    : cartoon;
+  // (the vertices' linear colour as the canvas shows it: the sRGB curve)
+  const vertexBase = (shader: string): string =>
+    fromVertices
+      ? shader.replace('varying vec2 at;', 'varying vec2 at; varying vec3 hereBase;').replace(
+          'void main() {',
+          `void main() {
+  hereBase = mix(color * 12.92, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), color));`,
+        )
+      : shader;
   return new THREE.ShaderMaterial({
+    vertexColors: fromVertices,
     uniforms: {
       field: { value: field },
       box: { value: new THREE.Vector3(box.x - box.half, box.z - box.half, 2 * box.half) },
@@ -105,7 +127,7 @@ export function waterMaterial(
       light: { value: rgb(colours.light) },
       foam: { value: rgb(colours.foam) },
     },
-    vertexShader:
+    vertexShader: vertexBase(
       style.exactScreen === true
         ? `varying vec2 at; varying vec4 clipAt;
 void main() {
@@ -121,6 +143,7 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * w;
   ndc = gl_Position.xy / gl_Position.w;
 }`,
+    ),
     // (exactScreen: the fragment's ndc from the clip position, divided here, per pixel)
     fragmentShader:
       style.exactScreen === true

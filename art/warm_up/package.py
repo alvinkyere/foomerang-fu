@@ -41,6 +41,8 @@ manifest = {
     # banks that come and go over about a second (no foam hugging the banks), a faint darker dashed line down the channel's middle
     'water': {'base': '#64a8e8', 'light': '#64a8e8', 'foam': '#9fdcf7', 'glowWidth': 0.5, 'foamSpacing': 1.0, 'foamWidth': 0.2,
               'foamReach': 1.0, 'drift': 0.07,
+              # (its colour across the channel, baked into the sheet's vertices: lighter under the far banks, water_across.py)
+              'baseFromVertices': True,
               'cartoon': {'fps': 1.0, 'wobble': 0.08, 'scale': 0.7, 'wobbleScale': 0.85, 'presence': [0.62, 0.78], 'motion': 0.6, 'glow': 0.12,
                           'ribbons': [{'centre': 0.85, 'width': 0.14, 'sway': 0.25}]}},
     # the four hex fields: the game's own plants (hexfields.py), their shadows already in the ground's drawing (ground.py)
