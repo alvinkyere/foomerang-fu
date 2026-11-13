@@ -44,6 +44,14 @@ for g_ in json.load(open('art/warm_up/hexfields.json')):
     xs_ = [p[0] for p in g_['pads']]; ys_ = [-p[1] - Yc for p in g_['pads']]
     cv2.rectangle(_fields, tuple(to_px([(min(xs_) - 2, max(ys_) + 1)])[0]), tuple(to_px([(max(xs_) + 2, min(ys_) - 6)])[0]), 1, -1)
 teal &= _fields > 0
+# (the pads stand ~3 up: the mosaic, made while the camera moves, smears them wider than they are; the READY frame's, its camera still,
+# are where the game's pads hide the ground: they get the shadow's colour, the rest of the smear is grass, inpainted)
+MF = M.copy(); MF[80:1160, 120:2040] = cv2.imread('art/warm_up/output/chrome_0.png')
+hsvF = cv2.cvtColor(cv2.warpPerspective(MF, Hm, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP), cv2.COLOR_BGR2HSV).astype(int)
+tealF = (hsvF[..., 0] >= 68) & (hsvF[..., 0] <= 95) & (hsvF[..., 1] >= 70) & (hsvF[..., 2] >= 185) & (_fields > 0)
+tealAny = (Hu >= 66) & (Hu <= 95) & (S >= 50) & (V >= 120) & (_fields > 0)              # (the smear's darker pads too)
+smear = cv2.dilate((tealAny & ~tealF).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+teal = tealF
 lav = (Hu >= 105) & (Hu <= 150) & (S >= 35) & (V >= 90)                              # (trunks, the stump, the remains, pots)
 obj = (red | gold | lav).astype(np.uint8)
 obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), np.ones((9, 9), np.uint8))
@@ -56,12 +64,12 @@ BOXES = [(-40.5, 8, -34, 19),        # the bamboo and the names' smudges at the 
 for x0, y0, x1, y1 in BOXES: cut[int((Y1 - y1) * PX):int((Y1 - y0) * PX), int((x0 - X0) * PX):int((x1 - X0) * PX)] = 1
 for x, y in ((-11.0, 2.8), (3.7, -13.7)): cv2.circle(cut, (int((x - X0) * PX), int((Y1 - y) * PX)), int(1.6 * PX), 1, -1)   # (the dead)
 cv2.circle(cut, (int((-3.5 - X0) * PX), int((Y1 - 4.0) * PX)), int(4.2 * PX), 1, -1)      # (the red tree and its fallen leaves)
-hole = ((cut > 0) | (obj > 0) | ~seen).astype(np.uint8)
-ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
-# under the hex fields' pads (the game draws the pads, which hide this ground from the fixed camera): their shadow's colour, so the
-# shadow the frame shows south of them runs on under them unbroken
+# under the hex fields' pads (the game draws the pads, which hide most of this ground from the fixed camera): the ground round them
+# carried in (inpainted), so the shadow the frame shows beside them runs on under them where it touches and grass shows between their
+# stems as the frame's does (a flat shadow colour there showed as a dark halo wherever our pads leave a gap)
 padm = cv2.dilate(cv2.morphologyEx(teal.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8)), np.ones((5, 5), np.uint8)) > 0
-ground[padm] = (0x8b, 0xc0, 0x7e)
+hole = ((cut > 0) | (obj > 0) | ~seen | smear | padm).astype(np.uint8)
+ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 
 # ---- the base: the plain grass (not in a patch, a shadow or the dark), blurred; then the shapes by their departure from it
 lab = cv2.cvtColor(ground, cv2.COLOR_BGR2Lab).astype(np.float32); L = lab[..., 0] * 100 / 255 * 2.55     # (OpenCV's L, 0-255)

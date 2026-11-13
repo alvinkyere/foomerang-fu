@@ -9,7 +9,7 @@ import json, math, sys
 import numpy as np, cv2
 from scipy.optimize import differential_evolution
 sys.path.insert(0, 'art/warm_up')
-from measure import plan, Yc, R as _R, F as _F, C as _C, Z as _Z, MOSAIC_ORIGIN
+from measure import plan, plan_at, Yc, R as _R, F as _F, C as _C, Z as _Z, MOSAIC_ORIGIN
 
 OX, OY = MOSAIC_ORIGIN
 
@@ -20,7 +20,11 @@ def project(P):
     return np.c_[960 + (x - 960) * _Z - OX, 540 + (y - 540) * _Z - OY]          # (mosaic pixels)
 
 
-f = cv2.imread('art/warm_up/output/mosaic_chrome.png'); hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+f = cv2.imread('art/warm_up/output/mosaic_chrome.png')
+# (the pads stand 2.6 up: in the mosaic, made while the camera moves, they smear; the READY frame, its camera still, laid into the
+# mosaic's pixels, is read instead: every field is inside it)
+f[-OY:-OY + 1080, -OX:-OX + 1920] = cv2.imread('art/warm_up/output/chrome_0.png')
+hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 g = cv2.GaussianBlur(cv2.cvtColor(f, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), 0.8)
 pad = (hsv[..., 0] >= 66) & (hsv[..., 0] <= 92) & (hsv[..., 1] >= 50) & (hsv[..., 2] >= 130)
 FIELDS = {'nw': (740, 300, 885, 430), 'ne': (1510, 320, 1680, 445), 'w': (455, 740, 585, 890), 'sw': (695, 935, 860, 1125)}
@@ -39,7 +43,7 @@ for name, (x0, y0, x1, y1) in FIELDS.items():
     win = np.zeros(pad.shape, bool); win[y0:y1, x0:x1] = True
     inner = cv2.erode((pad & win).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
     ys, xs = np.nonzero(pad & win)
-    info[name] = (inner, plan([(xs.mean() + OX, ys.mean() + OY)])[0])
+    info[name] = (inner, plan_at([(xs.mean() + OX, ys.mean() + OY)], 2.8)[0])      # (the pads' middle, where they stand: ~2.8 up)
 
 
 def contrast(s, t, ox, oy, H, inner, ax, ay):
@@ -49,8 +53,11 @@ def contrast(s, t, ox, oy, H, inner, ax, ay):
     pe = project(np.c_[E[:, 0], Yc + E[:, 1], np.full(len(E), H)]); pm = project(np.c_[Cc[:, 0], Yc + Cc[:, 1], np.full(len(Cc), H)])
     def sample(p):
         x = np.clip(p[:, 0].astype(int), 0, f.shape[1] - 1); y = np.clip(p[:, 1].astype(int), 0, f.shape[0] - 1); return g[y, x], inner[y, x]
-    ve, ie = sample(pe); vm, im = sample(pm)
-    ie = ie.reshape(18, -1).all(0); im = im & ie
+    ve, _ = sample(pe); vm, im = sample(pm)
+    # (a cell counts when its middle is well inside the field and most of its edge on pads: the READY frame's outlines between pads
+    # are sharp, and in some fields fall off the pads' colour)
+    xe = np.clip(pe[:, 0].astype(int), 0, f.shape[1] - 1); ye = np.clip(pe[:, 1].astype(int), 0, f.shape[0] - 1)
+    ie = pad[ye, xe].reshape(18, -1).sum(0) >= 14; im = im & ie
     if im.sum() < 5: return 0.0
     return -(vm[im].mean() - ve.reshape(18, -1)[:, im].mean())
 
@@ -60,7 +67,7 @@ S_ = 0.517      # (the fields' pads one size: the median of each field fitted al
 for k, name in enumerate(names):
     (x0, y0, x1, y1) = FIELDS[name]; inner, (ax, ay) = info[name]
     r_ = differential_evolution(lambda v: contrast(S_, v[0], v[1], v[2], v[3], inner, ax, ay),
-                                [(-math.pi / 6, math.pi / 6), (-1.5, 1.5), (-1.5, 3.5), (2.2, 3.4)], seed=3, maxiter=100, popsize=24, tol=1e-7, polish=True)
+                                [(-math.pi / 6, math.pi / 6), (-1.0, 1.0), (-1.0, 1.0), (2.4, 2.9)], seed=3, maxiter=100, popsize=24, tol=1e-7, polish=True)
     t, ox, oy, H = [float(v) for v in r_.x]; s = S_
     class _R_: fun = contrast(s, t, ox, oy, H, inner, ax, ay)
     res_ = _R_
