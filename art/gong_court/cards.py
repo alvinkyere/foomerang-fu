@@ -19,7 +19,7 @@ OBJECTS = {
     'tree_w': ((225, 255, 455, 535), 30, 7, (370, 500)),
     'tree_n': ((780, 0, 920, 75), 30, 6, (850, 60)),
     'tree_e': ((1785, 550, 1995, 805), 30, 7, (1890, 790)),
-    'tree_se': ((1500, 1050, 1720, 1300), 30, 7, (1615, 1280)),
+    'tree_se': ((1480, 1000, 1760, 1300), 30, 7, (1615, 1280)),
     'tree_sw': ((0, 1050, 165, 1240), 30, 6, (80, 1225)),
     'pot_nw': ((365, 0, 435, 75), 25, 4, None),
     'pot_e1': ((1760, 745, 1835, 845), 25, 4, None),
@@ -28,13 +28,13 @@ OBJECTS = {
     'gong': ((1420, 30, 1700, 310), 25, 6, (1560, 290, 'plat_ne')),
     'aloe_sw': ((520, 980, 645, 1070), 20, 4, (580, 1060, 'plat_sw_hi')),
     'aloe_se': ((1680, 905, 1785, 1025), 20, 4, (1730, 1020, 'plat_se_hi')),
-    'bamboo_nw': ((585, 260, 680, 420), 18, 4, None),
-    'bamboo_n': ((995, 0, 1175, 165), 18, 4, None),
-    'bamboo_w': ((385, 730, 500, 890), 18, 4, None),
-    'bamboo_c': ((740, 455, 980, 760), 18, 5, (860, 740)),
-    'bamboo_ne': ((1675, 250, 1770, 380), 18, 4, None),
-    'bamboo_s': ((760, 1110, 845, 1240), 18, 4, None),
-    'bamboo_se': ((1335, 1060, 1470, 1245), 18, 4, None),
+    'bamboo_nw': ((585, 260, 680, 420), 18, 7, None),
+    'bamboo_n': ((995, 0, 1175, 165), 18, 7, None),
+    'bamboo_w': ((385, 730, 500, 890), 18, 7, None),
+    'bamboo_c': ((740, 455, 980, 760), 18, 8, (860, 740)),
+    'bamboo_ne': ((1675, 250, 1770, 380), 18, 7, None),
+    'bamboo_s': ((760, 1110, 845, 1240), 18, 7, None),
+    'bamboo_se': ((1335, 1060, 1470, 1245), 18, 7, None),
     'bush_ne': ((1475, 355, 1565, 470), 20, 3, None),
     'bush_w': ((545, 590, 610, 690), 20, 3, None),
     'flower_w1': ((405, 615, 465, 665), 20, 3, None),
@@ -45,6 +45,15 @@ d = np.abs(r.astype(int) - m.astype(int)).max(2)
 h = cv2.cvtColor(m, cv2.COLOR_BGR2HSV).astype(int)
 teal = np.zeros(h.shape[:2], bool)
 water = np.zeros(h.shape[:2], bool)
+# (the stone is drawn as stone, never on a card: lavender pixels inside its silhouettes stay out of every card)
+from geom import prisms as _prisms
+_sil = np.zeros(h.shape[:2], np.uint8)
+for _p, _hh, _m, _k in _prisms().values():
+    _up = np.float32([pix(x, y, _hh) for x, y in _p]) - [OX, OY]; _dn = np.float32([pix(x, y, 0) for x, y in _p]) - [OX, OY]
+    cv2.fillPoly(_sil, [np.int32(_up)], 1); cv2.fillPoly(_sil, [np.int32(_dn)], 1)
+    for _i in range(len(_p)): _j = (_i + 1) % len(_p); cv2.fillConvexPoly(_sil, np.int32([_up[_i], _up[_j], _dn[_j], _dn[_i]]), 1)
+_stoneish = (h[..., 0] >= 105) & (h[..., 0] <= 140) & (h[..., 1] >= 30) & (h[..., 2] >= 150)
+water = (_sil > 0) & _stoneish
 cam = _C * 100
 VIEW = _R.T @ np.array([0.0, 0.0, 1.0])
 
@@ -69,9 +78,10 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     fx, fy = plan([(foot[0] + OX, foot[1] + OY)], z=fz)[0]
     A = np.array([fx, Yc + fy, fz])                       # (plan units, as the camera's centre x 100 is)
     def on_card(px, py):
-        d_ = ray(px + OX, py + OY); t = ((A - cam) @ VIEW) / (d_ @ VIEW); p = cam + d_ * t
-        if p[2] < 0.01:      # (below the ground on the card: what lies on the ground in front of the foot, fallen leaves: flat on it)
-            t = (0.01 - cam[2]) / d_[2]; p = cam + d_ * t
+        # (an upright plane through the foot, facing south: what stands above the foot stays above it, in front of what is north of it)
+        d_ = ray(px + OX, py + OY); t = (A[1] - cam[1]) / d_[1]; p = cam + d_ * t
+        if p[2] < fz + 0.01:      # (below the ground on the card: what lies on the ground in front of the foot, fallen leaves: flat on it)
+            t = (fz + 0.01 - cam[2]) / d_[2]; p = cam + d_ * t
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
     px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)

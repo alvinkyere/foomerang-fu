@@ -140,6 +140,7 @@ for name, b in MAN.items():
     out[name]['iou'] = round(best[0], 3)
     print('%-14s manual   h %.2f  IoU %.3f' % (name, h, best[0]))
 
+import geom
 # ---- the walls: beams. Each a straight centre line (the top strip's middle, column by column or row by row, a line fitted through it),
 # its top's width (the strip's median thickness) and its height (the north and south walls' faces under their tops; the east and west
 # walls, whose faces turn from the camera, take theirs)
@@ -169,16 +170,29 @@ for name in ('wall_n', 'wall_s'):
         g0 = plan([(x + OX, by + OY)])[0]; h = 0.0
         while pix(g0[0], g0[1], h)[1] > ty + OY and h < 5: h += 0.01
         hs.append(h)
-WALL_H = float(np.median(hs))
+WALL_H = 1.34      # (the south wall's face, column.py at x 950-1250: 25-26 px straight under its 22 px top, the same at every column; the
+#                   automatic median above (1.06) stops short where the face's lit upper part has the top's tone)
 for name, b in beam.items():
     e = plan([(x + OX, y + OY) for x, y in b['ends']], z=WALL_H)
     mid = np.mean(b['ends'], 0); u = plan([(mid[0] + OX, mid[1] + OY)], z=WALL_H)[0]
     if name in ('wall_n', 'wall_s'): v = plan([(mid[0] + OX, mid[1] + b['thick'] + OY)], z=WALL_H)[0]
     else: v = plan([(mid[0] + b['thick'] + OX, mid[1] + OY)], z=WALL_H)[0]
     width = float(np.hypot(*(v - u)))
-    out[name] = dict(kind='wall', h=round(WALL_H, 3), width=round(width, 3), ends=[[round(float(x), 3), round(float(y), 3)] for x, y in e],
-                     iou=None, top=None, mint=None)
-    print('%-14s beam     h %.2f  width %.2f  from %s to %s' % (name, WALL_H, width, out[name]['ends'][0], out[name]['ends'][1]))
+    # its sideways place and width: the beam whose silhouette best matches the stone in its box (shifted across its line, widened)
+    (x0_, y0_, x1_, y1_), _ax = WALLS[name]
+    box = np.zeros(STONE.shape, bool); box[y0_:y1_, x0_:x1_] = True
+    e = np.array(e, float); d_ = e[1] - e[0]; n_ = np.array([-d_[1], d_[0]]) / np.linalg.norm(d_)
+    best_ = (-1, 0.0, width)
+    for off in np.arange(-0.6, 0.61, 0.04):
+        for wd in np.arange(0.4, 1.21, 0.04):
+            c_ = geom.beam_corners(dict(ends=(e + n_ * off).tolist(), width=wd))
+            sil = silhouette(c_, WALL_H, STONE.shape) & box
+            iou_ = (sil & STONE & box).sum() / max(1, (sil | (STONE & box)).sum())
+            if iou_ > best_[0]: best_ = (iou_, off, wd)
+    e = e + n_ * best_[1]; width = best_[2]
+    out[name] = dict(kind='wall', h=round(WALL_H, 3), width=round(float(width), 3), ends=[[round(float(x), 3), round(float(y), 3)] for x, y in e],
+                     iou=round(float(best_[0]), 3), top=None, mint=None)
+    print('%-14s beam     h %.2f  width %.2f  shift %.2f  IoU %.3f' % (name, WALL_H, width, best_[1], best_[0]))
 
 # ---- every height at once: the union of every prism's silhouette against all the stone (and the mint the tops rim), at half size;
 # one body's height at a time (the others held), three passes, so bodies standing in front of one another share their stone
@@ -206,7 +220,19 @@ RIM = 0.55
 
 
 def inset(poly, d):
-    """A convex polygon moved in by d (corners on the bisectors)."""
+    """Any polygon moved in by d: drawn at 40 px a unit, eroded by d, traced back (the largest piece)."""
+    P = np.float32(poly); x0, y0 = P.min(0) - 1 - max(0, -d); PXU = 40
+    img = np.zeros((int((P[:, 1].max() - y0 + 1 + max(0, -d)) * PXU), int((P[:, 0].max() - x0 + 1 + max(0, -d)) * PXU)), np.uint8)
+    cv2.fillPoly(img, [np.int32((P - [x0, y0]) * PXU)], 1)
+    k = int(round(2 * abs(d) * PXU)) | 1; se = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+    img = cv2.erode(img, se) if d > 0 else cv2.dilate(img, se)
+    cs, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not cs: return None
+    ap = cv2.approxPolyDP(max(cs, key=cv2.contourArea), 0.03 * PXU, True).reshape(-1, 2)
+    return [[round(float(u / PXU + x0), 3), round(float(v / PXU + y0), 3)] for u, v in ap]
+
+
+def _inset_convex(poly, d):
     P = geom.ccw([tuple(p) for p in poly]); n = len(P); out_ = []
     for i in range(n):
         (ax, ay), (bx, by), (cx, cy) = P[i - 1], P[i], P[(i + 1) % n]
@@ -234,9 +260,11 @@ for p_ in range(3):
             if iou_ > best[0]: best = (iou_, float(hh), sm)
         H_[n], cache[n] = best[1], best[2]
     print('pass', p_, 'global IoU %.4f' % best[0])
+GROW = float(sys.argv[1]) if len(sys.argv) > 1 else 0.08    # (the HQ's soft bevelled edges: the top tone stops short of the body's edge)
 for n, hh in H_.items():
     b = out[n]; b['h'] = round(hh, 3)
     b['top'] = [[round(float(x), 3), round(float(y), 3)] for x, y in plan([(x + OX, y + OY) for x, y in tops_px[n]], z=hh)]
+    if GROW > 0: b['top'] = inset(b['top'], -GROW)
     # a platform's mint: its top inset by the rim (the light lavender band measures 16-17 px at the far edges, 0.55 units)
     b['mint'] = inset(b['top'], RIM) if b['kind'] == 'platform' else None
     print('%-14s h %.2f%s' % (n, hh, '  fixed' if n in FIXED else ''))

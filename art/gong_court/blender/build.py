@@ -123,10 +123,9 @@ if HAS('art/gong_court/cards.json') and not NOCARDS:
     for c in J('art/gong_court/cards.json'):
         m = Mesh(f'CARD_{c["name"]}')
         for s_ in c['shapes']:
-            off = TOWARD * (0.004 * s_['layer'])
+            off = Vector((0, -0.004 * s_['layer'], 0))     # (the later tones a hair to the south: nearer the camera)
             loops = [[Vector((x, YC + y, z)) + off for x, y, z in lp] for lp in s_['loops']]
-            up_ = TOWARD.cross(Vector((1, 0, 0)))
-            flat_ = [[Vector((v.x, (v - loops[0][0]).dot(up_), 0)) for v in lp] for lp in loops]
+            flat_ = [[Vector((v.x, v.z + (v.y - loops[0][0].y), 0)) for v in lp] for lp in loops]
             verts = [v for lp in loops for v in lp]
             for tri in tessellate_polygon(flat_):
                 m.face([tuple(verts[i]) for i in tri], s_['colour'])
