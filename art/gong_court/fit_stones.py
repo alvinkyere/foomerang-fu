@@ -246,7 +246,8 @@ for name, b in out.items():
 # heights read on the faces (column.py: the face's run straight down from the top's front edge to the grass, at that spot's scale);
 # the south-east diagonal under its octagon (the octagon's whole rim shows over the diagonal's mint in the HQ, and its east face is
 # 2.2-2.3 units: the diagonal's 3.2 reading took in something else; 2.0 and 3.3/3.6 score the same, 5.36)
-FIXED = {'plat_sw': 1.7, 'plat_sw_hi': 4.17, 'block_sw': 2.24, 'plat_nw': 2.6, 'plat_ne': 2.85, 'plat_se': 2.0, 'plat_se_hi': 2.33}
+FIXED = {'plat_sw': 1.7, 'plat_sw_hi': 4.17, 'block_sw': 2.24, 'plat_nw': 2.6, 'plat_ne': 2.85, 'plat_se': 2.0, 'plat_se_hi': 2.33,
+         'boulder_ne': 1.86, 'boulder_ne2': 4.6, 'step_sw': 1.55}
 H_ = {n: FIXED.get(n, out[n]['h']) for n in tops_px}
 cache = {n: sil_small(plan([(x + OX, y + OY) for x, y in tops_px[n]], z=H_[n]), H_[n]) for n in tops_px}
 for p_ in range(3):

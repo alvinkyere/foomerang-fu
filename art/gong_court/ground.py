@@ -21,6 +21,7 @@ PX = 10.0
 X0, X1, Y0, Y1 = -36.0, 34.0, -23.0, 25.0
 W, Hh = int((X1 - X0) * PX), int((Y1 - Y0) * PX)
 DX, SIGMA = 1.0, 2.5
+import os; STONE_PAD = int(os.environ.get("STONE_PAD", "3"))      # (px round the stone left out of the ground: its edge, not its contact shadow; 1, 3, 5, 9 scored 4.92, 4.80, 4.84, 4.88)
 OX, OY = MOSAIC_ORIGIN
 A = np.array([[1 / PX, 0, X0], [0, -1 / PX, Y1 + Yc], [0, 0, 1]])
 T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])
@@ -38,7 +39,7 @@ for name, (poly, h, mint, kind) in prisms().items():
     cv2.fillPoly(stone, [np.int32(up)], 1); cv2.fillPoly(stone, [np.int32(dn)], 1)
     for i in range(len(poly)):
         j = (i + 1) % len(poly); cv2.fillConvexPoly(stone, np.int32([up[i], up[j], dn[j], dn[i]]), 1)
-stone = cv2.dilate(stone, np.ones((9, 9), np.uint8))
+stone = cv2.dilate(stone, np.ones((STONE_PAD, STONE_PAD), np.uint8))
 hsv_m = cv2.cvtColor(M, cv2.COLOR_BGR2HSV).astype(int); Hu, S, V = hsv_m[..., 0], hsv_m[..., 1], hsv_m[..., 2]
 red = ((Hu <= 12) | (Hu >= 165)) & (S >= 90) & (V >= 100)                        # (the maples and their fallen leaves, the flowers)
 dark = (V < 110)                                                                  # (the gong's frame, the pots' mouths)

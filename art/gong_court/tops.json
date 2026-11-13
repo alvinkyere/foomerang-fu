@@ -2449,5 +2449,6 @@
         "holes": []
       }
     ]
-  }
+  },
+  "step_sw": { "colour": "#8ccd96", "shapes": [] }
 }

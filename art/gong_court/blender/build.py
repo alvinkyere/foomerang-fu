@@ -105,15 +105,40 @@ sh.done()
 
 # ---------------------------------------------------------------------------------------------------------------- stone
 FACE = SC['face']; NS = len(FACE)
+BEVEL = float(os.environ.get('BEVEL', '0'))      # (a soft band from the top down to the face: off; 0.1 and 0.2 both scored worse, 4.96 and 5.12 vs 4.87)
+
+
+def mixhex(a, b, t):
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]; cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return '#%02x%02x%02x' % tuple(round(x + (y - x) * t) for x, y in zip(ca, cb))
+
+
+def inset_ccw(poly, d):
+    n = len(poly); out = []
+    for i in range(n):
+        p0, p1, p2 = Vector(poly[i - 1]), Vector(poly[i]), Vector(poly[(i + 1) % n])
+        e0, e1 = (p1 - p0).normalized(), (p2 - p1).normalized()
+        n0, n1 = Vector((-e0.y, e0.x)), Vector((-e1.y, e1.x))
+        b = n0 + n1; b = b / max(1e-6, b.length); c = max(0.3, b.dot(n0))
+        out.append((p1.x + b.x * d / c, p1.y + b.y * d / c))
+    return out
+
+
 for name, (poly, h, mint, kind) in prisms().items():
     m = Mesh(f'STONE_{name}')
     n = len(poly)
+    bv = min(BEVEL, h * 0.3)
+    inner = inset_ccw(poly, bv) if bv > 0 else list(poly)
     for i in range(n):
         (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
+        hf = h - bv
         for k in range(NS):          # (the face in NS bands, each its measured step, top to bottom)
-            za, zb = h * (1 - k / NS), h * (1 - (k + 1) / NS)
+            za, zb = hf * (1 - k / NS), hf * (1 - (k + 1) / NS)
             m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], FACE[k])
-    m.poly(list(poly), h, SC['top'])
+        if bv > 0:                   # the bevel: from the face's top edge in and up to the top, its colour between the two
+            (u0, v0), (u1, v1) = inner[i], inner[(i + 1) % n]
+            m.face([(x0, YC + y0, hf), (x1, YC + y1, hf), (u1, YC + v1, h), (u0, YC + v0, h)], mixhex(SC['top'], FACE[0], 0.45))
+    m.poly(inner, h, SC['top'])
     if mint:
         # the mint in its own measured colour, and what lies on it (tops.py: shadows, fallen leaves), each a hair above the last
         tp = TOPS.get(name, {})
