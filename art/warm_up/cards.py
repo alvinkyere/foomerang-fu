@@ -28,8 +28,13 @@ OBJECTS = {
     'bamboo_e': ((1915, 500, 2050, 750), 18, 4, None),
     'bamboo_se': ((1870, 855, 1955, 990), 18, 4, None),
 }
-r = cv2.imread(sys.argv[1]); m = cv2.imread('art/warm_up/output/mosaic_chrome.png')
-d = np.abs(r.astype(int) - m.astype(int)).max(2)
+r = cv2.imread(sys.argv[1]); mosaic = cv2.imread('art/warm_up/output/mosaic_chrome.png')
+# (what stands tall smears in the mosaic, made while the camera moves: the READY frame, its camera still, laid into the mosaic's pixels
+# is traced instead, its pens' walls (not in the mosaic, nor in the render) left out; the red tree keeps the mosaic: READY covers its foot)
+m = mosaic.copy(); m[-OY:-OY + 1080, -OX:-OX + 1920] = cv2.imread('art/warm_up/output/chrome_0.png')
+pens = np.zeros(m.shape[:2], bool); pens[-OY:-OY + 1080, -OX:-OX + 1920] = cv2.dilate(np.load('art/warm_up/output/pen_mask.npy').astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+FROM_MOSAIC = {'tree_red'}
+m_frame = m
 h = cv2.cvtColor(m, cv2.COLOR_BGR2HSV).astype(int)
 teal = (h[..., 0] >= 68) & (h[..., 0] <= 92) & (h[..., 1] >= 60) & (h[..., 2] >= 140)
 water = (h[..., 0] >= 96) & (h[..., 0] <= 112) & (h[..., 1] >= 90)            # (the moat's water: never part of an object)
@@ -44,7 +49,11 @@ def ray(px, py):
 
 out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
-    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water)[y0:y1, x0:x1]
+    m = mosaic if name in FROM_MOSAIC else m_frame
+    d = np.abs(r.astype(int) - m.astype(int)).max(2); hh = cv2.cvtColor(m, cv2.COLOR_BGR2HSV).astype(int)
+    teal = (hh[..., 0] >= 68) & (hh[..., 0] <= 92) & (hh[..., 1] >= 60) & (hh[..., 2] >= 140)
+    water = (hh[..., 0] >= 96) & (hh[..., 0] <= 112) & (hh[..., 1] >= 90)
+    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & (~pens if m is m_frame else True))[y0:y1, x0:x1]
     mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue
