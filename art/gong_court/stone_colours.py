@@ -38,6 +38,26 @@ for name, (poly, h, mint, kind) in prisms().items():
         for y in range(yt, yb):
             if STONE[y, x] and hsv[y, x, 2] < 205: steps[min(N - 1, int((y - yt) / (yb - yt) * N))].append(M[y, x])
 face = [hexc(np.median(np.array(s), 0)) for s in steps]
-out = dict(top=hexc(np.median(np.array(tops), 0)), face=face, mint=hexc(np.median(np.array(mints), 0)))
+# by facing: each face's own pixels (between its top edge and its foot, in front of nothing else), the median of each, grouped by which way
+# the face looks (its outward normal's angle in plan, 8 ways from east counter-clockwise): the HQ's light falls on some sides more
+by = {k: [] for k in range(8)}
+for name, (poly, h, mint, kind) in prisms().items():
+    n = len(poly)
+    for i in range(n):
+        (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % n]
+        nx, ny = (y1 - y0), -(x1 - x0)
+        if ny > 0.2 * abs(nx): continue                       # (faces looking north turn from the camera)
+        q = np.float32([pix(x0, y0, h), pix(x1, y1, h), pix(x1, y1, 0), pix(x0, y0, 0)]) - [OX, OY]
+        fm = np.zeros(STONE.shape, np.uint8); cv2.fillConvexPoly(fm, np.int32(q), 1)
+        fm = (cv2.erode(fm, np.ones((5, 5), np.uint8)) > 0) & STONE & (hsv[..., 2] < 205)
+        if fm.sum() < 60: continue
+        k = int(round(np.degrees(np.arctan2(ny, nx)) / 45)) % 8
+        by[k].append((fm.sum(), np.median(M[fm], 0)))
+out_by = {}
+for k, v in by.items():
+    if not v: continue
+    w_ = np.array([a for a, _ in v], float); c_ = np.array([c for _, c in v])
+    out_by[str(k)] = hexc((c_ * w_[:, None]).sum(0) / w_.sum())
+out = dict(top=hexc(np.median(np.array(tops), 0)), face=face, mint=hexc(np.median(np.array(mints), 0)), by_facing=out_by)
 json.dump(out, open('art/gong_court/stone_colours.json', 'w'), indent=1)
 print(out, [len(s) for s in steps])

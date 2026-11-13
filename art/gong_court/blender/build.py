@@ -124,6 +124,24 @@ def inset_ccw(poly, d):
     return out
 
 
+BYF = {int(k): v for k, v in SC.get('by_facing', {}).items()}
+hexrgb = lambda c: [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+_mean_face = [sum(hexrgb(c)[j] for c in FACE) / len(FACE) for j in range(3)]
+
+
+def faced(colour, nx, ny):
+    """A face's step colour turned to its facing (stone_colours.py by_facing: the HQ's light from the east): the measured colour for
+    its facing, interpolated between the two nearest measured ways, less the steps' mean, added to this step."""
+    if not BYF: return colour
+    ang = math.degrees(math.atan2(ny, nx)) % 360; ks = sorted(BYF)
+    best = sorted(ks, key=lambda k: min(abs(ang - 45 * k), 360 - abs(ang - 45 * k)))[:2]
+    d = [min(abs(ang - 45 * k), 360 - abs(ang - 45 * k)) for k in best]
+    t = d[0] / max(1e-6, d[0] + d[1])
+    target = [hexrgb(BYF[best[0]])[j] * (1 - t) + hexrgb(BYF[best[1]])[j] * t for j in range(3)]
+    c = hexrgb(colour)
+    return '#%02x%02x%02x' % tuple(max(0, min(255, round(c[j] + target[j] - _mean_face[j]))) for j in range(3))
+
+
 for name, (poly, h, mint, kind) in prisms().items():
     m = Mesh(f'STONE_{name}')
     n = len(poly)
@@ -134,7 +152,7 @@ for name, (poly, h, mint, kind) in prisms().items():
         hf = h - bv
         for k in range(NS):          # (the face in NS bands, each its measured step, top to bottom)
             za, zb = hf * (1 - k / NS), hf * (1 - (k + 1) / NS)
-            m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], FACE[k])
+            m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], faced(FACE[k], y1 - y0, -(x1 - x0)))
         if bv > 0:                   # the bevel: from the face's top edge in and up to the top, its colour between the two
             (u0, v0), (u1, v1) = inner[i], inner[(i + 1) % n]
             m.face([(x0, YC + y0, hf), (x1, YC + y1, hf), (u1, YC + v1, h), (u0, YC + v0, h)], mixhex(SC['top'], FACE[0], 0.45))
