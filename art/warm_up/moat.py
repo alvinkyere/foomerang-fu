@@ -24,6 +24,7 @@ cs, hier = cv2.findContours(ring, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 outer = max((k for k in range(len(cs)) if hier[0][k][3] < 0), key=lambda k: cv2.contourArea(cs[k]))
 inner = max((k for k in range(len(cs)) if hier[0][k][3] == outer), key=lambda k: cv2.contourArea(cs[k]))
 OX, OY = MOSAIC_ORIGIN
+SOFT = 1.0                  # (the corners' arcs: up to this far back along both runs)
 R2 = 2 ** 0.5
 rot = lambda p: ((p[0] + p[1]) / R2, (p[1] - p[0]) / R2)            # (plan -> the moat's own axes: u north-east, v north-west)
 unrot = lambda q: ((q[0] - q[1]) / R2, (q[0] + q[1]) / R2)
@@ -81,7 +82,7 @@ except FileNotFoundError: SHIFT = {}
 for name, k in (('outer', outer), ('inner', inner)):
     p = plan([(x + OX, y + OY) for x, y in cs[k][:, 0, :]])
     corners, runs = rectilinear(cv2.approxPolyDP(np.float32(p).reshape(-1, 1, 2), 0.15, True)[:, 0, :], step=0.9, shift=SHIFT.get(name))
-    s = soften(corners, 0.45)      # (straight runs, soft corners: the HQ's)
+    s = soften(corners, SOFT)      # (straight runs, soft corners: the HQ's)
     out[name] = [[round(float(x), 2), round(float(y), 2)] for x, y in s]
     # (each run: along u? its level, and its corners: run k goes from corner k-1 to corner k... as rectilinear lays them)
     out['runs'][name] = [dict(u=h, level=round(q, 3), a=[round(float(c), 3) for c in corners[k_ - 1]], b=[round(float(c), 3) for c in corners[k_]])
