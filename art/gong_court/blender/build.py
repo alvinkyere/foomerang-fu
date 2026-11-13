@@ -24,6 +24,7 @@ HAS = lambda p: os.path.exists(os.path.join(ROOT, p))
 CAM = J('art/sky_islands/camera.json'); ZOOM = CAM['referenceZoom'] * 1.34          # (measure.py: K)
 YC = 73.72                                                                           # (measure.py: the ground point under the frame's centre)
 G = J('art/gong_court/ground.json'); SC = J('art/gong_court/stone_colours.json')
+TOPS = J('art/gong_court/tops.json') if HAS('art/gong_court/tops.json') else {}
 MOS = J('art/gong_court/output/mosaic.json') if HAS('art/gong_court/output/mosaic.json') else dict(origin=[-185, -111])
 bpy.ops.wm.read_factory_settings(use_empty=True)
 os.makedirs(OUT, exist_ok=True)
@@ -113,7 +114,12 @@ for name, (poly, h, mint, kind) in prisms().items():
             za, zb = h * (1 - k / NS), h * (1 - (k + 1) / NS)
             m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], FACE[k])
     m.poly(list(poly), h, SC['top'])
-    if mint: m.poly(mint, h + 0.004, SC['mint'])
+    if mint:
+        # the mint in its own measured colour, and what lies on it (tops.py: shadows, fallen leaves), each a hair above the last
+        tp = TOPS.get(name, {})
+        m.poly(mint, h + 0.004, tp.get('colour', SC['mint']))
+        for k, s_ in enumerate(tp.get('shapes', [])):
+            m.poly(s_['pts'], h + 0.006 + 0.0004 * k, s_['colour'], s_.get('holes', []))
     m.done()
 
 # ---------------------------------------------------------------------------------------------------------------- cards

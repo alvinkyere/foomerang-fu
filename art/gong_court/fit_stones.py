@@ -7,7 +7,7 @@ Writes stones.json: name -> {top: [[x, y]...] (plan units, y north), h, mint: [[
 
   python art/gong_court/fit_stones.py      (after mosaic.py; the Python of art/audio/output/venv)
 """
-import json, sys
+import json, os, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
 from measure import plan, pix, MOSAIC_ORIGIN
@@ -216,7 +216,7 @@ def sil_small(poly_plan, h):
 
 
 import geom
-RIM = 0.55
+RIM = float(os.environ.get("RIM", "0.55"))
 
 
 def inset(poly, d):
@@ -243,8 +243,10 @@ def _inset_convex(poly, d):
 walls_sil = np.zeros(TARGET.shape, bool)
 for name, b in out.items():
     if b['kind'] == 'wall': walls_sil |= sil_small(geom.beam_corners(b), b['h'])
-# heights read on the faces (column.py: the face's run straight down from the top's front edge to the grass, at that spot's scale)
-FIXED = {'plat_sw': 1.7, 'plat_sw_hi': 4.17, 'block_sw': 2.24, 'plat_nw': 2.6, 'plat_ne': 2.85, 'plat_se': 3.3, 'plat_se_hi': 2.33}
+# heights read on the faces (column.py: the face's run straight down from the top's front edge to the grass, at that spot's scale);
+# the south-east diagonal under its octagon (the octagon's whole rim shows over the diagonal's mint in the HQ, and its east face is
+# 2.2-2.3 units: the diagonal's 3.2 reading took in something else; 2.0 and 3.3/3.6 score the same, 5.36)
+FIXED = {'plat_sw': 1.7, 'plat_sw_hi': 4.17, 'block_sw': 2.24, 'plat_nw': 2.6, 'plat_ne': 2.85, 'plat_se': 2.0, 'plat_se_hi': 2.33}
 H_ = {n: FIXED.get(n, out[n]['h']) for n in tops_px}
 cache = {n: sil_small(plan([(x + OX, y + OY) for x, y in tops_px[n]], z=H_[n]), H_[n]) for n in tops_px}
 for p_ in range(3):

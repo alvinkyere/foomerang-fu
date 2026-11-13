@@ -3,7 +3,7 @@
 #   art/gong_court/run.sh [package]          (mosaic.py first, once: ~10 min; its output/ is local only)
 PY=art/audio/output/venv/bin/python; B=/Applications/Blender.app/Contents/MacOS/Blender; T=${TMPDIR%/}/gong
 $PY art/gong_court/fit_stones.py ${GROW:-0.08} >/dev/null || exit 1
-for s in ground stone_colours; do $PY art/gong_court/$s.py >/dev/null || exit 1; done
+for s in ground stone_colours tops; do $PY art/gong_court/$s.py >/dev/null || exit 1; done
 $B -b --python art/gong_court/blender/build.py -- $T/wide render wide nocards 2>&1 | grep -E "Error|Traceback"
 $PY art/gong_court/cards.py $T/wide/render.png >/dev/null || exit 1
 $B -b --python art/gong_court/blender/build.py -- $T/frame render 2>&1 | grep -E "Error|Traceback"
