@@ -25,7 +25,15 @@ A = np.array([[1 / PX, 0, X0], [0, -1 / PX, Y1 + Yc], [0, 0, 1]])
 T = np.array([[1, 0, -MOSAIC_ORIGIN[0]], [0, 1, -MOSAIC_ORIGIN[1]], [0, 0, 1]])
 Hm = T @ np.linalg.inv(GROUND_H) @ A
 M = cv2.imread('art/warm_up/output/mosaic_chrome.png')
-flat = cv2.warpPerspective(M, Hm, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+# (the ground from the READY frame wherever nothing stands that moves or goes: its camera is still, the mosaic is a median of a moving
+# camera's frames and softens what the frame has crisp, the light shafts' edges; the mosaic under the pens, the players, READY, the names)
+_F = cv2.imread('art/warm_up/output/chrome_0.png'); _keep = np.ones(_F.shape[:2], np.uint8)
+_keep[cv2.dilate(np.load('art/warm_up/output/pen_mask.npy').astype(np.uint8), np.ones((21, 21), np.uint8)) > 0] = 0
+for _x, _y in ((1022, 75), (385, 560), (1500, 445), (870, 1030)): cv2.circle(_keep, (_x, _y), 60, 0, -1)      # (the players)
+_keep[455:600, 720:1200] = 0; _keep[0:360, 0:230] = 0                                                       # (READY, the names)
+_M = M.copy(); _sel = np.zeros(M.shape[:2], bool); _sel[-MOSAIC_ORIGIN[1]:-MOSAIC_ORIGIN[1] + 1080, -MOSAIC_ORIGIN[0]:-MOSAIC_ORIGIN[0] + 1920] = _keep > 0
+_M[-MOSAIC_ORIGIN[1]:-MOSAIC_ORIGIN[1] + 1080, -MOSAIC_ORIGIN[0]:-MOSAIC_ORIGIN[0] + 1920][_keep > 0] = _F[_keep > 0]
+flat = cv2.warpPerspective(_M, Hm, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
 seen = cv2.erode((flat.sum(2) > 30).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
 to_px = lambda pts: np.int32([[(x - X0) * PX, (Y1 - y) * PX] for x, y in pts])
 hsv = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV).astype(int); Hu, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
