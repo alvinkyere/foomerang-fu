@@ -28,8 +28,9 @@ sc = bpy.context.scene
 WATER_Z = -0.8            # (the far banks' lavender faces: 15-22 px tall in the frame)
 RIM = 0.3                 # (the far banks' kerb's light top)
 GLOW = 0.5                # (the grass's pale green glow along every bank)
+GLOW_FLAT = 0.3           # (its full width: the frame's #bdea9c from the edge 0.3 in, gone by 0.5)
 FILL = 0.8                # (the grass strip along every bank over the ground grid's left-out cells: more than a cell's diagonal)
-COL = dict(rim='#a6b4e9', face='#8694d1', face_sw='#6c8ad0', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
+COL = dict(rim='#a6b4e9', face='#8694d1', face_sw='#6c8ad0', water='#64a8e8', glow='#bdea9c', glow_edge='#bce6ab', line='#aee0fe')
 # (a far bank's face turned south-west, the water south-west of it, is darker and bluer in the frame: #6c91d3, #6b84cc; one turned
 # south-east as `face`, #8796d3)
 
@@ -150,7 +151,7 @@ def offset(poly, dist, island):
 m = Mesh('MOAT_BANKS')
 for key, island in (('outer', False), ('inner', True)):
     poly = MOAT[key]; P0 = [Vector(p) for p in poly]
-    Pr = offset(poly, RIM, island); Pg = offset(poly, -GLOW, island)
+    Pr = offset(poly, RIM, island); Pg = offset(poly, -GLOW, island); Pm = offset(poly, -GLOW_FLAT, island)
     n = len(poly)
     Pf = offset(poly, -FILL, island)
     for i in range(n):
@@ -158,8 +159,11 @@ for key, island in (('outer', False), ('inner', True)):
         # the grass from the outline to past the ground's left-out cells (beneath the glow and the traced shapes)
         m.face([(Pf[i].x, YC + Pf[i].y, 0.001), (Pf[j].x, YC + Pf[j].y, 0.001), (P0[j].x, YC + P0[j].y, 0.001), (P0[i].x, YC + P0[i].y, 0.001)],
                [base_at(Pf[i].x, Pf[i].y), base_at(Pf[j].x, Pf[j].y), base_at(P0[j].x, P0[j].y), base_at(P0[i].x, P0[i].y)])
-        # the glow on the grass: the edge pale green, fading to the ground's base GLOW in
-        m.face([(Pg[i].x, YC + Pg[i].y, 0.006), (Pg[j].x, YC + Pg[j].y, 0.006), (P0[j].x, YC + P0[j].y, 0.006), (P0[i].x, YC + P0[i].y, 0.006)],
+        # the glow on the grass (the frame, every bank alike: a band of #bdea9c GLOW_FLAT wide, a hair bluer at the edge, then gone
+        # to the grass by GLOW in)
+        m.face([(Pm[i].x, YC + Pm[i].y, 0.006), (Pm[j].x, YC + Pm[j].y, 0.006), (P0[j].x, YC + P0[j].y, 0.006), (P0[i].x, YC + P0[i].y, 0.006)],
+               [COL['glow'], COL['glow'], COL['glow_edge'], COL['glow_edge']])
+        m.face([(Pg[i].x, YC + Pg[i].y, 0.006), (Pg[j].x, YC + Pg[j].y, 0.006), (Pm[j].x, YC + Pm[j].y, 0.006), (Pm[i].x, YC + Pm[i].y, 0.006)],
                [base_at(Pg[i].x, Pg[i].y), base_at(Pg[j].x, Pg[j].y), COL['glow'], COL['glow']])
         # a far bank (the water south of it: its face turned to the camera) has the kerb's light top and its face down to the water;
         # a near bank shows neither (the frame: the water runs straight to the grass's glow there)
