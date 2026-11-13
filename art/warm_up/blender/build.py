@@ -274,8 +274,12 @@ for k, name in enumerate(('W', 'N', 'E', 'S')):
     kx, ky = LV[name]; hx, hy = J('art/warm_up/layout.json')['housings'][name]
     m = Mesh(f'PEN_{k}_lever')
     d = Vector((kx - hx, ky - hy)); dl = d.length or 1; d /= dl; e = Vector((-d.y, d.x))
-    hq = [Vector((hx, hy)) + d * sx * 0.35 + e * sy * 0.5 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    box3(m, [(q.x, q.y) for q in hq], 1.35, 2.2, '#e6c3a0', '#d2a785', '#dcb592', bevel=0.12)
+    # (the frame's housings: ~39 x 42 px, a rounded block a little wider than deep)
+    hq = [Vector((hx, hy)) + d * sx * 0.38 + e * sy * 0.55 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    box3(m, [(q.x, q.y) for q in hq], 1.35, 2.25, '#e6c3a0', '#d2a785', '#dcb592', bevel=0.2)
+    # the slot in its face to the knob, where the stem comes out (the frame: #a08575)
+    f0 = Vector((hx, hy)) + d * 0.395
+    m.face([(f0.x + e.x * sg * 0.3, YC + f0.y + e.y * sg * 0.3, z) for sg, z in ((-1, 1.45), (1, 1.45), (1, 2.0), (-1, 2.0))], '#a08575')
     # the stem: a short pink bar from the housing down to the knob
     s0 = Vector((hx, hy)); s1 = Vector((kx, ky))
     sq = [s0 + e * 0.1, s1 + e * 0.1, s1 - e * 0.1, s0 - e * 0.1]

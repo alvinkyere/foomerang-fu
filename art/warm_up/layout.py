@@ -11,7 +11,7 @@ from measure import plan, plan_at
 
 LEVER_KNOBS = {'W': (515, 405), 'N': (818, 175), 'E': (1295, 552), 'S': (993, 815)}
 KNOB_Z = 1.4
-HOUSINGS = {'W': (500, 395), 'N': (810, 165), 'E': (1285, 540), 'S': (985, 800)}      # (their tan boxes' middles, 1.8 up)
+HOUSINGS = {'W': (499, 380), 'N': (800, 153), 'E': (1275, 526), 'S': (974, 788)}      # (their tan boxes' middles, 1.8 up: the frame's tan blobs, 2026-11-13)
 HOUSING_Z = 1.8
 # (pixel foot, radius in plan units): the three trees' trunks, the bamboo clumps, the potted aloes
 FEET = [((880, 490), 0.6), ((300, 300), 0.6), ((1650, 590), 0.7)]
