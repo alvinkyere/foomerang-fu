@@ -221,6 +221,24 @@ for sx in (-1, 1):
 json.dump(dict(cx=mx, cy=my, half=span / 2 * 1.03), open(os.path.join(OUT, 'water_box.json'), 'w'))
 w.done()
 
+# ---------------------------------------------------------------------------------------------------------------- the dashed border
+# the square turned 45 degrees (layout.json: u, v the moat's axes), dashed: 0.45-unit dashes on a 1.29 period, ~3 px (0.11) thick, the
+# ground they lie on darkened ~6% (the frame: #d0e98d on #ddf497; the water's colour where one crosses the moat)
+BD = J('art/warm_up/layout.json')['border']; DASH, PERIOD, THICK = 0.45, 1.29, 0.11
+R2_ = math.sqrt(2); uv_xy = lambda u, v: ((u - v) / R2_, (u + v) / R2_)
+corners = [(BD['u0'], BD['v0']), (BD['u1'], BD['v0']), (BD['u1'], BD['v1']), (BD['u0'], BD['v1'])]
+bd = Mesh('BORDER_DASHES')
+DARK = 0.94 ** 2.2                      # (an sRGB x0.94 in linear)
+for i in range(4):
+    a_, b_ = Vector(uv_xy(*corners[i])), Vector(uv_xy(*corners[(i + 1) % 4])); ln = (b_ - a_).length; u_ = (b_ - a_) / ln
+    n_ = Vector((-u_.y, u_.x)) * THICK / 2; t = 0.0
+    while t + DASH <= ln:
+        q = [a_ + u_ * t + n_, a_ + u_ * (t + DASH) + n_, a_ + u_ * (t + DASH) - n_, a_ + u_ * t - n_]
+        cols = [[c * DARK for c in (across_at(p.x, p.y) if in_moat((p.x, p.y)) else base_at(p.x, p.y))[:3]] + [1.0] for p in q]
+        bd.face([(p.x, YC + p.y, 0.05) for p in q], cols); t += PERIOD
+bd.done()
+
+
 # ---------------------------------------------------------------------------------------------------------------- what stands
 # the trees, stump, pots, bunting, aloe, tufts and bamboo as traced cards (cards.py): upright planes through each foot, facing the camera
 # (the game's camera never turns), each tone a flat shape, the later tones a hair nearer the camera; the trees' named TREE_<k>_tree
