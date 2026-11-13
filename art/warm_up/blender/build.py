@@ -28,6 +28,7 @@ sc = bpy.context.scene
 WATER_Z = -0.8            # (the far banks' lavender faces: 15-22 px tall in the frame)
 RIM = 0.3                 # (the far banks' kerb's light top)
 GLOW = 0.5                # (the grass's pale green glow along every bank)
+FILL = 0.8                # (the grass strip along every bank over the ground grid's left-out cells: more than a cell's diagonal)
 COL = dict(rim='#a6b4e9', face='#8694d1', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
 
 
@@ -108,8 +109,10 @@ vs = [[None] * (nx + 1) for _ in range(ny + 1)]
 for j in range(ny):
     for i in range(nx):
         x0, y0 = X0 + i * DG, Y0 + j * DG
-        if in_moat((x0 + DG / 2, y0 + DG / 2)): continue
         pts = [(x0, y0), (x0 + DG, y0), (x0 + DG, y0 + DG), (x0, y0 + DG)]
+        # (a cell the moat's outline crosses is left out: the grid's steps would show as teeth along the diagonal banks; the banks'
+        # filler strip, MOAT_BANKS, lays the grass there up to the outline exactly)
+        if in_moat((x0 + DG / 2, y0 + DG / 2)) or any(in_moat(q) for q in pts): continue
         g.face([(x, YC + y, 0.0) for x, y in pts], [base_at(x, y) for x, y in pts])
 g.done()
 sh = Mesh('GROUND_SHAPES')
@@ -147,8 +150,12 @@ for key, island in (('outer', False), ('inner', True)):
     poly = MOAT[key]; P0 = [Vector(p) for p in poly]
     Pr = offset(poly, RIM, island); Pg = offset(poly, -GLOW, island)
     n = len(poly)
+    Pf = offset(poly, -FILL, island)
     for i in range(n):
         j = (i + 1) % n
+        # the grass from the outline to past the ground's left-out cells (beneath the glow and the traced shapes)
+        m.face([(Pf[i].x, YC + Pf[i].y, 0.001), (Pf[j].x, YC + Pf[j].y, 0.001), (P0[j].x, YC + P0[j].y, 0.001), (P0[i].x, YC + P0[i].y, 0.001)],
+               [base_at(Pf[i].x, Pf[i].y), base_at(Pf[j].x, Pf[j].y), base_at(P0[j].x, P0[j].y), base_at(P0[i].x, P0[i].y)])
         # the glow on the grass: the edge pale green, fading to the ground's base GLOW in
         m.face([(Pg[i].x, YC + Pg[i].y, 0.006), (Pg[j].x, YC + Pg[j].y, 0.006), (P0[j].x, YC + P0[j].y, 0.006), (P0[i].x, YC + P0[i].y, 0.006)],
                [base_at(Pg[i].x, Pg[i].y), base_at(Pg[j].x, Pg[j].y), COL['glow'], COL['glow']])
