@@ -39,6 +39,7 @@ export type ReconstructedArena = Extract<
   | 'hex_meadow'
   | 'warm_up'
   | 'temple_court'
+  | 'gong_court'
   | 'bridge_islands'
   | 'harbour_fort'
   | 'sky_islands'
@@ -104,6 +105,21 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
       ] as const),
       arena: Object.freeze({ width: 2017, height: 1703 }),
       background: '#bee781',
+    }),
+    // the HQ's gong court (art/gong_court, foomerang-fu physics hq.mp4 0:35): the plaza's camera and characters, its own court
+    gong_court: Object.freeze({
+      id: 'gong_court',
+      assetDir: 'maps/gong_court/',
+      roster: Object.freeze([
+        'bread',
+        'coffee',
+        'watermelon',
+        'icecream',
+        'banana',
+        'carrot',
+      ] as const),
+      arena: Object.freeze({ width: 1044, height: 1058 }),
+      background: '#93c786',
     }),
     // the HQ's temple court (art/temple_court, ff physics hq 2.mp4 2:01): the plaza's camera and characters, its hex fields drawn by the game
     temple_court: Object.freeze({

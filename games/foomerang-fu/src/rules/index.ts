@@ -115,6 +115,15 @@ export {
   TEMPLE_COURT_WIDTH,
 } from './templeCourtArena';
 
+export {
+  GONG_COURT_ARENA,
+  GONG_COURT_BOOK_SPOTS,
+  GONG_COURT_HEIGHT,
+  GONG_COURT_SPAWNS,
+  GONG_COURT_WALLS,
+  GONG_COURT_WIDTH,
+} from './gongCourtArena';
+
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';
 
