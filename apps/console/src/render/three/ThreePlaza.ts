@@ -50,7 +50,8 @@ import { flipFrameAt, parsePortalFlip, portalFlipPart } from './portalFlip';
 import { parsePlantGroups, type FireSource, type Pusher } from '../hexPlants';
 import { HexPlantsView } from './hexPlantsView';
 import { sceneryMotion } from './sceneryMotion';
-import { penWallAt } from '../penOpening';
+import { penTintFactor, penWallAt } from '../penOpening';
+import { PenBurst } from './penBurst';
 import { parseHands, type CharacterHands, type SceneOffset } from '../characterRig';
 import { windUp } from '../aimLook';
 import { WALK, walkPose, type WalkPose } from '../walkMotion';
@@ -132,6 +133,10 @@ interface Manifest {
 }
 
 const color = (css: string) => new THREE.Color(css);
+
+/** The warm-up pens' walls' top (the HQ, art/warm_up: #aab3e3), and its levers' knobs' lit green (linear: build.py's #8aeaff). */
+const PEN_WALL_TOP = new THREE.Color('#aab3e3');
+const KNOB_LIT = new THREE.Color('#8aeaff').g;
 
 /** What a surface keeps of its colour in shadow (linear RGB): environ2's shadows are violet-tinted, never grey. */
 const SHADOW_TINT: readonly [number, number, number] = [0.72, 0.66, 0.86];
@@ -1151,7 +1156,13 @@ class Plaza {
     materials: THREE.MeshBasicMaterial[];
     own: THREE.Color[];
   }[] = [];
-  readonly #penLevers: { node: THREE.Object3D; index: number }[] = [];
+  /** Each lever, its burst when struck (penBurst.ts) and its knob's vertices (taking the struck colour), their own colours. */
+  readonly #penLevers: {
+    node: THREE.Object3D;
+    index: number;
+    burst: PenBurst | null;
+    knob: { colours: THREE.BufferAttribute; at: number[]; own: number[] } | null;
+  }[] = [];
   readonly #penStruck = new Map<number, { at: number; colour: THREE.Color }>();
   readonly #banner: HTMLDivElement;
   /** READY / GO: the HQ video's own letters, its pop and GO's sparks (render/readyGo.ts). */
@@ -1403,14 +1414,14 @@ class Plaza {
         this.#fadeable.push({ root, materials, opacity: 1 });
       }
     }
-    // the warm-up's pens (PEN_<k>_wall<j> is rules slider 4k + j): each wall tips over outwards about its outer foot (penOpening.ts)
+    // the warm-up's pens (PEN_<k>_wall<j> is rules slider 4k + j): each wall sinks into the ground (penOpening.ts)
     for (const root of gltf.children) {
       const pen = /^PEN_(\d+)$/.exec(root.name);
       if (pen === null) continue;
       for (const node of [...root.children]) {
         // (the lever goes with its pen: the HQ's is gone with the walls)
         if (/^PEN_\d+_lever$/.test(node.name))
-          this.#penLevers.push({ node, index: 4 * Number(pen[1]) });
+          this.#penLevers.push({ node, index: 4 * Number(pen[1]), ...this.#leverKnob(node) });
         const wall = /^PEN_\d+_wall(\d+)$/.exec(node.name);
         if (wall === null || !(node instanceof THREE.Mesh)) continue;
         const box = new THREE.Box3().setFromObject(node);
@@ -1759,7 +1770,10 @@ class Plaza {
       const by = view.sliders?.[w.index]?.droppedBy;
       if (by === undefined) this.#penStruck.delete(w.index);
       else if (!this.#penStruck.has(w.index))
-        this.#penStruck.set(w.index, { at: now, colour: new THREE.Color(by) });
+        this.#penStruck.set(w.index, {
+          at: now,
+          colour: new THREE.Color().setRGB(...penTintFactor(by), THREE.SRGBColorSpace),
+        });
     }
     const present = new Set<string>();
     this.#circles = [];
@@ -2147,25 +2161,85 @@ class Plaza {
   }
 
   /**
-   * The warm-up's pen walls: tinted the striker's colour, then sinking straight down into the ground (render/penOpening.ts; owner,
-   * 2026-11-12: "it settles into the ground"), deep enough to go under the moat's water where a wall bridges it.
+   * A warm-up lever's knob (its cyan vertices, blender/build.py: a sphere 0.33 units round, 1.4 up): where it is, for its burst, and
+   * which of the mesh's colours are its own, to take the struck colour.
+   */
+  #leverKnob(node: THREE.Object3D): {
+    burst: PenBurst | null;
+    knob: { colours: THREE.BufferAttribute; at: number[]; own: number[] } | null;
+  } {
+    const geometry = (node as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    const colours = geometry?.getAttribute('color') as THREE.BufferAttribute | undefined;
+    const positions = geometry?.getAttribute('position') as THREE.BufferAttribute | undefined;
+    if (colours === undefined || positions === undefined) return { burst: null, knob: null };
+    node.updateWorldMatrix(true, false);
+    const at: number[] = [];
+    const own: number[] = [];
+    const box = new THREE.Box3();
+    const v = new THREE.Vector3();
+    for (let i = 0; i < colours.count; i += 1) {
+      const [r, g, b] = [colours.getX(i), colours.getY(i), colours.getZ(i)];
+      if (!(b > 0.55 && g > 0.35 && r < 0.3)) continue;
+      at.push(i);
+      own.push(r, g, b);
+      box.expandByPoint(v.fromBufferAttribute(positions, i).applyMatrix4(node.matrixWorld));
+    }
+    if (at.length === 0) return { burst: null, knob: null };
+    const size = box.getSize(new THREE.Vector3());
+    const way = (x: number, y: number, z: number): THREE.Vector3 =>
+      new THREE.Vector3(x, y, z).transformDirection(node.matrixWorld);
+    const burst = new PenBurst(this.scene, {
+      knob: box.getCenter(new THREE.Vector3()),
+      unit: Math.max(size.x, size.z) / 0.66,
+      east: way(1, 0, 0),
+      north: way(0, 0, -1),
+      up: way(0, 1, 0),
+    });
+    return { burst, knob: { colours, at, own } };
+  }
+
+  /**
+   * The warm-up's pen walls: their lavender times a light version of the striker's colour, fading back part way, then sinking
+   * straight down into the ground, the end walls first (render/penOpening.ts; owner, 2026-11-12: "it settles into the ground"), deep
+   * enough to go under the moat's water where a wall bridges it. The lever goes with the long walls.
    */
   #openPens(time: number): void {
+    const white = new THREE.Color(1, 1, 1);
     for (const w of this.#penWalls) {
       const struck = this.#penStruck.get(w.index);
-      const pose = penWallAt(struck === undefined ? undefined : (time - struck.at) / 1000);
+      const pose = penWallAt(
+        struck === undefined ? undefined : (time - struck.at) / 1000,
+        w.index % 4 >= 2,
+      );
       w.node.visible = pose.visible;
       w.node.position.y = w.pivot.y - pose.sink * w.depth;
       w.materials.forEach((m, k) => {
         m.color.copy(w.own[k] as THREE.Color);
-        if (struck !== undefined) m.color.lerp(struck.colour, pose.tint * 0.85);
+        if (struck !== undefined) m.color.multiply(white.clone().lerp(struck.colour, pose.tint));
       });
     }
+    // the lever: its knob takes the struck colour (the wall's lavender times it, the knob's own shading kept) and stays so; its chips
+    // fly; it goes with the long walls
     for (const l of this.#penLevers) {
       const struck = this.#penStruck.get(l.index);
-      l.node.visible = penWallAt(
-        struck === undefined ? undefined : (time - struck.at) / 1000,
-      ).visible;
+      const t = struck === undefined ? undefined : (time - struck.at) / 1000;
+      l.node.visible = penWallAt(t, false).visible;
+      const chips = PEN_WALL_TOP.clone().multiply(struck?.colour ?? white);
+      l.burst?.frame(t, chips);
+      const knob = l.knob;
+      if (knob === null) continue;
+      knob.at.forEach((i, k) => {
+        const shade = (knob.own[3 * k + 1] as number) / KNOB_LIT;
+        if (struck === undefined)
+          knob.colours.setXYZ(
+            i,
+            knob.own[3 * k] as number,
+            knob.own[3 * k + 1] as number,
+            knob.own[3 * k + 2] as number,
+          );
+        else knob.colours.setXYZ(i, chips.r * shade, chips.g * shade, chips.b * shade);
+      });
+      knob.colours.needsUpdate = true;
     }
   }
 
