@@ -205,10 +205,10 @@ export const WARM_UP_GROUND: readonly (readonly Vec2[])[] = Object.freeze([
 ]);
 
 export const WARM_UP_SAFE_ZONE: Rect = Object.freeze({
-  x: 480.2,
-  y: 575.3,
-  width: 1214.6,
-  height: 1016.8,
+  x: 493.1,
+  y: 578.2,
+  width: 1199.5,
+  height: 1000.3,
 });
 
 export const WARM_UP_SPAWNS: readonly Vec2[] = Object.freeze([

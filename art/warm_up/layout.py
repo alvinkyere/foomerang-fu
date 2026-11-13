@@ -20,8 +20,9 @@ R2 = math.sqrt(2)
 out = dict(housings={k: [round(float(v), 3) for v in plan_at([p], HOUSING_Z)[0]] for k, p in HOUSINGS.items()},
            levers={k: [round(float(v), 3) for v in plan_at([p], KNOB_Z)[0]] for k, p in LEVER_KNOBS.items()},
            solids=[[round(float(x), 3), round(float(y), 3), r] for (p, r) in FEET for x, y in [plan([p])[0]]] + [list(s) for s in PLAN_SOLIDS],
-           # the border in the moat's axes (u north-east, v north-west): u -22.1..22.2 read (the west corner at u -21.3, v 19.1; the
-           # north-east side at u 22.1-22.3); v up to 19.2 read, its other side mirrored about the moat's middle (v 0.7)
-           border=dict(u0=-22.0, u1=22.2, v0=-17.8, v1=19.2))
+           # the border in the moat's axes (u north-east, v north-west), its dashes found in the frame (a high-pass of its grass, 2026-11-13;
+           # the peaks of their u, v): the south-west side at u -21.45 (~2200 dash pixels; the west corner read at u -21.3 by eye), the
+           # north-east at u 22.25, the north-west at v 18.9; the south-east side off the frame, mirrored about the moat's middle (v 0.7)
+           border=dict(u0=-21.45, u1=22.2, v0=-17.5, v1=18.9))
 json.dump(out, open('art/warm_up/layout.json', 'w'), indent=1)
 print(out)
