@@ -29,9 +29,10 @@ rot = lambda p: ((p[0] + p[1]) / R2, (p[1] - p[0]) / R2)            # (plan -> t
 unrot = lambda q: ((q[0] - q[1]) / R2, (q[0] + q[1]) / R2)
 
 
-def rectilinear(pts, step=0.6):
+def rectilinear(pts, step=0.6, shift=None):
     """The outline in the moat's axes as straight runs along u or v: each run's level the median of its points (the frame's edge is
-    a pixel staircase with soft corners); runs shorter than `step` merged into their neighbours."""
+    a pixel staircase with soft corners), plus `shift` (moat_shift.json, each run's: moat_refine.py measures them against the READY
+    frame); runs shorter than `step` merged into their neighbours. Returns the corners and the runs (u-run?, level)."""
     P = np.array([rot(p) for p in pts]); n = len(P)
     d = np.roll(P, -1, 0) - P; horiz = np.abs(d[:, 0]) >= np.abs(d[:, 1])
     runs = []                                                    # (axis, [point indices])
@@ -53,12 +54,13 @@ def rectilinear(pts, step=0.6):
         if len(merged) > 1 and merged[0][0] == merged[-1][0]: merged[0][1][:0] = merged.pop()[1]
         runs = merged
     lv = [float(np.median(P[r[1], 1 if r[0] else 0])) for r in runs]       # (a u-run sits at a level of v, and the other way)
+    if shift is not None and len(shift) == len(lv): lv = [q + float(d) for q, d in zip(lv, shift)]
     corners = []
     for k, r in enumerate(runs):
         nxt = (k + 1) % len(runs)
         u = lv[nxt] if r[0] else lv[k]; v = lv[k] if r[0] else lv[nxt]
         corners.append(unrot((u, v)))
-    return corners
+    return corners, [(bool(r[0]), lv[k]) for k, r in enumerate(runs)]
 
 
 def soften(pts, r):
@@ -73,11 +75,17 @@ def soften(pts, r):
     return out
 
 
-out = {}
+out = {'runs': {}}
+try: SHIFT = json.load(open('art/warm_up/moat_shift.json'))
+except FileNotFoundError: SHIFT = {}
 for name, k in (('outer', outer), ('inner', inner)):
     p = plan([(x + OX, y + OY) for x, y in cs[k][:, 0, :]])
-    s = soften(rectilinear(cv2.approxPolyDP(np.float32(p).reshape(-1, 1, 2), 0.15, True)[:, 0, :], step=0.9), 0.45)      # (straight runs, soft corners: the HQ's)
+    corners, runs = rectilinear(cv2.approxPolyDP(np.float32(p).reshape(-1, 1, 2), 0.15, True)[:, 0, :], step=0.9, shift=SHIFT.get(name))
+    s = soften(corners, 0.45)      # (straight runs, soft corners: the HQ's)
     out[name] = [[round(float(x), 2), round(float(y), 2)] for x, y in s]
+    # (each run: along u? its level, and its corners: run k goes from corner k-1 to corner k... as rectilinear lays them)
+    out['runs'][name] = [dict(u=h, level=round(q, 3), a=[round(float(c), 3) for c in corners[k_ - 1]], b=[round(float(c), 3) for c in corners[k_]])
+                         for k_, (h, q) in enumerate(runs)]
     print(name, len(cs[k]), 'px ->', len(s), 'corners')
 json.dump(out, open('art/warm_up/moat.json', 'w'))
 v = c.copy()
