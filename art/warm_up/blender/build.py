@@ -29,7 +29,9 @@ WATER_Z = -0.8            # (the far banks' lavender faces: 15-22 px tall in the
 RIM = 0.3                 # (the far banks' kerb's light top)
 GLOW = 0.5                # (the grass's pale green glow along every bank)
 FILL = 0.8                # (the grass strip along every bank over the ground grid's left-out cells: more than a cell's diagonal)
-COL = dict(rim='#a6b4e9', face='#8694d1', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
+COL = dict(rim='#a6b4e9', face='#8694d1', face_sw='#6c8ad0', water='#64a8e8', glow='#c3ec9f', line='#aee0fe')
+# (a far bank's face turned south-west, the water south-west of it, is darker and bluer in the frame: #6c91d3, #6b84cc; one turned
+# south-east as `face`, #8796d3)
 
 
 def lin(h):
@@ -164,7 +166,7 @@ for key, island in (('outer', False), ('inner', True)):
         dwat = (Pr[i] - P0[i]); dwat = dwat.normalized() if dwat.length > 1e-6 else dwat
         if dwat.y < -0.3:
             m.face([(P0[i].x, YC + P0[i].y, 0.02), (P0[j].x, YC + P0[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[i].x, YC + Pr[i].y, 0.02)], COL['rim'])
-            m.face([(Pr[i].x, YC + Pr[i].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, WATER_Z), (Pr[i].x, YC + Pr[i].y, WATER_Z)], COL['face'])
+            m.face([(Pr[i].x, YC + Pr[i].y, 0.02), (Pr[j].x, YC + Pr[j].y, 0.02), (Pr[j].x, YC + Pr[j].y, WATER_Z), (Pr[i].x, YC + Pr[i].y, WATER_Z)], COL['face_sw' if dwat.x < -0.3 else 'face'])
         # the bright line where a far wall meets the water (frame 0.0 s: 1-2 px of #aee0fe under the face)
         if dwat.y < -0.3:
             Pw = [Pr[i] + dwat * 0.09, Pr[j] + (Pr[j] - P0[j]).normalized() * 0.09]
