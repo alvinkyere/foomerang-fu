@@ -1,0 +1,98 @@
+"""What stands on the gong court's ground, as traced cards (2026-11-12; after art/warm_up/cards.py): the game's camera never turns (it crops and zooms its one view), so an
+object drawn on an upright plane through its foot, facing the camera, shows exactly as the HQ's from every framing the game uses, and
+hides a player behind it as the HQ's does. For each object (OBJECTS: its box in the round's mosaic, how far it must differ from our
+ground-and-moat render to count): its pixels, grouped into a few tones (k-means), the label map smoothed, each tone's regions traced as
+polygons (with their holes): our own flat shapes in measured colours, never the video's pixels. Each pixel of an outline is put on the
+card: the camera ray through it meets the plane through the object's foot. Writes cards.json for blender/build.py.
+
+  python art/gong_court/cards.py <wide render.png>      (the Python of art/audio/output/venv)
+"""
+import json, math, sys
+import numpy as np, cv2
+sys.path.insert(0, 'art/gong_court')
+from measure import plan, pix, Yc, R as _R, F as _F, C as _C, Z as _Z, MOSAIC_ORIGIN
+
+OX, OY = MOSAIC_ORIGIN
+# name: (mosaic box x0, y0, x1, y1), difference threshold, tones, foot (mosaic px; None: the lowest pixel)
+OBJECTS = {
+    'tree_nw': ((560, 0, 800, 245), 30, 7, (670, 205, 'plat_nw')),
+    'tree_w': ((225, 255, 455, 535), 30, 7, (370, 500)),
+    'tree_n': ((780, 0, 920, 75), 30, 6, (850, 60)),
+    'tree_e': ((1785, 550, 1995, 805), 30, 7, (1890, 790)),
+    'tree_se': ((1500, 1050, 1720, 1300), 30, 7, (1615, 1280)),
+    'tree_sw': ((0, 1050, 165, 1240), 30, 6, (80, 1225)),
+    'pot_nw': ((365, 0, 435, 75), 25, 4, None),
+    'pot_e1': ((1760, 745, 1835, 845), 25, 4, None),
+    'pot_e2': ((1785, 810, 1905, 895), 25, 4, None),
+    'pot_n': ((1295, 425, 1350, 480), 25, 4, None),
+    'gong': ((1420, 30, 1700, 310), 25, 6, (1560, 290, 'plat_ne')),
+    'aloe_sw': ((520, 980, 645, 1070), 20, 4, (580, 1060, 'plat_sw_hi')),
+    'aloe_se': ((1680, 905, 1785, 1025), 20, 4, (1730, 1020, 'plat_se_hi')),
+    'bamboo_nw': ((585, 260, 680, 420), 18, 4, None),
+    'bamboo_n': ((995, 0, 1175, 165), 18, 4, None),
+    'bamboo_w': ((385, 730, 500, 890), 18, 4, None),
+    'bamboo_c': ((740, 455, 980, 760), 18, 5, (860, 740)),
+    'bamboo_ne': ((1675, 250, 1770, 380), 18, 4, None),
+    'bamboo_s': ((760, 1110, 845, 1240), 18, 4, None),
+    'bamboo_se': ((1335, 1060, 1470, 1245), 18, 4, None),
+    'bush_ne': ((1475, 355, 1565, 470), 20, 3, None),
+    'bush_w': ((545, 590, 610, 690), 20, 3, None),
+    'flower_w1': ((405, 615, 465, 665), 20, 3, None),
+    'flower_w2': ((355, 700, 415, 745), 20, 3, None),
+}
+r = cv2.imread(sys.argv[1]); m = cv2.imread('art/gong_court/output/mosaic_chrome.png')
+d = np.abs(r.astype(int) - m.astype(int)).max(2)
+h = cv2.cvtColor(m, cv2.COLOR_BGR2HSV).astype(int)
+teal = np.zeros(h.shape[:2], bool)
+water = np.zeros(h.shape[:2], bool)
+cam = _C * 100
+VIEW = _R.T @ np.array([0.0, 0.0, 1.0])
+
+
+def ray(px, py):
+    """The world direction (Blender units) through a frame pixel."""
+    d_ = _R.T @ np.array([(px - 960) / (_F * _Z), (py - 540) / (_F * _Z), 1.0]); return d_ / np.linalg.norm(d_)
+
+
+out = []
+for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
+    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water)[y0:y1, x0:x1]
+    mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
+    if n < 2: continue
+    big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
+    mk = np.isin(lab, keep)
+    if foot is None:
+        ys, xs = np.nonzero(mk); j = int(np.argmax(ys)); foot = (int(xs[ys >= ys.max() - 3].mean()), int(ys.max()))
+    # (a prop on a platform: its foot on the platform's top, at the platform's height: stones.json)
+    fz = json.load(open('art/gong_court/stones.json'))[foot[2]]['h'] if len(foot) > 2 else 0.0
+    fx, fy = plan([(foot[0] + OX, foot[1] + OY)], z=fz)[0]
+    A = np.array([fx, Yc + fy, fz])                       # (plan units, as the camera's centre x 100 is)
+    def on_card(px, py):
+        d_ = ray(px + OX, py + OY); t = ((A - cam) @ VIEW) / (d_ @ VIEW); p = cam + d_ * t
+        if p[2] < 0.01:      # (below the ground on the card: what lies on the ground in front of the foot, fallen leaves: flat on it)
+            t = (0.01 - cam[2]) / d_[2]; p = cam + d_ * t
+        return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
+    px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
+    _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
+    lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5); lm[~mk] = 255
+    # each tone's regions; drawn largest tone first, the rest over it a hair nearer the camera
+    order = sorted(range(kk), key=lambda q: -(lm == q).sum())
+    layers = []
+    for li, q in enumerate(order):
+        tm = (lm == q).astype(np.uint8)
+        if li == 0: tm = mk.astype(np.uint8)                   # (the first tone fills the whole object: no gaps between tones)
+        cs, hier = cv2.findContours(tm, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        if hier is None: continue
+        colour = '#%02x%02x%02x' % tuple(int(v) for v in cen[q][::-1])
+        for ci, c in enumerate(cs):
+            if hier[0][ci][3] >= 0 or cv2.contourArea(c) < 12: continue
+            loops = [c] + [cs[hj] for hj in range(len(cs)) if hier[0][hj][3] == ci and cv2.contourArea(cs[hj]) >= 12]
+            polys = []
+            for lp in loops:
+                ap = cv2.approxPolyDP(lp, 0.7, True).reshape(-1, 2)
+                if len(ap) >= 3: polys.append([on_card(float(u), float(v)) for u, v in ap])
+            if polys: layers.append(dict(colour=colour, layer=li, loops=polys))
+    out.append(dict(name=name, anchor=[round(float(fx), 3), round(float(fy), 3)], shapes=layers))
+    print(name, 'foot', [round(float(fx), 2), round(float(fy), 2)], int(mk.sum()), 'px,', len(layers), 'shapes')
+json.dump(out, open('art/gong_court/cards.json', 'w'))

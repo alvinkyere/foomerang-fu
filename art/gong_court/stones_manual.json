@@ -1,0 +1,76 @@
+{
+  "_how": "corners read by hand off the round's mosaic (zoomgrid.py, the tone map: tops white), mosaic px, where trees, bamboo or the gong hide the top's outline from fit_stones.py; `face`: a point on the top's lower edge and the point straight below it where the face meets the grass (its height)",
+  "plat_nw": {
+    "kind": "platform",
+    "top": [
+      [460, 257],
+      [542, 155],
+      [780, 80],
+      [840, 82],
+      [870, 110],
+      [877, 145],
+      [872, 177],
+      [655, 280],
+      [605, 332],
+      [540, 332],
+      [460, 280]
+    ],
+    "face": [
+      [540, 332],
+      [540, 390]
+    ]
+  },
+  "plat_sw": {
+    "kind": "platform",
+    "top": [
+      [382, 932],
+      [495, 849],
+      [535, 853],
+      [722, 1028],
+      [740, 1068],
+      [690, 1130],
+      [600, 1150],
+      [430, 1125],
+      [385, 1050]
+    ],
+    "face": [
+      [390, 952],
+      [390, 1010]
+    ]
+  },
+  "block_sw": {
+    "kind": "block",
+    "top": [
+      [580, 1150],
+      [640, 1174],
+      [720, 1127],
+      [720, 1110],
+      [650, 1110]
+    ],
+    "face": [
+      [640, 1174],
+      [620, 1230]
+    ]
+  },
+  "plat_se": {
+    "kind": "platform",
+    "top": [
+      [1440, 1067],
+      [1622, 889],
+      [1615, 1050],
+      [1705, 1095],
+      [1540, 1202],
+      [1460, 1120]
+    ],
+    "face": [
+      [1500, 1165],
+      [1500, 1230]
+    ]
+  },
+  "plat_se_hi": {
+    "face": [
+      [1812, 1010],
+      [1808, 1118]
+    ]
+  }
+}
