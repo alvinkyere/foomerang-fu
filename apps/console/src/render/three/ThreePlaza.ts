@@ -1146,7 +1146,8 @@ class Plaza {
     node: THREE.Object3D;
     index: number;
     pivot: THREE.Vector3;
-    out: THREE.Vector3;
+    /** How far it sinks: its height and the moat's depth below the ground. */
+    depth: number;
     materials: THREE.MeshBasicMaterial[];
     own: THREE.Color[];
   }[] = [];
@@ -1406,7 +1407,6 @@ class Plaza {
     for (const root of gltf.children) {
       const pen = /^PEN_(\d+)$/.exec(root.name);
       if (pen === null) continue;
-      const centre = new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3());
       for (const node of [...root.children]) {
         // (the lever goes with its pen: the HQ's is gone with the walls)
         if (/^PEN_\d+_lever$/.test(node.name))
@@ -1415,9 +1415,7 @@ class Plaza {
         if (wall === null || !(node instanceof THREE.Mesh)) continue;
         const box = new THREE.Box3().setFromObject(node);
         const mid = box.getCenter(new THREE.Vector3());
-        const out = new THREE.Vector3(mid.x - centre.x, 0, mid.z - centre.z);
-        out.normalize();
-        const pivot = new THREE.Vector3(mid.x + out.x * 30, box.min.y, mid.z + out.z * 30);
+        const pivot = new THREE.Vector3(mid.x, box.min.y, mid.z);
         pivotAt(node, pivot);
         const materials = (Array.isArray(node.material) ? node.material : [node.material]).map(
           (m) => {
@@ -1431,7 +1429,7 @@ class Plaza {
           node,
           index: 4 * Number(pen[1]) + Number(wall[1]),
           pivot,
-          out,
+          depth: (box.max.y - box.min.y) * 1.7,
           materials,
           own: materials.map((m) => m.color.clone()),
         });
@@ -2148,20 +2146,19 @@ class Plaza {
     }
   }
 
-  /** The warm-up's pen walls: tinted the striker's colour, tipping over outwards, fading (render/penOpening.ts). */
+  /**
+   * The warm-up's pen walls: tinted the striker's colour, then sinking straight down into the ground (render/penOpening.ts; owner,
+   * 2026-11-12: "it settles into the ground"), deep enough to go under the moat's water where a wall bridges it.
+   */
   #openPens(time: number): void {
-    const up = new THREE.Vector3(0, 1, 0);
     for (const w of this.#penWalls) {
       const struck = this.#penStruck.get(w.index);
       const pose = penWallAt(struck === undefined ? undefined : (time - struck.at) / 1000);
       w.node.visible = pose.visible;
-      // tipping outwards: about the horizontal line along the wall's outer foot
-      const axis = new THREE.Vector3().crossVectors(up, w.out).normalize();
-      w.node.quaternion.setFromAxisAngle(axis, (pose.tip * Math.PI) / 2);
+      w.node.position.y = w.pivot.y - pose.sink * w.depth;
       w.materials.forEach((m, k) => {
         m.color.copy(w.own[k] as THREE.Color);
         if (struck !== undefined) m.color.lerp(struck.colour, pose.tint * 0.85);
-        m.opacity = pose.opacity;
       });
     }
     for (const l of this.#penLevers) {
