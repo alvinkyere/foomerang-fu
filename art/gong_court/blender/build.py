@@ -153,11 +153,12 @@ for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
         hf = h - bv
         for k in range(NS):          # (the face in NS bands, each its measured step, top to bottom)
             za, zb = hf * (1 - k / NS), hf * (1 - (k + 1) / NS)
-            m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], faced(FACE[k], y1 - y0, -(x1 - x0)))
+            fc = SC['wall_face'][k] if kind == 'wall' and 'wall_face' in SC else faced(FACE[k], y1 - y0, -(x1 - x0))
+            m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], fc)
         if bv > 0:                   # the bevel: from the face's top edge in and up to the top, its colour between the two
             (u0, v0), (u1, v1) = inner[i], inner[(i + 1) % n]
             m.face([(x0, YC + y0, hf), (x1, YC + y1, hf), (u1, YC + v1, h), (u0, YC + v0, h)], mixhex(SC['top'], FACE[0], 0.45))
-    m.poly(inner, h, SC['top'])
+    m.poly(inner, h, SC['wall_top'] if kind == 'wall' and 'wall_top' in SC else SC['top'])
     if mint:
         # the mint in its own measured colour, and what lies on it (tops.py: shadows, fallen leaves), each a hair above the last
         tp = TOPS.get(name, {})

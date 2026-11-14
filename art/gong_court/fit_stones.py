@@ -273,6 +273,9 @@ for n, hh in H_.items():
     # a platform's mint: its top inset by the rim (the light lavender band measures 16-17 px at the far edges, 0.55 units)
     b['mint'] = inset(b['top'], RIM) if b['kind'] == 'platform' else None
     print('%-14s h %.2f%s' % (n, hh, '  fixed' if n in FIXED else ''))
+# the walls as the painter refined them (refine_outlines.py --walls)
+for n, v in MAN.get('_walls', {}).items():
+    if n in out: out[n].update(ends=v['ends'], width=round(v['width'], 3), h=round(v['h'], 3))
 json.dump(out, open('art/gong_court/stones.json', 'w'), indent=1)
 
 # the check: each body's prism outline over the mosaic

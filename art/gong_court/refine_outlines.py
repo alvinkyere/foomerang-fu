@@ -58,4 +58,25 @@ for p_ in range(PASSES):
                     else: break
             MAN[n]['h'] = h; S[n]['h'] = h
     print('pass', p_, '%.3f' % best)
+# the walls: each end moved 0.05 units at a time (along and across), its width and height 0.04 / 0.05 at a time
+if '--walls' in sys.argv:
+    W = MAN.setdefault('_walls', {})
+    for p_ in range(2):
+        for n, b in S.items():
+            if b['kind'] != 'wall': continue
+            st = W.get(n, {'ends': b['ends'], 'width': b['width'], 'h': b['h']})
+            def body(v): return (geom.ccw(geom.beam_corners(dict(ends=v['ends'], width=v['width']))), v['h'], None)
+            moves = [('e', 0, 0, 0.05), ('e', 0, 0, -0.05), ('e', 0, 1, 0.05), ('e', 0, 1, -0.05), ('e', 1, 0, 0.05), ('e', 1, 0, -0.05),
+                     ('e', 1, 1, 0.05), ('e', 1, 1, -0.05), ('w', 0, 0, 0.04), ('w', 0, 0, -0.04), ('h', 0, 0, 0.05), ('h', 0, 0, -0.05)]
+            for kind_, i, j, dv in moves:
+                while True:
+                    t = json.loads(json.dumps(st))
+                    if kind_ == 'e': t['ends'][i][j] += dv
+                    elif kind_ == 'w': t['width'] = max(0.3, t['width'] + dv)
+                    else: t['h'] = max(0.3, t['h'] + dv)
+                    cand = dict(bodies); cand[n] = body(t); sc_ = PT.score(cand)[0]
+                    if sc_ < best - 1e-4: best, st, bodies = sc_, t, cand
+                    else: break
+            W[n] = st
+        print('walls pass', p_, '%.3f' % best)
 json.dump(MAN, open('art/gong_court/stones_manual.json', 'w'), indent=1)

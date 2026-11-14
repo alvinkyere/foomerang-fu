@@ -57,7 +57,7 @@ class Painter:
         P = lambda x, y, z: np.array(pix(x, y, z)) * self.s
         order = sorted(bodies.items(), key=lambda kv: -max(p[1] for p in kv[1][0]))     # (far, north, first)
         for name, (poly, h, mint) in order:
-            n = len(poly)
+            n = len(poly); wall = name.startswith('wall_')
             up = np.array([P(x, y, h) for x, y in poly]); dn = np.array([P(x, y, 0) for x, y in poly])
             for i in range(n):
                 j = (i + 1) % n; (x0, y0), (x1, y1) = poly[i], poly[j]
@@ -66,9 +66,9 @@ class Painter:
                 for k in range(NS):
                     a, b = k / NS, (k + 1) / NS
                     q = np.array([up[i] + (dn[i] - up[i]) * a, up[j] + (dn[j] - up[j]) * a, up[j] + (dn[j] - up[j]) * b, up[i] + (dn[i] - up[i]) * b])
-                    col = faced(FACE[k], nx, ny)[::-1]
+                    col = (rgb(SC['wall_face'][k]) if wall and 'wall_face' in SC else faced(FACE[k], nx, ny))[::-1]
                     cv2.fillConvexPoly(im, np.int32(np.round(q)), col.tolist()); cv2.fillConvexPoly(mine, np.int32(np.round(q)), 1)
-            cv2.fillPoly(im, [np.int32(np.round(up))], rgb(SC['top'])[::-1].tolist()); cv2.fillPoly(mine, [np.int32(np.round(up))], 1)
+            cv2.fillPoly(im, [np.int32(np.round(up))], rgb(SC['wall_top'] if wall and 'wall_top' in SC else SC['top'])[::-1].tolist()); cv2.fillPoly(mine, [np.int32(np.round(up))], 1)
             if mint:
                 mp = np.array([P(x, y, h) for x, y in mint])
                 cv2.fillPoly(im, [np.int32(np.round(mp))], rgb(TOPS.get(name, {}).get('colour', SC['mint']))[::-1].tolist())
