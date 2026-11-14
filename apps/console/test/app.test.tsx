@@ -60,7 +60,13 @@ class FakeRenderer implements ArenaRenderer {
 }
 
 function setup(
-  options: { warnings?: string[]; debug?: boolean; gameId?: GameId; store?: MemoryHostStore } = {},
+  options: {
+    warnings?: string[];
+    debug?: boolean;
+    gameId?: GameId;
+    store?: MemoryHostStore;
+    controlsCard?: boolean;
+  } = {},
 ) {
   const clock = createClock();
   const network = new FakeHostNetwork();
@@ -71,6 +77,7 @@ function setup(
     environment: clock.environment,
     store,
     now: () => hostNow,
+    ...(options.controlsCard === true ? { controlsCard: true } : {}),
   });
   const raf = manualRaf();
   const renderer = new FakeRenderer();
@@ -832,6 +839,50 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     await alvin.tap(SELECT); // Free For All: READY?
     await alvin.tap(SELECT); // FIGHT!
     expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
+  });
+
+  it('one phone and bots: right on the bar adds a bot whose character that phone then chooses, SELECT readies it, BACK takes it away', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu' });
+    ctx.network.roomUpdated(
+      ctx.network.last,
+      'LOBBY',
+      roster({ playerId: 'a', displayName: 'Alvin' }),
+    );
+    await flush();
+    const alvin = phone(ctx);
+    await alvin.tap(SELECT); // READY on bread: the begin bar shows
+    await alvin.stick(1, 0); // › one bot more: CPU 1 waits on a free character (coffee), and Alvin steers it
+    expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Coffee, choosing');
+    expect(screen.queryByRole('button', { name: /^Begin/ })).toBeNull(); // the room waits for the bot's character
+    await alvin.stick(1, 0); // the bot's cursor: coffee → ice cream
+    expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Ice Cream, choosing');
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Bread, ready');
+    await alvin.tap(SELECT);
+    expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Ice Cream, ready');
+    expect(screen.getByTestId('bots').textContent).toBe('1 BOT');
+    await alvin.stick(1, 0); // another bot, chosen the same way
+    expect(circle(3).getAttribute('aria-label')).toMatch(/^Player 3: CPU 2, .*, choosing$/);
+    await alvin.tap(BACK); // changed their mind: that bot goes, nothing else changes
+    expect(screen.getByTestId('bots').textContent).toBe('1 BOT');
+    expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Bread, ready');
+    expect(screen.getByRole('button', { name: /^Begin/ })).toBeTruthy();
+  });
+
+  it('the CONTROLS card (ff physics hq 2.mp4 9:53): the match from the lobby waits behind it until a phone’s SELECT presses CONTINUE', async () => {
+    const ctx = await inLobby({ gameId: 'foomerang-fu', controlsCard: true });
+    ctx.network.roomUpdated(ctx.network.last, 'LOBBY', twoPlayers);
+    await flush();
+    ctx.network.roomUpdated(ctx.network.last, 'PLAYING', twoPlayers);
+    await flush();
+    await screen.findByTestId('controls-card');
+    expect(screen.getByRole('list', { name: 'Controls' }).textContent).toBe('MOVEDASHSLASHTHROW');
+    expect(ctx.runtime.context()).toBe('RESULTS'); // the phones' SELECT means CONTINUE
+    expect(ctx.runtime.director.paused).toBe(true);
+    await phone(ctx).tap(SELECT);
+    await act(async () => void (await new Promise((r) => setTimeout(r, 250)))); // the card fades out first
+    expect(screen.queryByTestId('controls-card')).toBeNull();
+    expect(ctx.runtime.director.paused).toBe(false);
+    expect(ctx.runtime.context()).toBe('GAMEPLAY');
   });
 
   it('character select: the TV’s own Esc asks to close the room', async () => {

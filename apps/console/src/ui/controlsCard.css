@@ -1,0 +1,162 @@
+/* The CONTROLS card, measured from ff physics hq 2.mp4 9:53 (1920×1080, frame 35640). --u is 1% of the game frame's width
+   (19.2 px at 1080p), so it holds at any TV size. Title CONTROLS: cap top 57 px, cap height 83 px, centred, #fcfbf6. Head
+   panel 762–1158 × 235–330 px, body panel 762–1158 × 348–882 px, both #373834. Rows centred at 408 / 539 / 668 / 798 px
+   (60 px into the body, then every 130 px): a 52 px round button, 14 px gap, the word (cap 26 px, #f9f7f4). CONTINUE: a
+   #fcfcf9 box 808–1111 × 959–1030 px, its word (cap 38 px) in grey ink (#575654). The map behind is blurred and dimmed to 55% (a mean of
+   178 -> 98 over the background); the blur fits a Gaussian of sigma 8 px (frame 35589 blurred vs 35590: residual 1.9 at 8 px,
+   2.4 at 6, 2.6 at 10).
+   Timing at 60 fps: the blur is there at once; the dim, the title and CONTINUE fade in over 7–8 frames (~125 ms); the panel
+   follows ~100 ms later and takes ~200 ms. CONTINUE pressed: the button darkens for a frame, then everything (blur too)
+   fades out over 9 frames (150 ms). The panels' brushed edges are a plain rounded rectangle here (not matched). */
+
+.cc {
+  --u: min(1vw, 1.7778vh);
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 0.45);
+  font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  -webkit-backdrop-filter: blur(calc(0.42 * var(--u)));
+  backdrop-filter: blur(calc(0.42 * var(--u)));
+  animation: cc-dim 133ms linear both;
+}
+.cc[data-leaving] {
+  animation: cc-out 150ms linear 17ms both;
+}
+
+.cc__title {
+  position: absolute;
+  top: calc(2.97 * var(--u) - 0.14em);
+  left: 0;
+  right: 0;
+  margin: 0;
+  color: #fcfbf6;
+  font-size: calc(5.65 * var(--u));
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-align: center;
+  animation: cc-fade 117ms linear both;
+}
+
+.cc__panel {
+  position: absolute;
+  top: calc(12.24 * var(--u));
+  left: 50%;
+  width: calc(20.63 * var(--u));
+  transform: translateX(-50%);
+  animation: cc-fade 200ms ease-out 100ms both;
+}
+.cc__head,
+.cc__rows {
+  border-radius: calc(0.25 * var(--u));
+  background: #373834;
+}
+.cc__head {
+  display: grid;
+  place-items: center;
+  height: calc(4.95 * var(--u));
+  color: #fcfbf6;
+}
+.cc__phone {
+  width: calc(4.2 * var(--u));
+}
+.cc__rows {
+  display: grid;
+  grid-auto-rows: calc(6.77 * var(--u));
+  align-content: start;
+  height: calc(27.81 * var(--u));
+  margin: calc(0.94 * var(--u)) 0 0;
+  padding: 0;
+  list-style: none;
+  color: #f9f7f4;
+  font-size: calc(1.75 * var(--u));
+  letter-spacing: 0.02em;
+}
+.cc__row {
+  margin-top: calc(-0.3 * var(--u)); /* the rows' centres: 60 px into the panel, then every 130 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(0.73 * var(--u));
+}
+
+/* the video's round buttons: a disc with a darker lip below */
+.cc__glyph {
+  display: inline-grid;
+  place-items: center;
+  width: calc(2.7 * var(--u));
+  height: calc(2.7 * var(--u));
+  border-radius: 50%;
+  color: #24251f;
+  box-shadow: inset 0 calc(-0.28 * var(--u)) 0 rgb(0 0 0 / 0.2);
+}
+.cc__glyph > svg {
+  width: 72%;
+  margin-top: calc(-0.2 * var(--u));
+}
+.cc__glyph--move {
+  background: #e0e4f0;
+}
+.cc__glyph--dash {
+  background: #92e62d;
+}
+.cc__glyph--slash {
+  background: #4ba1f9;
+}
+.cc__glyph--throw {
+  background: #e8b244;
+}
+
+.cc__continue {
+  position: absolute;
+  top: calc(49.95 * var(--u));
+  left: 50%;
+  width: calc(15.78 * var(--u));
+  height: calc(3.7 * var(--u));
+  padding: 0;
+  border: 0;
+  border-radius: calc(0.3 * var(--u));
+  color: #575654;
+  background: #fcfcf9;
+  font: inherit;
+  font-size: calc(2.6 * var(--u));
+  letter-spacing: 0.01em;
+  transform: translateX(-50%);
+  cursor: pointer;
+  animation: cc-fade 117ms linear both;
+}
+.cc__continue:focus,
+.cc__continue:focus-visible {
+  outline: none; /* the only thing to press: the video draws no focus ring */
+}
+.cc[data-leaving] .cc__continue {
+  animation: cc-press 17ms step-end; /* lit for one frame */
+}
+@keyframes cc-press {
+  from {
+    filter: brightness(0.7);
+  }
+}
+
+@keyframes cc-dim {
+  from {
+    background: rgb(0 0 0 / 0);
+  }
+}
+@keyframes cc-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cc-out {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc,
+  .cc * {
+    animation-duration: 1ms !important;
+  }
+}

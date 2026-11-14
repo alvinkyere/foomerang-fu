@@ -72,6 +72,8 @@ if (!config.ok) {
     // each round opens with the reference video's landings, READY and GO (?intro=off for development and tests)
     roundIntroSeconds:
       new URLSearchParams(window.location.search).get('intro') === 'off' ? 0 : ROUND_INTRO.seconds,
+    // the first round of a match from the lobby waits behind the CONTROLS card (ff physics hq 2.mp4 9:53; ?controls=off: none)
+    controlsCard: new URLSearchParams(window.location.search).get('controls') !== 'off',
     // a kill plays at normal speed (owner, 2026-10-25: "turn off the slo mo death thingy, it's just bad right now"); the HQ
     // video's freeze and slow motion stay behind ?slowmo=on until it is redone
     slowMo: new URLSearchParams(window.location.search).get('slowmo') === 'on',

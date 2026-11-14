@@ -80,6 +80,12 @@ export class MatchDirector {
   /** Two independent reasons the simulation may be frozen: the host lost its server (network) or somebody opened the pause menu (manual). */
   #networkPaused = false;
   #manualPaused = false;
+  /**
+   * Foomerang Fu's CONTROLS card (ff physics hq 2.mp4 9:53): a match begun from the lobby waits behind it, still, until
+   * somebody presses CONTINUE. Off unless the console asks for it (the product does; `?controls=off` and tests do not).
+   */
+  controlsCard = false;
+  #controlsUp = false;
 
   readonly #createRuntime: (gameId: string, mode: GameModeId) => MatchRuntime;
 
@@ -153,12 +159,14 @@ export class MatchDirector {
         this.setup.reset();
       }
       this.#inMatch = false;
+      this.#controlsUp = false;
       this.#warmUp(gameId);
       return;
     }
     if (this.#inMatch) return;
     if (!isStartableMode(this.mode.id)) return; // a mode that is not available can never begin, whatever the room says
     this.#begin(gameId, nowMs);
+    this.#controlsUp = this.controlsCard && gameId === 'foomerang-fu'; // (a rematch never shows it: only from the lobby)
   }
 
   /** Builds the bodies for a match about to begin: the people who were there (and any who have since arrived, while there is room), then the CPUs. */
@@ -236,6 +244,7 @@ export class MatchDirector {
     this.#matchHumans = new Set();
     this.#networkPaused = false;
     this.#manualPaused = false;
+    this.#controlsUp = false;
   }
 
   /** People seated now who have no body in the running match: they take part in the next one. */
@@ -287,7 +296,20 @@ export class MatchDirector {
   }
 
   get paused(): boolean {
-    return this.#networkPaused || this.#manualPaused;
+    return this.#networkPaused || this.#manualPaused || this.#controlsUp;
+  }
+
+  /** The CONTROLS card is up: the match waits behind it. */
+  get showingControls(): boolean {
+    return this.#inMatch && this.#controlsUp;
+  }
+
+  /** CONTINUE on the CONTROLS card: the match runs from now (the time behind the card is never simulated). */
+  dismissControls(nowMs: number): void {
+    if (!this.#controlsUp) return;
+    const was = this.paused;
+    this.#controlsUp = false;
+    this.#changedPause(was, nowMs);
   }
 
   get manualPaused(): boolean {

@@ -7,6 +7,8 @@ export interface ContextInputs {
   /** Somebody opened the pause menu. */
   readonly manualPaused: boolean;
   readonly matchPhase: MatchPhase | undefined;
+  /** Foomerang Fu's CONTROLS card is up before the first round (ff physics hq 2.mp4 9:53). */
+  readonly controlsUp?: boolean;
 }
 
 /**
@@ -17,6 +19,8 @@ export function deriveContext(inputs: ContextInputs): ControllerContext {
   if (inputs.roomState !== 'PLAYING') return 'CONSOLE';
   if (inputs.manualPaused) return 'PAUSED';
   // the scoreboard between rounds and the results: the phones press CONTINUE / REMATCH with SELECT
+  // (and the CONTROLS card before the first round: SELECT presses its CONTINUE)
+  if (inputs.controlsUp === true) return 'RESULTS';
   if (inputs.matchPhase === 'MATCH_OVER' || inputs.matchPhase === 'SCOREBOARD') return 'RESULTS';
   return 'GAMEPLAY';
 }

@@ -190,3 +190,54 @@ describe('MatchDirector: which game runs', () => {
     expect(view?.events.map((e) => e.type)).toEqual(['THROWN']);
   });
 });
+
+describe('MatchDirector: the CONTROLS card before the first round (ff physics hq 2.mp4 9:53)', () => {
+  const r = [entry('a', 'Alvin'), entry('b', 'David')];
+  const throwTap = (d: MatchDirector) => {
+    d.onAction({ playerId: 'a', eventId: 'event-0001', action: 'SECONDARY', phase: 'pressed' });
+    d.onAction({ playerId: 'a', eventId: 'event-0001-up', action: 'SECONDARY', phase: 'released' });
+  };
+
+  it('holds a Foomerang Fu match from the lobby still until CONTINUE, then runs it from that moment', async () => {
+    const d = new MatchDirector();
+    d.controlsCard = true;
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime();
+    expect(d.showingControls).toBe(true);
+    expect(d.paused).toBe(true);
+    throwTap(d);
+    d.frame(500);
+    expect((d.runtime as LazyFuRuntime).state?.roundTime).toBe(0); // nothing stepped behind the card
+    d.dismissControls(1_000);
+    expect(d.showingControls).toBe(false);
+    expect(d.paused).toBe(false);
+    d.frame(1_017);
+    // a step or so: the wait was never simulated
+    expect((d.runtime as LazyFuRuntime).state?.roundTime).toBeGreaterThan(0);
+    expect((d.runtime as LazyFuRuntime).state?.roundTime).toBeLessThan(0.05);
+  });
+
+  it('a rematch goes straight to the round; back in the lobby and a new match shows it again', async () => {
+    const d = new MatchDirector();
+    d.controlsCard = true;
+    d.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    await loadFuRuntime();
+    d.dismissControls(10);
+    d.rematch(20);
+    expect(d.showingControls).toBe(false);
+    d.returnToLobby();
+    d.onRoom('LOBBY', r, 30, 'foomerang-fu');
+    d.onRoom('PLAYING', r, 40, 'foomerang-fu');
+    expect(d.showingControls).toBe(true);
+  });
+
+  it('only when the console asks for it, and only for Foomerang Fu', () => {
+    const off = new MatchDirector();
+    off.onRoom('PLAYING', r, 0, 'foomerang-fu');
+    expect(off.showingControls).toBe(false);
+    const other = new MatchDirector();
+    other.controlsCard = true;
+    other.onRoom('PLAYING', r, 0, 'primitive-arena');
+    expect(other.showingControls).toBe(false);
+  });
+});

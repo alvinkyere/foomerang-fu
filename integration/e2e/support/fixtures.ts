@@ -312,7 +312,29 @@ export class Host {
       await this.page.getByRole('button', { name: /FIGHT/ }).click();
     }
     await expect(this.page.getByTestId('arena')).toBeVisible();
+    if (opened) await this.passControls();
     await this.waitForGo();
+  }
+
+  /** Foomerang Fu: the CONTROLS card before the first round (ff physics hq 2.mp4 9:53): the TV presses its CONTINUE. */
+  async passControls(): Promise<void> {
+    const card = this.page.getByTestId('controls-card');
+    // (an autoContinue handler may see it, and press it, first: then it is already gone)
+    const seen = await card
+      .waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!seen) return;
+    await expect
+      .poll(
+        async () => {
+          if (await this.continueButton.isVisible())
+            await this.continueButton.click({ timeout: 2_000, force: true }).catch(() => undefined);
+          return card.count();
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(0);
   }
 
   /** Foomerang Fu: until the round's intro (the landings, READY, GO) is over and players can act; at once otherwise. */

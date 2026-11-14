@@ -1,0 +1,69 @@
+/* ---- first-time hints (owner, 2026-11-14: brief, helpful, never in the way) ------------------------------------------
+   One quiet line in the free band between CHOOSE CHARACTERS and the grid, in the BACK caption's muted ink, fading in only after 1.5 s of nobody doing
+   what it shows (selectHints.ts); the stick's ‹ › nudge side to side. Once somebody does it, it never shows on this TV again. */
+.cs__hint {
+  position: absolute;
+  top: 41.6rem;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0;
+  color: var(--cs-faint);
+  font-size: 1.8rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: cs-hint-in 320ms ease-out both;
+}
+.cs__badge--hint {
+  min-width: 3rem;
+  height: 3rem;
+  font-size: 1.2rem;
+}
+.cs__nudge {
+  display: inline-flex;
+  gap: 0.5rem;
+  color: var(--cs-coral);
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.cs__nudge > span:first-child {
+  animation: cs-nudge-left 900ms ease-in-out infinite alternate;
+}
+.cs__nudge > span:last-child {
+  animation: cs-nudge-right 900ms ease-in-out infinite alternate;
+}
+/* the bar's: beside the bots' ›, pointing at it */
+/* the bar's: just under its ‹ NO BOTS ›, the › nudging right */
+.cs__hint--bots {
+  top: 42.4rem;
+  font-size: 1.6rem;
+}
+.cs__point {
+  display: inline-block;
+  color: var(--cs-coral);
+  font-size: 2.4rem;
+  animation: cs-nudge-right 700ms ease-in-out infinite alternate;
+}
+@keyframes cs-hint-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cs-nudge-left {
+  to {
+    transform: translateX(-0.5rem);
+  }
+}
+@keyframes cs-nudge-right {
+  to {
+    transform: translateX(0.5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs__nudge > span,
+  .cs__point {
+    animation: none;
+  }
+}

@@ -24,6 +24,8 @@ import { ScoreToasts } from './Hud';
  */
 const loadScoreboard = () => import('./Scoreboard');
 const loadResults = () => import('./MatchEnd');
+const loadControls = () => import('./ControlsCard');
+const ControlsCard = lazy(() => loadControls().then((m) => ({ default: m.ControlsCard })));
 const Scoreboard = lazy(() => loadScoreboard().then((m) => ({ default: m.Scoreboard })));
 const MatchEnd = lazy(() => loadResults().then((m) => ({ default: m.MatchEnd })));
 import { sound } from '../audio/sound';
@@ -78,6 +80,8 @@ export function ArenaScreen({
     void loadScoreboard().catch(() => undefined);
     void loadResults().catch(() => undefined);
   }, []);
+  // the CONTROLS card before the first round (ff physics hq 2.mp4 9:53): read again whenever the context changes
+  const controlsUp = context === 'RESULTS' && runtime.controlsUp();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -180,6 +184,11 @@ export function ArenaScreen({
         <div ref={containerRef} className="arena" data-testid="arena" />
         {hud?.phase !== 'SCOREBOARD' && hud?.phase !== 'MATCH_OVER' && (
           <ScoreToasts toasts={toasts} />
+        )}
+        {controlsUp && (
+          <Suspense fallback={null}>
+            <ControlsCard onContinue={() => runtime.continueControls()} />
+          </Suspense>
         )}
         {hud?.phase === 'SCOREBOARD' && (
           <Suspense fallback={null}>

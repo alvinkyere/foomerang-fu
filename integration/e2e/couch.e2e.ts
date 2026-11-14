@@ -78,10 +78,14 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   // Everyone (just Alice) is READY: her ▶ adds a CPU opponent and her SELECT begins the match.
   await alice.flick('right');
   await expect(host.cpuSeat(1)).toBeVisible();
+  await alice.tap('SELECT'); // the bot READY on the character her stick left it on
   await expect(host.startButton).not.toHaveAttribute('aria-disabled', 'true');
   await alice.tap('SELECT'); // GAME MODE
   await alice.tap('SELECT'); // Free For All: READY?
   await alice.tap('SELECT'); // FIGHT!
+  await expect(tv.getByTestId('controls-card')).toBeVisible(); // ff physics hq 2.mp4 9:53
+  await alice.tap('SELECT'); // CONTINUE
+  await expect(tv.getByTestId('controls-card')).toHaveCount(0);
   await host.waitForDrawn(2);
   await host.autoContinue(alice); // between rounds her SELECT presses CONTINUE on the scoreboard
 

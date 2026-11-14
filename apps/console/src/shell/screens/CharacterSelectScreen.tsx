@@ -10,6 +10,8 @@ import './characterSelect.css';
 
 // GAME MODE, PICK TEAMS, READY? (the stages after everyone is READY) are fetched when they are first needed
 const SetupPanel = lazy(() => import('./SetupPanel').then((m) => ({ default: m.SetupPanel })));
+// the first-time hints wait 1.5 s before they show anyway: fetched apart from the first download (its budget)
+const SelectHints = lazy(() => import('./SelectHints').then((m) => ({ default: m.SelectHints })));
 
 export interface CharacterSelectScreenProps {
   readonly select: CharacterSelectView;
@@ -147,6 +149,9 @@ export function CharacterSelectScreen(props: CharacterSelectScreenProps) {
             onStepBots={props.onStepBots}
           />
         )}
+        <Suspense fallback={null}>
+          <SelectHints select={select} />
+        </Suspense>
 
         <div
           className="cs__grid"
@@ -280,7 +285,7 @@ function SeatCircle({
       <span className="cs__badge" aria-hidden="true">
         P{seat.number}
       </span>
-      {seat.kind === 'phone' && !seat.ready && (
+      {(seat.kind === 'phone' || seat.chooser !== undefined) && !seat.ready && (
         <span className="cs__prompt" aria-hidden="true">
           <SelectGlyph />
           READY?

@@ -35,6 +35,8 @@ export interface ConsoleRuntimeOptions {
   readonly roundIntroSeconds?: number;
   /** A kill freezes and slows the game, as the HQ video (runtime/killSlowMo.ts; the address's `?slowmo=off`: never). Default off. */
   readonly slowMo?: boolean;
+  /** Foomerang Fu's CONTROLS card before a match from the lobby (ff physics hq 2.mp4 9:53; the address's `?controls=off`: none). Default off. */
+  readonly controlsCard?: boolean;
   /** Repeat held sticks on a timer while the phones drive the console (default on; tests turn it off and drive time themselves). */
   readonly inputPump?: boolean;
 }
@@ -71,6 +73,10 @@ export interface ConsoleRuntime {
   startMatch(): void;
   /** CONTINUE on the scoreboard between rounds: the next round begins. */
   continueRound(): void;
+  /** The CONTROLS card is up before the first round (ff physics hq 2.mp4 9:53); told by subscribeContext when it goes. */
+  controlsUp(): boolean;
+  /** CONTINUE on the CONTROLS card: the match begins. */
+  continueControls(): void;
   /** REMATCH: the same participants and CPU difficulties, a brand-new match. */
   rematch(): void;
   /** Leave the finished match: the room goes back to its lobby. */
@@ -115,6 +121,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       options.given,
     );
   }, warmUpFor);
+  director.controlsCard = options.controlsCard === true;
   const session = new HostSession({
     transportFactory: options.transportFactory,
     ...(options.store ? { store: options.store } : {}),
@@ -138,6 +145,22 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     const picks = director.picks;
     const pick = picks.pick(playerId);
     if (pick === undefined) return;
+    // one controller, playing with bots: while this person chooses a bot's character, their thumbs steer the bot's cursor
+    const bot = picks.driving(playerId);
+    if (bot !== undefined) {
+      const before = picks.pick(bot)?.character;
+      if (action === 'select') {
+        const result = picks.select(playerId);
+        soundHooks.emit(result === 'BOT_READY' ? 'ready' : 'error');
+      } else if (action === 'back') {
+        director.cpus.remove(bot); // changed their mind: that bot goes
+        soundHooks.emit('unready');
+      } else if (action !== 'secondary') {
+        picks.move(playerId, action);
+        if (picks.pick(bot)?.character !== before) soundHooks.emit('hover');
+      }
+      return;
+    }
     // (each action's sound: the hover of a cursor that arrived on another character, the chirps of ready and taken back)
     const moved = (): void => {
       const now = picks.pick(playerId);
@@ -160,8 +183,11 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       } else if (picks.allReady) {
         // the begin bar's ‹ BOTS ›: one more, or one fewer (the last added)
         soundHooks.emit('toggle');
-        if (action === 'right') director.cpus.add('MEDIUM', humans());
-        else {
+        if (action === 'right') {
+          // the new bot waits on a free character, and this person chooses its own
+          const added = director.cpus.add('MEDIUM', humans());
+          if (added !== undefined) picks.drive(added.id, playerId);
+        } else {
           const last = director.cpus.entries.at(-1);
           if (last !== undefined) director.cpus.remove(last.id);
         }
@@ -206,6 +232,7 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
       roomState: session.getState().roomState,
       manualPaused: director.manualPaused,
       matchPhase: director.matchPhase(),
+      controlsUp: director.showingControls,
     });
     const changed = context !== router.context;
     router.setContext(context, now());
@@ -343,6 +370,11 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
         director.continueRound(next);
       } else director.continueRound();
       syncContext(); // back to the game's controls
+    },
+    controlsUp: () => director.showingControls,
+    continueControls: () => {
+      director.dismissControls(now());
+      syncContext(); // the game's own controls, now
     },
     rematch: () => {
       director.rematch(now());

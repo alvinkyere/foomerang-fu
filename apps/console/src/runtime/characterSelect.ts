@@ -42,18 +42,25 @@ export interface Pick {
   /** Under their cursor; once READY, always a playable character. */
   readonly character: SelectCharacter;
   readonly ready: boolean;
+  /** A bot whose character a person is choosing: that person's id. */
+  readonly chosenBy?: string;
 }
 
 export type SelectDirection = 'up' | 'down' | 'left' | 'right';
 
-/** What a SELECT did: readied them, was refused (someone is ready on it), asked to begin (everyone is ready), or nothing. */
-export type SelectResult = 'READY' | 'TAKEN' | 'COMING_SOON' | 'BEGIN' | 'NONE';
+/**
+ * What a SELECT did: readied them (or the bot they choose for), was refused (someone is ready on it), asked to begin
+ * (everyone is ready), or nothing.
+ */
+export type SelectResult = 'READY' | 'BOT_READY' | 'TAKEN' | 'COMING_SOON' | 'BEGIN' | 'NONE';
 
 interface Cursor {
   row: number;
   col: number;
   ready: boolean;
   readonly cpu: boolean;
+  /** A CPU whose character a person is choosing: that person's id (their stick and SELECT steer this cursor). */
+  driver?: string | undefined;
 }
 
 const at = (character: SelectCharacter): { row: number; col: number } => {
@@ -65,6 +72,11 @@ const at = (character: SelectCharacter): { row: number; col: number } => {
 };
 const characterAt = (c: Cursor): SelectCharacter =>
   (SELECT_GRID[c.row] as readonly SelectCharacter[])[c.col] as SelectCharacter;
+const pickOf = (c: Cursor): Pick => ({
+  character: characterAt(c),
+  ready: c.ready,
+  ...(c.driver !== undefined ? { chosenBy: c.driver } : {}),
+});
 
 export class CharacterSelect {
   readonly #cursors = new Map<string, Cursor>();
@@ -85,6 +97,20 @@ export class CharacterSelect {
         this.#cursors.delete(id);
         changed = true;
       }
+    // a bot whose chooser left readies itself: where it stands if that is free, else on the first free character
+    for (const c of this.#cursors.values())
+      if (c.driver !== undefined && !present.has(c.driver)) {
+        c.driver = undefined;
+        const here = characterAt(c);
+        Object.assign(
+          c,
+          isPlayable(here) && !this.isTaken(here)
+            ? {}
+            : at(PLAYABLE.find((p) => !this.isTaken(p)) ?? here),
+        );
+        c.ready = true;
+        changed = true;
+      }
     for (const p of participants) {
       if (this.#cursors.has(p.id)) continue;
       const wanted = SEAT_DEFAULT[p.slot % SEAT_DEFAULT.length] as PackCharacter;
@@ -100,14 +126,12 @@ export class CharacterSelect {
 
   pick(id: string): Pick | undefined {
     const c = this.#cursors.get(id);
-    return c === undefined ? undefined : { character: characterAt(c), ready: c.ready };
+    return c === undefined ? undefined : pickOf(c);
   }
 
   /** Every participant's pick, in no particular order. */
   picks(): ReadonlyMap<string, Pick> {
-    return new Map(
-      [...this.#cursors].map(([id, c]) => [id, { character: characterAt(c), ready: c.ready }]),
-    );
+    return new Map([...this.#cursors].map(([id, c]) => [id, pickOf(c)]));
   }
 
   /** Someone is ready on it. */
@@ -124,9 +148,37 @@ export class CharacterSelect {
     return true;
   }
 
+  /**
+   * One controller, playing with bots: a READY person chooses the character of the CPU they just added. The CPU waits, not
+   * ready, and that person's stick and SELECT steer its cursor until SELECT readies it. One bot at a time per person.
+   */
+  drive(cpuId: string, driverId: string): boolean {
+    const bot = this.#cursors.get(cpuId);
+    const person = this.#cursors.get(driverId);
+    if (bot?.cpu !== true || bot.driver !== undefined) return false;
+    if (person === undefined || person.cpu || !person.ready) return false;
+    if (this.driving(driverId) !== undefined) return false;
+    bot.driver = driverId;
+    bot.ready = false;
+    this.#emit();
+    return true;
+  }
+
+  /** The CPU this person is choosing a character for, if any. */
+  driving(driverId: string): string | undefined {
+    for (const [id, c] of this.#cursors) if (c.driver === driverId) return id;
+    return undefined;
+  }
+
+  /** Who is choosing this CPU's character, if anyone. */
+  driverOf(cpuId: string): string | undefined {
+    return this.#cursors.get(cpuId)?.driver;
+  }
+
   move(id: string, direction: SelectDirection): void {
-    const c = this.#cursors.get(id);
-    if (c === undefined || c.ready || c.cpu) return;
+    const bot = this.driving(id);
+    const c = this.#cursors.get(bot ?? id);
+    if (c === undefined || c.ready || (c.cpu && bot === undefined)) return;
     const row = c.row + (direction === 'down' ? 1 : direction === 'up' ? -1 : 0);
     const col = c.col + (direction === 'right' ? 1 : direction === 'left' ? -1 : 0);
     if (row < 0 || row >= SELECT_GRID.length) return;
@@ -137,6 +189,16 @@ export class CharacterSelect {
   }
 
   select(id: string): SelectResult {
+    const bot = this.driving(id);
+    if (bot !== undefined) {
+      const b = this.#cursors.get(bot) as Cursor;
+      if (!isPlayable(characterAt(b))) return 'COMING_SOON';
+      if (this.isTaken(characterAt(b), bot)) return 'TAKEN';
+      b.ready = true;
+      b.driver = undefined;
+      this.#emit();
+      return 'BOT_READY';
+    }
     const c = this.#cursors.get(id);
     if (c === undefined || c.cpu) return 'NONE';
     if (c.ready) return this.allReady ? 'BEGIN' : 'NONE';

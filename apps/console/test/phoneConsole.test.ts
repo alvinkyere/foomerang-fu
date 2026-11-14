@@ -22,6 +22,10 @@ describe('deriveContext: the host decides what the phones’ controls mean', () 
   it('is RESULTS while the scoreboard waits between rounds (the phones press CONTINUE with SELECT)', () => {
     expect(deriveContext({ ...base, matchPhase: 'SCOREBOARD' })).toBe('RESULTS');
   });
+  it('is RESULTS while the CONTROLS card waits before the first round (SELECT presses its CONTINUE)', () => {
+    expect(deriveContext({ ...base, controlsUp: true })).toBe('RESULTS');
+    expect(deriveContext({ ...base, controlsUp: true, manualPaused: true })).toBe('PAUSED');
+  });
   it('is RESULTS once the match is over', () => {
     expect(deriveContext({ ...base, matchPhase: 'MATCH_OVER' })).toBe('RESULTS');
   });
@@ -140,20 +144,32 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
     expect(r.network.last.of('MATCH_START')).toHaveLength(1);
   });
 
-  it('while everyone is ready, a ready player’s ◀ ▶ changes how many bots play', async () => {
+  it('while everyone is ready, a ready player’s ▶ adds a bot whose character they choose (SELECT), and ◀ takes the last away', async () => {
     const r = await room('foomerang-fu');
     await r.enter('LOBBY');
     await r.press('a', 'PRIMARY');
     await r.press('b', 'PRIMARY');
     await r.move('a', 1, 0);
     await r.move('a', 0, 0);
-    r.setNow(500);
-    await r.move('a', 1, 0);
-    expect(r.runtime.director.cpus.entries).toHaveLength(2);
-    await r.move('a', 0, 0);
-    r.setNow(1000);
-    await r.move('a', -1, 0);
     expect(r.runtime.director.cpus.entries).toHaveLength(1);
+    const first = r.runtime.director.cpus.entries[0]?.id as string;
+    expect(r.runtime.director.picks.driving('a')).toBe(first);
+    r.setNow(500);
+    await r.move('a', 1, 0); // while choosing, ▶ moves the bot's cursor: no second bot
+    await r.move('a', 0, 0);
+    expect(r.runtime.director.cpus.entries).toHaveLength(1);
+    r.setNow(1000);
+    await r.press('a', 'PRIMARY');
+    expect(r.runtime.director.picks.pick(first)?.ready).toBe(true);
+    r.setNow(1500);
+    await r.move('a', 1, 0);
+    await r.move('a', 0, 0);
+    expect(r.runtime.director.cpus.entries).toHaveLength(2);
+    r.setNow(2000);
+    await r.press('a', 'PRIMARY');
+    r.setNow(2500);
+    await r.move('a', -1, 0);
+    expect(r.runtime.director.cpus.entries.map((e) => e.id)).toEqual([first]);
   });
 
   it('other games keep the one shared focus', async () => {

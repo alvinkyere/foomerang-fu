@@ -92,6 +92,9 @@ function characterSelect(
   participants: number,
   setup: SetupSnapshot,
 ): CharacterSelectView {
+  const numberOf = new Map(
+    seats.flatMap((seat) => (seat.id === undefined ? [] : [[seat.id, seat.number]])),
+  );
   const selectSeats = seats.map((seat): SelectSeatView => {
     const pick = seat.id === undefined ? undefined : picks.get(seat.id);
     return {
@@ -104,6 +107,9 @@ function characterSelect(
       ...(seat.detail !== undefined ? { detail: seat.detail } : {}),
       ...(pick !== undefined ? { character: characterView(pick.character) } : {}),
       ready: pick?.ready ?? false,
+      ...(pick?.chosenBy !== undefined && numberOf.get(pick.chosenBy) !== undefined
+        ? { chooser: numberOf.get(pick.chosenBy) as number }
+        : {}),
       ...(seat.id !== undefined && setup.sides.get(seat.id) !== undefined
         ? { side: setup.sides.get(seat.id) as 'RED' | 'BLUE' }
         : {}),
@@ -122,7 +128,7 @@ function characterSelect(
   return {
     seats: selectSeats,
     grid,
-    everyoneReady: selectSeats.every((seat) => seat.kind !== 'phone' || seat.ready),
+    everyoneReady: selectSeats.every((seat) => seat.kind === 'empty' || seat.ready),
     bots,
     canAddBot: participants < MAX_PARTICIPANTS,
     setup: {

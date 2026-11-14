@@ -49,6 +49,8 @@ export interface SelectSeatView {
   /** The character under their cursor (or chosen, once READY). */
   readonly character?: CharacterView;
   readonly ready: boolean;
+  /** A bot whose character a person is choosing: that person's seat number. */
+  readonly chooser?: number;
   /** PICK TEAMS: the banner they stand on (undefined: still in the middle). */
   readonly side?: 'RED' | 'BLUE';
 }

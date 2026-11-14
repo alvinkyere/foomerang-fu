@@ -161,3 +161,80 @@ describe('CharacterSelect', () => {
     expect(calls).toBe(2);
   });
 });
+
+describe('choosing a bot’s character (one controller, playing with bots)', () => {
+  /** a is READY on bread; the CPU just added takes a free character, and a now steers it. */
+  const withBot = () => {
+    const s = new CharacterSelect();
+    s.sync([human('a', 0)]);
+    s.select('a');
+    s.sync([human('a', 0), cpu('cpu:1', 1)]);
+    expect(s.drive('cpu:1', 'a')).toBe(true);
+    return s;
+  };
+
+  it('the bot waits, not ready, on the free character it was given, and the room is not ready while it does', () => {
+    const s = withBot();
+    expect(s.pick('cpu:1')).toEqual({ character: 'coffee', ready: false, chosenBy: 'a' });
+    expect(s.driving('a')).toBe('cpu:1');
+    expect(s.driverOf('cpu:1')).toBe('a');
+    expect(s.allReady).toBe(false);
+  });
+
+  it('the person’s stick moves the bot’s cursor (theirs stays READY where it was)', () => {
+    const s = withBot();
+    s.move('a', 'right'); // coffee -> icecream
+    expect(s.pick('cpu:1')?.character).toBe('icecream');
+    expect(s.pick('a')).toEqual({ character: 'bread', ready: true });
+  });
+
+  it('SELECT readies the bot on that character and hands the person their own controls back', () => {
+    const s = withBot();
+    s.move('a', 'right');
+    expect(s.select('a')).toBe('BOT_READY');
+    expect(s.pick('cpu:1')).toEqual({ character: 'icecream', ready: true });
+    expect(s.driving('a')).toBeUndefined();
+    expect(s.allReady).toBe(true);
+    s.move('a', 'right'); // nothing moves now: the person is READY and drives nobody
+    expect(s.pick('cpu:1')?.character).toBe('icecream');
+  });
+
+  it('the bot cannot be readied on a character someone is ready on, nor on a coming-soon one', () => {
+    const s = withBot();
+    s.move('a', 'right');
+    s.move('a', 'right'); // coffee -> icecream -> bread (a's)
+    expect(s.select('a')).toBe('TAKEN');
+    s.move('a', 'up');
+    s.move('a', 'up');
+    s.move('a', 'left');
+    s.move('a', 'left'); // bread -> banana -> avocado -> eggplant (row 0)
+    expect(s.pick('cpu:1')?.character).toBe('eggplant');
+    expect(s.select('a')).toBe('COMING_SOON');
+    expect(s.pick('cpu:1')?.ready).toBe(false);
+  });
+
+  it('only a READY person may drive, only a CPU may be driven, and one bot at a time', () => {
+    const s = new CharacterSelect();
+    s.sync([human('a', 0), human('b', 1), cpu('cpu:1', 2), cpu('cpu:2', 3)]);
+    expect(s.drive('cpu:1', 'a')).toBe(false); // a is still choosing their own
+    s.select('a');
+    expect(s.drive('b', 'a')).toBe(false); // b is a person
+    expect(s.drive('cpu:1', 'a')).toBe(true);
+    expect(s.drive('cpu:2', 'a')).toBe(false); // a already chooses for cpu:1
+  });
+
+  it('if the person leaves while choosing, the bot readies itself on a free character', () => {
+    const s = withBot();
+    s.move('a', 'right');
+    s.sync([cpu('cpu:1', 1)]);
+    expect(s.pick('cpu:1')).toEqual({ character: 'icecream', ready: true });
+    expect(s.allReady).toBe(true);
+  });
+
+  it('if the bot is removed while chosen for, the person drives nobody', () => {
+    const s = withBot();
+    s.sync([human('a', 0)]);
+    expect(s.driving('a')).toBeUndefined();
+    expect(s.allReady).toBe(true);
+  });
+});
