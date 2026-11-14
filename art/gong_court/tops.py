@@ -16,6 +16,10 @@ OX, OY = MOSAIC_ORIGIN
 M = cv2.imread('art/gong_court/output/mosaic_chrome.png')
 T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])
 S = json.load(open('art/gong_court/stones.json'))
+# (the bamboo is 3D now, props.py: what it covers on a mint is the mint's own colour, never a traced stalk; its shadows stay)
+from measure import pix
+from geom import bamboo_mask
+STANDING = bamboo_mask(M.shape[:2], pix, np.float32([OX, OY]))
 out = {}
 for name, b in S.items():
     if not b.get('mint'): continue
@@ -26,10 +30,14 @@ for name, b in S.items():
     to_px = lambda pts: np.int32([[(x - x0) * PX, (y1 - y) * PX] for x, y in pts])
     inside = np.zeros((Hh, W), np.uint8); cv2.fillPoly(inside, [to_px(poly)], 1)
     inside = (cv2.erode(inside, np.ones((3, 3), np.uint8)) > 0) & (flat.sum(2) > 30)
+    standing = cv2.warpPerspective(STANDING, T @ np.linalg.inv(_H(b['h'])) @ A, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP) > 0
     lab = cv2.cvtColor(flat, cv2.COLOR_BGR2Lab).astype(np.float32)
     base = np.median(lab[inside], 0); bgr = np.median(flat[inside], 0)
     res = cv2.GaussianBlur(lab - base, (0, 0), 1.0)
     off = (np.linalg.norm(res, axis=2) > MIN) & inside
+    # under the bamboo: a stalk's own greens (saturated, darker than the mint) are left out; its shadow (paler, bluer) stays
+    stalkish = (lab[..., 2] - base[2] > 4) | (lab[..., 0] < base[0] - 22)
+    off &= ~(standing & stalkish)
     shapes = []
     if off.sum() > 50:
         _, lab_, cen = cv2.kmeans(res[off].reshape(-1, 3), K, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.2), 4,

@@ -169,9 +169,11 @@ for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
     if mint:
         # the mint in its own measured colour, and what lies on it (tops.py: shadows, fallen leaves), each a hair above the last
         tp = TOPS.get(name, {})
-        m.poly(mint, h + 0.004, tp.get('colour', SC['mint']))
+        # (0.03 above the top, what lies on it 0.06: at 0.004 apart they fought in the depth buffer, the stone showing through the mint
+        # in patches and the mint over the gong's shadow)
+        m.poly(mint, h + 0.03, tp.get('colour', SC['mint']))
         for k, s_ in enumerate(tp.get('shapes', [])):
-            m.poly(s_['pts'], h + 0.006 + 0.0004 * k, s_['colour'], s_.get('holes', []))
+            m.poly(s_['pts'], h + 0.06 + 0.0004 * k, s_['colour'], s_.get('holes', []))
     m.done()
 
 # ---------------------------------------------------------------------------------------------------------------- cards
@@ -188,6 +190,127 @@ if HAS('art/gong_court/cards.json') and not NOCARDS:
             for tri in tessellate_polygon(flat_):
                 m.face([tuple(verts[i]) for i in tri], s_['colour'])
         m.done()
+
+# ---------------------------------------------------------------------------------------------------------------- bamboo
+# (props.py: each stalk read off the still view) a six-sided stalk turned a face to the camera, as the HQ's: its faces shading smoothly
+# from the west's #8fc56a to the east's #b0dd80 (the light from the east, measured across C3 and W1), a darker ring at each node
+# (#6eb45d, a thin line ~1.6 apart), a dark sleeve round its foot (#5ea162 -> #6bac61, 1.1 tall, 1.2 wide), its cut top a rim round a deep hollow (#519855)
+STALK_W, STALK_M, STALK_E = Vector(lin('#8fc56a')[:3]), Vector(lin('#a0d478')[:3]), Vector(lin('#b0dd80')[:3])
+SLEEVE_W, SLEEVE_E = Vector(lin('#5b9f5f')[:3]), Vector(lin('#6fae63')[:3])
+
+
+def shade(nx, west, mid, east):
+    """A colour for a face turned `nx` towards the east (-1 west .. 1 east)."""
+    t = (nx + 1) / 2
+    c = west.lerp(mid, t / 0.5) if t < 0.5 else mid.lerp(east, (t - 0.5) / 0.5)
+    return list(c) + [1.0]
+
+
+def stalk(m, foot, top, r):
+    a, b = Vector(foot), Vector(top); ax = (b - a).normalized(); ln = (b - a).length
+    side = Vector((1, 0, 0)); side = (side - ax * side.dot(ax)).normalized(); fwd = ax.cross(side).normalized()   # (fwd: south)
+    # the six corners: a face square to the camera (corners at 0, 60 .. deg from east, so the faces' middles at 30, 90 ..)
+    ang = [math.radians(60 * k) for k in range(6)]
+    ring = lambda c, rr: [c + (side * math.cos(t) - fwd * math.sin(t)) * rr for t in ang]
+    nodes = max(1, round((ln - 1.1) / 1.6))
+    cuts = [(0.0, 'sleeve', 1.2), (1.1 / ln, 'stalk', 1.2), (1.1 / ln + 0.01, 'stalk', 1.0)]
+    for n in range(1, nodes + 1):
+        t = (1.1 + (ln - 1.1) * n / (nodes + 0.6)) / ln
+        cuts += [(t - 0.06 / ln, 'node', 1.0), (t, 'node', 1.04), (t + 0.06 / ln, 'stalk', 1.0)]
+    cuts.append((1.0, 'top', 1.0))
+    cuts.sort(key=lambda q: q[0])
+    for (t0, kind, s0), (t1, _, s1) in zip(cuts, cuts[1:]):
+        r0, r1 = ring(a.lerp(b, t0), r * s0), ring(a.lerp(b, t1), r * s1)
+        for k in range(6):
+            j = (k + 1) % 6
+            ca = [shade(math.cos(ang[q]), *((SLEEVE_W, SLEEVE_W.lerp(SLEEVE_E, 0.5), SLEEVE_E) if kind == 'sleeve' else
+                                            (STALK_W * 0.66, STALK_M * 0.66, STALK_E * 0.66) if kind == 'node' else
+                                            (STALK_W, STALK_M, STALK_E))) for q in (k, j, j, k)]
+            m.face([tuple(r0[k]), tuple(r0[j]), tuple(r1[j]), tuple(r1[k])], ca)
+    # the cut top: a rim (the stalk's light) round a hollow sunk a little
+    rim, hol = ring(b, r), ring(b - ax * 0.12, r * 0.55)
+    for k in range(6):
+        j = (k + 1) % 6
+        m.face([tuple(rim[k]), tuple(rim[j]), tuple(hol[j]), tuple(hol[k])], '#8cc874')
+    m.face([tuple(p) for p in hol], '#519855')
+
+
+def spray(m, base, angle, length, y, r=0.0):
+    """A spray of leaves at a node, as read on screen: five blades fanned 70 deg about `angle` (0 right, 90 down), the middle one
+    longest; on the upright plane y (a hair nearer the camera than the stalk), a screen px down there 36.5/20.4 of one across."""
+    asp = 36.5 / 20.4
+    for q, (da, f) in enumerate(((-34, 0.74), (-17, 0.92), (0, 1.0), (17, 0.9), (34, 0.72))):
+        a_ = math.radians(angle + da); L = length * f * 1.3      # (the sprays' lengths read to the leaves' bulk; their tips run ~1.3x)
+        # (screen directions laid on the plane: across 1:1, down x asp, so each blade shows on screen as read, its width too)
+        d = Vector((math.cos(a_), 0, -math.sin(a_) * asp)); w = Vector((-math.sin(a_), 0, -math.cos(a_) * asp)) * L * 0.09
+        stem = Vector((math.cos(math.radians(angle)), 0, -math.sin(math.radians(angle)) * asp))
+        p0 = Vector((base.x, y, base.z)) + stem * (r + length * 0.12)     # (the blades leave a short stem, not one point)
+        pts = [p0, p0 + d * L * 0.5 + w, p0 + d * L, p0 + d * L * 0.55 - w]
+        m.face([tuple(p + Vector((0, -0.0006 * q, 0))) for p in pts], '#5ea964' if q % 2 else '#529f5b')
+
+
+if HAS('art/gong_court/props.json') and 'nobamboo' not in args[1:]:
+    for s_ in J('art/gong_court/props.json')['bamboo']:
+        m = Mesh(f'BAMBOO_{s_["name"]}')
+        foot = (s_['foot'][0], YC + s_['foot'][1], s_['foot'][2]); top = (s_['top'][0], YC + s_['top'][1], s_['top'][2])
+        stalk(m, foot, top, s_['r'])
+        for sp in s_['sprays']:
+            base = Vector(foot).lerp(Vector(top), sp['t'])
+            spray(m, base, sp['angle'], sp['length'], foot[1] - s_['r'] * 1.2, s_['r'])
+        m.done()
+
+# ---------------------------------------------------------------------------------------------------------------- the gong
+# (props.py: posts, beam and disc read off the still view) the frame dark navy, lit from above and the west as measured (a post's west
+# side #434f6e, its east #3b4862; the beam's top #5a628d); the disc gold #b5ad6b with pale studs #e5db7e round it and its dark slot,
+# hung on two ropes #85714e
+GLIGHT = Vector((-0.5, -0.25, 0.83)).normalized()
+
+
+def lit(nrm, shade_hex, lit_hex):
+    t = max(0.0, min(1.0, nrm.dot(GLIGHT) * 0.5 + 0.5))
+    return list(Vector(lin(shade_hex)[:3]).lerp(Vector(lin(lit_hex)[:3]), t)) + [1.0]
+
+
+def cylinder(m, a, b, r, shade_hex, lit_hex, seg=20, caps=True):
+    a, b = Vector(a), Vector(b); ax = (b - a).normalized()
+    u = ax.cross(Vector((0, 0, 1))) if abs(ax.z) < 0.9 else ax.cross(Vector((1, 0, 0))); u.normalize(); v = ax.cross(u).normalized()
+    dirs = [u * math.cos(2 * math.pi * k / seg) + v * math.sin(2 * math.pi * k / seg) for k in range(seg)]
+    for k in range(seg):
+        j = (k + 1) % seg
+        m.face([tuple(a + dirs[k] * r), tuple(a + dirs[j] * r), tuple(b + dirs[j] * r), tuple(b + dirs[k] * r)],
+               [lit(dirs[q], shade_hex, lit_hex) for q in (k, j, j, k)])
+    if caps:
+        for c, s_ in ((a, -1), (b, 1)):
+            m.face([tuple(c + d * r) for d in (dirs if s_ > 0 else dirs[::-1])], [lit(ax * s_, shade_hex, lit_hex)] * seg)
+
+
+if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json') and 'nogong' not in args[1:]:
+    G_ = J('art/gong_court/props.json')['gong']; m = Mesh('GONG')
+    for p_ in G_['posts']:
+        f = Vector((p_['foot'][0], YC + p_['foot'][1], p_['foot'][2] - 0.2))
+        cylinder(m, f, (f.x, f.y, p_['top'] + G_['beam_r'] * 0.5), G_['post_r'], '#363f5a', '#4a5677')
+    (ax_, ay_, az_), (bx_, by_, bz_) = G_['beam']
+    A_, B_ = Vector((ax_, YC + ay_, az_)), Vector((bx_, YC + by_, bz_))
+    cylinder(m, A_, B_, G_['beam_r'], '#3a4360', '#5c6590')
+    along = (B_ - A_); along.z = 0; along.normalize(); nrm = Vector((-along.y, along.x, 0))
+    if nrm.y > 0: nrm = -nrm                       # (its face to the south: the camera's side)
+    c_ = Vector((G_['disc'][0], YC + G_['disc'][1], G_['disc'][2])); R_ = G_['disc_r']
+    cylinder(m, c_ - nrm * 0.25, c_ + nrm * 0.15, R_, '#a39a5e', '#bab170', seg=28)      # (thick: its rim shows at the lower right)
+    up = Vector((0, 0, 1)); face_ = c_ + nrm * 0.155
+    ring = lambda q, rr, n=28: [face_ + (along * math.cos(2 * math.pi * k / n) + up * math.sin(2 * math.pi * k / n)) * rr for k in range(n)]
+    for k in range(7):                              # the studs: rounded pale squares round the disc, square to its radius
+        a0 = 2 * math.pi * (k + 0.25) / 7; rad = along * math.cos(a0) + up * math.sin(a0); tan_ = along * -math.sin(a0) + up * math.cos(a0)
+        ctr = face_ + rad * R_ * 0.52 + up * R_ * 0.06 + nrm * 0.005; hr, ht, cut = R_ * 0.2, R_ * 0.19, 0.45
+        sq = [ctr + rad * (hr * u) + tan_ * (ht * v) for u, v in ((1, cut), (cut, 1), (-cut, 1), (-1, cut), (-1, -cut), (-cut, -1), (cut, -1), (1, -cut))]
+        m.face([tuple(p) for p in sq], '#e5db7e' if math.sin(a0) > -0.5 else '#cfc574')      # (the lower ones in the disc's shade)
+    slot = face_ + nrm * 0.01 - along * R_ * 0.12 - up * R_ * 0.22      # the dark slot below and west of the middle
+    m.face([tuple(slot + along * R_ * 0.09 * math.cos(2 * math.pi * k / 10) + up * R_ * 0.14 * math.sin(2 * math.pi * k / 10)) for k in range(10)],
+           '#2b2f3d')
+    for s_ in (-0.62, 0.62):                        # the ropes
+        top_ = A_.lerp(B_, 0.5) + along * (s_ * R_ * 1.05)
+        top_ = A_ + along * ((top_ - A_).dot(along)); top_.z = A_.z + (B_.z - A_.z) * ((top_ - A_).dot(along) / max(1e-6, (B_ - A_).length))
+        cylinder(m, top_, c_ + along * (s_ * R_ * 0.7) + up * (R_ * 0.75), 0.06, '#6f5d3f', '#8d7752', seg=8, caps=False)
+    m.done()
 
 # ---------------------------------------------------------------------------------------------------------------- camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co

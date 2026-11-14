@@ -54,9 +54,9 @@ BOXES = [(0, 80, 175, 400),                                                     
          (1480, 360, 1560, 470), (590, 580, 660, 700), (1710, 440, 1780, 490), (1420, 340, 1460, 370),   # tufts
          (480, 790, 535, 850), (1430, 260, 1520, 380)]                                            # the banana's corner, the gong's foot
 for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
-# the bamboo (cards.py traces it with its shadows): its boxes are not ground
-for x0, y0, x1, y1 in [(590, 260, 680, 420), (980, 0, 1175, 170), (385, 730, 500, 890), (740, 460, 980, 760), (1675, 250, 1775, 380),
-                       (760, 1110, 845, 1240), (1340, 1060, 1470, 1240)]: obj[y0:y1, x0:x1] = 1
+# the bamboo (3D now, props.py): where it stands is not ground; its shadows round it are
+from geom import bamboo_mask
+obj |= bamboo_mask(obj.shape, pix, np.float32([OX, OY]), 1.3)
 hole = ((to_flat(obj * 255, cv2.INTER_NEAREST) > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 

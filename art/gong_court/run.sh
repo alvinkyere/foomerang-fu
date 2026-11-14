@@ -1,8 +1,9 @@
 #!/bin/zsh
-# The gong court pipeline (from the repository root): stones -> ground -> colours -> cards (against a wide render) -> render -> compare.
+# The gong court pipeline (from the repository root): stones -> bamboo -> ground -> colours -> cards (against a wide render) -> render -> compare.
 #   art/gong_court/run.sh [package]          (mosaic.py first, once: ~10 min; its output/ is local only)
 PY=art/audio/output/venv/bin/python; B=/Applications/Blender.app/Contents/MacOS/Blender; T=${TMPDIR%/}/gong
 $PY art/gong_court/fit_stones.py ${GROW:-0.08} >/dev/null || exit 1
+$PY art/gong_court/props.py >/dev/null || exit 1
 for s in ground stone_colours tops; do $PY art/gong_court/$s.py >/dev/null || exit 1; done
 $B -b --python art/gong_court/blender/build.py -- $T/wide render wide nocards 2>&1 | grep -E "Error|Traceback"
 $PY art/gong_court/cards.py $T/wide/render.png >/dev/null || exit 1

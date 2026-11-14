@@ -4,7 +4,7 @@ the stone's silhouettes together (every prism as it now stands, stones.json) aga
 tops (each outline at its height) against the HQ's lighter top tone and its mints. Heights are held. Writes the outlines back into
 stones_manual.json (then re-run fit_stones.py: run.sh does).
 
-  python art/gong_court/refine_outlines.py [passes]      (after fit_stones.py; the Python of art/audio/output/venv)
+  python art/gong_court/refine_outlines.py [passes] [step] [--heights] [--walls] [--only a,b]      (after fit_stones.py; the Python of art/audio/output/venv)
 """
 import json, sys
 import numpy as np, cv2
@@ -31,6 +31,7 @@ for n, b in S.items():
     MAN[n] = {'kind': b['kind'], 'top': b['top_px']}
 movable = [n for n in MAN if not n.startswith('_') and MAN[n].get('top') and S.get(n, {}).get('kind') not in (None, 'wall')]
 DO_H = '--heights' in sys.argv
+if '--only' in sys.argv: movable = [n for n in movable if n in sys.argv[sys.argv.index('--only') + 1].split(',')]   # (some bodies only)
 sys.path.insert(0, 'art/gong_court'); from fit_stones_inset import inset
 best = PT.score(bodies)[0]; print('start %.3f' % best)
 for p_ in range(PASSES):

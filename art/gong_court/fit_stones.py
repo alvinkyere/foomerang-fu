@@ -271,7 +271,7 @@ for n, hh in H_.items():
     b['top'] = [[round(float(x), 3), round(float(y), 3)] for x, y in plan([(x + OX, y + OY) for x, y in tops_px[n]], z=hh)]
     if GROW > 0: b['top'] = inset(b['top'], -GROW)
     # a platform's mint: its top inset by the rim (the light lavender band measures 16-17 px at the far edges, 0.55 units)
-    b['mint'] = inset(b['top'], RIM) if b['kind'] == 'platform' else None
+    b['mint'] = inset(b['top'], MAN.get(n, {}).get('rim', RIM)) if b['kind'] == 'platform' else None
     print('%-14s h %.2f%s' % (n, hh, '  fixed' if n in FIXED else ''))
 # the walls as the painter refined them (refine_outlines.py --walls)
 for n, v in MAN.get('_walls', {}).items():
