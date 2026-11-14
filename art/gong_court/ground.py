@@ -20,8 +20,8 @@ from geom import prisms
 PX = 10.0
 X0, X1, Y0, Y1 = -36.0, 34.0, -23.0, 25.0
 W, Hh = int((X1 - X0) * PX), int((Y1 - Y0) * PX)
-DX, SIGMA = 1.0, 2.5
 import os; STONE_PAD = int(os.environ.get("STONE_PAD", "3"))      # (px round the stone left out of the ground: its edge, not its contact shadow; 1, 3, 5, 9 scored 4.92, 4.80, 4.84, 4.88)
+DX, SIGMA = float(os.environ.get("GDX", "0.5")), float(os.environ.get("GSIGMA", "1.2"))      # (the base field: 0.5/1.2 scored 4.84 against the still view; 1.0/2.5 5.15, 0.5/0.7 4.86, 0.5/1.6 4.95)
 OX, OY = MOSAIC_ORIGIN
 A = np.array([[1 / PX, 0, X0], [0, -1 / PX, Y1 + Yc], [0, 0, 1]])
 T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])
