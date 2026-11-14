@@ -24,7 +24,7 @@ b, g, r = np.median(edge, 0).astype(int); GRASS = '#%02x%02x%02x' % (r, g, b)
 TOPS = json.load(open('art/canal_court/tops.json')); WAT = json.load(open('art/canal_court/water.json')); BA = json.load(open('art/canal_court/basin.json'))
 POOL = json.load(open(os.path.join(os.path.dirname(sys.argv[1]), 'pool.json')))      # (build.py: the pool's water octagon)
 CANAL = dict(yc=YC, pool={k: round(v, 3) for k, v in POOL.items()},
-             run=dict(line=TOPS["channel"]["line"], halfWidth=0.5, speed=1.5),
+             run=dict(line=TOPS["channel"]["line"], halfWidth=0.5, speed=1.2),      # (noise units: the streaks go 1.33 units a second, the HQ's 1.2-1.6: stabilised frames, 657-666 s)
              basin=dict(cx=BA['cx'], cy=BA['cy'], r=BA['rin'], turn=BA['turn']))
 os.makedirs(OUT, exist_ok=True)
 shutil.copyfile(sys.argv[1], OUT + 'plaza.glb')

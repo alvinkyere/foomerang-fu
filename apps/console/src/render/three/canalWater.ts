@@ -120,10 +120,12 @@ function fragment(kind: CanalWaterKind, n: number): string {
   for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
   float e = o - poolR * 0.9239;                   // (from the hole's edge, plan units: < 0 inside)
   float r = length(p) / poolR;
-  float rf = length(p - vec2(0.0, -0.45 * poolR)) / poolR;
-  vec2 q = turn2(time * 0.35 + r * 1.2) * p;
-  float n = fbm(q * 0.85 + vec2(0.0, -time * 0.45));
-  float foam = smoothstep(0.0, 0.04, n + (1.0 - rf) * 0.9 - 0.85) * (1.0 - smoothstep(-0.5, -0.2, e));
+  float rf = length(p - vec2(0.0, -0.25 * poolR)) / poolR;
+  // (the HQ's foam is another shape within half a second to a second: stabilised 657-664 s)
+  vec2 q = turn2(time * 0.7 + r * 1.2) * p;
+  vec2 bw = vec2(fbm(p * 0.7 + vec2(time * 1.1, 0.0)), fbm(p * 0.7 + vec2(3.0, -time * 1.1))) - 0.5;
+  float n = fbm(q * 0.85 + bw * 1.2 + vec2(0.0, -time * 0.85));
+  float foam = smoothstep(0.0, 0.04, n + (1.0 - rf) * 0.9 - 0.8) * (1.0 - smoothstep(-0.5, -0.2, e));
   vec3 c = mix(${rgb(COL.deep)}, ${rgb(COL.deepEdge)}, smoothstep(-0.8, -0.35, e));
   c = mix(c, ${rgb(COL.rim)}, smoothstep(-0.35, 0.0, e));
   c = mix(c, ${rgb(COL.rimTop)}, smoothstep(0.0, 0.45, e));
@@ -153,8 +155,11 @@ function fragment(kind: CanalWaterKind, n: number): string {
   float o = 0.0;
   for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
   o /= basinR;
-  vec2 q = turn2(time * 0.08 + o * 1.6) * p;
-  float n = fbm(vec2(q.x * 0.45, q.y * 1.6) + vec2(time * 0.1, 0.0));
+  // (the HQ's, stabilised 657-664 s: no turning; a drift east of ~0.1 units a second, and the strokes re-form where they are, the
+  // pattern gone to another in about a second: the strokes' field warped by a second noise that moves)
+  vec2 w = vec2(fbm(p * 0.5 + vec2(time * 0.9, 0.0)), fbm(p * 0.5 + vec2(7.0, time * 0.9))) - 0.5;
+  vec2 q = turn2(o * 1.6) * (p - vec2(time * 0.1, 0.0) + w * 1.4);
+  float n = fbm(vec2(q.x * 0.45, q.y * 1.6));
   float pale = smoothstep(0.47, 0.53, n + (0.55 - o) * 0.35);
   vec3 c = mix(${rgb(COL.basinBand)}, ${rgb(COL.basin)}, pale);
   c = mix(c, ${rgb(COL.basinEdge)}, smoothstep(0.86, 1.0, o) * 0.8);
