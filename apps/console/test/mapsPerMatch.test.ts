@@ -90,7 +90,9 @@ describe('every match is on a different map, always', () => {
     const c = await console('rotate');
     await c.enter('PLAYING');
     const map = c.runtime.arena();
-    for (let t = 0; t < 2_000 && c.runtime.director.arenaView()?.arenaId === undefined; t += 50) {
+    // (up to 8 s of game time, 1.6 s of real waits: the hex meadow's rules, the largest, took longer than the old 2 s / 0.4 s to load
+    // when the 24-map pool's first pick became it, 2026-11-14; the assertion is the same)
+    for (let t = 0; t < 8_000 && c.runtime.director.arenaView()?.arenaId === undefined; t += 50) {
       c.advance(50);
       c.runtime.frame(t);
       await new Promise((resolve) => setTimeout(resolve, 10)); // the real rules load lazily (a dynamic import)

@@ -70,6 +70,7 @@ import { DeathRemains, type Victim } from './deathRemains';
 import { CharacterModels } from './characterModels';
 import { CHARACTER_RENDER_ORDER, plazaFloor } from './plazaFloor';
 import { waterMaterial, type WaterStyle } from './waterShader';
+import { canalWaterMaterial, parseCanalWater } from './canalWater';
 import { batchPlaza } from './plazaBatch';
 import { PlazaProps } from './plazaProps';
 import { characterHeight, sceneSpace } from './plazaSpace';
@@ -1395,7 +1396,7 @@ class Plaza {
     batchPlaza(gltf, (root) =>
       FADEABLE.test(root.name)
         ? 'own'
-        : /^(CRATE|POT)_|^FOUNTAIN_water$|^PORTAL_|^RAFT$|^SLIDER_|^PEN_/.test(root.name)
+        : /^(CRATE|POT)_|^FOUNTAIN_water$|^FLOW_|^PORTAL_|^RAFT$|^SLIDER_|^PEN_/.test(root.name)
           ? 'leave'
           : 'shared',
     );
@@ -1604,6 +1605,19 @@ class Plaza {
         },
       });
     }
+    // the canal court's waters: the tower's pool, the channel's run, the basin (canalWater.ts), each its own moving shader
+    const canal = parseCanalWater(this.manifest);
+    if (canal !== undefined)
+      for (const kind of ['pool', 'run', 'basin'] as const) {
+        const mesh = gltf.getObjectByName(`FLOW_${kind}`);
+        if (!(mesh instanceof THREE.Mesh)) continue;
+        const material = canalWaterMaterial(kind, canal);
+        mesh.material = material;
+        this.#moving.push({
+          object: mesh,
+          motion: (t) => ((material.uniforms['time'] as { value: number }).value = t / 1000),
+        });
+      }
     // a map whose portals are traced frames (portalFlip.ts: the autumn glade): one mesh per frame, PORTAL_<k>_f<n>, shown in turn
     const flip = parsePortalFlip((this.manifest as { portalFlip?: unknown }).portalFlip);
     if (flip !== undefined)

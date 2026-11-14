@@ -16,6 +16,7 @@ export const rendererKindFor = (arena: ArenaChoice): RendererKind =>
   arena === 'warm_up' ||
   arena === 'temple_court' ||
   arena === 'gong_court' ||
+  arena === 'canal_court' ||
   arena === 'bridge_islands'
     ? 'three'
     : 'phaser';

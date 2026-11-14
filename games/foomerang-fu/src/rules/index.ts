@@ -124,6 +124,16 @@ export {
   GONG_COURT_WIDTH,
 } from './gongCourtArena';
 
+export {
+  CANAL_COURT_ARENA,
+  CANAL_COURT_BOOK_SPOTS,
+  CANAL_COURT_HEIGHT,
+  CANAL_COURT_SAFE_ZONE,
+  CANAL_COURT_SPAWNS,
+  CANAL_COURT_WALLS,
+  CANAL_COURT_WIDTH,
+} from './canalCourtArena';
+
 export { DEFAULT_FU_CONFIG, FREE_FOR_ALL } from './config';
 export type { FuConfig } from './config';
 
