@@ -312,6 +312,76 @@ if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json')
         cylinder(m, top_, c_ + along * (s_ * R_ * 0.7) + up * (R_ * 0.75), 0.06, '#6f5d3f', '#8d7752', seg=8, caps=False)
     m.done()
 
+# ---------------------------------------------------------------------------------------------------------------- the pots
+# (props.py) terracotta turned shapes lit from the east and above as the HQ's (lit #c28f78, mid #a8725b, the foot's shade #835d47), a
+# darker band low down, a few dark spots on the side facing the camera, an open urn's thick rim (#b99080) round its dark mouth
+# (#645650) with a lug each side, the jug's dome lid and knob and its two loop handles
+PLIGHT = Vector((0.45, -0.35, 0.82)).normalized()
+PROFILES = {'urn': [(0.4, 0.0), (0.62, 0.1), (0.85, 0.32), (1.0, 0.6), (0.97, 0.76), (0.8, 0.87), (0.72, 0.91), (0.8, 0.96), (0.8, 1.0)],
+            'jug': [(0.6, 0.0), (0.9, 0.14), (1.0, 0.44), (0.88, 0.72), (0.6, 0.88), (0.46, 0.94)]}
+
+
+def pot_colour(nrm, zf):
+    t = max(0.0, min(1.0, nrm.dot(PLIGHT) * 0.6 + 0.45))
+    c = Vector(lin('#835d47')[:3]).lerp(Vector(lin('#a8725b')[:3]), min(1, t / 0.6)) if t < 0.6 else \
+        Vector(lin('#a8725b')[:3]).lerp(Vector(lin('#c79079')[:3]), (t - 0.6) / 0.4)
+    return list(c * (0.72 + 0.28 * min(1.0, zf / 0.55))) + [1.0]      # (the lower half in shade: #835d47 under the body's #a8725b)
+
+
+def tube(m, path, r, colour, seg=8):
+    for (a, b) in zip(path, path[1:]):
+        cylinder(m, a, b, r, colour, colour, seg=seg, caps=False)
+
+
+if HAS('art/gong_court/props.json') and 'pots' in J('art/gong_court/props.json') and 'nopots' not in args[1:]:
+    for name, p_ in J('art/gong_court/props.json')['pots'].items():
+        m = Mesh(f'POT_{name}'); R_, H_ = p_['r'], p_['h']; o = Vector((p_['foot'][0], YC + p_['foot'][1], 0.0)); seg = 24
+        prof = PROFILES[p_['kind']]
+        rings = [[o + Vector((math.cos(2 * math.pi * k / seg) * rr * R_, math.sin(2 * math.pi * k / seg) * rr * R_, zz * H_)) for k in range(seg)]
+                 for rr, zz in prof]
+        for i in range(len(prof) - 1):
+            (r0, z0), (r1, z1) = prof[i], prof[i + 1]
+            slope = (r0 - r1) * R_ / max(1e-6, (z1 - z0) * H_)
+            for k in range(seg):
+                j = (k + 1) % seg
+                nk = [Vector((math.cos(2 * math.pi * q / seg), math.sin(2 * math.pi * q / seg), slope)).normalized() for q in (k, j, j, k)]
+                m.face([tuple(rings[i][k]), tuple(rings[i][j]), tuple(rings[i + 1][j]), tuple(rings[i + 1][k])],
+                       [pot_colour(nk[q], (z0 if q in (0, 1) else z1)) for q in range(4)])
+        top_r, top_z = prof[-1][0] * R_, prof[-1][1] * H_
+        if p_['kind'] == 'urn':
+            inner = [o + Vector((math.cos(2 * math.pi * k / seg) * top_r * 0.68, math.sin(2 * math.pi * k / seg) * top_r * 0.68, top_z)) for k in range(seg)]
+            for k in range(seg):
+                j = (k + 1) % seg; m.face([tuple(rings[-1][k]), tuple(rings[-1][j]), tuple(inner[j]), tuple(inner[k])], '#b99080')
+            m.face([tuple(v - Vector((0, 0, 0.05))) for v in inner], '#5a4846')
+            for sgn in (-1, 1):                     # the lugs: a small loop each side at the shoulder
+                c0 = o + Vector((sgn * R_ * 0.92, 0, H_ * 0.8))
+                tube(m, [c0 + Vector((sgn * R_ * 0.22 * math.sin(math.pi * q / 6), 0, R_ * 0.2 * (math.cos(math.pi * q / 6) - 1))) for q in range(7)],
+                     0.07, '#a8725b')
+        else:
+            ctr = o + Vector((0, 0, top_z)); dome = [(0.46, 0.0), (0.4, 0.06), (0.26, 0.12), (0.12, 0.14), (0.0, 0.15)]
+            lr = [[ctr + Vector((math.cos(2 * math.pi * k / seg) * rr * R_, math.sin(2 * math.pi * k / seg) * rr * R_, zz * H_)) for k in range(seg)] for rr, zz in dome]
+            for i in range(len(dome) - 1):
+                for k in range(seg):
+                    j = (k + 1) % seg
+                    m.face([tuple(lr[i][k]), tuple(lr[i][j]), tuple(lr[i + 1][j]), tuple(lr[i + 1][k])], '#c38f75' if i < 2 else '#d9a78a')
+            for sgn, big in ((-1, 0.7), (1, 1.0)):     # the loop handles, the east one the larger
+                c0 = o + Vector((sgn * R_ * 0.95, 0.0, H_ * 0.62))
+                tube(m, [c0 + Vector((sgn * R_ * 0.35 * big * math.sin(math.pi * q / 8), 0, R_ * 0.4 * big * (math.cos(math.pi * q / 8)))) for q in range(9)],
+                     0.06, '#9a6650')
+        rng_ = __import__('random').Random(hash(name) % 1000)
+        for q in range(6):                          # dark spots on the side facing the camera
+            a0 = math.radians(rng_.uniform(205, 335)); zf = rng_.uniform(0.25, 0.7); rr = 1.0 if zf < 0.62 else 0.95
+            c0 = o + Vector((math.cos(a0) * R_ * rr * 1.01, math.sin(a0) * R_ * rr * 1.01, zf * H_)); tng = Vector((-math.sin(a0), math.cos(a0), 0))
+            s0 = R_ * rng_.uniform(0.08, 0.14)
+            m.face([tuple(c0 + tng * s0 * math.cos(2 * math.pi * k / 6) + Vector((0, 0, s0 * 0.8 * math.sin(2 * math.pi * k / 6)))) for k in range(6)], '#94604a')
+        tilt, way = p_.get('lean', [0, 0])
+        if tilt:                                    # its lean: turned about its foot, its top towards `way`
+            from mathutils import Matrix
+            axis = Vector((-math.sin(math.radians(way)), math.cos(math.radians(way)), 0))
+            M_ = Matrix.Translation(o) @ Matrix.Rotation(math.radians(tilt), 4, axis) @ Matrix.Translation(-o)
+            for v in m.bm.verts: v.co = M_ @ v.co
+        m.done()
+
 # ---------------------------------------------------------------------------------------------------------------- camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)

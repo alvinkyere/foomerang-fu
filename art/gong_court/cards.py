@@ -54,6 +54,8 @@ for _p, _hh, _m, _k in _prisms().values():
     for _i in range(len(_p)): _j = (_i + 1) % len(_p); cv2.fillConvexPoly(_sil, np.int32([_up[_i], _up[_j], _dn[_j], _dn[_i]]), 1)
 _stoneish = (h[..., 0] >= 105) & (h[..., 0] <= 140) & (h[..., 1] >= 30) & (h[..., 2] >= 150)
 water = (_sil > 0) & _stoneish
+from geom import pots_mask
+_pots = pots_mask(d.shape, pix, np.float32([OX, OY])) > 0          # (the pots are 3D: no card takes their pixels)
 cam = _C * 100
 VIEW = _R.T @ np.array([0.0, 0.0, 1.0])
 
@@ -65,8 +67,8 @@ def ray(px, py):
 
 out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
-    if name.startswith('bamboo') or name == 'gong': continue      # (the bamboo and the gong are 3D now: props.py)
-    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water)[y0:y1, x0:x1]
+    if name.startswith(('bamboo', 'pot')) or name == 'gong': continue      # (the bamboo, the gong and the pots are 3D now: props.py)
+    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots)[y0:y1, x0:x1]
     mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue

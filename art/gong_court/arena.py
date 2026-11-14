@@ -1,5 +1,5 @@
 """The gong court's rules data (2026-11-13): writes games/foomerang-fu/src/rules/gongCourtArena.ts from stones.json (fit_stones.py) and
-cards.json (cards.py: where the props stand). World units are the plaza's (27.48 a plan unit); x east from plan X X0, y south from Y1.
+props.json (props.py: where the pots stand). World units are the plaza's (27.48 a plan unit); x east from plan X X0, y south from Y1.
 
   walls    every stone body (walls, platforms, blocks, the centre planter, the boulders): each outline turned to its own long axis and
            covered by STRIPS turned boxes across it (each strip as wide as the outline there), so a player meets the outline's own
@@ -53,9 +53,9 @@ for name, (poly, h, mint, kind) in prisms().items():
     if name.startswith('boulder'): continue            # (outside the court: out of reach, and out of the arena)
     strips = 1 if kind == 'wall' else 5 if kind == 'platform' else 3
     boxes_for(name.upper(), poly, strips)
-for c in json.load(open('art/gong_court/cards.json')):
-    if c['name'].startswith('pot') and X0 < c['anchor'][0] < X1 and Y0 < c['anchor'][1] < Y1:
-        x, y = w(*c['anchor']); walls.append(dict(id=c['name'].upper(), kind='WALL', shape='disc', x=x, y=y, radius=max(18, round(0.55 * S))))
+for name, p_ in json.load(open('art/gong_court/props.json'))['pots'].items():      # (the pots: props.py, each its own measured radius)
+    if X0 < p_['foot'][0] < X1 and Y0 < p_['foot'][1] < Y1:
+        x, y = w(*p_['foot']); walls.append(dict(id=name.upper(), kind='WALL', shape='disc', x=x, y=y, radius=max(18, round(p_['r'] * 0.9 * S))))
 
 
 def clear(px, py, m):

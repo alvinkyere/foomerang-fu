@@ -40,3 +40,16 @@ def bamboo_mask(shape, pix, origin, grow=1.6):
             t = sp['t']; c = np.float32(pix(fx + (tx - fx) * t, fy, fz + (tz - fz) * t)) - origin
             cv2.circle(m, (int(c[0]), int(c[1])), int(sp['length'] * 36.5 * 1.1), 1, -1)
     return m
+
+
+def pots_mask(shape, pix, origin, grow=1.15):
+    """Where the 3D pots (props.json) stand on screen: each one's upright box (its widest radius x `grow`, its height plus its rim); in
+    the pixels of an image whose (0, 0) is `origin` in the frame. A uint8 mask."""
+    import numpy as np, cv2
+    m = np.zeros(shape, np.uint8); p = os.path.join(_HERE, 'props.json')
+    if not os.path.exists(p): return m
+    for q in json.load(open(p)).get('pots', {}).values():
+        (fx, fy), r, h = q['foot'], q['r'] * grow, q['h'] * 1.1
+        pts = [pix(fx + r * math.cos(t), fy + r * math.sin(t), z) for t in np.linspace(0, 2 * math.pi, 16) for z in (0, h)]
+        cv2.fillConvexPoly(m, cv2.convexHull(np.int32(np.float32(pts) - origin)), 1)
+    return m

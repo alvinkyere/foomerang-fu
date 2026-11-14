@@ -68,6 +68,22 @@ def gong():
                 disc_r=round(float(g['disc_w'] / unit / 2), 3))
 
 
+# the pots (frame px: the middle of each one's foot on the ground, the round's mosaic above the frame): its widest radius and height
+# (units, read off its width and the run from its rim to its foot), its kind (an open urn, or the lidded jug with handles), its lean
+# (degrees, and the way its top leans: degrees from east, anticlockwise in plan)
+POTS = {
+    'jar_n': ((1078, 390), 0.62, 1.95, 'urn', 8, 130),
+    'jug_n': ((1127, 362), 0.58, 1.35, 'jug', 0, 0),
+    'pot_e1': ((1606, 740), 0.64, 2.1, 'urn', 6, 60),
+    'pot_e2': ((1672, 770), 0.66, 1.9, 'urn', 8, 30),
+    'pot_nw': ((214, -60), 0.82, 1.7, 'urn', 8, 200),
+}
+
+
+def pots():
+    return {n: dict(foot=[round(float(v), 3) for v in plan([px])[0]], r=r, h=h, kind=k, lean=[t, d]) for n, (px, r, h, k, t, d) in POTS.items()}
+
+
 if __name__ == '__main__':
     import os
     FIT = json.load(open('art/gong_court/bamboo_fit.json')) if os.path.exists('art/gong_court/bamboo_fit.json') else {}
@@ -88,4 +104,4 @@ if __name__ == '__main__':
                         r=round(r, 3), sprays=[dict(t=t, angle=a, length=round(l / unit, 3)) for t, a, l in sprays]))
         print(name, 'foot', out[-1]['foot'], 'top', out[-1]['top'], 'r', out[-1]['r'])
     G = gong(); print('gong', G)
-    json.dump(dict(bamboo=out, gong=G), open('art/gong_court/props.json', 'w'), indent=1)
+    json.dump(dict(bamboo=out, gong=G, pots=pots()), open('art/gong_court/props.json', 'w'), indent=1)
