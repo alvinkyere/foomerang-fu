@@ -53,3 +53,18 @@ def pots_mask(shape, pix, origin, grow=1.15):
         pts = [pix(fx + r * math.cos(t), fy + r * math.sin(t), z) for t in np.linspace(0, 2 * math.pi, 16) for z in (0, h)]
         cv2.fillConvexPoly(m, cv2.convexHull(np.int32(np.float32(pts) - origin)), 1)
     return m
+
+
+def aloes_mask(shape, pix, origin):
+    """Where the 3D aloes (props.json) stand on screen: each pot's upright box and its leaves' outlines, grown 3 px; in the pixels of an
+    image whose (0, 0) is `origin` in the frame. A uint8 mask."""
+    import numpy as np, cv2
+    m = np.zeros(shape, np.uint8); p = os.path.join(_HERE, 'props.json')
+    if not os.path.exists(p): return m
+    for a in json.load(open(p)).get('aloes', {}).values():
+        (fx, fy, fz), r, top = a['foot'], a['r'] * 1.1, a['top']
+        pts = [pix(fx + r * math.cos(t), fy + r * math.sin(t), z) for t in np.linspace(0, 2 * math.pi, 16) for z in (fz, top)]
+        cv2.fillConvexPoly(m, cv2.convexHull(np.int32(np.float32(pts) - origin)), 1)
+        for lf in a['leaves']:
+            cv2.fillPoly(m, [np.int32(np.float32([pix(x, y, z) for x, y, z in lf['pts']]) - origin)], 1)
+    return cv2.dilate(m, np.ones((7, 7), np.uint8))

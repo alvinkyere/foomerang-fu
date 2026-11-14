@@ -18,8 +18,9 @@ T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])
 S = json.load(open('art/gong_court/stones.json'))
 # (the bamboo is 3D now, props.py: what it covers on a mint is the mint's own colour, never a traced stalk; its shadows stay)
 from measure import pix
-from geom import bamboo_mask
+from geom import bamboo_mask, aloes_mask
 STANDING = bamboo_mask(M.shape[:2], pix, np.float32([OX, OY]))
+ALOES = aloes_mask(M.shape[:2], pix, np.float32([OX, OY]))      # (the aloes are 3D: nothing of them lies on a mint)
 out = {}
 for name, b in S.items():
     if not b.get('mint'): continue
@@ -38,6 +39,7 @@ for name, b in S.items():
     # under the bamboo: a stalk's own greens (saturated, darker than the mint) are left out; its shadow (paler, bluer) stays
     stalkish = (lab[..., 2] - base[2] > 4) | (lab[..., 0] < base[0] - 22)
     off &= ~(standing & stalkish)
+    off &= ~(cv2.warpPerspective(ALOES, T @ np.linalg.inv(_H(b['h'])) @ A, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP) > 0)
     # a maple's crown hanging over the mint is the crown (cards.py draws it, upright), not something lying on the mint: the large red
     # regions are left out (the fallen leaves, small, stay)
     hsv_ = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV).astype(int)

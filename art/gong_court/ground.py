@@ -57,6 +57,8 @@ for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
 # the bamboo (3D now, props.py): where it stands is not ground; its shadows round it are
 from geom import bamboo_mask
 obj |= bamboo_mask(obj.shape, pix, np.float32([OX, OY]), 1.3)
+from geom import aloes_mask
+obj |= aloes_mask(obj.shape, pix, np.float32([OX, OY]))
 hole = ((to_flat(obj * 255, cv2.INTER_NEAREST) > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 

@@ -9,7 +9,7 @@ still view (bamboo_fit.json, taken over the readings here). Writes props.json fo
 
   python art/gong_court/props.py       (the Python of art/audio/output/venv)
 """
-import json, sys
+import json, math, sys
 import numpy as np
 from scipy.optimize import least_squares
 sys.path.insert(0, 'art/gong_court')
@@ -84,6 +84,46 @@ def pots():
     return {n: dict(foot=[round(float(v), 3) for v in plan([px])[0]], r=r, h=h, kind=k, lean=[t, d]) for n, (px, r, h, k, t, d) in POTS.items()}
 
 
+# the aloes (frame px): the pot's rim (its centre and half-width, on screen) on the platform it stands on, how far its foot is below the
+# rim's centre (px: the rim's front edge to the pot's front foot, less the ellipse's depth), and each leaf as read on screen: its base, its tip, its width (px) and its tone (dark, mid, light: #5f9e7c, #70b190, #86c18e)
+ALOES = {
+    'aloe_sw': dict(on='plat_sw_hi', rim=(380, 898), half=28, drop=19,
+                    leaves=[((372, 905), (355, 852), 15, 'dark'), ((380, 905), (372, 862), 13, 'mid'), ((386, 905), (402, 852), 13, 'dark'),
+                            ((374, 905), (340, 872), 12, 'light'), ((388, 905), (404, 893), 15, 'light'), ((380, 908), (382, 888), 14, 'mid')]),
+    'aloe_se': dict(on='plat_se_hi', rim=(1518, 870), half=30, drop=20,
+                    leaves=[((1518, 880), (1522, 811), 16, 'dark'), ((1524, 880), (1550, 832), 13, 'dark'), ((1512, 880), (1506, 830), 12, 'mid'),
+                            ((1508, 882), (1491, 843), 11, 'light'), ((1526, 884), (1543, 878), 15, 'light'), ((1510, 884), (1500, 878), 12, 'light')]),
+}
+
+
+def aloes():
+    from measure import R as R_, F as F_, C as C_, Z as Z_
+    cam = C_ * 100
+    def ray(px, py):
+        d = R_.T @ np.array([(px - 960) / (F_ * Z_), (py - 540) / (F_ * Z_), 1.0]); return d / np.linalg.norm(d)
+    out_ = {}
+    for name, a in ALOES.items():
+        h0 = H[a['on']]
+        # the rim's centre: on the camera's ray through its pixel, at the pot's top (the foot `drop` px below, on the platform)
+        fx, fy = [float(v) for v in plan([(a['rim'][0], a['rim'][1] + a['drop'])], z=h0)[0]]
+        unit = pix(fx + 1, fy, h0)[0] - pix(fx, fy, h0)[0]; r = a['half'] / unit
+        top = float(least_squares(lambda v: [pix(fx, fy, v[0])[1] - a['rim'][1]], [h0 + 1.0]).x[0])
+        yp = fy - r * 0.2          # (the leaves' plane: a little in front of the pot's middle)
+        def on_plane(px, py):
+            d = ray(px, py); t = ((yp + 73.72) - cam[1]) / d[1]; q = cam + d * t
+            return [round(float(q[0]), 3), round(float(q[1] - 73.72), 3), round(float(q[2]), 3)]
+        leaves = []
+        for (bx, by), (tx, ty), w, tone in a['leaves']:
+            ax, ay = tx - bx, ty - by; L = math.hypot(ax, ay); nx, ny = -ay / L, ax / L
+            # a broad blade: narrow at its base, widest a third of the way, a rounded tip
+            prof = [(0.0, 0.4), (0.18, 0.56), (0.4, 0.62), (0.64, 0.56), (0.84, 0.42), (0.95, 0.24), (1.0, 0.06)]
+            side_a = [(bx + ax * t + nx * w * k, by + ay * t + ny * w * k) for t, k in prof]
+            side_b = [(bx + ax * t - nx * w * k, by + ay * t - ny * w * k) for t, k in prof[::-1]][1:]
+            leaves.append(dict(tone=tone, pts=[on_plane(u, v) for u, v in side_a + side_b]))
+        out_[name] = dict(foot=[round(fx, 3), round(fy, 3), round(h0, 3)], top=round(top, 3), r=round(float(r), 3), leaves=leaves)
+    return out_
+
+
 if __name__ == '__main__':
     import os
     FIT = json.load(open('art/gong_court/bamboo_fit.json')) if os.path.exists('art/gong_court/bamboo_fit.json') else {}
@@ -104,4 +144,4 @@ if __name__ == '__main__':
                         r=round(r, 3), sprays=[dict(t=t, angle=a, length=round(l / unit, 3)) for t, a, l in sprays]))
         print(name, 'foot', out[-1]['foot'], 'top', out[-1]['top'], 'r', out[-1]['r'])
     G = gong(); print('gong', G)
-    json.dump(dict(bamboo=out, gong=G, pots=pots()), open('art/gong_court/props.json', 'w'), indent=1)
+    json.dump(dict(bamboo=out, gong=G, pots=pots(), aloes=aloes()), open('art/gong_court/props.json', 'w'), indent=1)

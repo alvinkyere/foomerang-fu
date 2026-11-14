@@ -67,7 +67,7 @@ def ray(px, py):
 
 out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
-    if name.startswith(('bamboo', 'pot')) or name == 'gong': continue      # (the bamboo, the gong and the pots are 3D now: props.py)
+    if name.startswith(('bamboo', 'pot', 'aloe')) or name == 'gong': continue      # (the bamboo, the gong, the pots and the aloes are 3D now: props.py)
     mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots)[y0:y1, x0:x1]
     mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)

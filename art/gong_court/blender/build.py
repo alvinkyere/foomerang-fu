@@ -385,6 +385,36 @@ if HAS('art/gong_court/props.json') and 'pots' in J('art/gong_court/props.json')
             for v in m.bm.verts: v.co = M_ @ v.co
         m.done()
 
+# ---------------------------------------------------------------------------------------------------------------- the aloes
+# (props.py) a grey-green pot narrowing a little to its foot (#7a8f88 lit, #687d77 shade), a paler rim band (#8aa098), dark soil in it,
+# and broad leaves read on screen, laid on an upright plane in front of the pot's middle, in three measured greens
+ALOE_TONES = {'dark': '#5f9e7c', 'mid': '#70b190', 'light': '#86c18e'}
+if HAS('art/gong_court/props.json') and 'aloes' in J('art/gong_court/props.json') and 'noaloes' not in args[1:]:
+    for name, a_ in J('art/gong_court/props.json')['aloes'].items():
+        m = Mesh(f'ALOE_{name}'); fx_, fy_, fz_ = a_['foot']; R_ = a_['r']; seg = 24
+        o = Vector((fx_, YC + fy_, fz_)); top_ = a_['top']
+        rings = [(0.84, fz_), (1.0, top_ - 0.18), (1.0, top_ - 0.18), (1.0, top_)]      # (body, then the rim band)
+        cols = ['shade', 'body', 'rim', 'rim']
+        for i in range(len(rings) - 1):
+            (r0, z0), (r1, z1) = rings[i], rings[i + 1]
+            if z1 - z0 < 1e-4: continue
+            for k in range(seg):
+                j = (k + 1) % seg; a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * j / seg
+                nrm = [Vector((math.cos(q), math.sin(q), 0.2)) for q in (a0, a1, a1, a0)]
+                lit_, shade_ = ('#8aa098', '#76897f') if cols[i + 1] == 'rim' else ('#7a8f88', '#62766f')
+                m.face([(o.x + math.cos(a0) * r0 * R_, o.y + math.sin(a0) * r0 * R_, z0), (o.x + math.cos(a1) * r0 * R_, o.y + math.sin(a1) * r0 * R_, z0),
+                        (o.x + math.cos(a1) * r1 * R_, o.y + math.sin(a1) * r1 * R_, z1), (o.x + math.cos(a0) * r1 * R_, o.y + math.sin(a0) * r1 * R_, z1)],
+                       [lit(n_, shade_, lit_) for n_ in nrm])
+        ring_in = [(o.x + math.cos(2 * math.pi * k / seg) * R_ * 0.86, o.y + math.sin(2 * math.pi * k / seg) * R_ * 0.86, top_) for k in range(seg)]
+        for k in range(seg):                         # the rim's top, and the soil sunk inside it
+            j = (k + 1) % seg; a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * j / seg
+            m.face([(o.x + math.cos(a0) * R_, o.y + math.sin(a0) * R_, top_), (o.x + math.cos(a1) * R_, o.y + math.sin(a1) * R_, top_),
+                    ring_in[j], ring_in[k]], '#93a9a0')
+        m.face([(x, y, z - 0.12) for x, y, z in ring_in], '#79b98d')      # (the rosette's leaf bases fill the pot: no soil shows)
+        for q, lf in enumerate(a_['leaves']):        # the leaves, each a hair nearer the camera than the last
+            m.face([(x, YC + y - 0.003 * q, z) for x, y, z in lf['pts']], ALOE_TONES[lf['tone']])
+        m.done()
+
 # ---------------------------------------------------------------------------------------------------------------- camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
