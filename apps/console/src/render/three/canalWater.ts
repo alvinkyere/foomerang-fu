@@ -68,24 +68,24 @@ export function parseCanalWater(manifest: unknown): CanalWater | undefined {
   };
 }
 
-// the HQ's colours (art/canal_court: sampled from the READY frame, as the browser shows it)
+// the HQ's colours (art/canal_court: sampled from the READY frame, converted to the video as the browser shows it: chrome.py)
 const rgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16);
   return `vec3(${(((n >> 16) & 255) / 255).toFixed(4)}, ${(((n >> 8) & 255) / 255).toFixed(4)}, ${((n & 255) / 255).toFixed(4)})`;
 };
 const COL = {
-  deep: '#4169c0',
-  deepEdge: '#657ac0',
-  rim: '#7e89c6',
-  rimTop: '#9ba6e2',
-  poolFoam: '#a4dfe9',
-  runCore: '#93dbea',
-  runStreak: '#7cc6e4',
-  runEdge: '#7ac4e4',
-  runGlow: '#99a7e2',
-  basin: '#a0dfe9',
-  basinBand: '#60c8e5',
-  basinEdge: '#5ac2e3',
+  deep: '#4a79ca',
+  deepEdge: '#6e89ca',
+  rim: '#8798cf',
+  rimTop: '#a4b2ea',
+  poolFoam: '#aae0f0',
+  runCore: '#98dcf1',
+  runStreak: '#82c9ec',
+  runEdge: '#80c7ec',
+  runGlow: '#a1b3ea',
+  basin: '#a6e0f0',
+  basinBand: '#65c8ed',
+  basinEdge: '#5fc3ec',
 };
 
 const VERTEX = /* glsl */ `

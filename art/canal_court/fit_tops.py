@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 sys.path.insert(0, 'art/canal_court')
 from measure import pix, plan_at
 
-f = cv2.imread('art/canal_court/output/clean_ref.png'); hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+f = cv2.imread('art/canal_court/output/clean_ref_raw.png'); hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H_, S_, V_ = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 lav = (H_ >= 105) & (H_ <= 135) & (S_ >= 40) & (V_ >= 95)
 TOP_V = 200

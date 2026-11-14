@@ -14,7 +14,7 @@ lin = lambda im: np.where(im <= 0.04045, im / 12.92, ((im + 0.055) / 1.055) ** 2
 N = lin(cv2.imread(sys.argv[1] + '/render.png').astype(float)[..., ::-1] / 255) * 2 - 1
 Hh = lin(cv2.imread(sys.argv[2] + '/render.png').astype(float)[..., ::-1] / 255)
 z = Hh[..., 0] * 8; kindv = Hh[..., 1]
-hsv = cv2.cvtColor(f[..., ::-1].astype(np.uint8), cv2.COLOR_BGR2HSV).astype(int)
+hsv = cv2.cvtColor(cv2.imread('art/canal_court/output/clean_ref_raw.png'), cv2.COLOR_BGR2HSV).astype(int)      # (masks in OpenCV's decode, where they were tuned; the tones from Chrome's)
 water = (hsv[..., 0] >= 80) & (hsv[..., 0] <= 112) & (hsv[..., 1] >= 50) & (hsv[..., 2] >= 150)
 props = np.zeros(z.shape, bool)
 for x0, y0, x1, y1 in ((1398, 422, 1468, 478), (1283, 612, 1338, 672)): props[y0 - 6:y1 + 6, x0 - 6:x1 + 6] = True   # (the urns)

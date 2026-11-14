@@ -10,7 +10,7 @@ from scipy.optimize import minimize
 sys.path.insert(0, 'art/canal_court')
 from measure import pix, plan
 
-f = cv2.imread('art/canal_court/output/clean_ref.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+f = cv2.imread('art/canal_court/output/clean_ref_raw.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H_, S_, V_ = h[..., 0], h[..., 1], h[..., 2]
 lav = (H_ >= 105) & (H_ <= 135) & (S_ >= 55) & (V_ >= 95)
 brown = ((H_ >= 160) | (H_ <= 12)) & (S_ >= 40) & (V_ >= 60) & (V_ <= 200)

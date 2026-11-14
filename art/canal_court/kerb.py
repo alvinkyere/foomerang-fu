@@ -13,7 +13,9 @@ import numpy as np, cv2
 sys.path.insert(0, 'art/canal_court')
 from measure import pix
 
-f = cv2.imread('art/canal_court/output/clean_ref.png')
+f = cv2.imread('art/canal_court/output/clean_ref_raw.png')      # (classed in OpenCV's decode, where REF was sampled)
+from chrome import chrome
+to_chrome = lambda h: '#%02x%02x%02x' % tuple(int(v) for v in chrome(np.array([[[int(h[i:i + 2], 16) for i in (5, 3, 1)]]], np.uint8))[0, 0][::-1])
 REF = dict(court='#f7f5e3', light='#f4edd0', tan='#e0d3b2', orange='#f3d081', sand='#f9e88a')
 ORDER = ['court', 'tan', 'light', 'tan', 'light', 'tan', 'orange', 'sand']           # (inside out)
 rgb = lambda h: np.array([int(h[i:i + 2], 16) for i in (5, 3, 1)], float)    # (BGR)
@@ -85,9 +87,9 @@ for j in range(len(ORDER) - 1):
         cut[k] = sx * cx + sy * cy - LEG[j]
     pts = [meet(S, 'x', -1, -1, cut['sw']), meet(S, 'x', 1, -1, cut['se']), meet(E, 'y', 1, -1, cut['se']), meet(E, 'y', 1, 1, cut['ne']),
            meet(N, 'x', 1, 1, cut['ne']), meet(N, 'x', -1, 1, cut['nw']), meet(W, 'y', -1, 1, cut['nw']), meet(W, 'y', -1, -1, cut['sw'])]
-    bands.append(dict(colour=REF[ORDER[j]], pts=[[round(float(x), 3), round(float(y), 3)] for x, y in pts]))
+    bands.append(dict(colour=to_chrome(REF[ORDER[j]]), pts=[[round(float(x), 3), round(float(y), 3)] for x, y in pts]))
 # (outermost first: each band drawn over the one outside it; the last band's outer boundary is the orange skirt's: the sand beyond)
-json.dump(dict(bands=bands[::-1], skirt=REF['orange']), open('art/canal_court/kerb.json', 'w'), indent=1)
+json.dump(dict(bands=bands[::-1], skirt=to_chrome(REF['orange'])), open('art/canal_court/kerb.json', 'w'), indent=1)
 vis = f.copy()
 for b in bands: cv2.polylines(vis, [np.int32([pix(x, y) for x, y in b['pts']])], True, (0, 0, 255), 1)
 cv2.imwrite('art/canal_court/output/kerb_check.png', vis)

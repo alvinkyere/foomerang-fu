@@ -11,7 +11,7 @@ from scipy.optimize import minimize
 sys.path.insert(0, 'art/canal_court')
 from measure import pix
 
-f = cv2.imread('art/canal_court/output/clean_ref.png'); hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+f = cv2.imread('art/canal_court/output/clean_ref_raw.png'); hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 H_, S_, V_ = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 BOX = (1180, 420, 1560, 780)
 reg = np.zeros(H_.shape, bool); reg[BOX[1]:BOX[3], BOX[0]:BOX[2]] = True

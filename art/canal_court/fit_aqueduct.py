@@ -11,7 +11,7 @@ from scipy.optimize import minimize
 sys.path.insert(0, 'art/canal_court')
 from measure import pix
 
-f = cv2.imread('art/canal_court/output/clean_ref.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
+f = cv2.imread('art/canal_court/output/clean_ref_raw.png'); h = cv2.cvtColor(f, cv2.COLOR_BGR2HSV).astype(int)
 lav = (h[..., 0] >= 105) & (h[..., 0] <= 135) & (h[..., 1] >= 55) & (h[..., 2] >= 95)
 water = (h[..., 0] >= 85) & (h[..., 0] <= 112) & (h[..., 1] >= 70) & (h[..., 2] >= 150)
 REGION = np.zeros(lav.shape, np.uint8)
