@@ -32,6 +32,7 @@ OBJECTS = {
     'tree_se': ((1860, 860, 1920, 1080), 25, 6, (1905, 1060, 0.0)),
     'tree_e': ((1870, 360, 1920, 460), 25, 4, (1900, 455, 0.0)),
     'post_n': ((436, 0, 480, 14), 25, 3, (458, 14, 0.0)),
+    'tree_red_sw': ((0, 1040, 110, 1080), 25, 3, (50, 1079, 0.0)),      # (a red crown at the frame's bottom-left corner, the rest below it)
 }
 r = cv2.imread(sys.argv[1]); mosaic = cv2.imread('art/canal_court/output/mosaic_chrome.png')
 # (what stands tall smears in the mosaic, made while the camera moves: the READY frame's view (clean_ref: the mosaic's own pixels there,
