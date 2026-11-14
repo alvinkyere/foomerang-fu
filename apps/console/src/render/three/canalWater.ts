@@ -83,23 +83,23 @@ const COL = {
 const VERTEX = /* glsl */ `
 uniform float yc;
 varying vec2 plan;
-void main() {
-  plan = vec2(position.x, -position.z - yc);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+void main(){
+plan=vec2(position.x,-position.z-yc);
+gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
 }`;
 
 const NOISE = /* glsl */ `
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vnoise(vec2 p) {
-  vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vnoise(vec2 p){
+vec2 i=floor(p);vec2 f=fract(p);vec2 u=f*f*(3.0-2.0*f);
+return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),u.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),u.x),u.y);
 }
-float fbm(vec2 p) {
-  float v = 0.0; float a = 0.5;
-  for (int k = 0; k < 4; k++) { v += a * vnoise(p); p = p * 2.03 + vec2(17.0, 9.0); a *= 0.5; }
-  return v;
+float fbm(vec2 p){
+float v=0.0;float a=0.5;
+for(int k=0;k<4;k++){v+=a*vnoise(p);p=p*2.03+vec2(17.0,9.0);a*=0.5;}
+return v;
 }
-mat2 turn2(float a) { float c = cos(a); float s = sin(a); return mat2(c, -s, s, c); }`;
+mat2 turn2(float a){float c=cos(a);float s=sin(a);return mat2(c,-s,s,c);}`;
 
 /*
  * The shaders (their comments here, not in the strings: the strings ship). POOL: the octagon distance `e` from the hole's edge (poolR: its
@@ -114,59 +114,59 @@ function fragment(kind: CanalWaterKind, n: number): string {
   const body =
     kind === 'pool'
       ? /* glsl */ `
-  // KIND_POOL
-  vec2 p = plan - poolAt;
-  float o = 0.0;
-  for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
-  float e = o - poolR * 0.9239;
-  float r = length(p) / poolR;
-  float rf = length(p - vec2(0.0, -0.25 * poolR)) / poolR;
-  vec2 q = turn2(time * 0.7 + r * 1.2) * p;
-  vec2 bw = vec2(fbm(p * 0.7 + vec2(time * 1.1, 0.0)), fbm(p * 0.7 + vec2(3.0, -time * 1.1))) - 0.5;
-  float n = fbm(q * 0.85 + bw * 1.2 + vec2(0.0, -time * 0.85));
-  float foam = smoothstep(0.0, 0.04, n + (1.0 - rf) * 0.9 - 0.8) * (1.0 - smoothstep(-0.5, -0.2, e));
-  vec3 c = mix(${rgb(COL.deep)}, ${rgb(COL.deepEdge)}, smoothstep(-0.8, -0.35, e));
-  c = mix(c, ${rgb(COL.rim)}, smoothstep(-0.35, 0.0, e));
-  c = mix(c, ${rgb(COL.rimTop)}, smoothstep(0.0, 0.45, e));
-  gl_FragColor = vec4(mix(c, ${rgb(COL.poolFoam)}, foam), 1.0);`
+// KIND_POOL
+vec2 p=plan-poolAt;
+float o=0.0;
+for(int k=0;k<4;k++){float a=float(k)*0.785398;o=max(o,abs(dot(p,vec2(cos(a),sin(a)))));}
+float e=o-poolR*0.9239;
+float r=length(p)/poolR;
+float rf=length(p-vec2(0.0,-0.25*poolR))/poolR;
+vec2 q=turn2(time*0.7+r*1.2)*p;
+vec2 bw=vec2(fbm(p*0.7+vec2(time*1.1,0.0)),fbm(p*0.7+vec2(3.0,-time*1.1)))-0.5;
+float n=fbm(q*0.85+bw*1.2+vec2(0.0,-time*0.85));
+float foam=smoothstep(0.0,0.04,n+(1.0-rf)*0.9-0.8)*(1.0-smoothstep(-0.5,-0.2,e));
+vec3 c=mix(${rgb(COL.deep)},${rgb(COL.deepEdge)},smoothstep(-0.8,-0.35,e));
+c=mix(c,${rgb(COL.rim)},smoothstep(-0.35,0.0,e));
+c=mix(c,${rgb(COL.rimTop)},smoothstep(0.0,0.45,e));
+gl_FragColor=vec4(mix(c,${rgb(COL.poolFoam)},foam),1.0);`
       : kind === 'run'
         ? /* glsl */ `
-  // KIND_RUN
-  float best = 1e9; float s = 0.0; float d = 0.0; float acc = 0.0;
-  for (int k = 0; k < ${n - 1}; k++) {
-    vec2 a = line[k]; vec2 b = line[k + 1]; vec2 ab = b - a; float L = length(ab);
-    float t = clamp(dot(plan - a, ab) / (L * L), 0.0, 1.0);
-    vec2 off = plan - (a + ab * t); float dd = length(off);
-    if (dd < best) { best = dd; s = acc + t * L; d = (ab.x * off.y - ab.y * off.x) / L; }
-    acc += L;
-  }
-  float x = abs(d) / runHalf;
-  float streak = smoothstep(0.55, 0.75, fbm(vec2(s * 0.9 - time * runSpeed, d * 3.5)));
-  vec3 c = mix(${rgb(COL.runCore)}, ${rgb(COL.runStreak)}, streak * 0.8);
-  c = mix(c, ${rgb(COL.runEdge)}, smoothstep(0.25, 0.4, x));
-  c = mix(c, ${rgb(COL.runGlow)}, smoothstep(0.45, 1.0, x));
-  gl_FragColor = vec4(c, 1.0);`
+// KIND_RUN
+float best=1e9;float s=0.0;float d=0.0;float acc=0.0;
+for(int k=0;k<${n - 1};k++){
+vec2 a=line[k];vec2 b=line[k+1];vec2 ab=b-a;float L=length(ab);
+float t=clamp(dot(plan-a,ab)/(L*L),0.0,1.0);
+vec2 off=plan-(a+ab*t);float dd=length(off);
+if(dd<best){best=dd;s=acc+t*L;d=(ab.x*off.y-ab.y*off.x)/L;}
+acc+=L;
+}
+float x=abs(d)/runHalf;
+float streak=smoothstep(0.55,0.75,fbm(vec2(s*0.9-time*runSpeed,d*3.5)));
+vec3 c=mix(${rgb(COL.runCore)},${rgb(COL.runStreak)},streak*0.8);
+c=mix(c,${rgb(COL.runEdge)},smoothstep(0.25,0.4,x));
+c=mix(c,${rgb(COL.runGlow)},smoothstep(0.45,1.0,x));
+gl_FragColor=vec4(c,1.0);`
         : /* glsl */ `
-  // KIND_BASIN
-  vec2 p = turn2(-basinTurn) * (plan - basinAt);
-  float o = 0.0;
-  for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
-  o /= basinR;
-  vec2 w = vec2(fbm(p * 0.5 + vec2(time * 0.9, 0.0)), fbm(p * 0.5 + vec2(7.0, time * 0.9))) - 0.5;
-  vec2 q = turn2(o * 1.6) * (p - vec2(time * 0.1, 0.0) + w * 1.4);
-  float n = fbm(vec2(q.x * 0.45, q.y * 1.6));
-  float pale = smoothstep(0.47, 0.53, n + (0.55 - o) * 0.35);
-  vec3 c = mix(${rgb(COL.basinBand)}, ${rgb(COL.basin)}, pale);
-  c = mix(c, ${rgb(COL.basinEdge)}, smoothstep(0.86, 1.0, o) * 0.8);
-  gl_FragColor = vec4(c, 1.0);`;
+// KIND_BASIN
+vec2 p=turn2(-basinTurn)*(plan-basinAt);
+float o=0.0;
+for(int k=0;k<4;k++){float a=float(k)*0.785398;o=max(o,abs(dot(p,vec2(cos(a),sin(a)))));}
+o/=basinR;
+vec2 w=vec2(fbm(p*0.5+vec2(time*0.9,0.0)),fbm(p*0.5+vec2(7.0,time*0.9)))-0.5;
+vec2 q=turn2(o*1.6)*(p-vec2(time*0.1,0.0)+w*1.4);
+float n=fbm(vec2(q.x*0.45,q.y*1.6));
+float pale=smoothstep(0.47,0.53,n+(0.55-o)*0.35);
+vec3 c=mix(${rgb(COL.basinBand)},${rgb(COL.basin)},pale);
+c=mix(c,${rgb(COL.basinEdge)},smoothstep(0.86,1.0,o)*0.8);
+gl_FragColor=vec4(c,1.0);`;
   return /* glsl */ `
 uniform float time;
-uniform vec2 poolAt; uniform float poolR;
-uniform vec2 line[${MAX_LINE}]; uniform float runHalf; uniform float runSpeed;
-uniform vec2 basinAt; uniform float basinR; uniform float basinTurn;
+uniform vec2 poolAt;uniform float poolR;
+uniform vec2 line[${MAX_LINE}];uniform float runHalf;uniform float runSpeed;
+uniform vec2 basinAt;uniform float basinR;uniform float basinTurn;
 varying vec2 plan;
 ${NOISE}
-void main() {${body}
+void main(){${body}
 }`;
 }
 
