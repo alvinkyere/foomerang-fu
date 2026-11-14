@@ -77,6 +77,7 @@ const COL = {
   deep: '#4169c0',
   deepEdge: '#657ac0',
   rim: '#7e89c6',
+  rimTop: '#9ba6e2',
   poolFoam: '#a4dfe9',
   runCore: '#93dbea',
   runStreak: '#7cc6e4',
@@ -112,17 +113,20 @@ function fragment(kind: CanalWaterKind, n: number): string {
   const body =
     kind === 'pool'
       ? /* glsl */ `
-  // KIND_POOL: the well's foam boils up in the middle, swirling slowly; deep blue round it, a softer blue at the rim
+  // KIND_POOL: the well's foam boils up in the middle, swirling slowly; deep blue round it; at the hole's edge (poolR: its octagon's
+  // corner radius) the HQ's soft ring: the blue lightens over ~0.6 units (#4469c0, #657ac0, #7e89c6) and runs into the rim's lavender
   vec2 p = plan - poolAt;
+  float o = 0.0;
+  for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
+  float e = o - poolR * 0.9239;                   // (from the hole's edge, plan units: < 0 inside)
   float r = length(p) / poolR;
-  // (the HQ's foam fills the pool's southern half, round where it spills over the rim into the channel)
   float rf = length(p - vec2(0.0, -0.45 * poolR)) / poolR;
   vec2 q = turn2(time * 0.35 + r * 1.2) * p;
   float n = fbm(q * 0.85 + vec2(0.0, -time * 0.45));
-  float foam = smoothstep(0.0, 0.04, n + (1.0 - rf) * 0.9 - 0.85);
-  // (round the rim the HQ's blue lightens to the lavender over ~0.7 units: #4469c0, #657ac0, #7e89c6)
-  vec3 c = mix(${rgb(COL.deep)}, ${rgb(COL.deepEdge)}, smoothstep(0.62, 0.86, r));
-  c = mix(c, ${rgb(COL.rim)}, smoothstep(0.86, 1.0, r));
+  float foam = smoothstep(0.0, 0.04, n + (1.0 - rf) * 0.9 - 0.85) * (1.0 - smoothstep(-0.5, -0.2, e));
+  vec3 c = mix(${rgb(COL.deep)}, ${rgb(COL.deepEdge)}, smoothstep(-0.8, -0.35, e));
+  c = mix(c, ${rgb(COL.rim)}, smoothstep(-0.35, 0.0, e));
+  c = mix(c, ${rgb(COL.rimTop)}, smoothstep(0.0, 0.45, e));
   gl_FragColor = vec4(mix(c, ${rgb(COL.poolFoam)}, foam), 1.0);`
       : kind === 'run'
         ? /* glsl */ `
@@ -143,17 +147,17 @@ function fragment(kind: CanalWaterKind, n: number): string {
   c = mix(c, ${rgb(COL.runGlow)}, smoothstep(0.45, 1.0, x));
   gl_FragColor = vec4(c, 1.0);`
         : /* glsl */ `
-  // KIND_BASIN: bands drifting round the octagon (its own distance: the largest over its four axes), bent by the noise
+  // KIND_BASIN: the HQ's brushed water: pale strokes swirling round the octagon on its darker cyan, about half and half, the
+  // strokes drawn along the swirl (noise stretched along it) and drifting round; darkest by the blocks
   vec2 p = turn2(-basinTurn) * (plan - basinAt);
   float o = 0.0;
   for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
   o /= basinR;
-  float bend = fbm(p * 0.6 + vec2(time * 0.12, -time * 0.08)) - 0.5;
-  // (the HQ's: pale and darker cyan about half and half, bands ~2.4 units apart, darkest by the blocks)
-  float band = fract(o * 1.4 + bend * 0.9 - time * 0.12);
-  float dark = smoothstep(0.0, 0.08, band) * (1.0 - smoothstep(0.42, 0.5, band));
-  vec3 c = mix(${rgb(COL.basin)}, ${rgb(COL.basinBand)}, dark * smoothstep(0.1, 0.3, o));
-  c = mix(c, ${rgb(COL.basinEdge)}, smoothstep(0.88, 1.0, o) * 0.8);
+  vec2 q = turn2(time * 0.08 + o * 1.6) * p;
+  float n = fbm(vec2(q.x * 0.45, q.y * 1.6) + vec2(time * 0.1, 0.0));
+  float pale = smoothstep(0.47, 0.53, n + (0.55 - o) * 0.35);
+  vec3 c = mix(${rgb(COL.basinBand)}, ${rgb(COL.basin)}, pale);
+  c = mix(c, ${rgb(COL.basinEdge)}, smoothstep(0.86, 1.0, o) * 0.8);
   gl_FragColor = vec4(c, 1.0);`;
   return /* glsl */ `
 uniform float time;
@@ -173,6 +177,7 @@ export function canalWaterMaterial(kind: CanalWaterKind, w: CanalWater): THREE.S
     return new THREE.Vector2(p[0], p[1]);
   });
   return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide, // (the spout's faces down the tower's rim are built either way round)
     vertexShader: VERTEX,
     fragmentShader: fragment(kind, w.run.line.length),
     uniforms: {

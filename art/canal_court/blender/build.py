@@ -140,7 +140,7 @@ def shade(kind, n, z=0.0):
     if DEBUG == 'height': return [min(1.0, z / 8), (KINDS.index(kind) + 1) / 12, 0.0, 1.0]
     if kind in FIT:          # (fit_shade.py: the HQ's own tones, a quadratic in the normal and a line in the height)
         q = [1, n.x, n.y, n.z, n.x * n.x, n.y * n.y, n.z * n.z, n.x * n.y, z, z * n.z]
-        c = [max(0, min(255, sum(a * b for a, b in zip(row, q)))) for row in FIT[kind]]
+        F_ = FIT[kind]; c = [max(F_['lo'][i], min(F_['hi'][i], sum(a * b for a, b in zip(row, q)))) for i, row in enumerate(F_['coef'])]
         return lin('#%02x%02x%02x' % tuple(int(round(v)) for v in c))
     s = SHADE[kind]; up = max(0.0, n.z)
     h = Vector((n.x, n.y)); hl = h.length
@@ -239,12 +239,12 @@ def ribbon(line, w):
 
 # the aqueduct (tower, channel, stub) and the rocks: their outlines and heights as fit_tops.py traced them
 TOPS = J('art/canal_court/tops.json'); WAT = J('art/canal_court/water.json'); BA = J('art/canal_court/basin.json')
-def by_angle(poly, c, n):
+def by_angle(poly, c, n, a0=0.0):
     """The outline's points where rays from c at n even angles leave it (its last crossing)."""
     out = []
     P = [Vector(p) for p in poly]
     for k in range(n):
-        a = 2 * math.pi * k / n; d = Vector((math.cos(a), math.sin(a))); best = 0.0
+        a = a0 + 2 * math.pi * k / n; d = Vector((math.cos(a), math.sin(a))); best = 0.0
         for i in range(len(P)):
             p0, p1 = P[i - 1] - c, P[i] - c; e = p1 - p0; den = d.x * e.y - d.y * e.x
             if abs(den) < 1e-9: continue
@@ -254,10 +254,10 @@ def by_angle(poly, c, n):
     return out
 
 
-def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=96):
+def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=8, a0=math.pi / 8):
     """A prism over the outline `outer` with the hole `inner` in its top (its inner wall down to zin), the top's two edges rounded."""
     c = sum((Vector(p) for p in inner), Vector((0, 0))) / len(inner)
-    O, I = by_angle(outer, c, n), by_angle(inner, c, n)
+    O, I = by_angle(outer, c, n, a0), by_angle(inner, c, n, a0)      # (two concentric octagons: their corners)
     bm = bmesh.new()
     ob = [bm.verts.new((p.x, YC + p.y, z0)) for p in O]; ot = [bm.verts.new((p.x, YC + p.y, z1)) for p in O]
     it = [bm.verts.new((p.x, YC + p.y, z1)) for p in I]; ib = [bm.verts.new((p.x, YC + p.y, zin)) for p in I]
@@ -273,8 +273,11 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=96):
             want_out = any(v in ob for v in f.verts)
             if outward != want_out: f.normal_flip()
         elif f.normal.z < 0: f.normal_flip()
-    edges = [e for e in bm.edges if all(v.co.z == z1 for v in e.verts) and ((e.verts[0] in ot and e.verts[1] in ot) or (e.verts[0] in it and e.verts[1] in it))]
-    bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=5, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
+    # (the outer top edge rounded as every solid's; the pool's edge wider and softer: the HQ's rim fades into the pool over ~0.7 units)
+    outer_e = [e for e in bm.edges if all(v.co.z == z1 for v in e.verts) and e.verts[0] in ot and e.verts[1] in ot]
+    inner_e = [e for e in bm.edges if all(v.co.z == z1 for v in e.verts) and e.verts[0] in it and e.verts[1] in it]
+    bmesh.ops.bevel(bm, geom=outer_e, offset=bevel, segments=5, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
+    bmesh.ops.bevel(bm, geom=[e for e in inner_e if e.is_valid], offset=POOL_SOFT, segments=8, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
     bm.normal_update()
     col = bm.loops.layers.float_color.new('Col')
     for f in bm.faces:
@@ -284,22 +287,38 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=96):
     return o
 
 
+POOL_K = float(os.environ.get('POOL_K', '0.68'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
+POOL_SOFT = float(os.environ.get('POOL_SOFT', '0.6'))
 POOL_DROP = 0.3            # (the pool's water a little below the tower's top: its inner wall shows as a dark ring round it)
 TOWER_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'])      # (the HQ's tower is a crisp octagon: fit_aqueduct.py)
 # (its pool: an octagon in the middle of its top, 0.57 of its size, as the HQ's: the traced water's outline is ragged with foam)
-POOL_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'] * 0.57)
-soft_ring('AQUEDUCT_tower', TOWER_OCT, POOL_OCT, -0.05, TOPS['tower']['h'], TOPS['tower']['h'] - POOL_DROP - 0.3, 'tower')
+POOL_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'] * POOL_K)
+soft_ring('AQUEDUCT_tower', TOWER_OCT, POOL_OCT, -0.05, TOPS['tower']['h'], TOPS['tower']['h'] - 1.6, 'tower')      # (its inner wall deep enough for the rim's wide soft edge)
 CORNERS = dict(channel=12, stub=4, rock_sw=5, rock_n=6, rock_e=7, rock_se=4)       # (each solid's corners in the HQ's frame)
+def into(poly, d):
+    """A 4-cornered outline with its eastern end pushed `d` further east along its long axis (the stub runs on into the channel's side)."""
+    P = [Vector(p) for p in poly]; c = sum(P, Vector((0, 0))) / 4
+    axis = max(((P[i] + P[(i + 1) % 4]) / 2 - c for i in range(4)), key=lambda v: v.length).normalized()
+    if axis.x < 0: axis = -axis
+    return [tuple(p + axis * d) if (p - c).dot(axis) > 0 else tuple(p) for p in P]
+
+
 for name in ('channel', 'stub'):
-    soft_prism(f'AQUEDUCT_{name}', ccw([tuple(p) for p in TOPS[name]['pts']]), -0.05, TOPS[name]['h'], name, keep=CORNERS[name])
+    pts = [tuple(p) for p in TOPS[name]['pts']]
+    if name == 'stub': pts = into(pts, 1.2)
+    soft_prism(f'AQUEDUCT_{name}', ccw(pts), -0.05, TOPS[name]['h'], name, keep=CORNERS[name], bevel=0.25 if name == 'stub' else BEVEL)   # (the HQ's stub: a box, its edges barely rounded)
 for name in ('rock_sw', 'rock_n', 'rock_e', 'rock_se'):
     soft_prism(name.upper(), ccw([tuple(p) for p in TOPS[name]['pts']]), -0.05, TOPS[name]['h'], name, keep=CORNERS[name])
 # the water: the tower's pool and the channel's run as the frame's (water.json), a hair over their tops
-w = Mesh('FLOW_pool'); w.poly(ccw(POOL_OCT), TOPS['tower']['h'] - POOL_DROP, '#4470c3'); w.done()
+# (the pool's water reaches up over the rim's soft inner slope, just under the top: the game's shader lightens it to the lavender
+# there, as the HQ's soft ring; POOL_REACH out from the hole's edge)
+POOL_REACH = 0.65
+w = Mesh('FLOW_pool'); w.poly(ccw(octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'] * POOL_K + POOL_REACH)), TOPS['tower']['h'] - 0.06, '#4470c3'); w.done()
+json.dump(dict(cx=AQ['tower']['cx'], cy=AQ['tower']['cy'], r=AQ['tower']['r'] * POOL_K), open(os.path.join(OUT, 'pool.json'), 'w'))   # (the hole's)
 w = Mesh('FLOW_run'); w.poly(ccw([tuple(p) for p in WAT['run']['pts']]), WAT['run']['h'] + 0.02, '#8ad7e9')
 # the spout: the pool spills over the tower's south rim, along the run's first leg, and falls down the tower's face onto the channel
 # (the HQ's: one stream from the pool to the run, no gap); SPOUT_W across, its points from the pool's edge out to the tower's
-SPOUT_W = 0.7
+SPOUT_W = 0.8
 L0 = TOPS['channel']['line']; c0, c1 = Vector(L0[0]), Vector(L0[1]); u_ = (c1 - c0).normalized(); n_ = Vector((-u_.y, u_.x))
 def reach(poly, c, u):
     best = 0.0; P = [Vector(p) for p in poly]
@@ -311,8 +330,11 @@ def reach(poly, c, u):
     return best
 rp, rt = reach(POOL_OCT, c0, u_), reach(TOWER_OCT, c0, u_)
 HT, HC = TOPS['tower']['h'], TOPS['channel']['h']
-# (over the rounded rim: outside its curve, BEVEL round)
-steps = [(rp - 0.3, HT - POOL_DROP + 0.01), (rp + 0.1, HT + 0.05), (rt - BEVEL, HT + 0.05), (rt + 0.05, HT - 0.1), (rt + 0.18, HT - BEVEL), (rt + 0.18, HC + 0.03), (rt + 0.7, HC + 0.03)]
+# (over the rounded rim: round its curve a hair outside it, then straight down the face onto the channel)
+R_ = BEVEL + 0.4          # (the rounded rim reaches out further than its nominal curve: the stream falls just clear of it)
+steps = [(rp - 0.3, HT - POOL_DROP + 0.01), (rp + 0.1, HT + 0.06)] + \
+        [(rt - BEVEL + R_ * math.sin(a), HT - BEVEL + R_ * math.cos(a)) for a in [k * math.pi / 2 / 6 for k in range(7)]] + \
+        [(rt + 0.06, HC + 0.03), (rt + 0.7, HC + 0.03)]
 for (t0, z0), (t1, z1) in zip(steps, steps[1:]):
     a0, a1 = c0 + u_ * t0, c0 + u_ * t1; h_ = n_ * SPOUT_W / 2
     w.face([(a0.x - h_.x, YC + a0.y - h_.y, z0), (a1.x - h_.x, YC + a1.y - h_.y, z1), (a1.x + h_.x, YC + a1.y + h_.y, z1), (a0.x + h_.x, YC + a0.y + h_.y, z0)], '#8ad7e9')
@@ -342,7 +364,7 @@ if HAS('art/canal_court/cards.json'):
     for c in J('art/canal_court/cards.json'):
         m = Mesh(f'CARD_{c["name"]}')
         for sh in c['shapes']:
-            off = TOWARD * (0.004 * sh['layer'] + (0.5 if c['name'].startswith('urn') else 0.0))   # (the urns stand on the blocks' tops)
+            off = TOWARD * (0.004 * sh['layer'] + (1.2 if c['name'].startswith('urn') else 0.0))   # (the urns stand on the blocks' tops)
             loops = [[Vector((x, YC + y, z)) + off for x, y, z in lp] for lp in sh['loops']]
             # (triangulated in the card's own plane: the points' screen layout)
             up_ = TOWARD.cross(Vector((1, 0, 0)))

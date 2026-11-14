@@ -22,8 +22,8 @@ b, g, r = np.median(edge, 0).astype(int); GRASS = '#%02x%02x%02x' % (r, g, b)
 # the waters' places for the game's shaders (render/three/canalWater.ts): the pool's middle and size, the run's line (from the pool's
 # middle down the channel's centreline: fit_tops.py), the basin's octagon (fit_basin.py)
 TOPS = json.load(open('art/canal_court/tops.json')); WAT = json.load(open('art/canal_court/water.json')); BA = json.load(open('art/canal_court/basin.json'))
-pool = np.array(WAT['pool']['pts']); pc = pool.mean(0)
-CANAL = dict(yc=YC, pool=dict(cx=round(float(pc[0]), 3), cy=round(float(pc[1]), 3), r=round(float(np.linalg.norm(pool - pc, axis=1).mean()), 3)),
+POOL = json.load(open(os.path.join(os.path.dirname(sys.argv[1]), 'pool.json')))      # (build.py: the pool's water octagon)
+CANAL = dict(yc=YC, pool={k: round(v, 3) for k, v in POOL.items()},
              run=dict(line=TOPS["channel"]["line"], halfWidth=0.5, speed=1.5),
              basin=dict(cx=BA['cx'], cy=BA['cy'], r=BA['rin'], turn=BA['turn']))
 os.makedirs(OUT, exist_ok=True)

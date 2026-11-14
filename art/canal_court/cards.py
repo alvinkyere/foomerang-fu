@@ -61,6 +61,8 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     teal = (hh[..., 0] >= 68) & (hh[..., 0] <= 92) & (hh[..., 1] >= 60) & (hh[..., 2] >= 140)
     water = (hh[..., 0] >= 96) & (hh[..., 0] <= 112) & (hh[..., 1] >= 90)
     mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = (d > thr)[y0:y1, x0:x1]       # (the barrels' water is theirs: nothing here is left out by colour)
+    if name.startswith('urn'):   # (orange clay on the brown blocks: the difference alone loses its body)
+        mk[y0:y1, x0:x1] |= (((hh[..., 0] <= 22) | (hh[..., 0] >= 172)) & (hh[..., 1] >= 110) & (hh[..., 2] >= 110))[y0:y1, x0:x1].astype(np.uint8)
     if name == 'rack':        # (it stands on the kerb's pale bands: only its wood, tools and ropes, not the bands round them)
         bg = np.array([[0x8a, 0xe8, 0xf9], [0x81, 0xd0, 0xf3], [0xd0, 0xed, 0xf4], [0xb2, 0xd3, 0xe0], [0xe3, 0xf5, 0xf7], [0xd9, 0xe3, 0xda],
                        [0x93, 0xe9, 0xff], [0xc8, 0xe0, 0xe8]], float)       # (BGR: sand, skirt, light, tan, court, shadow, sand, shade)

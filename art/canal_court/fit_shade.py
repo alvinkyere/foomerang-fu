@@ -38,6 +38,7 @@ for i_, kind in enumerate(KINDS):
     X = feats(N[m], z[m]); Y = f[m]
     coef, *_ = np.linalg.lstsq(X, Y, rcond=None)
     err = np.abs(X @ coef - Y).mean()
-    out[kind] = coef.T.round(3).tolist()
+    # (and the range the frame shows it in: a normal it never shows (the stub's west end) is held to it, not extrapolated)
+    out[kind] = dict(coef=coef.T.round(3).tolist(), lo=np.percentile(Y, 1, axis=0).round(1).tolist(), hi=np.percentile(Y, 99, axis=0).round(1).tolist())
     print('%-8s %6d px, mean |error| %.1f (of 255)' % (kind, m.sum(), err))
 json.dump(out, open('art/canal_court/shade.json', 'w'), indent=1)
