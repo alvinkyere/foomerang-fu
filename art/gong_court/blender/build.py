@@ -143,8 +143,15 @@ def faced(colour, nx, ny):
     return '#%02x%02x%02x' % tuple(max(0, min(255, round(c[j] + target[j] - _mean_face[j]))) for j in range(3))
 
 
+def shift(c, o):
+    """A colour moved by a body's own measured offset (stone_colours.py offsets, RGB)."""
+    if not o: return c
+    v = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+    return '#%02x%02x%02x' % tuple(max(0, min(255, round(v[j] + o[j]))) for j in range(3))
+
+
 for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
-    m = Mesh(f'STONE_{name}')
+    m = Mesh(f'STONE_{name}'); OFF = SC.get('offsets', {}).get(name, {})
     n = len(poly)
     bv = min(BEVEL, h * 0.3)
     inner = inset_ccw(poly, bv) if bv > 0 else list(poly)
@@ -153,12 +160,12 @@ for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
         hf = h - bv
         for k in range(NS):          # (the face in NS bands, each its measured step, top to bottom)
             za, zb = hf * (1 - k / NS), hf * (1 - (k + 1) / NS)
-            fc = SC['wall_face'][k] if kind == 'wall' and 'wall_face' in SC else faced(FACE[k], y1 - y0, -(x1 - x0))
+            fc = SC['wall_face'][k] if kind == 'wall' and 'wall_face' in SC else shift(faced(FACE[k], y1 - y0, -(x1 - x0)), OFF.get('face'))
             m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], fc)
         if bv > 0:                   # the bevel: from the face's top edge in and up to the top, its colour between the two
             (u0, v0), (u1, v1) = inner[i], inner[(i + 1) % n]
             m.face([(x0, YC + y0, hf), (x1, YC + y1, hf), (u1, YC + v1, h), (u0, YC + v0, h)], mixhex(SC['top'], FACE[0], 0.45))
-    m.poly(inner, h, SC['wall_top'] if kind == 'wall' and 'wall_top' in SC else SC['top'])
+    m.poly(inner, h, SC['wall_top'] if kind == 'wall' and 'wall_top' in SC else shift(SC['top'], OFF.get('top')))
     if mint:
         # the mint in its own measured colour, and what lies on it (tops.py: shadows, fallen leaves), each a hair above the last
         tp = TOPS.get(name, {})

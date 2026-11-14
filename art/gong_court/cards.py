@@ -71,12 +71,23 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if n < 2: continue
     big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
     mk = np.isin(lab, keep)
+    # (no holes inside an object: what the stone's exclusion took out of a crown's dark tones is filled back)
+    _cs, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    _f = np.zeros(mk.shape, np.uint8); cv2.drawContours(_f, _cs, -1, 1, -1); mk = _f > 0
     if foot is None:
         ys, xs = np.nonzero(mk); j = int(np.argmax(ys)); foot = (int(xs[ys >= ys.max() - 3].mean()), int(ys.max()))
     # (a prop on a platform: its foot on the platform's top, at the platform's height: stones.json)
     fz = json.load(open('art/gong_court/stones.json'))[foot[2]]['h'] if len(foot) > 2 else 0.0
     fx, fy = plan([(foot[0] + OX, foot[1] + OY)], z=fz)[0]
-    A = np.array([fx, Yc + fy, fz])                       # (plan units, as the camera's centre x 100 is)
+    A = np.array([fx, Yc + fy, fz])
+    # the card stands in front of any stone it covers on screen (what the HQ shows in front of the stone, it draws over it): its plane
+    # moved south of the southmost edge of every prism whose silhouette meets the object's (the camera's rays meet it at the same pixels)
+    _obj = np.zeros(d.shape, np.uint8); _obj[mk] = 1
+    for _p, _hh, _m, _k in _prisms().values():
+        _up = np.float32([pix(x, y, _hh) for x, y in _p]) - [OX, OY]; _dn = np.float32([pix(x, y, 0) for x, y in _p]) - [OX, OY]
+        _s = np.zeros(d.shape, np.uint8); cv2.fillPoly(_s, [np.int32(_up)], 1); cv2.fillPoly(_s, [np.int32(_dn)], 1)
+        for _i in range(len(_p)): _j = (_i + 1) % len(_p); cv2.fillConvexPoly(_s, np.int32([_up[_i], _up[_j], _dn[_j], _dn[_i]]), 1)
+        if (_s & _obj).sum() > 20: A[1] = min(A[1], Yc + min(y for x, y in _p) - 0.05)                       # (plan units, as the camera's centre x 100 is)
     def on_card(px, py):
         # (an upright plane through the foot, facing south: what stands above the foot stays above it, in front of what is north of it)
         d_ = ray(px + OX, py + OY); t = (A[1] - cam[1]) / d_[1]; p = cam + d_ * t
