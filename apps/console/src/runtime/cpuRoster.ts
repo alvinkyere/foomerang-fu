@@ -44,6 +44,17 @@ export class CpuRoster {
     if (this.#entries.some((e) => e.id === id)) this.#set(this.#entries.filter((e) => e.id !== id));
   }
 
+  /** One level easier (-1) or harder (+1), stopping at EASY and HARD. True if it changed. */
+  stepDifficulty(id: string, delta: 1 | -1): boolean {
+    const entry = this.#entries.find((e) => e.id === id);
+    if (entry === undefined) return false;
+    const at = CPU_DIFFICULTIES.indexOf(entry.difficulty);
+    const next = CPU_DIFFICULTIES[Math.min(CPU_DIFFICULTIES.length - 1, Math.max(0, at + delta))];
+    if (next === undefined || next === entry.difficulty) return false;
+    this.setDifficulty(id, next);
+    return true;
+  }
+
   setDifficulty(id: string, difficulty: Difficulty): void {
     this.#set(this.#entries.map((e) => (e.id === id ? Object.freeze({ ...e, difficulty }) : e)));
   }

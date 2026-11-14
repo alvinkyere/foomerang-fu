@@ -60,7 +60,7 @@ function useSelectHint(select: CharacterSelectView): SelectHintId | undefined {
 /**
  * Character select's first-time hints (owner, 2026-11-14: brief, helpful, never in the way): one quiet line at a time, in
  * the free band under CHOOSE CHARACTERS (or under the bar's bots): how to choose and get READY, that › on the bar adds bots,
- * and how to choose a bot's character.
+ * and how to choose a bot's character, then its level.
  */
 export function SelectHints({ select }: { readonly select: CharacterSelectView }) {
   const hint = useSelectHint(select);
@@ -88,8 +88,16 @@ export function SelectHints({ select }: { readonly select: CharacterSelectView }
       <span className="cs__badge cs__badge--hint" style={{ '--badge': colour } as CSSProperties}>
         P{chosen.chooser}
       </span>
-      <Nudge /> CHOOSE {chosen.name ?? 'THE BOT'}’S CHARACTER <SelectGlyph /> READY <BackGlyph />{' '}
-      REMOVE
+      <Nudge />
+      {chosen.choosing === 'LEVEL' ? (
+        <>
+          {chosen.name ?? 'THE BOT'}’S LEVEL <SelectGlyph /> READY <BackGlyph /> CHARACTER
+        </>
+      ) : (
+        <>
+          CHOOSE {chosen.name ?? 'THE BOT'}’S CHARACTER <SelectGlyph /> NEXT <BackGlyph /> REMOVE
+        </>
+      )}
     </p>
   );
 }

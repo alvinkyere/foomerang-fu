@@ -1,7 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import type { Difficulty } from '@foomerang/foomerang-fu';
 import type { ConsoleRuntime } from '../../consoleRuntime';
-import { CPU_DIFFICULTIES } from '../../runtime/cpuRoster';
 import { useHostState } from '../../ui/useStore';
 import type { ShellActions, ShellModel } from '../model';
 import { buildShellModel } from './buildModel';
@@ -86,14 +84,7 @@ export function useShellModel(source: ShellSource): { model: ShellModel; actions
       addCpu: () => void runtime.director.cpus.add('MEDIUM', humans()),
       removeCpu: (id) => runtime.director.cpus.remove(id),
       stepCpu: (id, delta) => {
-        const entry = runtime.director.cpus.entries.find((e) => e.id === id);
-        if (entry === undefined) return;
-        const at = CPU_DIFFICULTIES.indexOf(entry.difficulty);
-        const next =
-          CPU_DIFFICULTIES[Math.min(CPU_DIFFICULTIES.length - 1, Math.max(0, at + delta))];
-        if (next !== undefined && next !== entry.difficulty) {
-          runtime.director.cpus.setDifficulty(id, next as Difficulty);
-        }
+        runtime.director.cpus.stepDifficulty(id, delta);
       },
       stepBots: (delta) => {
         if (delta === 1) runtime.director.cpus.add('MEDIUM', humans());

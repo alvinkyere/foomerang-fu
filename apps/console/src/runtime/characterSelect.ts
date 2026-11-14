@@ -52,7 +52,11 @@ export type SelectDirection = 'up' | 'down' | 'left' | 'right';
  * What a SELECT did: readied them (or the bot they choose for), was refused (someone is ready on it), asked to begin
  * (everyone is ready), or nothing.
  */
-export type SelectResult = 'READY' | 'BOT_READY' | 'TAKEN' | 'COMING_SOON' | 'BEGIN' | 'NONE';
+export type SelectResult =
+  'READY' | 'BOT_CHARACTER' | 'BOT_READY' | 'TAKEN' | 'COMING_SOON' | 'BEGIN' | 'NONE';
+
+/** Choosing a bot: first its character (the stick moves its cursor), then its level (the console steps its difficulty). */
+export type BotStage = 'CHARACTER' | 'LEVEL';
 
 interface Cursor {
   row: number;
@@ -98,13 +102,13 @@ export class CharacterSelect {
         changed = true;
       }
     // a bot whose chooser left readies itself: where it stands if that is free, else on the first free character
-    for (const c of this.#cursors.values())
+    for (const [id, c] of this.#cursors)
       if (c.driver !== undefined && !present.has(c.driver)) {
         c.driver = undefined;
         const here = characterAt(c);
         Object.assign(
           c,
-          isPlayable(here) && !this.isTaken(here)
+          isPlayable(here) && !this.isTaken(here, id)
             ? {}
             : at(PLAYABLE.find((p) => !this.isTaken(p)) ?? here),
         );
@@ -141,16 +145,17 @@ export class CharacterSelect {
     return false;
   }
 
-  /** There is someone, and every person is ready (CPUs always are). */
+  /** There is someone, and everyone is ready (CPUs are, unless somebody is still choosing one). */
   get allReady(): boolean {
     if (this.#cursors.size === 0) return false;
-    for (const c of this.#cursors.values()) if (!c.ready) return false;
+    for (const c of this.#cursors.values()) if (!c.ready || c.driver !== undefined) return false;
     return true;
   }
 
   /**
    * One controller, playing with bots: a READY person chooses the character of the CPU they just added. The CPU waits, not
-   * ready, and that person's stick and SELECT steer its cursor until SELECT readies it. One bot at a time per person.
+   * ready, and that person's stick and SELECT steer its cursor until SELECT locks its character; then their stick sets its
+   * level (the console's) and SELECT again readies it. One bot at a time per person.
    */
   drive(cpuId: string, driverId: string): boolean {
     const bot = this.#cursors.get(cpuId);
@@ -168,6 +173,23 @@ export class CharacterSelect {
   driving(driverId: string): string | undefined {
     for (const [id, c] of this.#cursors) if (c.driver === driverId) return id;
     return undefined;
+  }
+
+  /** Where this person is in choosing their bot: its character, then its level. */
+  drivingStage(driverId: string): BotStage | undefined {
+    const bot = this.driving(driverId);
+    if (bot === undefined) return undefined;
+    return this.#cursors.get(bot)?.ready === true ? 'LEVEL' : 'CHARACTER';
+  }
+
+  /** BACK on the bot's level: back to its character, unlocked. False when they were on its character already. */
+  unlockBot(driverId: string): boolean {
+    const bot = this.driving(driverId);
+    const b = bot === undefined ? undefined : this.#cursors.get(bot);
+    if (b === undefined || !b.ready) return false;
+    b.ready = false;
+    this.#emit();
+    return true;
   }
 
   /** Who is choosing this CPU's character, if anyone. */
@@ -192,12 +214,16 @@ export class CharacterSelect {
     const bot = this.driving(id);
     if (bot !== undefined) {
       const b = this.#cursors.get(bot) as Cursor;
+      if (b.ready) {
+        b.driver = undefined; // its level chosen: done
+        this.#emit();
+        return 'BOT_READY';
+      }
       if (!isPlayable(characterAt(b))) return 'COMING_SOON';
       if (this.isTaken(characterAt(b), bot)) return 'TAKEN';
-      b.ready = true;
-      b.driver = undefined;
+      b.ready = true; // its character locked: now its level
       this.#emit();
-      return 'BOT_READY';
+      return 'BOT_CHARACTER';
     }
     const c = this.#cursors.get(id);
     if (c === undefined || c.cpu) return 'NONE';

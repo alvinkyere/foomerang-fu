@@ -78,7 +78,8 @@ test('couch test: with the TV untouched, one phone runs the lobby, plays, pauses
   // Everyone (just Alice) is READY: her ▶ adds a CPU opponent and her SELECT begins the match.
   await alice.flick('right');
   await expect(host.cpuSeat(1)).toBeVisible();
-  await alice.tap('SELECT'); // the bot READY on the character her stick left it on
+  await alice.tap('SELECT'); // the bot's character: the one her stick left it on
+  await alice.tap('SELECT'); // its level (as it starts, MEDIUM): READY
   await expect(host.startButton).not.toHaveAttribute('aria-disabled', 'true');
   await alice.tap('SELECT'); // GAME MODE
   await alice.tap('SELECT'); // Free For All: READY?

@@ -150,11 +150,17 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
     if (bot !== undefined) {
       const before = picks.pick(bot)?.character;
       if (action === 'select') {
-        const result = picks.select(playerId);
-        soundHooks.emit(result === 'BOT_READY' ? 'ready' : 'error');
+        const result = picks.select(playerId); // its character, then its level
+        soundHooks.emit(result === 'BOT_CHARACTER' || result === 'BOT_READY' ? 'ready' : 'error');
       } else if (action === 'back') {
-        director.cpus.remove(bot); // changed their mind: that bot goes
+        // from its level back to its character; from its character, changed their mind: that bot goes
+        if (!picks.unlockBot(playerId)) director.cpus.remove(bot);
         soundHooks.emit('unready');
+      } else if (picks.drivingStage(playerId) === 'LEVEL') {
+        // its level: ◀ easier, ▶ harder
+        if (action === 'left' || action === 'right')
+          if (director.cpus.stepDifficulty(bot, action === 'right' ? 1 : -1))
+            soundHooks.emit('toggle');
       } else if (action !== 'secondary') {
         picks.move(playerId, action);
         if (picks.pick(bot)?.character !== before) soundHooks.emit('hover');
@@ -185,7 +191,11 @@ export function createConsoleRuntime(options: ConsoleRuntimeOptions): ConsoleRun
         soundHooks.emit('toggle');
         if (action === 'right') {
           // the new bot waits on a free character, and this person chooses its own
-          const added = director.cpus.add('MEDIUM', humans());
+          // (at the last bot's level: three HARD bots are SELECT, SELECT each)
+          const added = director.cpus.add(
+            director.cpus.entries.at(-1)?.difficulty ?? 'MEDIUM',
+            humans(),
+          );
           if (added !== undefined) picks.drive(added.id, playerId);
         } else {
           const last = director.cpus.entries.at(-1);

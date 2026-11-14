@@ -242,9 +242,11 @@ export class Host {
     await expect(seat).toContainText(difficulty);
   }
 
-  /** Removes "CPU n" (Select on its seat). */
+  /** Removes "CPU n": its ✕ on character select (Foomerang Fu: a mouse on its name removes nothing), Select on its seat elsewhere. */
   async removeCpu(n: number): Promise<void> {
-    await this.cpuSeat(n).click();
+    if ((await this.characterSelect.count()) > 0)
+      await this.page.getByRole('button', { name: `Remove CPU ${n}`, exact: true }).click();
+    else await this.cpuSeat(n).click();
     await expect(this.cpuSeat(n)).toHaveCount(0);
   }
 

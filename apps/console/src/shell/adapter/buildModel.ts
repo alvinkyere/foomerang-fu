@@ -106,9 +106,13 @@ function characterSelect(
       ...(seat.status !== undefined ? { status: seat.status } : {}),
       ...(seat.detail !== undefined ? { detail: seat.detail } : {}),
       ...(pick !== undefined ? { character: characterView(pick.character) } : {}),
-      ready: pick?.ready ?? false,
+      // (a bot whose level is still being chosen is not ready yet, though its character is locked)
+      ready: (pick?.ready ?? false) && pick?.chosenBy === undefined,
       ...(pick?.chosenBy !== undefined && numberOf.get(pick.chosenBy) !== undefined
-        ? { chooser: numberOf.get(pick.chosenBy) as number }
+        ? {
+            chooser: numberOf.get(pick.chosenBy) as number,
+            choosing: pick.ready ? ('LEVEL' as const) : ('CHARACTER' as const),
+          }
         : {}),
       ...(seat.id !== undefined && setup.sides.get(seat.id) !== undefined
         ? { side: setup.sides.get(seat.id) as 'RED' | 'BLUE' }

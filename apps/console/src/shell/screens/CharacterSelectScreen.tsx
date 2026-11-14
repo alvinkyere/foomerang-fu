@@ -252,11 +252,12 @@ function SeatCircle({
   const label =
     seat.kind === 'empty'
       ? `Player ${seat.number}: empty, join from a phone`
-      : `Player ${seat.number}: ${seat.name ?? ''}, ${ch?.name ?? ''}${seat.ready ? ', ready' : ', choosing'}`;
+      : `Player ${seat.number}: ${seat.name ?? ''}, ${ch?.name ?? ''}${seat.ready ? ', ready' : seat.choosing === 'LEVEL' ? ', choosing its level' : ', choosing'}`;
   return (
     <li
       className={`cs__seat cs__seat--${seat.kind}${seat.status === 'reconnecting' || seat.status === 'away' ? ' is-away' : ''}`}
       data-ready={seat.ready || undefined}
+      data-choosing={seat.choosing}
       style={style}
       aria-label={label}
     >
@@ -288,7 +289,7 @@ function SeatCircle({
       {(seat.kind === 'phone' || seat.chooser !== undefined) && !seat.ready && (
         <span className="cs__prompt" aria-hidden="true">
           <SelectGlyph />
-          READY?
+          {seat.choosing === 'CHARACTER' ? 'NEXT' : 'READY?'}
         </span>
       )}
       {seat.kind === 'cpu' && seat.id !== undefined && (
@@ -305,7 +306,14 @@ function SeatCircle({
   );
 }
 
-/** A CPU's difficulty (◀ ▶ on the TV) and its removal (Select): the host's, not the phones'. */
+/** EASY, MEDIUM, HARD as the seat's pips (one, two, three of three filled): the level, readable from the sofa. */
+const LEVELS = ['Easy', 'Medium', 'Hard'] as const;
+
+/**
+ * A CPU's level and its removal. A phone choosing the bot sets its level with ◀ ▶ (the seat lights up, its arrows nudging);
+ * on the TV, ←/→ on the focused control, or a mouse on its ‹ ›; the ✕ removes it (and Select on the focused control, for a
+ * keyboard or a remote). A mouse click on its name removes nothing: too easy to do by accident.
+ */
 function CpuControl({
   id,
   number,
@@ -329,16 +337,52 @@ function CpuControl({
       return true;
     },
   });
+  const level = LEVELS.indexOf(detail as (typeof LEVELS)[number]);
   return (
-    <button
-      type="button"
-      {...item}
-      className="cs__cpu"
-      aria-label={`Player ${number}: ${name}, ${detail}. Select removes it`}
-      onClick={onRemove}
-    >
-      <span aria-hidden="true">‹</span> CPU · {detail} <span aria-hidden="true">›</span>
-    </button>
+    <span className="cs__cpu">
+      <button
+        type="button"
+        className="cs__lvl"
+        tabIndex={-1}
+        aria-label={`${name} easier`}
+        disabled={level <= 0}
+        onClick={() => onStep(-1)}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        {...item}
+        className="cs__cpu-name"
+        aria-label={`Player ${number}: ${name}, ${detail}. Select removes it`}
+        // a keyboard's Enter or a remote's SELECT (no pointer: detail 0) removes it; a mouse uses the ✕
+        onClick={(event) => {
+          if (event.detail === 0) onRemove();
+        }}
+      >
+        <span className="cs__pips" data-level={level} aria-hidden="true" />
+        {detail}
+      </button>
+      <button
+        type="button"
+        className="cs__lvl"
+        tabIndex={-1}
+        aria-label={`${name} harder`}
+        disabled={level >= LEVELS.length - 1}
+        onClick={() => onStep(1)}
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        className="cs__cpu-x"
+        tabIndex={-1}
+        aria-label={`Remove ${name}`}
+        onClick={onRemove}
+      >
+        ✕
+      </button>
+    </span>
   );
 }
 

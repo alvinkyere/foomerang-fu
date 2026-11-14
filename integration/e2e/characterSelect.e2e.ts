@@ -70,7 +70,11 @@ test('the TV can always add bots once every person is ready, and a phone’s BAC
   await expect(bot).toHaveAccessibleName('Player 2: CPU 1, Coffee, choosing');
   await alice.flick('right'); // her stick moves the bot's cursor: coffee → ice cream
   await expect(bot).toHaveAccessibleName('Player 2: CPU 1, Ice Cream, choosing');
-  await alice.ready(); // SELECT: the bot is READY on it, and the bar is back
+  await alice.ready(); // SELECT: its character is locked; now its level, ◀ ▶
+  await expect(bot).toHaveAccessibleName('Player 2: CPU 1, Ice Cream, choosing its level');
+  await alice.flick('right'); // harder
+  await expect(host.cpuSeat(1)).toContainText('Hard');
+  await alice.ready(); // SELECT: the bot is READY, and the bar is back
   await expect(bot).toHaveAccessibleName('Player 2: CPU 1, Ice Cream, ready');
   await expect(host.page.getByTestId('bots')).toHaveText('1 BOT');
   await alice.tap('BACK'); // ready: BACK un-readies (and the bar goes until she is ready again)

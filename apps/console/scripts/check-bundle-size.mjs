@@ -41,7 +41,9 @@ import { gzipSync } from 'node:zlib';
 // rules, pens, levers, water and cards) (lazy JS 611.6 kB measured): lazy 620 kB.
 // Raised on purpose (2026-11-13, the gong court: its map entry in the first screen's registry tipped the initial JS from 152.99 to
 // 153.007 kB; flagged to the owner, not pushed before they see it): initial 154 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 154_000, initialCss: 10_000, lazyJs: 620_000 };
+// Raised on purpose (owner-approved 2026-11-14): phones choosing their bots' level, and a mouse's ‹ › and ✕ on a CPU's seat
+// (initial JS 153.8 kB at HEAD, 154.097 kB measured with them): initial 155 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 155_000, initialCss: 10_000, lazyJs: 620_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');

@@ -225,16 +225,104 @@
   letter-spacing: 0.02em;
 }
 .cs__cpu {
-  padding: 0.3rem 0.9rem;
+  position: relative;
+  gap: 0.2rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 1.4rem;
+  font-size: 1.6rem;
   text-transform: uppercase;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+/* a phone is choosing this bot's level: the control lights up and its arrows nudge, "move the stick this way" */
+.cs__seat[data-choosing='LEVEL'] .cs__cpu {
+  color: var(--cs-ink);
+  background: var(--cs-band);
+  box-shadow: 0 0 0 0.25rem var(--cs-coral);
+}
+.cs__seat[data-choosing='LEVEL'] .cs__lvl:not(:disabled) {
+  color: var(--cs-coral);
+}
+.cs__seat[data-choosing='LEVEL'] .cs__lvl:first-child:not(:disabled) {
+  animation: cs-lvl-left 900ms ease-in-out infinite alternate;
+}
+.cs__seat[data-choosing='LEVEL'] .cs__lvl:nth-child(3):not(:disabled) {
+  animation: cs-lvl-right 900ms ease-in-out infinite alternate;
+}
+.cs__cpu-name,
+.cs__lvl,
+.cs__cpu-x {
   border: 0;
-  border-radius: 1rem;
+  color: inherit;
   background: none;
   font: inherit;
-  font-size: 1.6rem;
   cursor: pointer;
 }
-.cs__cpu:focus-visible,
+.cs__cpu-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 1rem;
+  text-transform: inherit;
+}
+.cs__lvl {
+  padding: 0 0.4rem;
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.cs__lvl:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.cs__lvl:not(:disabled):hover,
+.cs__cpu-x:hover {
+  color: var(--cs-coral);
+}
+/* three pips, filled to the level: EASY one, MEDIUM two, HARD three (one element: three dots drawn by its background) */
+.cs__pips {
+  --off: rgb(142 142 142 / 0.45);
+  --a: var(--cs-coral);
+  --b: var(--off);
+  --c: var(--off);
+  width: 3rem;
+  height: 0.8rem;
+  background:
+    radial-gradient(circle at 0.4rem 50%, var(--a) 0.4rem, transparent 0.42rem),
+    radial-gradient(circle at 1.5rem 50%, var(--b) 0.4rem, transparent 0.42rem),
+    radial-gradient(circle at 2.6rem 50%, var(--c) 0.4rem, transparent 0.42rem);
+}
+.cs__pips[data-level='1'] {
+  --b: var(--cs-coral);
+}
+.cs__pips[data-level='2'] {
+  --b: var(--cs-coral);
+  --c: var(--cs-coral);
+}
+/* removal: a small ✕ off the control's corner, quiet until pointed at */
+.cs__cpu-x {
+  margin-left: 0.2rem;
+  padding: 0 0.3rem;
+  font-size: 1.3rem;
+  opacity: 0.6;
+}
+@keyframes cs-lvl-left {
+  to {
+    transform: translateX(-0.35rem);
+  }
+}
+@keyframes cs-lvl-right {
+  to {
+    transform: translateX(0.35rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs__seat[data-choosing='LEVEL'] .cs__lvl {
+    animation: none !important;
+  }
+}
+.cs__cpu-name:focus-visible,
 .cs__begin:focus-visible {
   outline: 0.3rem solid var(--cs-ink);
   outline-offset: 0.3rem;

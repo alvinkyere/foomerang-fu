@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createConsoleRuntime } from '../src/consoleRuntime';
 import type { GameId } from '../src/config';
@@ -486,6 +486,23 @@ describe('CPU players on character select (Foomerang Fu): the begin bar’s ‹ 
     expect(runtime.director.slots.slotOf('cpu:2')).toBe(2);
   });
 
+  it('with a mouse: the ‹ › on a CPU make it easier or harder, the ✕ removes it, and a click on its name removes nothing', async () => {
+    const { runtime } = await lobbyWith(roster({ playerId: 'a', displayName: 'Alvin' }));
+    addCpu();
+    const level = () => runtime.director.cpus.entries[0]?.difficulty;
+    fireEvent.click(button('CPU 1 harder'), { detail: 1 });
+    expect(level()).toBe('HARD');
+    expect((button('CPU 1 harder') as HTMLButtonElement).disabled).toBe(true); // the top
+    fireEvent.click(button('CPU 1 easier'), { detail: 1 });
+    fireEvent.click(button('CPU 1 easier'), { detail: 1 });
+    expect(level()).toBe('EASY');
+    expect(circle(2).querySelector('.cs__pips')?.getAttribute('data-level')).toBe('0'); // one pip of three
+    fireEvent.click(cpuControl(/^Player 2: CPU/), { detail: 1 }); // a mouse on its name: nothing
+    expect(runtime.director.cpus.entries).toHaveLength(1);
+    fireEvent.click(button('Remove CPU 1'), { detail: 1 });
+    expect(runtime.director.cpus.entries).toHaveLength(0);
+  });
+
   it('a match holds at most six: bots stop at a full table, and begin still works', async () => {
     const { runtime } = await lobbyWith(
       roster({ playerId: 'a', displayName: 'Alvin' }, { playerId: 'b', displayName: 'David' }),
@@ -841,7 +858,7 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     expect(ctx.network.last.of('MATCH_START')).toHaveLength(1);
   });
 
-  it('one phone and bots: right on the bar adds a bot whose character that phone then chooses, SELECT readies it, BACK takes it away', async () => {
+  it('one phone and bots: right on the bar adds a bot; that phone chooses its character, then its level (◀ ▶), SELECT readies it, BACK steps back or takes it away', async () => {
     const ctx = await inLobby({ gameId: 'foomerang-fu' });
     ctx.network.roomUpdated(
       ctx.network.last,
@@ -857,11 +874,24 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     await alvin.stick(1, 0); // the bot's cursor: coffee → ice cream
     expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Ice Cream, choosing');
     expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Bread, ready');
+    await alvin.tap(SELECT); // the character is locked: now its level, MEDIUM to start
+    expect(circle(2).getAttribute('aria-label')).toBe(
+      'Player 2: CPU 1, Ice Cream, choosing its level',
+    );
+    expect(screen.getByRole('button', { name: /^Player 2: CPU 1, Medium/ })).toBeTruthy();
+    await alvin.stick(1, 0); // ▶ harder
+    expect(screen.getByRole('button', { name: /^Player 2: CPU 1, Hard/ })).toBeTruthy();
+    await alvin.stick(1, 0); // (HARD is the top: it stays)
+    await alvin.tap(BACK); // back to its character, the level kept
+    expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Ice Cream, choosing');
     await alvin.tap(SELECT);
+    await alvin.tap(SELECT); // its level: done
     expect(circle(2).getAttribute('aria-label')).toBe('Player 2: CPU 1, Ice Cream, ready');
+    expect(screen.getByRole('button', { name: /^Player 2: CPU 1, Hard/ })).toBeTruthy();
     expect(screen.getByTestId('bots').textContent).toBe('1 BOT');
-    await alvin.stick(1, 0); // another bot, chosen the same way
+    await alvin.stick(1, 0); // another bot, chosen the same way, starting at the last one's level
     expect(circle(3).getAttribute('aria-label')).toMatch(/^Player 3: CPU 2, .*, choosing$/);
+    expect(screen.getByRole('button', { name: /^Player 3: CPU 2, Hard/ })).toBeTruthy();
     await alvin.tap(BACK); // changed their mind: that bot goes, nothing else changes
     expect(screen.getByTestId('bots').textContent).toBe('1 BOT');
     expect(circle(1).getAttribute('aria-label')).toBe('Player 1: Alvin, Bread, ready');
@@ -879,8 +909,10 @@ describe('a phone operates the console (no keyboard, no mouse)', () => {
     expect(ctx.runtime.context()).toBe('RESULTS'); // the phones' SELECT means CONTINUE
     expect(ctx.runtime.director.paused).toBe(true);
     await phone(ctx).tap(SELECT);
-    await act(async () => void (await new Promise((r) => setTimeout(r, 250)))); // the card fades out first
-    expect(screen.queryByTestId('controls-card')).toBeNull();
+    // the card fades out first
+    await waitFor(() => expect(screen.queryByTestId('controls-card')).toBeNull(), {
+      timeout: 3000,
+    });
     expect(ctx.runtime.director.paused).toBe(false);
     expect(ctx.runtime.context()).toBe('GAMEPLAY');
   });

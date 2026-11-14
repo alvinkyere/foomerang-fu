@@ -178,6 +178,7 @@ describe('choosing a bot’s character (one controller, playing with bots)', () 
     expect(s.pick('cpu:1')).toEqual({ character: 'coffee', ready: false, chosenBy: 'a' });
     expect(s.driving('a')).toBe('cpu:1');
     expect(s.driverOf('cpu:1')).toBe('a');
+    expect(s.drivingStage('a')).toBe('CHARACTER');
     expect(s.allReady).toBe(false);
   });
 
@@ -188,15 +189,42 @@ describe('choosing a bot’s character (one controller, playing with bots)', () 
     expect(s.pick('a')).toEqual({ character: 'bread', ready: true });
   });
 
-  it('SELECT readies the bot on that character and hands the person their own controls back', () => {
+  it('SELECT locks the bot’s character (nobody else may take it) and moves on to its level; SELECT again hands the person their own controls back', () => {
     const s = withBot();
     s.move('a', 'right');
+    expect(s.select('a')).toBe('BOT_CHARACTER');
+    expect(s.drivingStage('a')).toBe('LEVEL');
+    expect(s.pick('cpu:1')).toEqual({ character: 'icecream', ready: true, chosenBy: 'a' });
+    expect(s.isTaken('icecream')).toBe(true);
+    expect(s.allReady).toBe(false); // still choosing its level
+    s.move('a', 'left'); // the stick is the level's now: the cursor stays put
+    expect(s.pick('cpu:1')?.character).toBe('icecream');
     expect(s.select('a')).toBe('BOT_READY');
     expect(s.pick('cpu:1')).toEqual({ character: 'icecream', ready: true });
     expect(s.driving('a')).toBeUndefined();
+    expect(s.drivingStage('a')).toBeUndefined();
     expect(s.allReady).toBe(true);
     s.move('a', 'right'); // nothing moves now: the person is READY and drives nobody
     expect(s.pick('cpu:1')?.character).toBe('icecream');
+  });
+
+  it('BACK on the level goes back to the character (unlocked); on the character it does nothing here (the console removes the bot)', () => {
+    const s = withBot();
+    s.select('a');
+    expect(s.unlockBot('a')).toBe(true);
+    expect(s.drivingStage('a')).toBe('CHARACTER');
+    expect(s.pick('cpu:1')).toEqual({ character: 'coffee', ready: false, chosenBy: 'a' });
+    expect(s.unlockBot('a')).toBe(false);
+    s.move('a', 'right');
+    expect(s.pick('cpu:1')?.character).toBe('icecream');
+  });
+
+  it('if the person leaves while choosing its level, the bot keeps the character it was locked on', () => {
+    const s = withBot();
+    s.move('a', 'right');
+    s.select('a');
+    s.sync([cpu('cpu:1', 1)]);
+    expect(s.pick('cpu:1')).toEqual({ character: 'icecream', ready: true });
   });
 
   it('the bot cannot be readied on a character someone is ready on, nor on a coming-soon one', () => {

@@ -144,7 +144,7 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
     expect(r.network.last.of('MATCH_START')).toHaveLength(1);
   });
 
-  it('while everyone is ready, a ready player’s ▶ adds a bot whose character they choose (SELECT), and ◀ takes the last away', async () => {
+  it('while everyone is ready, a ready player’s ▶ adds a bot whose character, then level, they choose (SELECT, ◀ ▶, SELECT), and ◀ takes the last away', async () => {
     const r = await room('foomerang-fu');
     await r.enter('LOBBY');
     await r.press('a', 'PRIMARY');
@@ -159,15 +159,24 @@ describe('character select: in a Foomerang Fu lobby every phone drives its own c
     await r.move('a', 0, 0);
     expect(r.runtime.director.cpus.entries).toHaveLength(1);
     r.setNow(1000);
-    await r.press('a', 'PRIMARY');
-    expect(r.runtime.director.picks.pick(first)?.ready).toBe(true);
+    await r.press('a', 'PRIMARY'); // its character: now its level
+    r.setNow(1200);
+    await r.move('a', -1, 0); // ◀ easier
+    await r.move('a', 0, 0);
+    expect(r.runtime.director.cpus.entries[0]?.difficulty).toBe('EASY');
+    r.setNow(1400);
+    await r.press('a', 'PRIMARY'); // its level: done
+    expect(r.runtime.director.picks.allReady).toBe(true);
     r.setNow(1500);
     await r.move('a', 1, 0);
     await r.move('a', 0, 0);
     expect(r.runtime.director.cpus.entries).toHaveLength(2);
+    expect(r.runtime.director.cpus.entries[1]?.difficulty).toBe('EASY'); // the last one's level
     r.setNow(2000);
     await r.press('a', 'PRIMARY');
     r.setNow(2500);
+    await r.press('a', 'PRIMARY');
+    r.setNow(3000);
     await r.move('a', -1, 0);
     expect(r.runtime.director.cpus.entries.map((e) => e.id)).toEqual([first]);
   });
