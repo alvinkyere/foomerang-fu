@@ -19,6 +19,7 @@ os.chdir(ROOT)
 from geom import prisms
 args = sys.argv[sys.argv.index('--') + 1:]
 OUT, RENDER, WIDE, NOCARDS = args[0], 'render' in args[1:], 'wide' in args[1:], 'nocards' in args[1:]
+NOSTONE = 'nostone' in args[1:]          # (the ground alone: refine_outlines.py paints the stone over it)
 J = lambda p: json.load(open(os.path.join(ROOT, p)))
 HAS = lambda p: os.path.exists(os.path.join(ROOT, p))
 CAM = J('art/sky_islands/camera.json'); ZOOM = CAM['referenceZoom'] * 1.34          # (measure.py: K)
@@ -142,7 +143,7 @@ def faced(colour, nx, ny):
     return '#%02x%02x%02x' % tuple(max(0, min(255, round(c[j] + target[j] - _mean_face[j]))) for j in range(3))
 
 
-for name, (poly, h, mint, kind) in prisms().items():
+for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
     m = Mesh(f'STONE_{name}')
     n = len(poly)
     bv = min(BEVEL, h * 0.3)

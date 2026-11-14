@@ -28,11 +28,11 @@
     "sky": [
       {
         "at": 0.0,
-        "colour": "#8dc586"
+        "colour": "#8cc486"
       },
       {
         "at": 1.0,
-        "colour": "#8dc586"
+        "colour": "#8cc486"
       }
     ],
     "mist": {
