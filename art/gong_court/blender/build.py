@@ -184,6 +184,9 @@ if HAS('art/gong_court/cards.json') and not NOCARDS:
         m = Mesh(f'CARD_{c["name"]}')
         for s_ in c['shapes']:
             off = Vector((0, -0.004 * s_['layer'], 0))     # (the later tones a hair to the south: nearer the camera)
+            for q in s_.get('strips', []):                 # (a crown's backing: quads, cards.py)
+                m.face([tuple(Vector((x, YC + y, z)) + off) for x, y, z in q], s_['colour'])
+            if not s_['loops']: continue
             loops = [[Vector((x, YC + y, z)) + off for x, y, z in lp] for lp in s_['loops']]
             flat_ = [[Vector((v.x, v.z + (v.y - loops[0][0].y), 0)) for v in lp] for lp in loops]
             verts = [v for lp in loops for v in lp]

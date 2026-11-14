@@ -74,8 +74,13 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if n < 2: continue
     big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
     mk = np.isin(lab, keep)
+    if name.startswith('tree'):    # (only the crown's own piece and what joins it: fallen leaves lying apart are tops.py's)
+        mk = lab == big
     # (no holes inside an object: what the stone's exclusion took out of a crown's dark tones is filled back)
     if name.startswith('tree'):    # (crowns only: between bamboo stems the ground shows, as it should)
+        # (thin channels open to the outside are not holes: a wider close seals them first, else the grass shows through as cracks)
+        _sealed = cv2.morphologyEx(mk.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+        mk = mk | (_sealed > 0)
         _cs, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         _f = np.zeros(mk.shape, np.uint8); cv2.drawContours(_f, _cs, -1, 1, -1); mk = _f > 0
     if foot is None:
@@ -100,6 +105,13 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
     px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
+    if name.startswith('tree'):
+        # (a crown's soft red edge against the grass blends into pale green and tan tones: traced, they drew a halo round the crown;
+        # such a tone's pixels go to the nearest of the crown's red or lavender tones)
+        bgr_ = cen[:, :3]; green = ~((bgr_[:, 2] > bgr_[:, 1] + 40) | (bgr_[:, 0] > bgr_[:, 2]))   # (neither the crown's red nor the trunk's lavender: a blend)
+        if green.any() and (~green).any():
+            keep_ = np.flatnonzero(~green); dist = np.linalg.norm(px_[:, None, :] - cen[None, keep_, :], axis=2)
+            relab = keep_[np.argmin(dist, 1)]; lab_ = np.where(green[lab_[:, 0]], relab, lab_[:, 0])[:, None].astype(np.int32)
     lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5); lm[~mk] = 255
     # each tone's regions; drawn largest tone first, the rest over it a hair nearer the camera
     order = sorted(range(kk), key=lambda q: -(lm == q).sum())
@@ -118,6 +130,20 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
                 ap = cv2.approxPolyDP(lp, 0.7, True).reshape(-1, 2)
                 if len(ap) >= 3: polys.append([on_card(float(u), float(v)) for u, v in ap])
             if polys: layers.append(dict(colour=colour, layer=li, loops=polys))
+    if name.startswith('tree') and layers:
+        # a backing a hair behind the crown, in its first tone: its pixels (eroded 2 px, so the traced outline keeps the edge) as row
+        # strips 2 px tall. Blender's polygon fill drops slivers where a traced outline nearly touches itself; the grass (or a mint)
+        # behind showed through as cracks
+        back = cv2.erode(mk.astype(np.uint8), np.ones((5, 5), np.uint8)); strips = []
+        for yy in range(0, back.shape[0] - 1, 2):
+            row = back[yy] & back[yy + 1]
+            if not row.any(): continue
+            e = np.flatnonzero(np.diff(np.concatenate([[0], row, [0]])))
+            for a_, b_ in zip(e[::2], e[1::2]):
+                if b_ - a_ < 2: continue
+                strips.append([on_card(float(a_), float(yy)), on_card(float(b_), float(yy)), on_card(float(b_), float(yy + 2.6)),
+                               on_card(float(a_), float(yy + 2.6))])
+        if strips: layers.insert(0, dict(colour=layers[0]['colour'], layer=-1, loops=[], strips=strips))
     out.append(dict(name=name, anchor=[round(float(fx), 3), round(float(fy), 3)], shapes=layers))
     print(name, 'foot', [round(float(fx), 2), round(float(fy), 2)], int(mk.sum()), 'px,', len(layers), 'shapes')
 json.dump(out, open('art/gong_court/cards.json', 'w'))
