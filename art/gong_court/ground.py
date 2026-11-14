@@ -11,13 +11,13 @@ Writes ground.json and output/ground_check.png (the drawing against the filled f
 
   python art/gong_court/ground.py      (after mosaic.py and fit_stones.py; the Python of art/audio/output/venv)
 """
-import json, sys
+import json, os, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
 from measure import H0 as GROUND_H, Yc, MOSAIC_ORIGIN, pix
 from geom import prisms
 
-PX = 10.0
+PX = float(os.environ.get("GPX", "20"))      # (px a plan unit for the ground drawing: 20 keeps thin shadow strokes; 10 scored 3.99, 20 3.90)
 X0, X1, Y0, Y1 = -36.0, 34.0, -23.0, 25.0
 W, Hh = int((X1 - X0) * PX), int((Y1 - Y0) * PX)
 import os; STONE_PAD = int(os.environ.get("STONE_PAD", "3"))      # (px round the stone left out of the ground: its edge, not its contact shadow; 1, 3, 5, 9 scored 4.92, 4.80, 4.84, 4.88)
@@ -50,12 +50,13 @@ obj = (red | dark | brown | gold | lav).astype(np.uint8) | stone
 obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), np.ones((11, 11), np.uint8))
 # boxes (mosaic px x0, y0, x1, y1): what colour alone misses (bamboo, aloes, tufts, the names' smudges)
 BOXES = [(0, 80, 175, 400),                                                     # the players' names
-         (590, 260, 680, 420), (980, 0, 1175, 170), (385, 730, 500, 890), (740, 460, 980, 760),   # bamboo (NW, N, W, the planter's)
-         (1675, 250, 1775, 380), (760, 1110, 845, 1240), (1340, 1060, 1470, 1240),                # bamboo (NE, S, SE)
          (530, 1000, 630, 1060), (1690, 920, 1770, 1020),                                         # the aloes' pots
          (1480, 360, 1560, 470), (590, 580, 660, 700), (1710, 440, 1780, 490), (1420, 340, 1460, 370),   # tufts
          (480, 790, 535, 850), (1430, 260, 1520, 380)]                                            # the banana's corner, the gong's foot
 for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
+# the bamboo (cards.py traces it with its shadows): its boxes are not ground
+for x0, y0, x1, y1 in [(590, 260, 680, 420), (980, 0, 1175, 170), (385, 730, 500, 890), (740, 460, 980, 760), (1675, 250, 1775, 380),
+                       (760, 1110, 845, 1240), (1340, 1060, 1470, 1240)]: obj[y0:y1, x0:x1] = 1
 hole = ((to_flat(obj * 255, cv2.INTER_NEAREST) > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 
@@ -87,9 +88,9 @@ res = cv2.GaussianBlur(labg - labb, (0, 0), 1.0)
 inside = cv2.erode(seen.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
 off = (np.linalg.norm(res, axis=2) > MIN) & inside
 _, lab_, cen = cv2.kmeans(res[off].reshape(-1, 3), K, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.2), 4, cv2.KMEANS_PP_CENTERS)
-lm = np.full((Hh, W), 255, np.uint8); lm[off] = lab_[:, 0]; lm = cv2.medianBlur(lm, 7); lm[~inside] = 255
+lm = np.full((Hh, W), 255, np.uint8); lm[off] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5 if PX > 12 else 7); lm[~inside] = 255
 shapes = []
-k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3) if PX > 12 else (5, 5))
 for q in np.argsort(np.linalg.norm(cen, axis=1)):
     m = cv2.morphologyEx((lm == q).astype(np.uint8), cv2.MORPH_OPEN, k5)
     cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)

@@ -27,9 +27,13 @@ frame as Chrome shows it).
 **Animation:** none. Measured over the round (frames registered on the READY frame, `stab.py`): the bamboo, the maples and the gong hold
 still, even when players pass; their apparent shifts are the moving camera's parallax. Manifest `scenery: {fade: false, sway: false}`.
 
-**Last measured (2026-11-13, render vs the round's mosaic inside the READY frame, the names masked):** mean Lab difference 4.72 (median
-1.27), 10.1% of pixels over 10. At the first render: 10.7. In the game (`?arena=court&frame=hq`, two CPUs): 5.3; game vs render 0.8 (the
+**Last measured (2026-11-14, render vs the still view: still.py):** mean Lab difference 3.90 (median 1.07), 8.5% of pixels over 10
+(10.7 at the first render, against the round's mosaic). In the game (`?arena=court&frame=hq`, two CPUs): 5.3; game vs render 0.8 (the
 players).
+
+**Tried and rejected (by the score against the still view):** bamboo built in 3D (tubes with rings, open tops, fronds; stems read by
+hand and fitted): every bamboo region scored worse than the traced cards, 1.5-2.4x (the cards are traced from this very view, and the
+game's camera only crops and zooms it); a bevel band on the stone's edges; stone-free top decals; rim widths 0.4 and 0.7.
 
 **Known gaps:** the stone's soft rounded edges are drawn sharp (a bevel band scored worse); the cards are flat traced shapes (the HQ's
 bamboo, pots and gong are round 3D and show parallax as its camera moves; ours, on upright cards, do not); the platforms' outlines

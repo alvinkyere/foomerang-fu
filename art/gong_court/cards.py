@@ -72,8 +72,9 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
     mk = np.isin(lab, keep)
     # (no holes inside an object: what the stone's exclusion took out of a crown's dark tones is filled back)
-    _cs, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    _f = np.zeros(mk.shape, np.uint8); cv2.drawContours(_f, _cs, -1, 1, -1); mk = _f > 0
+    if name.startswith('tree'):    # (crowns only: between bamboo stems the ground shows, as it should)
+        _cs, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        _f = np.zeros(mk.shape, np.uint8); cv2.drawContours(_f, _cs, -1, 1, -1); mk = _f > 0
     if foot is None:
         ys, xs = np.nonzero(mk); j = int(np.argmax(ys)); foot = (int(xs[ys >= ys.max() - 3].mean()), int(ys.max()))
     # (a prop on a platform: its foot on the platform's top, at the platform's height: stones.json)
