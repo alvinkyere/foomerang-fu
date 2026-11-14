@@ -16,7 +16,7 @@ export const CANAL_COURT_HEIGHT = 1154;
 export type CanalCourtWall = Solid & { readonly id: string; readonly kind: 'WALL' };
 
 export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
-  Object.freeze({
+  {
     id: 'TOWER_0',
     kind: 'WALL',
     shape: 'box',
@@ -25,8 +25,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 26,
     halfHeight: 94,
     angle: 1.5708,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'TOWER_1',
     kind: 'WALL',
     shape: 'box',
@@ -35,8 +35,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 26,
     halfHeight: 103,
     angle: 1.5708,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'TOWER_2',
     kind: 'WALL',
     shape: 'box',
@@ -45,8 +45,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 26,
     halfHeight: 103,
     angle: 1.5708,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'TOWER_3',
     kind: 'WALL',
     shape: 'box',
@@ -55,8 +55,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 25,
     halfHeight: 93,
     angle: 1.5708,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'STUB_0',
     kind: 'WALL',
     shape: 'box',
@@ -65,8 +65,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 49,
     halfHeight: 21,
     angle: -0.1956,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'STUB_1',
     kind: 'WALL',
     shape: 'box',
@@ -75,8 +75,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 49,
     halfHeight: 20,
     angle: -0.1956,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL0_0',
     kind: 'WALL',
     shape: 'box',
@@ -85,8 +85,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 54,
     halfHeight: 46,
     angle: 1.4328,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL0_1',
     kind: 'WALL',
     shape: 'box',
@@ -95,8 +95,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 54,
     halfHeight: 64,
     angle: 1.4328,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL1_0',
     kind: 'WALL',
     shape: 'box',
@@ -105,8 +105,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 48,
     halfHeight: 64,
     angle: 0.6384,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL1_1',
     kind: 'WALL',
     shape: 'box',
@@ -115,8 +115,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 47,
     halfHeight: 65,
     angle: 0.6384,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL2_0',
     kind: 'WALL',
     shape: 'box',
@@ -125,8 +125,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 50,
     halfHeight: 64,
     angle: -0.3603,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL2_1',
     kind: 'WALL',
     shape: 'box',
@@ -135,8 +135,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 50,
     halfHeight: 52,
     angle: -0.3603,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL3_0',
     kind: 'WALL',
     shape: 'box',
@@ -145,8 +145,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 45,
     halfHeight: 71,
     angle: -0.8163,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL4_0',
     kind: 'WALL',
     shape: 'box',
@@ -155,8 +155,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 48,
     halfHeight: 65,
     angle: 0.2056,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'CHANNEL4_1',
     kind: 'WALL',
     shape: 'box',
@@ -165,8 +165,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 47,
     halfHeight: 46,
     angle: 0.2056,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'BASIN_0',
     kind: 'WALL',
     shape: 'box',
@@ -175,8 +175,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 27,
     halfHeight: 110,
     angle: -1.2567,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'BASIN_1',
     kind: 'WALL',
     shape: 'box',
@@ -185,8 +185,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 27,
     halfHeight: 136,
     angle: -1.2567,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'BASIN_2',
     kind: 'WALL',
     shape: 'box',
@@ -195,8 +195,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 27,
     halfHeight: 136,
     angle: -1.2567,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'BASIN_3',
     kind: 'WALL',
     shape: 'box',
@@ -205,8 +205,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 27,
     halfHeight: 136,
     angle: -1.2567,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'BASIN_4',
     kind: 'WALL',
     shape: 'box',
@@ -215,8 +215,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 27,
     halfHeight: 110,
     angle: -1.2567,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SW_0',
     kind: 'WALL',
     shape: 'box',
@@ -225,8 +225,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 31,
     halfHeight: 69,
     angle: -0.0127,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SW_1',
     kind: 'WALL',
     shape: 'box',
@@ -235,8 +235,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 31,
     halfHeight: 68,
     angle: -0.0127,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SW_2',
     kind: 'WALL',
     shape: 'box',
@@ -245,8 +245,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 30,
     halfHeight: 55,
     angle: -0.0127,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_N_0',
     kind: 'WALL',
     shape: 'box',
@@ -255,8 +255,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 18,
     halfHeight: 32,
     angle: 1.1665,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_N_1',
     kind: 'WALL',
     shape: 'box',
@@ -265,8 +265,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 18,
     halfHeight: 26,
     angle: 1.1665,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_N_2',
     kind: 'WALL',
     shape: 'box',
@@ -275,8 +275,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 18,
     halfHeight: 22,
     angle: 1.1665,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_E_0',
     kind: 'WALL',
     shape: 'box',
@@ -285,8 +285,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 23,
     halfHeight: 18,
     angle: 0.3817,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_E_1',
     kind: 'WALL',
     shape: 'box',
@@ -295,8 +295,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 23,
     halfHeight: 20,
     angle: 0.3817,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_E_2',
     kind: 'WALL',
     shape: 'box',
@@ -305,8 +305,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 22,
     halfHeight: 20,
     angle: 0.3817,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SE_0',
     kind: 'WALL',
     shape: 'box',
@@ -315,8 +315,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 35,
     halfHeight: 24,
     angle: -1.02,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SE_1',
     kind: 'WALL',
     shape: 'box',
@@ -325,8 +325,8 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 35,
     halfHeight: 24,
     angle: -1.02,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'ROCK_SE_2',
     kind: 'WALL',
     shape: 'box',
@@ -335,22 +335,22 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 35,
     halfHeight: 18,
     angle: -1.02,
-  }),
-  Object.freeze({ id: 'BARREL_NW', kind: 'WALL', shape: 'disc', x: 299, y: 225, radius: 27 }),
-  Object.freeze({ id: 'BARREL_N', kind: 'WALL', shape: 'disc', x: 1041, y: 210, radius: 27 }),
-  Object.freeze({ id: 'BARREL_S', kind: 'WALL', shape: 'disc', x: 565, y: 858, radius: 27 }),
-  Object.freeze({ id: 'BUCKET', kind: 'WALL', shape: 'disc', x: 900, y: 278, radius: 19 }),
-  Object.freeze({
+  },
+  { id: 'BARREL_NW', kind: 'WALL', shape: 'disc', x: 298, y: 223, radius: 27 },
+  { id: 'BARREL_N', kind: 'WALL', shape: 'disc', x: 1041, y: 210, radius: 27 },
+  { id: 'BARREL_S', kind: 'WALL', shape: 'disc', x: 565, y: 857, radius: 27 },
+  { id: 'BUCKET', kind: 'WALL', shape: 'disc', x: 901, y: 278, radius: 19 },
+  {
     id: 'BENCH',
     kind: 'WALL',
     shape: 'box',
-    x: 967,
-    y: 285,
+    x: 949,
+    y: 282,
     halfWidth: 41,
     halfHeight: 21,
     angle: -0.0,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'RACK',
     kind: 'WALL',
     shape: 'box',
@@ -359,17 +359,17 @@ export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
     halfWidth: 71,
     halfHeight: 18,
     angle: -0.0,
-  }),
-  Object.freeze({
+  },
+  {
     id: 'PLANK',
     kind: 'WALL',
     shape: 'box',
-    x: 898,
-    y: 928,
+    x: 901,
+    y: 923,
     halfWidth: 36,
     halfHeight: 18,
     angle: 0.8378,
-  }),
+  },
 ]);
 
 export const CANAL_COURT_SAFE_ZONE: Rect = Object.freeze({
@@ -384,15 +384,15 @@ export const CANAL_COURT_SPAWNS: readonly Vec2[] = Object.freeze([
   { x: 1395.0, y: 257.0 },
   { x: 1335.0, y: 857.0 },
   { x: 495.0, y: 797.0 },
-  { x: 855.0, y: 217.0 },
+  { x: 835.0, y: 217.0 },
   { x: 915.0, y: 817.0 },
 ]);
 
 export const CANAL_COURT_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   { x: 1475.0, y: 577.0 },
   { x: 215.0, y: 697.0 },
-  { x: 555.0, y: 217.0 },
-  { x: 215.0, y: 217.0 },
+  { x: 535.0, y: 217.0 },
+  { x: 1135.0, y: 217.0 },
 ]);
 
 export const CANAL_COURT_ARENA: FuArena = Object.freeze({

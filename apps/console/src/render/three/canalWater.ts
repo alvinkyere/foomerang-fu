@@ -56,16 +56,8 @@ export function parseCanalWater(manifest: unknown): CanalWater | undefined {
   if (!line.every((p) => Array.isArray(p) && p.length === 2 && num(p[0]) && num(p[1])))
     return undefined;
   if (!num(run['halfWidth'], 0.01, 10) || !num(run['speed'], 0, 20)) return undefined;
-  return {
-    yc: r['yc'],
-    pool: { cx: pool['cx'], cy: pool['cy'], r: pool['r'] },
-    run: {
-      line: (line as [number, number][]).map(([x, y]) => [x, y] as const),
-      halfWidth: run['halfWidth'],
-      speed: run['speed'],
-    },
-    basin: { cx: basin['cx'], cy: basin['cy'], r: basin['r'], turn: basin['turn'] },
-  };
+  // (every field the shaders read is checked above; anything else in it is never read)
+  return w as CanalWater;
 }
 
 // the HQ's colours (art/canal_court: sampled from the READY frame, converted to the video as the browser shows it: chrome.py)
@@ -109,19 +101,26 @@ float fbm(vec2 p) {
 }
 mat2 turn2(float a) { float c = cos(a); float s = sin(a); return mat2(c, -s, s, c); }`;
 
+/*
+ * The shaders (their comments here, not in the strings: the strings ship). POOL: the octagon distance `e` from the hole's edge (poolR: its
+ * corner radius); the HQ's soft ring there, the blue lightening over ~0.6 units (#4469c0, #657ac0, #7e89c6) into the rim's lavender; the
+ * foam a blob a little south of the middle, towards the spout, re-formed within half a second to a second (stabilised frames 657-664 s).
+ * RUN: where along the run (s) and how far across (d), from the nearest piece of its line; across it a bright core, a darker cyan line
+ * each side, then a glow out to the lavender (the HQ at 10:55). BASIN: pale strokes on darker cyan about half and half, along a swirl
+ * round the octagon, darkest by the blocks; no turning, a drift east of ~0.1 units a second, re-formed in about a second (the strokes'
+ * field warped by a second, moving noise).
+ */
 function fragment(kind: CanalWaterKind, n: number): string {
   const body =
     kind === 'pool'
       ? /* glsl */ `
-  // KIND_POOL: the well's foam boils up in the middle, swirling slowly; deep blue round it; at the hole's edge (poolR: its octagon's
-  // corner radius) the HQ's soft ring: the blue lightens over ~0.6 units (#4469c0, #657ac0, #7e89c6) and runs into the rim's lavender
+  // KIND_POOL
   vec2 p = plan - poolAt;
   float o = 0.0;
   for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
-  float e = o - poolR * 0.9239;                   // (from the hole's edge, plan units: < 0 inside)
+  float e = o - poolR * 0.9239;
   float r = length(p) / poolR;
   float rf = length(p - vec2(0.0, -0.25 * poolR)) / poolR;
-  // (the HQ's foam is another shape within half a second to a second: stabilised 657-664 s)
   vec2 q = turn2(time * 0.7 + r * 1.2) * p;
   vec2 bw = vec2(fbm(p * 0.7 + vec2(time * 1.1, 0.0)), fbm(p * 0.7 + vec2(3.0, -time * 1.1))) - 0.5;
   float n = fbm(q * 0.85 + bw * 1.2 + vec2(0.0, -time * 0.85));
@@ -132,7 +131,7 @@ function fragment(kind: CanalWaterKind, n: number): string {
   gl_FragColor = vec4(mix(c, ${rgb(COL.poolFoam)}, foam), 1.0);`
       : kind === 'run'
         ? /* glsl */ `
-  // KIND_RUN: where along the run (s) and how far across it (d) this point is, from the nearest piece of its line
+  // KIND_RUN
   float best = 1e9; float s = 0.0; float d = 0.0; float acc = 0.0;
   for (int k = 0; k < ${n - 1}; k++) {
     vec2 a = line[k]; vec2 b = line[k + 1]; vec2 ab = b - a; float L = length(ab);
@@ -141,7 +140,6 @@ function fragment(kind: CanalWaterKind, n: number): string {
     if (dd < best) { best = dd; s = acc + t * L; d = (ab.x * off.y - ab.y * off.x) / L; }
     acc += L;
   }
-  // (across, as the HQ's at 10:55: a bright core, a darker cyan line each side of it, then a glow fading out to the lavender)
   float x = abs(d) / runHalf;
   float streak = smoothstep(0.55, 0.75, fbm(vec2(s * 0.9 - time * runSpeed, d * 3.5)));
   vec3 c = mix(${rgb(COL.runCore)}, ${rgb(COL.runStreak)}, streak * 0.8);
@@ -149,14 +147,11 @@ function fragment(kind: CanalWaterKind, n: number): string {
   c = mix(c, ${rgb(COL.runGlow)}, smoothstep(0.45, 1.0, x));
   gl_FragColor = vec4(c, 1.0);`
         : /* glsl */ `
-  // KIND_BASIN: the HQ's brushed water: pale strokes swirling round the octagon on its darker cyan, about half and half, the
-  // strokes drawn along the swirl (noise stretched along it) and drifting round; darkest by the blocks
+  // KIND_BASIN
   vec2 p = turn2(-basinTurn) * (plan - basinAt);
   float o = 0.0;
   for (int k = 0; k < 4; k++) { float a = float(k) * 0.785398; o = max(o, abs(dot(p, vec2(cos(a), sin(a))))); }
   o /= basinR;
-  // (the HQ's, stabilised 657-664 s: no turning; a drift east of ~0.1 units a second, and the strokes re-form where they are, the
-  // pattern gone to another in about a second: the strokes' field warped by a second noise that moves)
   vec2 w = vec2(fbm(p * 0.5 + vec2(time * 0.9, 0.0)), fbm(p * 0.5 + vec2(7.0, time * 0.9))) - 0.5;
   vec2 q = turn2(o * 1.6) * (p - vec2(time * 0.1, 0.0) + w * 1.4);
   float n = fbm(vec2(q.x * 0.45, q.y * 1.6));

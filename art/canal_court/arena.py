@@ -136,7 +136,7 @@ export const CANAL_COURT_HEIGHT = {HEIGHT};
 export type CanalCourtWall = Solid & {{ readonly id: string; readonly kind: 'WALL' }};
 
 export const CANAL_COURT_WALLS: readonly CanalCourtWall[] = Object.freeze([
-{''.join('  Object.freeze(' + obj(o) + '),\n' for o in walls)}]);
+{''.join('  ' + obj(o) + ',\n' for o in walls)}]);
 
 export const CANAL_COURT_SAFE_ZONE: Rect = Object.freeze({obj(zone)});
 
