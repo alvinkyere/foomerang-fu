@@ -92,7 +92,7 @@ def base_at(x, y):
 
 
 # ---------------------------------------------------------------------------------------------------------------- ground
-DG = 0.5
+DG = 0.5 * ZS          # (the base field's grid: as fine on screen as at the first reading)
 g = Mesh('GROUND'); X0, Y0 = G['x0'], G['y0']; nx, ny = int((G['nx'] - 1) * G['dx'] / DG), int((G['ny'] - 1) * G['dx'] / DG)
 for j in range(ny):
     for i in range(nx):
