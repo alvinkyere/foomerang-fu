@@ -43,7 +43,9 @@ import { gzipSync } from 'node:zlib';
 // 153.007 kB; flagged to the owner, not pushed before they see it): initial 154 kB.
 // Raised on purpose (owner-approved 2026-11-14): phones choosing their bots' level, and a mouse's ‹ › and ✕ on a CPU's seat
 // (initial JS 153.8 kB at HEAD, 154.097 kB measured with them): initial 155 kB.
-const BUDGET_GZIP_BYTES = { initialJs: 155_000, initialCss: 10_000, lazyJs: 620_000 };
+// Raised on purpose (owner-approved 2026-11-14, Render's build failed on it): the canal court's and the gong court's map work
+// (lazy JS 620.0 kB before, 620.1 kB measured at cb587ba): lazy 625 kB.
+const BUDGET_GZIP_BYTES = { initialJs: 155_000, initialCss: 10_000, lazyJs: 625_000 };
 const FORBIDDEN_IN_PRODUCTION = ['__FOOMERANG__'];
 
 const dist = join(process.cwd(), 'dist');
