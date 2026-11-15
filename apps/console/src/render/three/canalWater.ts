@@ -78,6 +78,7 @@ const COL = {
   basin: '#aae3f4',
   basinBand: '#65c4e8',
   basinEdge: '#5fc3ec',
+  basinShadow: '#4a5f88',
 };
 
 const VERTEX = /* glsl */ `
@@ -107,7 +108,7 @@ mat2 turn2(float a){float c=cos(a);float s=sin(a);return mat2(c,-s,s,c);}`;
  * foam a blob a little south of the middle, towards the spout, re-formed within half a second to a second (stabilised frames 657-664 s).
  * RUN (the READY frame itself, not the round's mosaic, whose median thinned it to a line): a wide pale stream, hard-edged mid-cyan
  * streaks along it and bits of them along its edges, a light rim at each side. BASIN: hard chevron bands, '>' spreading east from the
- * inlet on the west, ~1.4 units apart, drifting east ~0.07 units a second, their edges bent by a moving noise; darkest by the blocks.
+ * inlet on the west, ~1.4 units apart, drifting east ~0.07 units a second, their edges bent by a moving noise; darkest by the blocks, a thin dark line under the far (north) ones.
  */
 function fragment(kind: CanalWaterKind, n: number): string {
   const body =
@@ -154,10 +155,11 @@ for(int k=0;k<4;k++){float a=float(k)*0.785398;o=max(o,abs(dot(p,vec2(cos(a),sin
 o/=basinR;
 vec2 q=p+vec2(basinR,0.0);
 vec2 w=vec2(fbm(p*0.6+vec2(time*0.6,0.0)),fbm(p*0.6+vec2(7.0,time*0.6)))-0.5;
-float band=fract((q.x+abs(q.y)*0.85)/2.0-time*0.05+(w.x+w.y)*1.4);
-float dark=smoothstep(0.0,0.04,band)*(1.0-smoothstep(0.36,0.4,band));
+float band=fract((q.x+abs(q.y)*1.0)/2.1-time*0.05+(w.x+w.y)*0.8);
+float dark=smoothstep(0.0,0.03,band)*(1.0-smoothstep(0.46,0.49,band));
 vec3 c=mix(${rgb(COL.basin)},${rgb(COL.basinBand)},dark);
 c=mix(c,${rgb(COL.basinEdge)},smoothstep(0.86,1.0,o)*0.8);
+c=mix(c,${rgb(COL.basinShadow)},smoothstep(0.95,0.98,o)*smoothstep(-0.2,0.3,p.y/basinR));
 gl_FragColor=vec4(c,1.0);`;
   return /* glsl */ `
 uniform float time;
