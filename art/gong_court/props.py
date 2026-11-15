@@ -72,10 +72,10 @@ def gong():
 # (units, read off its width and the run from its rim to its foot), its kind (an open urn, or the lidded jug with handles), its lean
 # (degrees, and the way its top leans: degrees from east, anticlockwise in plan)
 POTS = {
-    'jar_n': ((1078, 390), 0.62, 1.95, 'urn', 8, 130),
-    'jug_n': ((1127, 362), 0.58, 1.35, 'jug', 0, 0),
-    'pot_e1': ((1606, 740), 0.64, 2.1, 'urn', 6, 60),
-    'pot_e2': ((1672, 770), 0.66, 1.9, 'urn', 8, 30),
+    'jar_n': ((1076, 388), 0.72, 2.2, 'urn', 0, 0),
+    'jug_n': ((1122, 365), 0.58, 1.2, 'jug', 5, 200),
+    'pot_e1': ((1611, 718), 0.7, 1.8, 'urn', 10, 150),
+    'pot_e2': ((1672, 762), 0.72, 1.6, 'urn', 6, 30),
     'pot_nw': ((214, -60), 0.82, 1.7, 'urn', 8, 200),
 }
 

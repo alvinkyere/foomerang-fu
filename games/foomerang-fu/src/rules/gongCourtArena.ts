@@ -686,9 +686,9 @@ export const GONG_COURT_WALLS: readonly GongCourtWall[] = Object.freeze([
     halfHeight: 18,
     angle: 1.4012,
   }),
-  Object.freeze({ id: 'JAR_N', kind: 'WALL', shape: 'disc', x: 832, y: 486, radius: 19 }),
-  Object.freeze({ id: 'JUG_N', kind: 'WALL', shape: 'disc', x: 881, y: 452, radius: 18 }),
-  Object.freeze({ id: 'POT_E1', kind: 'WALL', shape: 'disc', x: 1313, y: 886, radius: 20 }),
+  Object.freeze({ id: 'JAR_N', kind: 'WALL', shape: 'disc', x: 830, y: 483, radius: 23 }),
+  Object.freeze({ id: 'JUG_N', kind: 'WALL', shape: 'disc', x: 875, y: 455, radius: 18 }),
+  Object.freeze({ id: 'POT_E1', kind: 'WALL', shape: 'disc', x: 1319, y: 862, radius: 22 }),
 ]);
 
 export const GONG_COURT_SPAWNS: readonly Vec2[] = Object.freeze([

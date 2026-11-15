@@ -331,14 +331,15 @@ if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json')
 # (#645650) with a lug each side, the jug's dome lid and knob and its two loop handles
 PLIGHT = Vector((0.45, -0.35, 0.82)).normalized()
 PROFILES = {'urn': [(0.4, 0.0), (0.62, 0.1), (0.85, 0.32), (1.0, 0.6), (0.97, 0.76), (0.8, 0.87), (0.72, 0.91), (0.8, 0.96), (0.8, 1.0)],
-            'jug': [(0.6, 0.0), (0.9, 0.14), (1.0, 0.44), (0.88, 0.72), (0.6, 0.88), (0.46, 0.94)]}
+            'jug': [(0.55, 0.0), (0.88, 0.12), (1.0, 0.4), (0.96, 0.62), (0.78, 0.82), (0.6, 0.92)]}
 
 
 def pot_colour(nrm, zf):
-    t = max(0.0, min(1.0, nrm.dot(PLIGHT) * 0.6 + 0.45))
-    c = Vector(lin('#835d47')[:3]).lerp(Vector(lin('#a8725b')[:3]), min(1, t / 0.6)) if t < 0.6 else \
-        Vector(lin('#a8725b')[:3]).lerp(Vector(lin('#c79079')[:3]), (t - 0.6) / 0.4)
-    return list(c * (0.72 + 0.28 * min(1.0, zf / 0.55))) + [1.0]      # (the lower half in shade: #835d47 under the body's #a8725b)
+    # (measured on the HQ's pots: median #9f6f58, the lit 15% #bc8b76, the shaded 15% #845c45)
+    t = max(0.0, min(1.0, nrm.dot(PLIGHT) * 0.75 + 0.4))
+    c = Vector(lin('#7a543f')[:3]).lerp(Vector(lin('#9d6c55')[:3]), min(1, t / 0.6)) if t < 0.6 else \
+        Vector(lin('#9d6c55')[:3]).lerp(Vector(lin('#c18f79')[:3]), (t - 0.6) / 0.4)
+    return list(c * (0.8 + 0.2 * min(1.0, zf / 0.55))) + [1.0]      # (the lower half in shade: #835d47 under the body's #a8725b)
 
 
 def tube(m, path, r, colour, seg=8):
@@ -362,31 +363,33 @@ if HAS('art/gong_court/props.json') and 'pots' in J('art/gong_court/props.json')
                        [pot_colour(nk[q], (z0 if q in (0, 1) else z1)) for q in range(4)])
         top_r, top_z = prof[-1][0] * R_, prof[-1][1] * H_
         if p_['kind'] == 'urn':
-            inner = [o + Vector((math.cos(2 * math.pi * k / seg) * top_r * 0.68, math.sin(2 * math.pi * k / seg) * top_r * 0.68, top_z)) for k in range(seg)]
+            inner = [o + Vector((math.cos(2 * math.pi * k / seg) * top_r * 0.6, math.sin(2 * math.pi * k / seg) * top_r * 0.6, top_z)) for k in range(seg)]
             for k in range(seg):
-                j = (k + 1) % seg; m.face([tuple(rings[-1][k]), tuple(rings[-1][j]), tuple(inner[j]), tuple(inner[k])], '#b99080')
+                j = (k + 1) % seg; m.face([tuple(rings[-1][k]), tuple(rings[-1][j]), tuple(inner[j]), tuple(inner[k])], '#ad8068')
             m.face([tuple(v - Vector((0, 0, 0.05 * ZS))) for v in inner], '#5a4846')
-            for sgn in (-1, 1):                     # the lugs: a small loop each side at the shoulder
-                c0 = o + Vector((sgn * R_ * 0.92, 0, H_ * 0.8))
-                tube(m, [c0 + Vector((sgn * R_ * 0.22 * math.sin(math.pi * q / 6), 0, R_ * 0.2 * (math.cos(math.pi * q / 6) - 1))) for q in range(7)],
-                     0.07 * ZS, '#a8725b')
+            for sgn in (-1, 1):                     # the lugs: a round ear each side just under the rim (as the HQ's: big, flat, lit on top)
+                c0 = o + Vector((sgn * R_ * 0.86, 0, H_ * 0.9)); ax_ = Vector((sgn, 0, 0.35)).normalized()
+                cylinder(m, c0, c0 + ax_ * R_ * 0.18, R_ * 0.26, '#7a543f', '#b08068', seg=14)
         else:
-            ctr = o + Vector((0, 0, top_z)); dome = [(0.46, 0.0), (0.4, 0.06), (0.26, 0.12), (0.12, 0.14), (0.0, 0.15)]
+            # the lid: a flange a little wider than the neck, then a low dome and its knob, lighter (lit from above)
+            ctr = o + Vector((0, 0, top_z)); dome = [(0.6, 0.0), (0.64, 0.02), (0.6, 0.05), (0.44, 0.1), (0.24, 0.14), (0.1, 0.17), (0.0, 0.18)]
             lr = [[ctr + Vector((math.cos(2 * math.pi * k / seg) * rr * R_, math.sin(2 * math.pi * k / seg) * rr * R_, zz * H_)) for k in range(seg)] for rr, zz in dome]
             for i in range(len(dome) - 1):
                 for k in range(seg):
                     j = (k + 1) % seg
-                    m.face([tuple(lr[i][k]), tuple(lr[i][j]), tuple(lr[i + 1][j]), tuple(lr[i + 1][k])], '#c38f75' if i < 2 else '#d9a78a')
-            for sgn, big in ((-1, 0.7), (1, 1.0)):     # the loop handles, the east one the larger
-                c0 = o + Vector((sgn * R_ * 0.95, 0.0, H_ * 0.62))
-                tube(m, [c0 + Vector((sgn * R_ * 0.35 * big * math.sin(math.pi * q / 8), 0, R_ * 0.4 * big * (math.cos(math.pi * q / 8)))) for q in range(9)],
-                     0.06 * ZS, '#9a6650')
-        rng_ = __import__('random').Random(hash(name) % 1000)
+                    m.face([tuple(lr[i][k]), tuple(lr[i][j]), tuple(lr[i + 1][j]), tuple(lr[i + 1][k])], '#b8826a' if i < 2 else '#cf9a80' if i < 4 else '#e0ae92')
+            # the handles: a big loop on the east from the shoulder up past the lid, a small ear on the west
+            for sgn, zc, hz, out_ in ((1, 0.76, 0.26, 0.42), (-1, 0.7, 0.12, 0.28)):
+                c0 = o + Vector((sgn * R_ * 0.86, 0.0, H_ * zc))
+                tube(m, [c0 + Vector((sgn * R_ * out_ * math.sin(math.pi * q / 10), 0, H_ * hz * math.cos(math.pi * q / 10))) for q in range(11)],
+                     0.085 * ZS, '#8e5c46')
+        rng_ = __import__('random').Random(sum(map(ord, name)))      # (hash() changes every run: the spots must not)
         for q in range(6):                          # dark spots on the side facing the camera
-            a0 = math.radians(rng_.uniform(205, 335)); zf = rng_.uniform(0.25, 0.7); rr = 1.0 if zf < 0.62 else 0.95
+            a0 = math.radians(rng_.uniform(205, 335)); zf = rng_.uniform(0.3, 0.7)
+            rr = next(r0 + (r1 - r0) * (zf - z0) / (z1 - z0) for (r0, z0), (r1, z1) in zip(prof, prof[1:]) if z0 <= zf <= z1)   # (on the body's own curve)
             c0 = o + Vector((math.cos(a0) * R_ * rr * 1.01, math.sin(a0) * R_ * rr * 1.01, zf * H_)); tng = Vector((-math.sin(a0), math.cos(a0), 0))
             s0 = R_ * rng_.uniform(0.08, 0.14)
-            m.face([tuple(c0 + tng * s0 * math.cos(2 * math.pi * k / 6) + Vector((0, 0, s0 * 0.8 * math.sin(2 * math.pi * k / 6)))) for k in range(6)], '#94604a')
+            m.face([tuple(c0 + tng * s0 * math.cos(2 * math.pi * k / 6) + Vector((0, 0, s0 * 0.8 * math.sin(2 * math.pi * k / 6)))) for k in range(6)], '#8a5442')
         tilt, way = p_.get('lean', [0, 0])
         if tilt:                                    # its lean: turned about its foot, its top towards `way`
             from mathutils import Matrix
