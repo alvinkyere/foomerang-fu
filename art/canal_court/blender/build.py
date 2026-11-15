@@ -355,6 +355,103 @@ for k in range(8):
     soft_prism(f'BASIN_block{k}', ccw([(v.x, v.y) for v in q]), FOOT_H - 0.05, B['hb'], 'brown', bevel=0.22)
 w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']), B['hw'], '#76cde6'); w.done()
 
+# ---------------------------------------------------------------------------------------------------------------- the props in 3D
+# the barrels, the bucket, the urns, the bench and the plank as models (fit_props.py: where and how big; the tones the frame shows them
+# in, as cards.py measured them), each face lit as the HQ's soft light falls: its tone between the side's and the top's by how far it
+# faces up, a little darker turned away from the light (from the north-west, above)
+PROPS = J('art/canal_court/props.json') if HAS('art/canal_court/props.json') else {}
+CARDS_ = {c['name']: c for c in J('art/canal_court/cards.json')} if HAS('art/canal_court/cards.json') else {}
+PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank'} if PROPS else set()      # (the urns stay traced: too small to fit)
+LIGHT = Vector((-0.35, 0.45, 0.82)).normalized()
+
+
+def lit(colour, n):
+    """sRGB tone of a face of `colour` turned to normal n: full where it faces the light, 0.78 of it facing away."""
+    c = hexrgb(colour); k = 0.9 + 0.12 * max(0.0, n.dot(LIGHT))
+    return '#%02x%02x%02x' % tuple(int(round(min(255, v * k))) for v in c)
+
+
+def lathe(m, cx, cy, z0, prof, colours, seg=20):
+    """A turned shape: the profile [(r, z)] about (cx, cy) from z0, band i (between profile points i and i+1) in colours[i]."""
+    for i in range(len(prof) - 1):
+        (r0, za), (r1, zb) = prof[i], prof[i + 1]
+        for k in range(seg):
+            a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * (k + 1) / seg
+            q = [(cx + r0 * math.cos(a0), cy + r0 * math.sin(a0), z0 + za), (cx + r0 * math.cos(a1), cy + r0 * math.sin(a1), z0 + za),
+                 (cx + r1 * math.cos(a1), cy + r1 * math.sin(a1), z0 + zb), (cx + r1 * math.cos(a0), cy + r1 * math.sin(a0), z0 + zb)]
+            am = (a0 + a1) / 2; dr, dz = r1 - r0, zb - za; L = math.hypot(dr, dz) or 1
+            n = Vector((math.cos(am) * dz / L, math.sin(am) * dz / L, -dr / L))
+            m.face([(x, YC + y, z) for x, y, z in q], lit(colours[i], n))
+
+
+def disc(m, cx, cy, z, r, colour, seg=20):
+    m.poly([(cx + r * math.cos(2 * math.pi * k / seg), cy + r * math.sin(2 * math.pi * k / seg)) for k in range(seg)], z, colour)
+
+
+def tone(name, k, fallback):
+    """The k-th most used tone of the prop's card (cards.py, from the READY frame)."""
+    c = CARDS_.get(name)
+    if c is None: return fallback
+    count = {}
+    for sh in c['shapes']: count[sh['colour']] = count.get(sh['colour'], 0) + sum(len(l) for l in sh['loops'])
+    order = sorted(count, key=lambda q: -count[q])
+    return order[k] if k < len(order) else fallback
+
+
+for name in sorted(PROPS3D):
+    P = PROPS[name]; v = P['v']; z0 = P['z0']; m = Mesh(f'PROP_{name}')
+    if name.startswith('barrel'):
+        cx, cy, r, h = v
+        body, light, inner, water, spark = '#96815b', '#a78c66', '#636161', '#72c7d4', '#c6e0e3'      # (the READY frame's, as Chrome shows it)
+        # (staves in two tiers, a darker groove between and under them, a thick rim at the top, the water inside a little down)
+        # (the HQ's: ten staves, two thin light hoops, a thick light rim on top, a dark inner wall down to the water well inside)
+        prof = [(r * 0.92, 0.0), (r * 0.97, h * 0.3), (r * 0.99, h * 0.38), (r, h * 0.62), (r, h * 0.7), (r * 0.97, h)]
+        lathe(m, cx, cy, z0, prof, [body, light, body, light, body], seg=10)
+        lathe(m, cx, cy, z0, [(r * 0.97, h), (r * 0.62, h)], [light], seg=10)
+        lathe(m, cx, cy, z0, [(r * 0.62, h), (r * 0.6, h * 0.72)], [inner], seg=10)
+        disc(m, cx, cy, z0 + h * 0.72, r * 0.6, water, seg=10)
+        m.poly([(cx + 0.05 + 0.13 * math.cos(2 * math.pi * k / 10), cy - 0.2 + 0.06 * math.sin(2 * math.pi * k / 10)) for k in range(10)], z0 + h * 0.72 + 0.01, spark)
+    elif name == 'bucket':
+        cx, cy, r, h = v
+        body, rim, water = '#82706c', '#636a70', '#7dc9d7'
+        lathe(m, cx, cy, z0, [(r * 0.85, 0.0), (r, h)], [body])
+        lathe(m, cx, cy, z0, [(r, h), (r * 0.8, h)], [rim])
+        lathe(m, cx, cy, z0, [(r * 0.8, h), (r * 0.78, h * 0.8)], [rim])
+        disc(m, cx, cy, z0 + h * 0.8, r * 0.78, water)
+    elif name.startswith('urn'):
+        fx, fy = CARDS_[name]['anchor'] if name in CARDS_ else v[:2]
+        cx, cy, R, H = fx, fy + float(os.environ.get('URN_DY', '0.7')), float(os.environ.get('URN_R', '0.55')), float(os.environ.get('URN_H', '1.15'))   # (too small to fit: its foot as traced, measured by eye against the frame)
+        lt, md, dk, mouth = '#c9947a', '#a37460', '#845c4d', '#827274'
+        prof = [(R * 0.45, 0.0), (R * 0.85, H * 0.15), (R, H * 0.4), (R * 0.85, H * 0.62), (R * 0.45, H * 0.78), (R * 0.42, H * 0.86), (R * 0.6, H * 0.96), (R * 0.58, H)]
+        lathe(m, cx, cy, z0, prof, [dk, md, lt, lt, md, md, lt], seg=16)
+        disc(m, cx, cy, z0 + H * 0.97, R * 0.45, mouth, seg=16)
+        # (its two loop handles, east and west, from the neck down to the shoulder)
+        for sx in (-1, 1):
+            for (a0, a1) in ((0.0, 0.5), (0.5, 1.0)):
+                t0, t1 = a0 * math.pi, a1 * math.pi
+                p0 = (cx + sx * (R * 0.5 + 0.22 * math.sin(t0)), z0 + H * (0.82 - 0.3 * a0)); p1 = (cx + sx * (R * 0.5 + 0.22 * math.sin(t1)), z0 + H * (0.82 - 0.3 * a1))
+                m.face([(p0[0], YC + cy - 0.05, p0[1]), (p1[0], YC + cy - 0.05, p1[1]), (p1[0], YC + cy + 0.05, p1[1] + 0.06), (p0[0], YC + cy + 0.05, p0[1] + 0.06)], md)
+    else:      # (bench, plank: boxes)
+        cx, cy, a, b, t, h = v; a, b = abs(a), abs(b)
+        if name == 'bench':      # (its silhouette fits a low box as well as the HQ's taller bench: its legs show it is ~1.1 high, 0.65 deep)
+            h, b, cy = float(os.environ.get('BENCH_H', '1.1')), float(os.environ.get('BENCH_B', '0.65')), cy - float(os.environ.get('BENCH_DY', '0.25'))
+        c_, s_ = math.cos(t), math.sin(t)
+        P_ = lambda x, y: (cx + c_ * x - s_ * y, cy + s_ * x + c_ * y)
+        top, side = ('#9c866e', '#86755a') if name == 'bench' else ('#9d8571', '#817463')
+        def box(x0, y0, x1, y1, za, zb):
+            q = [P_(x0, y0), P_(x1, y0), P_(x1, y1), P_(x0, y1)]
+            for i in range(4):
+                p0, p1 = Vector(q[i]), Vector(q[(i + 1) % 4]); d = p1 - p0; n = Vector((d.y, -d.x, 0)).normalized()
+                if (p0 - Vector((cx, cy))).dot(n.xy) < 0: n = -n
+                m.face([(p0.x, YC + p0.y, za), (p1.x, YC + p1.y, za), (p1.x, YC + p1.y, zb), (p0.x, YC + p0.y, zb)], lit(side, n))
+            m.poly(q, zb, top)
+        if name == 'bench':        # (a slab on two end legs, as the HQ's)
+            box(-a, -b, a, b, h * 0.55, h)
+            for sx in (-1, 1): box(sx * a * 0.7 - a * 0.18, -b * 0.8, sx * a * 0.7 + a * 0.18, b * 0.8, 0.0, h * 0.55)
+        else:
+            box(-a, -b, a, b, 0.0, h)
+    m.done()
+
 # ---------------------------------------------------------------------------------------------------------------- what stands
 # the trees, stump, pots, bunting, aloe, tufts and bamboo as traced cards (cards.py): upright planes through each foot, facing the camera
 # (the game's camera never turns), each tone a flat shape, the later tones a hair nearer the camera; the trees' named TREE_<k>_tree
@@ -362,6 +459,7 @@ CAMV = Vector(tuple(v * 100 for v in CAM['centre'])); _pth = math.radians(CAM['p
 TOWARD = Vector((0, -math.cos(_pth), math.sin(_pth)))     # (from the scene towards the camera: its view direction reversed)
 if HAS('art/canal_court/cards.json'):
     for c in J('art/canal_court/cards.json'):
+        if c['name'] in PROPS3D: continue          # (built in 3D below)
         m = Mesh(f'CARD_{c["name"]}')
         for sh in c['shapes']:
             off = TOWARD * (0.004 * sh['layer'] + (1.2 if c['name'].startswith('urn') else 0.0))   # (the urns stand on the blocks' tops)
