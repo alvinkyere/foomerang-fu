@@ -544,7 +544,7 @@ TREES = {   # name: foot (plan), trunk base and top (frame px), trunk width px, 
 
 
 def crown_tone(nz, nx):
-    stops = [(-1.0, (0xe0, 0x96, 0x4c)), (-0.2, (0xea, 0xb0, 0x5c)), (0.4, (0xf0, 0xc8, 0x68)), (1.0, (0xf6, 0xd8, 0x7c))]
+    stops = [(-1.0, (0xdc, 0x8e, 0x48)), (-0.2, (0xe6, 0xa6, 0x56)), (0.4, (0xee, 0xbe, 0x62)), (1.0, (0xf4, 0xd2, 0x74))]
     t = max(-1.0, min(1.0, nz + 0.15 * nx))
     for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
         if t <= t1:
@@ -568,7 +568,7 @@ def tree(name):
         q = [ring(a0, r0, b - ax * 0.3), ring(a1, r0, b - ax * 0.3), ring(a1, r0 * 0.8, t), ring(a0, r0 * 0.8, t)]
         n = (side * math.cos((a0 + a1) / 2) + fwd * math.sin((a0 + a1) / 2))
         m.face([tuple(v) for v in q], lit('#7b78a6', n))
-    if name == 'tree_ne':       # (its trunk forks two-thirds up: a second branch off to the left, as the frame's)
+    if True:       # (each trunk forks high up: a second branch off to the left, as the frame's)
         fb = b + ax * L * 0.85; ft = Vector(on_card(tu - 25, tv - 40, foot)); ax2 = (ft - fb).normalized()
         side2 = ax2.cross(TOWARD).normalized(); fwd2 = side2.cross(ax2).normalized()
         for k in range(seg):
@@ -578,11 +578,14 @@ def tree(name):
             m.face([tuple(v) for v in q], lit('#7b78a6', side2 * math.cos((a0 + a1) / 2) + fwd2 * math.sin((a0 + a1) / 2)))
     C = Vector(on_card(cu, cv, foot)); R = rpx * px_unit
     tmp = bmesh.new(); bmesh.ops.create_icosphere(tmp, subdivisions=3, radius=1.0); tmp.normal_update()
-    lobes = [(Vector((0, 0, 0)), 1.0), (Vector((-0.55, 0.1, -0.25)), 0.7), (Vector((0.55, -0.05, -0.2)), 0.72), (Vector((0.0, -0.3, -0.45)), 0.68),
-             (Vector((-0.25, 0.3, 0.35)), 0.6), (Vector((0.3, 0.25, 0.3)), 0.58)]
+    # (the HQ's maples: a rounded mass a little taller than wide, lobed, its edge leafy-rough: lobes stacked up the crown, each vertex
+    # pushed in or out a little by a hash of where it is)
+    lobes = [(Vector((0, 0, 0)), 1.0), (Vector((-0.5, 0.1, -0.4)), 0.72), (Vector((0.48, -0.05, -0.35)), 0.7), (Vector((0.0, -0.3, -0.55)), 0.66),
+             (Vector((-0.3, 0.2, 0.45)), 0.66), (Vector((0.32, 0.15, 0.42)), 0.62), (Vector((0.05, 0.0, 0.8)), 0.5)]
     for off, sc_ in lobes:
         for f_ in tmp.faces:
-            pts = [C + (off * Vector((1.3, 1.0, 0.8)) + v.co * sc_ * Vector((1.1, 0.85, 0.9))) * R * 0.75 for v in f_.verts]     # (wide, as the HQ's maples)
+            rough = lambda v: 1.0 + 0.07 * math.sin(v.co.x * 23.0 + v.co.y * 17.0 + v.co.z * 31.0 + sc_ * 9.0)
+            pts = [C + (off * Vector((1.0, 1.0, 1.0)) + v.co * sc_ * rough(v) * Vector((0.95, 0.85, 1.0))) * R * 0.92 for v in f_.verts]
             # (each vertex its tone by how far it faces up: the HQ's crowns shade softly, light gold on top to orange under)
             m.face([tuple(p) for p in pts], [crown_tone(v.co.normalized().z, v.co.normalized().x) for v in f_.verts])
     tmp.free()
