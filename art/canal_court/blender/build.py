@@ -380,8 +380,17 @@ for k, ((t0, z0), (t1, z1)) in enumerate(zip(steps, steps[1:])):
 # the inlet: the stream runs on off the channel's end and down into the basin (the HQ's: one sheet from the run to the basin's water,
 # widening as it falls), from the channel's last point along its last leg
 e1, e0 = Vector(L0[-1]), Vector(L0[-2]); ue = (e1 - e0).normalized(); ne = Vector((-ue.y, ue.x)); BAJ = J('art/canal_court/basin.json')
+# (the HQ's channel runs on into the basin's opening, its end against the blocks' inner edge: CH_EXT on past the fitted end, its water
+# with it, then down into the basin at once)
+CH_EXT = float(os.environ.get('CH_EXT', '0.0')); CW = TOPS['channel'].get('width', 3.3)
+if CH_EXT > 0:
+    q = [e1 - ue * 0.3 - ne * CW / 2, e1 + ue * CH_EXT - ne * CW / 2, e1 + ue * CH_EXT + ne * CW / 2, e1 - ue * 0.3 + ne * CW / 2]
+    soft_prism('AQUEDUCT_channel_end', ccw([(v.x, v.y) for v in q]), -0.05, HC, 'channel', bevel=0.3)
+    e1 = e1 + ue * CH_EXT
+    rq = [e1 - ue * (CH_EXT + 0.3) - ne * 0.5, e1 - ne * 0.5, e1 + ne * 0.5, e1 - ue * (CH_EXT + 0.3) + ne * 0.5]
+    w.face([(v.x, YC + v.y, HC + 0.03) for v in rq], '#8ad7e9')
 reach_in = (Vector((BAJ['cx'], BAJ['cy'])) - e1).length - BAJ['rin'] + 0.4
-fall = [(0.0, HC + 0.03, 0.5), (reach_in * 0.55, HC + 0.03, 0.55), (reach_in * 0.8, (HC + BAJ['hw']) / 2, 0.7), (reach_in, BAJ['hw'] + 0.03, 0.9), (reach_in + 0.8, BAJ['hw'] + 0.03, 1.2)]
+fall = [(0.0, HC + 0.03, 0.48), (0.12, HC - 0.05, 0.48), (reach_in, BAJ['hw'] + 0.4, 0.5), (reach_in + 0.6, BAJ['hw'] + 0.03, 0.5)]      # (within the run's width: the shader draws it as the stream)
 for (t0, z0, w0), (t1, z1, w1) in zip(fall, fall[1:]):
     a0, a1 = e1 + ue * t0, e1 + ue * t1
     w.face([(a0.x - ne.x * w0, YC + a0.y - ne.y * w0, z0), (a1.x - ne.x * w1, YC + a1.y - ne.y * w1, z1), (a1.x + ne.x * w1, YC + a1.y + ne.y * w1, z1), (a0.x + ne.x * w0, YC + a0.y + ne.y * w0, z0)], '#8ad7e9')
@@ -406,7 +415,8 @@ for k in range(8):
     u0 = (po[1] - po[0]).normalized(); u1 = (pi_[1] - pi_[0]).normalized()
     q = [po[0] + u0 * GAP, po[1] - u0 * GAP, pi_[1] - u1 * GAP, pi_[0] + u1 * GAP]
     soft_prism(f'BASIN_block{k}', ccw([(v.x, v.y) for v in q]), FOOT_H - 0.05, B['hb'], 'brown', bevel=0.22)
-w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']), B['hw'], '#76cde6'); w.done()
+BASIN_W = float(os.environ.get('BASIN_W', str(B['hw'])))
+w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']), BASIN_W, '#76cde6'); w.done()
 
 # ---------------------------------------------------------------------------------------------------------------- the props in 3D
 # the barrels, the bucket, the urns, the bench and the plank as models (fit_props.py: where and how big; the tones the frame shows them
