@@ -80,6 +80,7 @@ class Mesh:
 
 
 SAND_BGR = [0x93, 0xe9, 0xff]
+WEST_SAND = -26.2
 SEEN = J('art/canal_court/seen.json') if HAS('art/canal_court/seen.json') else [1] * (G['nx'] * G['ny'])
 
 
@@ -87,7 +88,7 @@ def base_at(x, y):
     """The ground's base field (ground.json), bilinear, as linear RGB."""
     gx = min(max((x - G['x0']) / G['dx'], 0), G['nx'] - 1.001); gy = min(max((y - G['y0']) / G['dx'], 0), G['ny'] - 1.001)
     i, j = int(gx), int(gy); fx, fy = gx - i, gy - j
-    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 and SEEN[jj * G['nx'] + ii] else SAND_BGR       # (what no frame saw: the sand)
+    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 and SEEN[jj * G['nx'] + ii] and not (G['x0'] + ii * G['dx'] < WEST_SAND and -17 < G['y0'] + jj * G['dx'] < 17) else SAND_BGR       # (what no frame saw: the sand)
     v = [(c(i, j)[k] * (1 - fx) + c(i + 1, j)[k] * fx) * (1 - fy) + (c(i, j + 1)[k] * (1 - fx) + c(i + 1, j + 1)[k] * fx) * fy for k in range(3)]
     return lin(bgr_hex([int(round(q)) for q in v]))
 
@@ -118,6 +119,8 @@ sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
     if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 200: continue      # (the unseen black, and its blend with the sand)
     _r, _g, _b = (int(s['colour'][i:i + 2], 16) for i in (1, 3, 5))
+    _cx = sum(p[0] for p in s['pts']) / len(s['pts']); _cy = sum(p[1] for p in s['pts']) / len(s['pts'])
+    if _cx < WEST_SAND and -17 < _cy < 17: continue        # (west of the kerb: under the names in every frame; the HQ's sand)
     if (_b > _r + 15 and _b > _g + 10) or (max(_r, _g, _b) - min(_r, _g, _b) < 25 and _r + _g + _b < 520): continue   # (a tree's trunk smeared into the round's mosaic: the trees are models)
     # (small stains the players' trails and icons left in the round's mosaic: pinks and blues the court never has, in small spots)
     import colorsys
