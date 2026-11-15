@@ -103,7 +103,9 @@ for j in range(ny):
 g.done()
 sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
-    if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 90: continue      # (the unseen black)
+    if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 200: continue      # (the unseen black, and its blend with the sand)
+    _r, _g, _b = (int(s['colour'][i:i + 2], 16) for i in (1, 3, 5))
+    if (_b > _r + 15 and _b > _g + 10) or (max(_r, _g, _b) - min(_r, _g, _b) < 25 and _r + _g + _b < 520): continue   # (a tree's trunk smeared into the round's mosaic: the trees are models)
     sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'], s.get('holes', []))
 sh.done()
 # the paving's joints (tiles.py): thin ribbons over the traced court, its own colour under each
@@ -479,11 +481,20 @@ def rack():
 # frame, frame pixels, put on the camera-facing plane through the foot), and a crown of soft gold lobes over it (light on top, a deeper
 # gold and orange below), as the HQ's maples; the game's camera only ever shows their trunks and the crowns' lower edges
 TREES = {   # name: foot (plan), trunk base and top (frame px), trunk width px, crown: centre px, radius px (the mosaic's view of each)
-    'tree_ne': ((28.34, 16.43), (1784, 141), (1829, 18), 28, (1835, -45), 95),
+    'tree_ne': ((28.34, 16.43), (1784, 141), (1829, 18), 36, (1835, -45), 95),
     'tree_w': ((-30.9, 9.59), (25, 271), (21, 158), 26, (45, 75), 80),
     'tree_se': ((29.29, -18.38), (1954, 1058), (1966, 950), 30, (1980, 896), 82),      # (its crown seen at 661 s: frame 39660)
     'post_n': ((-17.52, 22.09), (458, 14), (462, -60), 26, (470, -150), 85),
 }
+
+
+def crown_tone(nz, nx):
+    stops = [(-1.0, (0xe0, 0x96, 0x4c)), (-0.2, (0xea, 0xb0, 0x5c)), (0.4, (0xf0, 0xc8, 0x68)), (1.0, (0xf6, 0xd8, 0x7c))]
+    t = max(-1.0, min(1.0, nz + 0.15 * nx))
+    for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+        if t <= t1:
+            u = max(0.0, min(1.0, (t - t0) / (t1 - t0))); return lin('#%02x%02x%02x' % tuple(int(c0[i] + (c1[i] - c0[i]) * u) for i in range(3)))
+    return lin('#f6d87c')
 
 
 def tree(name):
@@ -503,7 +514,7 @@ def tree(name):
         n = (side * math.cos((a0 + a1) / 2) + fwd * math.sin((a0 + a1) / 2))
         m.face([tuple(v) for v in q], lit('#7b78a6', n))
     if name == 'tree_ne':       # (its trunk forks two-thirds up: a second branch off to the left, as the frame's)
-        fb = b + ax * L * 0.62; ft = Vector(on_card(tu - 45, tv - 10, foot)); ax2 = (ft - fb).normalized()
+        fb = b + ax * L * 0.85; ft = Vector(on_card(tu - 25, tv - 40, foot)); ax2 = (ft - fb).normalized()
         side2 = ax2.cross(TOWARD).normalized(); fwd2 = side2.cross(ax2).normalized()
         for k in range(seg):
             a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * (k + 1) / seg
@@ -516,9 +527,9 @@ def tree(name):
              (Vector((-0.25, 0.3, 0.35)), 0.6), (Vector((0.3, 0.25, 0.3)), 0.58)]
     for off, sc_ in lobes:
         for f_ in tmp.faces:
-            nz = f_.normal.z; col = '#f0ce6d' if nz > 0.35 else '#ecb561' if nz > -0.3 else '#e09a4e'
             pts = [C + (off * Vector((1.3, 1.0, 0.8)) + v.co * sc_ * Vector((1.1, 0.85, 0.9))) * R * 0.75 for v in f_.verts]     # (wide, as the HQ's maples)
-            m.face([tuple(p) for p in pts], col)
+            # (each vertex its tone by how far it faces up: the HQ's crowns shade softly, light gold on top to orange under)
+            m.face([tuple(p) for p in pts], [crown_tone(v.co.normalized().z, v.co.normalized().x) for v in f_.verts])
     tmp.free()
     m.done()
 

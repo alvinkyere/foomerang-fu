@@ -30,7 +30,6 @@ M = cv2.imread('art/canal_court/output/mosaic_chrome.png')
 _F = cv2.imread('art/canal_court/output/clean_ref.png')      # (ready.py: the frame, its players filled)
 _keep = np.ones(_F.shape[:2], np.uint8)
 for _x, _y in ((305, 300), (690, 210), (1650, 760), (1555, 690), (1625, 320), (1580, 230), (300, 220)): cv2.circle(_keep, (_x, _y), 70, 0, -1)
-_keep[0:380, 0:230] = 0
 _M = M.copy()
 _M[-MOSAIC_ORIGIN[1]:-MOSAIC_ORIGIN[1] + 1080, -MOSAIC_ORIGIN[0]:-MOSAIC_ORIGIN[0] + 1920][_keep > 0] = _F[_keep > 0]
 flat = cv2.warpPerspective(_M, Hm, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
@@ -68,6 +67,8 @@ _rack = ((_raw[..., 2] < 150) | ((_raw[..., 0] >= 35) & (_raw[..., 0] <= 80) & (
          ((_raw[..., 1] < 40) & (_raw[..., 2] > 225)))[328:440, 150:338]          # (its dark wood, the green tools, the pale rope)
 _rk[-MOSAIC_ORIGIN[1] + 328:-MOSAIC_ORIGIN[1] + 440, -MOSAIC_ORIGIN[0] + 150:-MOSAIC_ORIGIN[0] + 338] = cv2.dilate(_rack.astype(np.uint8), np.ones((7, 7), np.uint8))
 cut |= cv2.warpPerspective(_rk, Hm, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP)
+_nm = np.zeros(_M.shape[:2], np.uint8); _nm[-MOSAIC_ORIGIN[1] + 95:-MOSAIC_ORIGIN[1] + 385, -MOSAIC_ORIGIN[0]:-MOSAIC_ORIGIN[0] + 220] = 1
+cut |= cv2.warpPerspective(_nm, Hm, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP)      # (the names' box: no frame sees under it)
 hole = ((cut > 0) | (obj > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 
