@@ -680,6 +680,8 @@ for name in sorted(PROPS3D):
             urn_marks(m, cx, cy, z0, R, H, [(1, 0.8)], md, dk)
     else:      # (bench, plank: boxes)
         cx, cy, a, b, t, h = v; a, b = abs(a), abs(b)
+        if name == 'plank':      # (a little stool-bench, turned: its top on short legs (the frame shows a foot under its south end))
+            h, a, cy = float(os.environ.get('PLANK_H', '0.8')), a * 1.25, cy - float(os.environ.get('PLANK_DY', '0.15'))
         if name == 'bench':      # (its silhouette fits a low box as well as the HQ's taller bench: its legs show it is ~1.1 high, 0.65 deep)
             h, b, cy = float(os.environ.get('BENCH_H', '1.3')), float(os.environ.get('BENCH_B', '0.85')), cy - float(os.environ.get('BENCH_DY', '0.55'))
         c_, s_ = math.cos(t), math.sin(t)
@@ -692,9 +694,12 @@ for name in sorted(PROPS3D):
                 if (p0 - Vector((cx, cy))).dot(n.xy) < 0: n = -n
                 m.face([(p0.x, YC + p0.y, za), (p1.x, YC + p1.y, za), (p1.x, YC + p1.y, zb), (p0.x, YC + p0.y, zb)], lit(side, n))
             m.poly(q, zb, top)
-        if name == 'bench':        # (a slab on two end legs, as the HQ's)
-            box(-a, -b, a, b, h * 0.72, h)      # (the HQ's: a deep top, a thin slab, two square legs at its ends)
+        if name == 'bench':        # (a slab on two end legs, as the HQ's: a deep top, a thin slab, two square legs at its ends)
+            box(-a, -b, a, b, h * 0.72, h)
             for sx in (-1, 1): box(sx * a * 0.78 - a * 0.14, -b * 0.85, sx * a * 0.78 + a * 0.14, b * 0.6, 0.0, h * 0.72)
+        elif name == 'plank':      # (a thick top on two short legs at the ends of its long side)
+            box(-a, -b, a, b, h * 0.4, h)
+            for sy in (-1, 1): box(-a * 0.7, sy * b * 0.8 - b * 0.12, a * 0.7, sy * b * 0.8 + b * 0.12, 0.0, h * 0.4)
         else:
             box(-a, -b, a, b, 0.0, h)
     m.done()
