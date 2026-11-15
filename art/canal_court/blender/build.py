@@ -80,13 +80,14 @@ class Mesh:
 
 
 SAND_BGR = [0x93, 0xe9, 0xff]
+SEEN = J('art/canal_court/seen.json') if HAS('art/canal_court/seen.json') else [1] * (G['nx'] * G['ny'])
 
 
 def base_at(x, y):
     """The ground's base field (ground.json), bilinear, as linear RGB."""
     gx = min(max((x - G['x0']) / G['dx'], 0), G['nx'] - 1.001); gy = min(max((y - G['y0']) / G['dx'], 0), G['ny'] - 1.001)
     i, j = int(gx), int(gy); fx, fy = gx - i, gy - j
-    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 else SAND_BGR       # (what no frame saw: the sand)
+    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 and SEEN[jj * G['nx'] + ii] else SAND_BGR       # (what no frame saw: the sand)
     v = [(c(i, j)[k] * (1 - fx) + c(i + 1, j)[k] * fx) * (1 - fy) + (c(i, j + 1)[k] * (1 - fx) + c(i + 1, j + 1)[k] * fx) * fy for k in range(3)]
     return lin(bgr_hex([int(round(q)) for q in v]))
 
@@ -101,17 +102,40 @@ for j in range(ny):
         pts = [(x0, y0), (x0 + DG, y0), (x0 + DG, y0 + DG), (x0, y0 + DG)]
         g.face([(x, YC + y, 0.0) for x, y in pts], [base_at(x, y) for x, y in pts])
 g.done()
+def chaikin(pts, n=2):
+    """A traced outline's pixel steps rounded off (Chaikin corner cutting): the HQ's patches and shadows have smooth edges."""
+    P = [tuple(p) for p in pts]
+    for _ in range(n):
+        Q = []
+        for i in range(len(P)):
+            a, b = P[i], P[(i + 1) % len(P)]
+            Q += [(0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]), (0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1])]
+        P = Q
+    return P
+
+
 sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
     if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 200: continue      # (the unseen black, and its blend with the sand)
     _r, _g, _b = (int(s['colour'][i:i + 2], 16) for i in (1, 3, 5))
     if (_b > _r + 15 and _b > _g + 10) or (max(_r, _g, _b) - min(_r, _g, _b) < 25 and _r + _g + _b < 520): continue   # (a tree's trunk smeared into the round's mosaic: the trees are models)
-    sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'], s.get('holes', []))
+    # (small stains the players' trails and icons left in the round's mosaic: pinks and blues the court never has, in small spots)
+    import colorsys
+    _h, _s, _v = colorsys.rgb_to_hsv(_r / 255, _g / 255, _b / 255); _P = s['pts']
+    _area = abs(sum(_P[i][0] * _P[(i + 1) % len(_P)][1] - _P[(i + 1) % len(_P)][0] * _P[i][1] for i in range(len(_P)))) / 2
+    if _area < 3.0 and _s > 0.06 and not (0.08 < _h < 0.45): continue
+    sh.poly(chaikin(s['pts']), 0.004 + 0.0004 * k, s['colour'], [chaikin(h) for h in s.get('holes', [])])
 sh.done()
 # the paving's joints (tiles.py): thin ribbons over the traced court, its own colour under each
 if HAS('art/canal_court/tiles.json'):
     tj = Mesh('GROUND_JOINTS')
-    for t in J('art/canal_court/tiles.json'): tj.poly(t['pts'], 0.07, t['colour'])
+    for t in J('art/canal_court/tiles.json'):
+        # (the HQ's joints are straight: each traced piece as a straight band along its long axis, its length and a thin width)
+        P = [Vector(p) for p in t['pts']]; c = sum(P, Vector((0, 0))) / len(P)
+        sxx = sum((p - c).x ** 2 for p in P); syy = sum((p - c).y ** 2 for p in P); sxy = sum((p - c).x * (p - c).y for p in P)
+        a_ = 0.5 * math.atan2(2 * sxy, sxx - syy); u = Vector((math.cos(a_), math.sin(a_))); v = Vector((-u.y, u.x))
+        us = [(p - c).dot(u) for p in P]; L0_, L1_ = min(us), max(us); hw = 0.045
+        tj.poly([tuple(c + u * L0_ - v * hw), tuple(c + u * L1_ - v * hw), tuple(c + u * L1_ + v * hw), tuple(c + u * L0_ + v * hw)], 0.07, t['colour'])
     tj.done()
 # the fallen leaves round the trees (leaves.py): crisp gold ovals over the ground (ground.py leaves the gold out)
 if HAS('art/canal_court/leaves.json'):
@@ -387,7 +411,7 @@ w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']),
 # faces up, a little darker turned away from the light (from the north-west, above)
 PROPS = J('art/canal_court/props.json') if HAS('art/canal_court/props.json') else {}
 CARDS_ = {c['name']: c for c in J('art/canal_court/cards.json')} if HAS('art/canal_court/cards.json') else {}
-PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank', 'rack', 'tree_w', 'tree_ne', 'tree_se', 'post_n', 'tree_e'} if PROPS else set()      # (tree_e: a crown's edge the frame barely shows: left out)      # (the urns stay traced: too small to fit)
+PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank', 'rack', 'urn_n', 'urn_s', 'tree_w', 'tree_ne', 'tree_se', 'post_n', 'tree_e'} if PROPS else set()      # (tree_e: a crown's edge the frame barely shows: left out)      # (the urns stay traced: too small to fit)
 LIGHT = Vector((-0.35, 0.45, 0.82)).normalized()
 
 
@@ -395,6 +419,24 @@ def lit(colour, n):
     """sRGB tone of a face of `colour` turned to normal n: full where it faces the light, 0.78 of it facing away."""
     c = hexrgb(colour); k = 0.9 + 0.12 * max(0.0, n.dot(LIGHT))
     return '#%02x%02x%02x' % tuple(int(round(min(255, v * k))) for v in c)
+
+
+def urn_marks(m, cx, cy, z0, R, H, handles, md, dk):
+    """An urn's loop handles and its darker spots, drawn as the HQ's: flat shapes on the camera-facing plane through its middle (each
+    handle a thick ring from the neck out past the body's side and back to the shoulder; a few round spots on its front)."""
+    c = Vector((cx, YC + cy, z0 + H * 0.5)); side = Vector((1, 0, 0)); up = TOWARD.cross(side).normalized() * -1
+    if up.z < 0: up = -up
+    front = c + TOWARD * (R + 0.02)
+    P = lambda x, y, base=c, o=0.0: tuple(base + side * x + up * y + TOWARD * o)
+    for sx, reach in handles:
+        k = 14; ro, ri = 0.27, 0.11
+        cxh, cyh = sx * (R * 0.72 + 0.05), H * 0.02
+        outer = [(cxh + sx * ro * math.cos(t), cyh + ro * 1.3 * math.sin(t)) for t in [-math.pi / 2 + math.pi * i / k for i in range(k + 1)]]
+        inner = [(cxh + sx * ri * math.cos(t), cyh + ri * 1.3 * math.sin(t)) for t in [-math.pi / 2 + math.pi * i / k for i in range(k + 1)]]
+        for i in range(k):
+            m.face([P(*outer[i], o=R * 0.3), P(*outer[i + 1], o=R * 0.3), P(*inner[i + 1], o=R * 0.3), P(*inner[i], o=R * 0.3)], md if i < k // 2 else dk)
+    for (x, y, r) in ((-0.22, -0.05, 0.06), (0.15, 0.1, 0.05), (0.05, -0.28, 0.055), (-0.05, 0.25, 0.045)):
+        m.face([P(x * R / 0.5 + r * math.cos(t), y * H / 1.5 + r * math.sin(t), base=front) for t in [2 * math.pi * i / 10 for i in range(10)]], dk)
 
 
 def lathe(m, cx, cy, z0, prof, colours, seg=20):
@@ -559,18 +601,21 @@ for name in sorted(PROPS3D):
         lathe(m, cx, cy, z0, [(r * 0.8, h), (r * 0.78, h * 0.8)], [rim])
         disc(m, cx, cy, z0 + h * 0.8, r * 0.78, water)
     elif name.startswith('urn'):
-        fx, fy = CARDS_[name]['anchor'] if name in CARDS_ else v[:2]
-        cx, cy, R, H = fx, fy + float(os.environ.get('URN_DY', '0.7')), float(os.environ.get('URN_R', '0.55')), float(os.environ.get('URN_H', '1.15'))   # (too small to fit: its foot as traced, measured by eye against the frame)
-        lt, md, dk, mouth = '#c9947a', '#a37460', '#845c4d', '#827274'
-        prof = [(R * 0.45, 0.0), (R * 0.85, H * 0.15), (R, H * 0.4), (R * 0.85, H * 0.62), (R * 0.45, H * 0.78), (R * 0.42, H * 0.86), (R * 0.6, H * 0.96), (R * 0.58, H)]
-        lathe(m, cx, cy, z0, prof, [dk, md, lt, lt, md, md, lt], seg=16)
-        disc(m, cx, cy, z0 + H * 0.97, R * 0.45, mouth, seg=16)
-        # (its two loop handles, east and west, from the neck down to the shoulder)
-        for sx in (-1, 1):
-            for (a0, a1) in ((0.0, 0.5), (0.5, 1.0)):
-                t0, t1 = a0 * math.pi, a1 * math.pi
-                p0 = (cx + sx * (R * 0.5 + 0.22 * math.sin(t0)), z0 + H * (0.82 - 0.3 * a0)); p1 = (cx + sx * (R * 0.5 + 0.22 * math.sin(t1)), z0 + H * (0.82 - 0.3 * a1))
-                m.face([(p0[0], YC + cy - 0.05, p0[1]), (p1[0], YC + cy - 0.05, p1[1]), (p1[0], YC + cy + 0.05, p1[1] + 0.06), (p0[0], YC + cy + 0.05, p0[1] + 0.06)], md)
+        # (measured on the READY frame: their bodies' feet on the blocks' tops, widths and heights; the north one a round-lidded amphora
+        # with two loop handles, the south one a jug with a wide dark mouth)
+        cx, cy, R, H = (15.01, 1.3, 0.6, 1.55) if name == 'urn_n' else (10.73, -5.82, 0.5, 1.5)
+        lt, md, dk = ('#c88e72', '#a8735d', '#8a5e4e') if name == 'urn_n' else ('#b37d69', '#9e6a51', '#7c5d57')
+        if name == 'urn_n':
+            prof = [(R * 0.5, 0.0), (R * 0.88, H * 0.15), (R, H * 0.38), (R * 0.9, H * 0.6), (R * 0.55, H * 0.76), (R * 0.5, H * 0.82),
+                    (R * 0.62, H * 0.86), (R * 0.45, H * 0.96), (0.0, H)]
+            lathe(m, cx, cy, z0, prof, [dk, md, md, md, md, lt, '#ecac88', '#ecac88'], seg=18)
+            urn_marks(m, cx, cy, z0, R, H, [(-1, 0.62), (1, 0.62)], md, dk)
+        else:
+            prof = [(R * 0.55, 0.0), (R * 0.92, H * 0.2), (R, H * 0.45), (R * 0.85, H * 0.7), (R * 0.62, H * 0.86), (R * 0.72, H * 0.97), (R * 0.68, H)]
+            lathe(m, cx, cy, z0, prof, [dk, md, lt, md, md, '#af8778'], seg=18)
+            lathe(m, cx, cy, z0, [(R * 0.68, H), (R * 0.55, H)], ['#af8778'], seg=18)
+            disc(m, cx, cy, z0 + H * 0.98, R * 0.55, '#66504c', seg=18)
+            urn_marks(m, cx, cy, z0, R, H, [(1, 0.8)], md, dk)
     else:      # (bench, plank: boxes)
         cx, cy, a, b, t, h = v; a, b = abs(a), abs(b)
         if name == 'bench':      # (its silhouette fits a low box as well as the HQ's taller bench: its legs show it is ~1.1 high, 0.65 deep)
