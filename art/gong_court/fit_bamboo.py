@@ -11,7 +11,7 @@ import json, sys
 import numpy as np, cv2
 from scipy.optimize import least_squares
 sys.path.insert(0, 'art/gong_court')
-from measure import plan, pix, MOSAIC_ORIGIN
+from measure import plan, pix, MOSAIC_ORIGIN, ZS
 from geom import prisms
 import props as P
 
@@ -71,7 +71,7 @@ def paint(img, foot_px, fz, top_px, width):
     if nrm[0] < 0: across = 1 - across
     along = ((xx - a[0]) * ax[0] + (yy - a[1]) * ax[1]) / np.linalg.norm(b - a) * np.hypot(tx - fx, tz - fz)
     col = WEST[None, None] * (1 - across[..., None]) + EAST[None, None] * across[..., None]
-    col = np.where((along < 1.1)[..., None], SLEEVE[None, None], col)
+    col = np.where((along < 1.1 * ZS)[..., None], SLEEVE[None, None], col)
     keep = m > 0
     for n in behind(fx, fy):
         if n not in SIL: SIL[n] = silhouette(n)
@@ -79,7 +79,7 @@ def paint(img, foot_px, fz, top_px, width):
     img[y0:y1, x0:x1][keep] = col[keep]
     # the cut top: its six-sided rim and the hollow in it (as build.py: corners at 0, 60 .. deg from east)
     ang = np.radians(np.arange(6) * 60)
-    rim = np.float32([pix(tx + r * np.cos(t), fy - r * np.sin(t), tz) for t in ang]); hol = np.float32([pix(tx + 0.55 * r * np.cos(t), fy - 0.55 * r * np.sin(t), tz - 0.12) for t in ang])
+    rim = np.float32([pix(tx + r * np.cos(t), fy - r * np.sin(t), tz) for t in ang]); hol = np.float32([pix(tx + 0.55 * r * np.cos(t), fy - 0.55 * r * np.sin(t), tz - 0.12 * ZS) for t in ang])
     cm = np.zeros((1080, 1920), np.uint8); cv2.fillConvexPoly(cm, np.int32(np.round(rim * 4)), 1, shift=2)
     hm = np.zeros((1080, 1920), np.uint8); cv2.fillConvexPoly(hm, np.int32(np.round(hol * 4)), 1, shift=2)
     img[cm > 0] = hexbgr('#8cc874'); img[hm > 0] = hexbgr('#519855')

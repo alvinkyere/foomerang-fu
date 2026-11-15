@@ -13,7 +13,7 @@ import json, math, sys
 import numpy as np
 from scipy.optimize import least_squares
 sys.path.insert(0, 'art/gong_court')
-from measure import plan, pix
+from measure import plan, pix, ZS
 
 H = {s: v['h'] for s, v in json.load(open('art/gong_court/stones.json')).items()}
 # name: foot px, the foot's height (0 the ground, or the body it stands on), top px or (None, height, lean), width px (measured across
@@ -81,7 +81,8 @@ POTS = {
 
 
 def pots():
-    return {n: dict(foot=[round(float(v), 3) for v in plan([px])[0]], r=r, h=h, kind=k, lean=[t, d]) for n, (px, r, h, k, t, d) in POTS.items()}
+    # (r, h read in the first reading's units: x ZS)
+    return {n: dict(foot=[round(float(v), 3) for v in plan([px])[0]], r=round(r * ZS, 3), h=round(h * ZS, 3), kind=k, lean=[t, d]) for n, (px, r, h, k, t, d) in POTS.items()}
 
 
 # the aloes (frame px): the pot's rim (its centre and half-width, on screen) on the platform it stands on, how far its foot is below the
@@ -97,7 +98,7 @@ ALOES = {
 
 
 def aloes():
-    from measure import R as R_, F as F_, C as C_, Z as Z_
+    from measure import R as R_, F as F_, C as C_, Z as Z_, Yc as Yc_
     cam = C_ * 100
     def ray(px, py):
         d = R_.T @ np.array([(px - 960) / (F_ * Z_), (py - 540) / (F_ * Z_), 1.0]); return d / np.linalg.norm(d)
@@ -110,8 +111,8 @@ def aloes():
         top = float(least_squares(lambda v: [pix(fx, fy, v[0])[1] - a['rim'][1]], [h0 + 1.0]).x[0])
         yp = fy - r * 0.2          # (the leaves' plane: a little in front of the pot's middle)
         def on_plane(px, py):
-            d = ray(px, py); t = ((yp + 73.72) - cam[1]) / d[1]; q = cam + d * t
-            return [round(float(q[0]), 3), round(float(q[1] - 73.72), 3), round(float(q[2]), 3)]
+            d = ray(px, py); t = ((yp + Yc_) - cam[1]) / d[1]; q = cam + d * t
+            return [round(float(q[0]), 3), round(float(q[1] - Yc_), 3), round(float(q[2]), 3)]
         leaves = []
         for (bx, by), (tx, ty), w, tone in a['leaves']:
             ax, ay = tx - bx, ty - by; L = math.hypot(ax, ay); nx, ny = -ay / L, ax / L

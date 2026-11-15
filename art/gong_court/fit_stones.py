@@ -10,7 +10,7 @@ Writes stones.json: name -> {top: [[x, y]...] (plan units, y north), h, mint: [[
 import json, os, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
-from measure import plan, pix, MOSAIC_ORIGIN
+from measure import plan, pix, MOSAIC_ORIGIN, ZS
 
 OX, OY = MOSAIC_ORIGIN
 M = cv2.imread('art/gong_court/output/mosaic.png'); hsv = cv2.cvtColor(M, cv2.COLOR_BGR2HSV).astype(int)
@@ -170,7 +170,7 @@ for name in ('wall_n', 'wall_s'):
         g0 = plan([(x + OX, by + OY)])[0]; h = 0.0
         while pix(g0[0], g0[1], h)[1] > ty + OY and h < 5: h += 0.01
         hs.append(h)
-WALL_H = 1.34      # (the south wall's face, column.py at x 950-1250: 25-26 px straight under its 22 px top, the same at every column; the
+WALL_H = 1.34 * ZS      # (the south wall's face, column.py at x 950-1250: 25-26 px straight under its 22 px top, the same at every column; the
 #                   automatic median above (1.06) stops short where the face's lit upper part has the top's tone)
 for name, b in beam.items():
     e = plan([(x + OX, y + OY) for x, y in b['ends']], z=WALL_H)
@@ -216,7 +216,7 @@ def sil_small(poly_plan, h):
 
 
 import geom
-RIM = float(os.environ.get("RIM", "0.55"))
+RIM = float(os.environ.get("RIM", "0.55")) * ZS
 
 
 def inset(poly, d):
@@ -259,13 +259,13 @@ for p_ in range(3):
         for o, sm in cache.items():
             if o != n: others |= sm
         best = (-1, H_[n], cache[n])
-        for hh in np.arange(0.2, 5.0, 0.05):
+        for hh in np.arange(0.2, 5.0 * ZS, 0.05):
             sm = sil_small(plan([(x + OX, y + OY) for x, y in tops_px[n]], z=hh), hh)
             u = others | sm; iou_ = (u & TARGET).sum() / max(1, (u | TARGET).sum())
             if iou_ > best[0]: best = (iou_, float(hh), sm)
         H_[n], cache[n] = best[1], best[2]
     print('pass', p_, 'global IoU %.4f' % best[0])
-GROW = float(sys.argv[1]) if len(sys.argv) > 1 else 0.08    # (the HQ's soft bevelled edges: the top tone stops short of the body's edge)
+GROW = (float(sys.argv[1]) if len(sys.argv) > 1 else 0.08) * ZS    # (the HQ's soft bevelled edges: the top tone stops short of the body's edge)
 for n, hh in H_.items():
     b = out[n]; b['h'] = round(hh, 3)
     b['top'] = [[round(float(x), 3), round(float(y), 3)] for x, y in plan([(x + OX, y + OY) for x, y in tops_px[n]], z=hh)]

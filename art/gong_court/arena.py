@@ -14,7 +14,8 @@ sys.path.insert(0, 'art/gong_court')
 from geom import prisms
 
 S = 27.48
-X0, X1, Y0, Y1 = -20.5, 17.5, -19.5, 19.0                  # (the court and its corner platforms: nobody gets past the walls)
+ZS = json.load(open("art/gong_court/zoom.json"))["K0"] / json.load(open("art/gong_court/zoom.json"))["K"]
+X0, X1, Y0, Y1 = [round(v * ZS, 2) for v in (-20.5, 17.5, -19.5, 19.0)]                 # (the court and its corner platforms: nobody gets past the walls)
 json.dump(dict(X0=X0, X1=X1, Y0=Y0, Y1=Y1, S=S), open('art/gong_court/arena.json', 'w'))
 w = lambda X, Y: (round((X - X0) * S), round((Y1 - Y) * S))
 WIDTH, HEIGHT = round((X1 - X0) * S), round((Y1 - Y0) * S)
@@ -70,9 +71,10 @@ def clear(px, py, m):
     return True
 
 
-# spawns and Books on the court's grass: inside the four walls (stones.json: wall_w x -16.5, wall_e 13.4, wall_n y 15.1, wall_s -14.5)
-bx0, bx1 = w(-15.0, 0)[0], w(12.0, 0)[0]
-by0, by1 = w(0, 13.5)[1], w(0, -13.0)[1]
+# spawns and Books on the court's grass: inside the four walls (at the first reading's units, x ZS: wall_w x -16.5, wall_e 13.4, wall_n y 15.1,
+# wall_s -14.5)
+bx0, bx1 = w(-15.0 * ZS, 0)[0], w(12.0 * ZS, 0)[0]
+by0, by1 = w(0, 13.5 * ZS)[1], w(0, -13.0 * ZS)[1]
 cand = np.array([(x, y) for x in range(bx0, bx1, 20) for y in range(by0, by1, 20) if clear(x, y, 2.5 * S)], float)
 
 

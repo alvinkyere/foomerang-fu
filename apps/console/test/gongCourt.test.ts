@@ -70,7 +70,7 @@ describe('the gong court', () => {
     };
     expect(m.map).toBe('gong_court');
     expect(m.assetsFrom).toBe('market_plaza');
-    expect(m.hqFrame.zoom).toBeCloseTo(1.2496, 3); // 1.34x the rig's zoom: the characters' size in the READY frame
+    expect(m.hqFrame.zoom).toBeCloseTo(0.9839, 3); // 1.055x the rig's zoom: the characters' size in the READY frame against our game's (art/gong_court/measure.py)
     expect(m.scenery).toEqual({ fade: false, sway: false });
   });
 });

@@ -17,8 +17,8 @@
     "centre": [0.0, 0.0, 1.1],
     "world": {
       "unitsPerPlanUnit": 2748,
-      "planOriginX": -0.205,
-      "planOriginY": 0.9272
+      "planOriginX": -0.26039999999999996,
+      "planOriginY": 0.9784999999999999
     }
   },
   "occluders": [],
@@ -28,11 +28,11 @@
     "sky": [
       {
         "at": 0.0,
-        "colour": "#8fc888"
+        "colour": "#90c888"
       },
       {
         "at": 1.0,
-        "colour": "#8fc888"
+        "colour": "#90c888"
       }
     ],
     "mist": {
@@ -51,18 +51,18 @@
     }
   },
   "fixedFrame": {
-    "zoom": 1.2496,
+    "zoom": 0.9839,
     "u": 0,
     "v": 0
   },
   "hqFrame": {
-    "zoom": 1.2496,
+    "zoom": 0.9839,
     "u": 0,
     "v": 0
   },
   "followFrame": {
-    "minZoom": 1.2496,
-    "maxZoom": 1.6245
+    "minZoom": 0.9839,
+    "maxZoom": 1.2791
   },
   "scenery": {
     "fade": false,

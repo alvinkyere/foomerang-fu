@@ -22,7 +22,8 @@ OUT, RENDER, WIDE, NOCARDS = args[0], 'render' in args[1:], 'wide' in args[1:], 
 NOSTONE = 'nostone' in args[1:]          # (the ground alone: refine_outlines.py paints the stone over it)
 J = lambda p: json.load(open(os.path.join(ROOT, p)))
 HAS = lambda p: os.path.exists(os.path.join(ROOT, p))
-CAM = J('art/sky_islands/camera.json'); ZOOM = CAM['referenceZoom'] * 1.34          # (measure.py: K)
+CAM = J('art/sky_islands/camera.json'); ZJ = J('art/gong_court/zoom.json'); ZOOM = CAM['referenceZoom'] * ZJ['K']      # (measure.py: K)
+ZS = ZJ['K0'] / ZJ['K']           # (sizes set by hand in the first reading's units scale by it)
 YC = 73.72                                                                           # (measure.py: the ground point under the frame's centre)
 G = J('art/gong_court/ground.json'); SC = J('art/gong_court/stone_colours.json')
 TOPS = J('art/gong_court/tops.json') if HAS('art/gong_court/tops.json') else {}
@@ -215,11 +216,11 @@ def stalk(m, foot, top, r):
     # the six corners: a face square to the camera (corners at 0, 60 .. deg from east, so the faces' middles at 30, 90 ..)
     ang = [math.radians(60 * k) for k in range(6)]
     ring = lambda c, rr: [c + (side * math.cos(t) - fwd * math.sin(t)) * rr for t in ang]
-    nodes = max(1, round((ln - 1.1) / 1.6))
-    cuts = [(0.0, 'sleeve', 1.2), (1.1 / ln, 'stalk', 1.2), (1.1 / ln + 0.01, 'stalk', 1.0)]
+    nodes = max(1, round((ln - 1.1 * ZS) / (1.6 * ZS)))
+    cuts = [(0.0, 'sleeve', 1.2), (1.1 * ZS / ln, 'stalk', 1.2), (1.1 * ZS / ln + 0.01, 'stalk', 1.0)]
     for n in range(1, nodes + 1):
-        t = (1.1 + (ln - 1.1) * n / (nodes + 0.6)) / ln
-        cuts += [(t - 0.06 / ln, 'node', 1.0), (t, 'node', 1.04), (t + 0.06 / ln, 'stalk', 1.0)]
+        t = (1.1 * ZS + (ln - 1.1 * ZS) * n / (nodes + 0.6)) / ln
+        cuts += [(t - 0.06 * ZS / ln, 'node', 1.0), (t, 'node', 1.04), (t + 0.06 * ZS / ln, 'stalk', 1.0)]
     cuts.append((1.0, 'top', 1.0))
     cuts.sort(key=lambda q: q[0])
     for (t0, kind, s0), (t1, _, s1) in zip(cuts, cuts[1:]):
@@ -231,7 +232,7 @@ def stalk(m, foot, top, r):
                                             (STALK_W, STALK_M, STALK_E))) for q in (k, j, j, k)]
             m.face([tuple(r0[k]), tuple(r0[j]), tuple(r1[j]), tuple(r1[k])], ca)
     # the cut top: a rim (the stalk's light) round a hollow sunk a little
-    rim, hol = ring(b, r), ring(b - ax * 0.12, r * 0.55)
+    rim, hol = ring(b, r), ring(b - ax * 0.12 * ZS, r * 0.55)
     for k in range(6):
         j = (k + 1) % 6
         m.face([tuple(rim[k]), tuple(rim[j]), tuple(hol[j]), tuple(hol[k])], '#8cc874')
@@ -290,7 +291,7 @@ def cylinder(m, a, b, r, shade_hex, lit_hex, seg=20, caps=True):
 if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json') and 'nogong' not in args[1:]:
     G_ = J('art/gong_court/props.json')['gong']; m = Mesh('GONG')
     for p_ in G_['posts']:
-        f = Vector((p_['foot'][0], YC + p_['foot'][1], p_['foot'][2] - 0.2))
+        f = Vector((p_['foot'][0], YC + p_['foot'][1], p_['foot'][2] - 0.2 * ZS))
         cylinder(m, f, (f.x, f.y, p_['top'] + G_['beam_r'] * 0.5), G_['post_r'], '#363f5a', '#4a5677')
     (ax_, ay_, az_), (bx_, by_, bz_) = G_['beam']
     A_, B_ = Vector((ax_, YC + ay_, az_)), Vector((bx_, YC + by_, bz_))
@@ -298,8 +299,8 @@ if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json')
     along = (B_ - A_); along.z = 0; along.normalize(); nrm = Vector((-along.y, along.x, 0))
     if nrm.y > 0: nrm = -nrm                       # (its face to the south: the camera's side)
     c_ = Vector((G_['disc'][0], YC + G_['disc'][1], G_['disc'][2])); R_ = G_['disc_r']
-    cylinder(m, c_ - nrm * 0.25, c_ + nrm * 0.15, R_, '#a39a5e', '#bab170', seg=28)      # (thick: its rim shows at the lower right)
-    up = Vector((0, 0, 1)); face_ = c_ + nrm * 0.155
+    cylinder(m, c_ - nrm * 0.25 * ZS, c_ + nrm * 0.15 * ZS, R_, '#a39a5e', '#bab170', seg=28)      # (thick: its rim shows at the lower right)
+    up = Vector((0, 0, 1)); face_ = c_ + nrm * 0.155 * ZS
     ring = lambda q, rr, n=28: [face_ + (along * math.cos(2 * math.pi * k / n) + up * math.sin(2 * math.pi * k / n)) * rr for k in range(n)]
     for k in range(7):                              # the studs: rounded pale squares round the disc, square to its radius
         a0 = 2 * math.pi * (k + 0.25) / 7; rad = along * math.cos(a0) + up * math.sin(a0); tan_ = along * -math.sin(a0) + up * math.cos(a0)
@@ -312,7 +313,7 @@ if HAS('art/gong_court/props.json') and 'gong' in J('art/gong_court/props.json')
     for s_ in (-0.62, 0.62):                        # the ropes
         top_ = A_.lerp(B_, 0.5) + along * (s_ * R_ * 1.05)
         top_ = A_ + along * ((top_ - A_).dot(along)); top_.z = A_.z + (B_.z - A_.z) * ((top_ - A_).dot(along) / max(1e-6, (B_ - A_).length))
-        cylinder(m, top_, c_ + along * (s_ * R_ * 0.7) + up * (R_ * 0.75), 0.06, '#6f5d3f', '#8d7752', seg=8, caps=False)
+        cylinder(m, top_, c_ + along * (s_ * R_ * 0.7) + up * (R_ * 0.75), 0.06 * ZS, '#6f5d3f', '#8d7752', seg=8, caps=False)
     m.done()
 
 # ---------------------------------------------------------------------------------------------------------------- the pots
@@ -355,11 +356,11 @@ if HAS('art/gong_court/props.json') and 'pots' in J('art/gong_court/props.json')
             inner = [o + Vector((math.cos(2 * math.pi * k / seg) * top_r * 0.68, math.sin(2 * math.pi * k / seg) * top_r * 0.68, top_z)) for k in range(seg)]
             for k in range(seg):
                 j = (k + 1) % seg; m.face([tuple(rings[-1][k]), tuple(rings[-1][j]), tuple(inner[j]), tuple(inner[k])], '#b99080')
-            m.face([tuple(v - Vector((0, 0, 0.05))) for v in inner], '#5a4846')
+            m.face([tuple(v - Vector((0, 0, 0.05 * ZS))) for v in inner], '#5a4846')
             for sgn in (-1, 1):                     # the lugs: a small loop each side at the shoulder
                 c0 = o + Vector((sgn * R_ * 0.92, 0, H_ * 0.8))
                 tube(m, [c0 + Vector((sgn * R_ * 0.22 * math.sin(math.pi * q / 6), 0, R_ * 0.2 * (math.cos(math.pi * q / 6) - 1))) for q in range(7)],
-                     0.07, '#a8725b')
+                     0.07 * ZS, '#a8725b')
         else:
             ctr = o + Vector((0, 0, top_z)); dome = [(0.46, 0.0), (0.4, 0.06), (0.26, 0.12), (0.12, 0.14), (0.0, 0.15)]
             lr = [[ctr + Vector((math.cos(2 * math.pi * k / seg) * rr * R_, math.sin(2 * math.pi * k / seg) * rr * R_, zz * H_)) for k in range(seg)] for rr, zz in dome]
@@ -370,7 +371,7 @@ if HAS('art/gong_court/props.json') and 'pots' in J('art/gong_court/props.json')
             for sgn, big in ((-1, 0.7), (1, 1.0)):     # the loop handles, the east one the larger
                 c0 = o + Vector((sgn * R_ * 0.95, 0.0, H_ * 0.62))
                 tube(m, [c0 + Vector((sgn * R_ * 0.35 * big * math.sin(math.pi * q / 8), 0, R_ * 0.4 * big * (math.cos(math.pi * q / 8)))) for q in range(9)],
-                     0.06, '#9a6650')
+                     0.06 * ZS, '#9a6650')
         rng_ = __import__('random').Random(hash(name) % 1000)
         for q in range(6):                          # dark spots on the side facing the camera
             a0 = math.radians(rng_.uniform(205, 335)); zf = rng_.uniform(0.25, 0.7); rr = 1.0 if zf < 0.62 else 0.95
@@ -393,7 +394,7 @@ if HAS('art/gong_court/props.json') and 'aloes' in J('art/gong_court/props.json'
     for name, a_ in J('art/gong_court/props.json')['aloes'].items():
         m = Mesh(f'ALOE_{name}'); fx_, fy_, fz_ = a_['foot']; R_ = a_['r']; seg = 24
         o = Vector((fx_, YC + fy_, fz_)); top_ = a_['top']
-        rings = [(0.84, fz_), (1.0, top_ - 0.18), (1.0, top_ - 0.18), (1.0, top_)]      # (body, then the rim band)
+        rings = [(0.84, fz_), (1.0, top_ - 0.18 * ZS), (1.0, top_ - 0.18 * ZS), (1.0, top_)]      # (body, then the rim band)
         cols = ['shade', 'body', 'rim', 'rim']
         for i in range(len(rings) - 1):
             (r0, z0), (r1, z1) = rings[i], rings[i + 1]
@@ -410,7 +411,7 @@ if HAS('art/gong_court/props.json') and 'aloes' in J('art/gong_court/props.json'
             j = (k + 1) % seg; a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * j / seg
             m.face([(o.x + math.cos(a0) * R_, o.y + math.sin(a0) * R_, top_), (o.x + math.cos(a1) * R_, o.y + math.sin(a1) * R_, top_),
                     ring_in[j], ring_in[k]], '#93a9a0')
-        m.face([(x, y, z - 0.12) for x, y, z in ring_in], '#79b98d')      # (the rosette's leaf bases fill the pot: no soil shows)
+        m.face([(x, y, z - 0.12 * ZS) for x, y, z in ring_in], '#79b98d')      # (the rosette's leaf bases fill the pot: no soil shows)
         for q, lf in enumerate(a_['leaves']):        # the leaves, each a hair nearer the camera than the last
             m.face([(x, YC + y - 0.003 * q, z) for x, y, z in lf['pts']], ALOE_TONES[lf['tone']])
         m.done()

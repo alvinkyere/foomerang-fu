@@ -2,7 +2,7 @@
 
   plaza.glb      the ground, the stone, the cards (blender/build.py: gong_court.glb)
   manifest.json  the gong islands' soft look and the plaza's camera rig, with this map's mapping from world units to plan units (arena.json:
-                 x east from X0, y south from Y1), the HQ's READY view (1.34x the rig's zoom: measure.py) and its follow, the plaza's
+                 x east from X0, y south from Y1), the HQ's READY view (zoom.json K x the rig's zoom: measure.py) and its follow, the plaza's
                  characters (shared: `assetsFrom`); the court stands still (scenery: no fade, no sway) until measured otherwise
   floor.json/.webp  the grass beyond the drawn ground (the ground's own edge colour)
 
@@ -14,7 +14,7 @@ import numpy as np, cv2
 OUT = 'apps/console/public/maps/gong_court/'
 A = json.load(open('art/gong_court/arena.json')); G = json.load(open('art/gong_court/ground.json'))
 YC = 73.72
-ZOOM = round(json.load(open('art/sky_islands/camera.json'))['referenceZoom'] * 1.34, 4)
+ZOOM = round(json.load(open('art/sky_islands/camera.json'))['referenceZoom'] * json.load(open('art/gong_court/zoom.json'))['K'], 4)
 # the grass beyond the drawing: the median of the ground's base along its edge
 grid = np.array(G['bgr']).reshape(G['ny'], G['nx'], 3)
 edge = np.concatenate([grid[0], grid[-1], grid[:, 0], grid[:, -1]])

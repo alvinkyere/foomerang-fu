@@ -1,7 +1,9 @@
 """The gong court (2026-11-12): foomerang-fu physics hq.mp4 0:35 (35.0 s, the READY frame: the round's widest view, the camera at rest).
 The frame read through the plaza's camera rig (art/sky_islands/camera.json, measured on the same video's sky-islands READY frame) at this
-round's zoom: the characters measure 1.34x their size there (the banana's yellow: 33 x 42 px here, 25 x 29 px at 9:05.7; area ratio 1.34),
-so this READY view is 1.34x the rig's reference zoom. Plan units relative to the ground point under the frame's centre.
+round's zoom (zoom.json K). First read as 1.34x the rig's reference zoom (the banana's yellow here against 9:05.7); in the game the
+characters then stood ~1.27x too big against the court (2026-11-14, the owner: "the arena is smaller than in the HQ, or the characters
+are bigger"): the same characters measured in this frame and in our game at this view (the mug's body 1.29x, its coffee 1.37x, the
+banana's height 1.18x; the mug against the HQ's warm-up frame, whose zoom the levers fix, 1.20x), so K = 1.34 / 1.27 = 1.055. Plan units relative to the ground point under the frame's centre.
 
 mosaic.py lays the round onto this frame: mosaic pixels are this frame's pixels shifted by MOSAIC_ORIGIN (output/mosaic.json).
 (After art/temple_court/measure.py.)
@@ -10,7 +12,9 @@ import json, math
 import numpy as np, cv2
 
 CAM = json.load(open('art/sky_islands/camera.json'))
-K = 1.34                                              # this READY view against the rig's reference zoom (the characters' size)
+_ZJ = json.load(open('art/gong_court/zoom.json'))
+K = _ZJ['K']                                          # this READY view against the rig's reference zoom (zoom.json)
+ZS = _ZJ['K0'] / K                                    # plan units now per plan unit at the first reading (1.34): hand-read sizes scale by it
 Z = CAM['referenceZoom'] * K
 th = math.radians(CAM['pitchDeg'])
 R = np.array([[1, 0, 0], [0, -math.sin(th), -math.cos(th)], [0, math.cos(th), -math.sin(th)]])

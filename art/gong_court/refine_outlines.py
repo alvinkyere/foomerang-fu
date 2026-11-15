@@ -9,7 +9,7 @@ stones_manual.json (then re-run fit_stones.py: run.sh does).
 import json, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
-from measure import plan, pix, MOSAIC_ORIGIN
+from measure import plan, pix, MOSAIC_ORIGIN, ZS
 import geom
 
 OX, OY = MOSAIC_ORIGIN
@@ -41,8 +41,8 @@ for p_ in range(PASSES):
             for dx, dy in ((STEP, 0), (-STEP, 0), (0, STEP), (0, -STEP)):
                 while True:
                     trial = [list(v) for v in pts]; trial[i] = [trial[i][0] + dx, trial[i][1] + dy]
-                    poly = geom.ccw(plan_of(trial, h)); grown = inset(poly, -0.08)
-                    cand = dict(bodies); cand[n] = (geom.ccw([tuple(p) for p in grown]), h, inset(grown, 0.55) if S[n]['kind'] == 'platform' else None)
+                    poly = geom.ccw(plan_of(trial, h)); grown = inset(poly, -0.08 * ZS)
+                    cand = dict(bodies); cand[n] = (geom.ccw([tuple(p) for p in grown]), h, inset(grown, MAN[n].get('rim', 0.55 * ZS)) if S[n]['kind'] == 'platform' else None)
                     sc_ = PT.score(cand)[0]
                     if sc_ < best - 1e-4: best, pts, bodies = sc_, trial, cand
                     else: break
@@ -52,8 +52,8 @@ for p_ in range(PASSES):
                 while True:
                     h2 = round(h + dh, 3)
                     if h2 < 0.2: break
-                    poly = geom.ccw(plan_of(pts, h2)); grown = inset(poly, -0.08)
-                    cand = dict(bodies); cand[n] = (geom.ccw([tuple(p) for p in grown]), h2, inset(grown, 0.55) if S[n]['kind'] == 'platform' else None)
+                    poly = geom.ccw(plan_of(pts, h2)); grown = inset(poly, -0.08 * ZS)
+                    cand = dict(bodies); cand[n] = (geom.ccw([tuple(p) for p in grown]), h2, inset(grown, MAN[n].get('rim', 0.55 * ZS)) if S[n]['kind'] == 'platform' else None)
                     sc_ = PT.score(cand)[0]
                     if sc_ < best - 1e-4: best, h, bodies = sc_, h2, cand
                     else: break

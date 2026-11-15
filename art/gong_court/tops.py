@@ -9,9 +9,9 @@ shapes: [{colour, pts, holes}]} (plan units, y north).
 import json, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
-from measure import _H, Yc, MOSAIC_ORIGIN
+from measure import _H, Yc, MOSAIC_ORIGIN, ZS
 
-PX, MIN, K = 20.0, 5.0, 8
+PX, MIN, K = 20.0 / ZS, 5.0, 8
 OX, OY = MOSAIC_ORIGIN
 M = cv2.imread('art/gong_court/output/mosaic_chrome.png')
 T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])

@@ -37,8 +37,9 @@ def bamboo_mask(shape, pix, origin, grow=1.6):
         q = np.float32([pix(fx - r, fy, fz), pix(fx + r, fy, fz), pix(tx + r, ty, tz), pix(tx - r, ty, tz)]) - origin
         cv2.fillConvexPoly(m, np.int32(q), 1)
         for sp in st['sprays']:
-            t = sp['t']; c = np.float32(pix(fx + (tx - fx) * t, fy, fz + (tz - fz) * t)) - origin
-            cv2.circle(m, (int(c[0]), int(c[1])), int(sp['length'] * 36.5 * 1.1), 1, -1)
+            t = sp['t']; bx, bz = fx + (tx - fx) * t, fz + (tz - fz) * t; c = np.float32(pix(bx, fy, bz)) - origin
+            unit = pix(bx + 1, fy, bz)[0] - pix(bx, fy, bz)[0]
+            cv2.circle(m, (int(c[0]), int(c[1])), int(sp['length'] * unit * 1.1), 1, -1)
     return m
 
 

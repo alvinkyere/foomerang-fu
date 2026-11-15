@@ -14,14 +14,14 @@ Writes ground.json and output/ground_check.png (the drawing against the filled f
 import json, os, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
-from measure import H0 as GROUND_H, Yc, MOSAIC_ORIGIN, pix
+from measure import H0 as GROUND_H, Yc, MOSAIC_ORIGIN, pix, ZS
 from geom import prisms
 
-PX = float(os.environ.get("GPX", "20"))      # (px a plan unit for the ground drawing: 20 keeps thin shadow strokes; 10 scored 3.99, 20 3.90)
-X0, X1, Y0, Y1 = -36.0, 34.0, -23.0, 25.0
+PX = float(os.environ.get("GPX", "20")) / ZS      # (px a plan unit for the ground drawing: 20 keeps thin shadow strokes; 10 scored 3.99, 20 3.90)
+X0, X1, Y0, Y1 = -36.0 * ZS, 34.0 * ZS, -23.0 * ZS, 25.0 * ZS
 W, Hh = int((X1 - X0) * PX), int((Y1 - Y0) * PX)
 import os; STONE_PAD = int(os.environ.get("STONE_PAD", "3"))      # (px round the stone left out of the ground: its edge, not its contact shadow; 1, 3, 5, 9 scored 4.92, 4.80, 4.84, 4.88)
-DX, SIGMA = float(os.environ.get("GDX", "0.5")), float(os.environ.get("GSIGMA", "1.2"))      # (the base field: 0.5/1.2 scored 4.84 against the still view; 1.0/2.5 5.15, 0.5/0.7 4.86, 0.5/1.6 4.95)
+DX, SIGMA = float(os.environ.get("GDX", "0.5")) * ZS, float(os.environ.get("GSIGMA", "1.2")) * ZS      # (the base field: 0.5/1.2 scored 4.84 against the still view; 1.0/2.5 5.15, 0.5/0.7 4.86, 0.5/1.6 4.95)
 OX, OY = MOSAIC_ORIGIN
 A = np.array([[1 / PX, 0, X0], [0, -1 / PX, Y1 + Yc], [0, 0, 1]])
 T = np.array([[1, 0, -OX], [0, 1, -OY], [0, 0, 1]])
