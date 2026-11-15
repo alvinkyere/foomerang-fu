@@ -15,11 +15,11 @@ from measure import plan, pix, Yc, R as _R, F as _F, C as _C, Z as _Z, MOSAIC_OR
 OX, OY = MOSAIC_ORIGIN
 # name: (mosaic box x0, y0, x1, y1), difference threshold, tones, foot (mosaic px; None: the lowest pixel)
 OBJECTS = {
-    'tree_nw': ((560, 0, 800, 245), 30, 7, (670, 205, 'plat_nw')),
-    'tree_w': ((225, 255, 455, 535), 30, 7, (370, 500)),
+    'tree_nw': ((560, 0, 800, 245), 30, 9, (670, 205, 'plat_nw')),
+    'tree_w': ((225, 255, 455, 535), 30, 9, (370, 500)),
     'tree_n': ((780, 0, 920, 75), 30, 6, (850, 60)),
-    'tree_e': ((1785, 550, 1995, 805), 30, 7, (1890, 790)),
-    'tree_se': ((1480, 1000, 1760, 1300), 30, 7, (1615, 1280)),
+    'tree_e': ((1785, 550, 1995, 805), 30, 9, (1890, 790)),
+    'tree_se': ((1480, 1000, 1760, 1300), 30, 9, (1615, 1280)),
     'tree_sw': ((0, 1050, 165, 1240), 30, 6, (80, 1225)),
     'pot_nw': ((365, 0, 435, 75), 25, 4, None),
     'pot_e1': ((1760, 745, 1835, 845), 25, 4, None),
@@ -35,7 +35,8 @@ OBJECTS = {
     'bamboo_ne': ((1675, 250, 1770, 380), 18, 7, None),
     'bamboo_s': ((760, 1110, 845, 1240), 18, 7, None),
     'bamboo_se': ((1335, 1060, 1470, 1245), 18, 7, None),
-    'bush_ne': ((1475, 355, 1565, 470), 20, 3, None),
+    'bush_ne': ((1530, 330, 1625, 470), 20, 3, None),
+    'tuft_ne': ((1712, 436, 1778, 480), 18, 2, None),
     'bush_w': ((545, 590, 610, 690), 20, 3, None),
     'flower_w1': ((405, 615, 465, 665), 20, 3, None),
     'flower_w2': ((355, 700, 415, 745), 20, 3, None),
@@ -69,7 +70,8 @@ out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if name.startswith(('bamboo', 'pot', 'aloe')) or name == 'gong': continue      # (the bamboo, the gong, the pots and the aloes are 3D now: props.py)
     mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots)[y0:y1, x0:x1]
-    mk = cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    mk = cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) if name.startswith('tuft') else \
+        cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))   # (a tuft: its blades apart)
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue
     big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
@@ -78,9 +80,6 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         mk = lab == big
     # (no holes inside an object: what the stone's exclusion took out of a crown's dark tones is filled back)
     if name.startswith('tree'):    # (crowns only: between bamboo stems the ground shows, as it should)
-        # (thin channels open to the outside are not holes: a wider close seals them first, else the grass shows through as cracks)
-        _sealed = cv2.morphologyEx(mk.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
-        mk = mk | (_sealed > 0)
         _cs, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         _f = np.zeros(mk.shape, np.uint8); cv2.drawContours(_f, _cs, -1, 1, -1); mk = _f > 0
     if foot is None:
@@ -105,14 +104,17 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
     px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
+    lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = cv2.medianBlur(lm, 3 if name.startswith(('bush', 'tuft', 'flower', 'tree')) else 5); lm[~mk] = 255   # (the bushes' and tufts' points kept)
     if name.startswith('tree'):
-        # (a crown's soft red edge against the grass blends into pale green and tan tones: traced, they drew a halo round the crown;
-        # such a tone's pixels go to the nearest of the crown's red or lavender tones)
-        bgr_ = cen[:, :3]; green = ~((bgr_[:, 2] > bgr_[:, 1] + 40) | (bgr_[:, 0] > bgr_[:, 2]))   # (neither the crown's red nor the trunk's lavender: a blend)
-        if green.any() and (~green).any():
-            keep_ = np.flatnonzero(~green); dist = np.linalg.norm(px_[:, None, :] - cen[None, keep_, :], axis=2)
-            relab = keep_[np.argmin(dist, 1)]; lab_ = np.where(green[lab_[:, 0]], relab, lab_[:, 0])[:, None].astype(np.int32)
-    lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5); lm[~mk] = 255
+        # (a crown's soft edge against the grass blends into pale green and tan tones: traced, they drew a dark or pale ring round
+        # the crown; such pixels take the tone of the nearest crown pixel that is no blend, so each puff's own tone runs to its edge)
+        bgr_ = cen[:, :3]; blend = ~((bgr_[:, 2] > bgr_[:, 1] + 40) | (bgr_[:, 0] > bgr_[:, 2]))
+        if blend.any() and (~blend).any():
+            bad = mk & np.isin(lm, np.flatnonzero(blend))
+            good = mk & ~bad & (lm != 255)
+            _, near = cv2.distanceTransformWithLabels((~good).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+            gy, gx = np.nonzero(good); lut = np.full(near.max() + 1, 255, np.uint8); lut[near[gy, gx]] = lm[gy, gx]
+            lm[bad] = lut[near[bad]]
     # each tone's regions; drawn largest tone first, the rest over it a hair nearer the camera
     order = sorted(range(kk), key=lambda q: -(lm == q).sum())
     layers = []
@@ -123,11 +125,11 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         if hier is None: continue
         colour = '#%02x%02x%02x' % tuple(int(v) for v in cen[q][::-1])
         for ci, c in enumerate(cs):
-            if hier[0][ci][3] >= 0 or cv2.contourArea(c) < 12: continue
+            if hier[0][ci][3] >= 0 or cv2.contourArea(c) < (6 if name.startswith('tree') else 12): continue
             loops = [c] + [cs[hj] for hj in range(len(cs)) if hier[0][hj][3] == ci and cv2.contourArea(cs[hj]) >= 12]
             polys = []
             for lp in loops:
-                ap = cv2.approxPolyDP(lp, 0.7, True).reshape(-1, 2)
+                ap = cv2.approxPolyDP(lp, 0.45 if name.startswith('tree') else 0.7, True).reshape(-1, 2)   # (a crown's ragged fringe kept)
                 if len(ap) >= 3: polys.append([on_card(float(u), float(v)) for u, v in ap])
             if polys: layers.append(dict(colour=colour, layer=li, loops=polys))
     if name.startswith('tree') and layers:

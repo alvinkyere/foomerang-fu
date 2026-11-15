@@ -30,7 +30,11 @@ for name, b in S.items():
     flat = cv2.warpPerspective(M, T @ np.linalg.inv(_H(b['h'])) @ A, (W, Hh), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
     to_px = lambda pts: np.int32([[(x - x0) * PX, (y1 - y) * PX] for x, y in pts])
     inside = np.zeros((Hh, W), np.uint8); cv2.fillPoly(inside, [to_px(poly)], 1)
-    inside = (cv2.erode(inside, np.ones((3, 3), np.uint8)) > 0) & (flat.sum(2) > 30)
+    # (0.3 units in from the mint's edge: the soft blend of the rim's lavender into the mint traced as a pale band all round it)
+    ER = int(round(0.3 * PX)) * 2 + 1
+    full = (cv2.erode(inside, np.ones((3, 3), np.uint8)) > 0) & (flat.sum(2) > 30)
+    _in = (cv2.erode(inside, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ER, ER))) > 0) & (flat.sum(2) > 30)
+    inside = _in if _in.sum() > 50 else (inside > 0) & (flat.sum(2) > 30)      # (a mint too small for it: as it is)
     standing = cv2.warpPerspective(STANDING, T @ np.linalg.inv(_H(b['h'])) @ A, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP) > 0
     lab = cv2.cvtColor(flat, cv2.COLOR_BGR2Lab).astype(np.float32)
     base = np.median(lab[inside], 0); bgr = np.median(flat[inside], 0)
@@ -65,12 +69,30 @@ for name, b in S.items():
         med = np.median(px_[sat >= np.percentile(sat, 50)], 0)
         leaves_.append(dict(colour='#%02x%02x%02x' % (int(med[2]), int(med[1]), int(med[0])),
                             pts=[[round(x0 + u / PX, 3), round(y1 - v / PX, 3)] for u, v in ap], holes=[]))
-    off &= ~cv2.dilate(leaf.astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+    # the leaves, the crown and their soft edges painted out with what lies round them (the shadow under the crown, the mint), then
+    # the departures measured again: cut out instead, the bare mint showed through as a pale ring round every leaf
+    gone = cv2.dilate((leaf | crown).astype(np.uint8), np.ones((7, 7), np.uint8))
+    flat = cv2.inpaint(flat, gone * 255, 5, cv2.INPAINT_TELEA)
+    lab = cv2.cvtColor(flat, cv2.COLOR_BGR2Lab).astype(np.float32)
+    res = cv2.GaussianBlur(lab - base, (0, 0), 1.0)
+    off = (np.linalg.norm(res, axis=2) > MIN) & inside & ~(standing & stalkish)
+    off &= ~(cv2.warpPerspective(ALOES, T @ np.linalg.inv(_H(b['h'])) @ A, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP) > 0)
     shapes = []
     if off.sum() > 50:
         _, lab_, cen = cv2.kmeans(res[off].reshape(-1, 3), K, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.2), 4,
                                   cv2.KMEANS_PP_CENTERS)
         lm = np.full((Hh, W), 255, np.uint8); lm[off] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5); lm[~inside] = 255
+        # out to the mint's edge: each pixel of the band left out of the tracing takes the label (or the plain mint) nearest inside
+        band = full & ~inside
+        if band.any() and inside.any():
+            _, near = cv2.distanceTransformWithLabels((~inside).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+            iy, ix = np.nonzero(inside); lut = np.full(near.max() + 1, 255, np.uint8); lut[near[iy, ix]] = lm[iy, ix]
+            lm[band] = lut[near[band]]
+        # the mint's own colour: the tone that covers most of it (the median of the whole, dragged by its shadows, came out greyed,
+        # #b6ce97 for #b5e99b, and showed so wherever nothing was traced)
+        labs_, cnts_ = np.unique(lm[full], return_counts=True)
+        top_ = labs_[np.argmax(cnts_)]
+        if top_ != 255: bgr = np.median(flat[full & (lm == top_)], 0)
         for q in np.argsort(np.linalg.norm(cen, axis=1)):
             m = cv2.morphologyEx((lm == q).astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
             cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
@@ -79,6 +101,8 @@ for name, b in S.items():
                 if hier[0][ci][3] >= 0 or cv2.contourArea(c) < 0.03 * PX * PX: continue
                 region = cv2.drawContours(np.zeros_like(m), [c], -1, 1, -1) > 0
                 med = np.median(flat[region & (m > 0)], 0)
+                # (small bluish bits along the edge: the rim's lavender blended in, not something on the mint)
+                if med[0] > med[1] - 10 and cv2.contourArea(c) < 0.3 * PX * PX: continue
                 ap = cv2.approxPolyDP(c, 0.04 * PX, True).reshape(-1, 2)
                 if len(ap) < 3: continue
                 holes = [[[round(x0 + u / PX, 3), round(y1 - v / PX, 3)] for u, v in cv2.approxPolyDP(cs[hj], 0.04 * PX, True).reshape(-1, 2)]

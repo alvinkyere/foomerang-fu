@@ -51,7 +51,7 @@ obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)
 # boxes (mosaic px x0, y0, x1, y1): what colour alone misses (bamboo, aloes, tufts, the names' smudges)
 BOXES = [(0, 80, 175, 400),                                                     # the players' names
          (530, 1000, 630, 1060), (1690, 920, 1770, 1020),                                         # the aloes' pots
-         (1480, 360, 1560, 470), (590, 580, 660, 700), (1710, 440, 1780, 490), (1420, 340, 1460, 370),   # tufts
+         (1530, 330, 1625, 470), (590, 580, 660, 700), (1712, 436, 1778, 480), (1420, 340, 1460, 370),   # tufts
          (480, 790, 535, 850), (1430, 260, 1520, 380)]                                            # the banana's corner, the gong's foot
 for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
 # the bamboo (3D now, props.py): where it stands is not ground; its shadows round it are
@@ -93,14 +93,32 @@ _, lab_, cen = cv2.kmeans(res[off].reshape(-1, 3), K, None, (cv2.TERM_CRITERIA_E
 lm = np.full((Hh, W), 255, np.uint8); lm[off] = lab_[:, 0]; lm = cv2.medianBlur(lm, 5 if PX > 12 else 7); lm[~inside] = 255
 shapes = []
 k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3) if PX > 12 else (5, 5))
-for q in np.argsort(np.linalg.norm(cen, axis=1)):
-    m = cv2.morphologyEx((lm == q).astype(np.uint8), cv2.MORPH_OPEN, k5)
+# the thin rings a soft edge leaves between two tones (a pixel or two wide) are opened away, and what they held goes to the nearest
+# tone that stays: left out, they showed the base through as a pale outline round every shadow
+kept = np.full((Hh, W), 255, np.uint8)
+for q in range(K):
+    kept[cv2.morphologyEx((lm == q).astype(np.uint8), cv2.MORPH_OPEN, k5) > 0] = q
+gap = (lm != 255) & (kept == 255)
+if gap.any():
+    _, nearest = cv2.distanceTransformWithLabels((kept == 255).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+    ys_, xs_ = np.nonzero(kept != 255); lut = np.zeros(nearest.max() + 1, np.uint8) + 255
+    lut[nearest[ys_, xs_]] = kept[ys_, xs_]
+    kept[gap] = lut[nearest[gap]]
+lm = kept
+ORDER = list(np.argsort(np.linalg.norm(cen, axis=1)))
+for oi, q in enumerate(ORDER):
+    # each tone traced together with every tone drawn over it (they cover it where they lie): the outlines of neighbouring tones,
+    # simplified each its own way, never leave a sliver of the base between them (it showed as pale lines inside the shadows)
+    m = np.isin(lm, ORDER[oi:]).astype(np.uint8)
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, k5) | (lm == q).astype(np.uint8)
     cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     if hier is None: continue
     for ci, c in enumerate(cs):
         if hier[0][ci][3] >= 0 or cv2.contourArea(c) < 0.4 * PX * PX: continue
         region = cv2.drawContours(np.zeros_like(m), [c], -1, 1, -1) > 0
-        med = np.median(ground[region & (m > 0)] if (region & (m > 0)).any() else ground[region], 0)
+        own = region & (lm == q)
+        if own.sum() < 0.2 * PX * PX: continue           # (a region only of the tones drawn over it: nothing of its own to show)
+        med = np.median(ground[own], 0)
         ap = cv2.approxPolyDP(c, 0.05 * PX, True).reshape(-1, 2)
         if len(ap) < 3: continue
         holes = []
