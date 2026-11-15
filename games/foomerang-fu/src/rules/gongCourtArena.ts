@@ -11,7 +11,7 @@ import type { FuArena, Solid } from './arena';
  */
 
 export const GONG_COURT_WIDTH = 1326;
-export const GONG_COURT_HEIGHT = 1344;
+export const GONG_COURT_HEIGHT = 1256;
 
 export type GongCourtWall = Solid & { readonly id: string; readonly kind: 'WALL' };
 

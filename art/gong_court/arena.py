@@ -15,7 +15,7 @@ from geom import prisms
 
 S = 27.48
 ZS = json.load(open("art/gong_court/zoom.json"))["K0"] / json.load(open("art/gong_court/zoom.json"))["K"]
-X0, X1, Y0, Y1 = [round(v * ZS, 2) for v in (-20.5, 17.5, -19.5, 19.0)]                 # (the court and its corner platforms: nobody gets past the walls)
+X0, X1, Y0, Y1 = [round(v * ZS, 2) for v in (-20.5, 17.5, -17.0, 19.0)]                 # (the court and its corner platforms: nobody gets past the walls; the south edge -17.0 (x ZS), 3.3 units south of the south wall: every spot in the arena inside the game's view at the true zoom)
 json.dump(dict(X0=X0, X1=X1, Y0=Y0, Y1=Y1, S=S), open('art/gong_court/arena.json', 'w'))
 w = lambda X, Y: (round((X - X0) * S), round((Y1 - Y) * S))
 WIDTH, HEIGHT = round((X1 - X0) * S), round((Y1 - Y0) * S)

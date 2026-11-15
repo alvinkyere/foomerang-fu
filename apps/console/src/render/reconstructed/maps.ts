@@ -119,7 +119,7 @@ export const RECONSTRUCTED_MAPS: Readonly<Record<ReconstructedArena, Reconstruct
         'banana',
         'carrot',
       ] as const),
-      arena: Object.freeze({ width: 1326, height: 1344 }),
+      arena: Object.freeze({ width: 1326, height: 1256 }),
       background: '#93c786',
     }),
     // the HQ's canal court (art/canal_court, foomerang-fu physics hq.mp4 10:55): the plaza's camera and characters, its own court
