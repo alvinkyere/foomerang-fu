@@ -144,10 +144,10 @@ if HAS('art/canal_court/leaves.json'):
     lv.done()
 # the dashed border round the kerb's skirt (the HQ's, READY frame: 0.41-unit dashes on a 1.06 period, 0.25 out from the skirt's
 # outline's box, the sand under them darkened ~6%: #f5d988 on #ffe894); the rules' safeZone is that box (arena.py)
-_KB = J('art/canal_court/kerb.json')['bands'][0]['pts']; BD_OUT = float(os.environ.get('BD_OUT', '0.12'))
+_KB = J('art/canal_court/kerb.json')['bands'][0]['pts']; BD_OUT = float(os.environ.get('BD_OUT', '0.03'))
 _bx0, _bx1 = min(p[0] for p in _KB) - BD_OUT, max(p[0] for p in _KB) + BD_OUT
 _by0, _by1 = min(p[1] for p in _KB) - BD_OUT, max(p[1] for p in _KB) + BD_OUT
-DASH, PERIOD, THICK, DARKEN = 0.6, float(os.environ.get('BD_P', '1.13')), 0.2, 0.93
+DASH, PERIOD, THICK, DARKEN = 0.6, float(os.environ.get('BD_P', '1.13')), 0.17, 0.94
 bd = Mesh('BORDER_DASHES')
 for (ax_, ay_), (bx_, by_) in (((_bx0, _by1), (_bx1, _by1)), ((_bx1, _by1), (_bx1, _by0)), ((_bx1, _by0), (_bx0, _by0)), ((_bx0, _by0), (_bx0, _by1))):
     a_, b_ = Vector((ax_, ay_)), Vector((bx_, by_)); ln = (b_ - a_).length; u_ = (b_ - a_) / ln
@@ -446,7 +446,10 @@ w.done()
 if HAS('art/canal_court/bushes.json'):
     BU = J('art/canal_court/bushes.json')
     for k, piece in enumerate(BU['pieces']):
-        soft_prism(f'BUSH_{k}', ccw([tuple(p) for p in piece]), -0.05, BU['h'], 'bush', bevel=0.7)
+        # (their outline's spikes (the mosaic's ragged edge) smoothed away: the HQ's bushes are soft mounds)
+        P_ = [Vector(p) for p in piece]
+        for _ in range(3): P_ = [(P_[i - 1] + P_[i] * 2 + P_[(i + 1) % len(P_)]) / 4 for i in range(len(P_))]
+        soft_prism(f'BUSH_{k}', ccw([(v.x, v.y) for v in P_]), -0.05, BU['h'], 'bush', bevel=0.7)
 
 # the basin (fit_basin.py): a navy footing, seven brown blocks round the octagon (none on the side the channel comes in), the pool
 B = BA; BR, RIN = B['r'], B['rin']; FOOT_R, FOOT_H, GAP = B['r'] + 0.6, 0.9, 0.06      # (the HQ's navy footing: its top shows 8 px south of the blocks, its side 16 px; under the pool's level)
@@ -470,7 +473,7 @@ w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']),
 # faces up, a little darker turned away from the light (from the north-west, above)
 PROPS = J('art/canal_court/props.json') if HAS('art/canal_court/props.json') else {}
 CARDS_ = {c['name']: c for c in J('art/canal_court/cards.json')} if HAS('art/canal_court/cards.json') else {}
-PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank', 'rack', 'urn_n', 'urn_s', 'tree_w', 'tree_ne', 'tree_se', 'post_n', 'tree_e'} if PROPS else set()      # (tree_e: a crown's edge the frame barely shows: left out)      # (the urns stay traced: too small to fit)
+PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank', 'rack', 'urn_n', 'urn_s', 'tree_w', 'tree_ne', 'tree_se', 'post_n', 'tree_e', 'tree_red_sw'} if PROPS else set()      # (tree_e: a crown's edge the frame barely shows: left out)      # (the urns stay traced: too small to fit)
 LIGHT = Vector((-0.35, 0.45, 0.82)).normalized()
 
 
@@ -586,11 +589,13 @@ TREES = {   # name: foot (plan), trunk base and top (frame px), trunk width px, 
     'tree_w': ((-30.9, 9.59), (25, 271), (21, 158), 26, (45, 75), 80),
     'tree_se': ((29.29, -18.38), (1954, 1058), (1966, 950), 30, (1980, 896), 82),      # (its crown seen at 661 s: frame 39660)
     'post_n': ((-17.52, 22.09), (458, 14), (462, -60), 26, (470, -150), 85),
+    'tree_red_sw': ((-27.6, -21.2), (60, 1250), (55, 1180), 26, (45, 1125), 80),      # (a red maple past the court's south-west corner: only its crown's top in the frame)
 }
 
 
-def crown_tone(nz, nx):
-    stops = [(-1.0, (0xdc, 0x8e, 0x48)), (-0.2, (0xe6, 0xa6, 0x56)), (0.4, (0xee, 0xbe, 0x62)), (1.0, (0xf4, 0xd2, 0x74))]
+def crown_tone(nz, nx, red=False):
+    if red: stops = [(-1.0, (0xd8, 0x50, 0x3c)), (-0.2, (0xe8, 0x62, 0x48)), (0.4, (0xf2, 0x74, 0x54)), (1.0, (0xfa, 0x8a, 0x62))]
+    else: stops = [(-1.0, (0xdc, 0x8e, 0x48)), (-0.2, (0xe6, 0xa6, 0x56)), (0.4, (0xee, 0xbe, 0x62)), (1.0, (0xf4, 0xd2, 0x74))]
     t = max(-1.0, min(1.0, nz + 0.15 * nx))
     for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
         if t <= t1:
@@ -633,7 +638,7 @@ def tree(name):
             rough = lambda v: 1.0 + 0.07 * math.sin(v.co.x * 23.0 + v.co.y * 17.0 + v.co.z * 31.0 + sc_ * 9.0)
             pts = [C + (off * Vector((1.0, 1.0, 1.0)) + v.co * sc_ * rough(v) * Vector((0.95, 0.85, 1.0))) * R * 0.92 for v in f_.verts]
             # (each vertex its tone by how far it faces up: the HQ's crowns shade softly, light gold on top to orange under)
-            m.face([tuple(p) for p in pts], [crown_tone(v.co.normalized().z, v.co.normalized().x) for v in f_.verts])
+            m.face([tuple(p) for p in pts], [crown_tone(v.co.normalized().z, v.co.normalized().x, name == 'tree_red_sw') for v in f_.verts])
     tmp.free()
     m.done()
 
