@@ -127,6 +127,15 @@ def inset_ccw(poly, d):
 
 
 BYF = {int(k): v for k, v in SC.get('by_facing', {}).items()}
+
+
+def depth_face(d):
+    """A face's colour at depth d below its top (stone_colours.py face_depth: the HQ's faces darken with depth, so a tall face runs
+    darker at its foot than a short one)."""
+    FD = SC.get('face_depth')
+    if not FD: return FACE[min(NS - 1, int(d))]
+    t = max(0.0, d / SC['depth_step'] - 0.5); i = min(len(FD) - 2, int(t)); f = min(1.0, t - i)
+    return mixhex(FD[i], FD[i + 1], f)
 hexrgb = lambda c: [int(c[i:i + 2], 16) for i in (1, 3, 5)]
 _mean_face = [sum(hexrgb(c)[j] for c in FACE) / len(FACE) for j in range(3)]
 
@@ -161,7 +170,7 @@ for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
         hf = h - bv
         for k in range(NS):          # (the face in NS bands, each its measured step, top to bottom)
             za, zb = hf * (1 - k / NS), hf * (1 - (k + 1) / NS)
-            fc = SC['wall_face'][k] if kind == 'wall' and 'wall_face' in SC else shift(faced(FACE[k], y1 - y0, -(x1 - x0)), OFF.get('face'))
+            fc = SC['wall_face'][k] if kind == 'wall' and 'wall_face' in SC else shift(faced(depth_face(h - (za + zb) / 2), y1 - y0, -(x1 - x0)), OFF.get('face'))
             m.face([(x0, YC + y0, zb), (x1, YC + y1, zb), (x1, YC + y1, za), (x0, YC + y0, za)], fc)
         if bv > 0:                   # the bevel: from the face's top edge in and up to the top, its colour between the two
             (u0, v0), (u1, v1) = inner[i], inner[(i + 1) % n]

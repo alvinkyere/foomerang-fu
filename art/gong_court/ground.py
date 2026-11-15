@@ -51,7 +51,7 @@ obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)
 # boxes (mosaic px x0, y0, x1, y1): what colour alone misses (bamboo, aloes, tufts, the names' smudges)
 BOXES = [(0, 80, 175, 400),                                                     # the players' names
          (530, 1000, 630, 1060), (1690, 920, 1770, 1020),                                         # the aloes' pots
-         (1530, 330, 1625, 470), (590, 580, 660, 700), (1712, 436, 1778, 480), (1420, 340, 1460, 370),   # tufts
+         (1530, 330, 1625, 470), (590, 580, 660, 700), (1712, 436, 1778, 480), (340, 490, 402, 536), (328, 790, 386, 828), (1238, 358, 1296, 414), (1420, 340, 1460, 370),   # tufts
          (480, 790, 535, 850), (1430, 260, 1520, 380)]                                            # the banana's corner, the gong's foot
 for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
 # the bamboo (3D now, props.py): where it stands is not ground; its shadows round it are

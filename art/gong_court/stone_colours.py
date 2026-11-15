@@ -20,6 +20,9 @@ STONE = (hsv[..., 0] >= 108) & (hsv[..., 0] <= 140) & (hsv[..., 1] > 40) & (hsv[
 MINT = (hsv[..., 0] >= 40) & (hsv[..., 0] <= 75) & (hsv[..., 1] >= 50) & (hsv[..., 2] >= 170)
 hexc = lambda c: '#%02x%02x%02x' % (int(c[2]), int(c[1]), int(c[0]))
 N = 8
+DSTEP = 0.5          # (by depth below the top too: the HQ's tall faces keep darkening down past the short ones' feet)
+ND = 16
+dsteps = [[] for _ in range(ND)]
 steps = [[] for _ in range(N)]; tops = []; mints = []; wsteps = [[] for _ in range(N)]; wtops = []
 own = {}      # each body's own face and top pixels (its colour offset from the shared steps: blocks, boulders, platforms differ)
 for name, (poly, h, mint, kind) in prisms().items():
@@ -40,6 +43,7 @@ for name, (poly, h, mint, kind) in prisms().items():
         for y in range(yt, yb):
             if STONE[y, x] and hsv[y, x, 2] < 205:
                 (wsteps if kind == 'wall' else steps)[min(N - 1, int((y - yt) / (yb - yt) * N))].append(M[y, x]); own[name]['face'].append(M[y, x])
+                if kind != 'wall': dsteps[min(ND - 1, int((y - yt) / (yb - yt) * h / DSTEP))].append(M[y, x])
 face = [hexc(np.median(np.array(s), 0)) for s in steps]
 # the walls their own (thin, lit across: lighter and flatter than the platforms' deep faces)
 wface = [hexc(np.median(np.array(s), 0)) if len(s) > 20 else face[k] for k, s in enumerate(wsteps)]
@@ -71,6 +75,12 @@ for name, v in own.items():
     if len(v['face']) > 300: o_['face'] = [round(float(x), 1) for x in (np.median(np.array(v['face']), 0) - gface)[::-1]]
     if len(v['top']) > 300: o_['top'] = [round(float(x), 1) for x in (np.median(v['top'], 0) - gtop)[::-1]]
     if o_: offs[name] = o_
-out = dict(top=hexc(np.median(np.array(tops), 0)), face=face, offsets=offs, wall_top=hexc(np.median(np.array(wtops), 0)), wall_face=wface, mint=hexc(np.median(np.array(mints), 0)), by_facing=out_by)
+# by depth: each 0.5 unit's median where there are enough pixels, the deeper ones carried on by the last two measured
+fd = [np.median(np.array(st_), 0) if len(st_) > 200 else None for st_ in dsteps]
+last = max(i for i, v in enumerate(fd) if v is not None)
+for i in range(ND):
+    if fd[i] is None and i > last: fd[i] = np.clip(fd[last] + (fd[last] - fd[last - 1]) * (i - last), 0, 255)
+    elif fd[i] is None: fd[i] = fd[i - 1]
+out = dict(top=hexc(np.median(np.array(tops), 0)), face=face, face_depth=[hexc(c) for c in fd], depth_step=DSTEP, offsets=offs, wall_top=hexc(np.median(np.array(wtops), 0)), wall_face=wface, mint=hexc(np.median(np.array(mints), 0)), by_facing=out_by)
 json.dump(out, open('art/gong_court/stone_colours.json', 'w'), indent=1)
 print(out, [len(s) for s in steps])

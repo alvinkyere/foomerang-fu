@@ -37,6 +37,9 @@ OBJECTS = {
     'bamboo_se': ((1335, 1060, 1470, 1245), 18, 7, None),
     'bush_ne': ((1530, 330, 1625, 470), 20, 3, None),
     'tuft_ne': ((1712, 436, 1778, 480), 18, 2, None),
+    'tuft_w1': ((340, 490, 402, 536), 18, 2, None),
+    'tuft_w2': ((328, 790, 386, 828), 18, 2, None),
+    'tuft_n': ((1238, 358, 1296, 414), 18, 2, None),
     'bush_w': ((545, 590, 610, 690), 20, 3, None),
     'flower_w1': ((405, 615, 465, 665), 20, 3, None),
     'flower_w2': ((355, 700, 415, 745), 20, 3, None),
@@ -70,8 +73,8 @@ out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if name.startswith(('bamboo', 'pot', 'aloe')) or name == 'gong': continue      # (the bamboo, the gong, the pots and the aloes are 3D now: props.py)
     mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots)[y0:y1, x0:x1]
-    mk = cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) if name.startswith('tuft') else \
-        cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))   # (a tuft: its blades apart)
+    mk = mk if name.startswith('tuft') else \
+        cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))   # (a tuft: its blades apart, their points kept)
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue
     big = 1 + int(np.argmax(st[1:, 4])); keep = [i for i in range(1, n) if st[i, 4] >= max(40, 0.05 * st[big, 4])]
@@ -104,7 +107,7 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
     px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
-    lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = cv2.medianBlur(lm, 3 if name.startswith(('bush', 'tuft', 'flower', 'tree')) else 5); lm[~mk] = 255   # (the bushes' and tufts' points kept)
+    lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = (lm if name.startswith('tuft') else cv2.medianBlur(lm, 3 if name.startswith(('bush', 'flower', 'tree')) else 5)); lm[~mk] = 255   # (the bushes' and tufts' points kept)
     if name.startswith('tree'):
         # (a crown's soft edge against the grass blends into pale green and tan tones: traced, they drew a dark or pale ring round
         # the crown; such pixels take the tone of the nearest crown pixel that is no blend, so each puff's own tone runs to its edge)
@@ -129,7 +132,7 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
             loops = [c] + [cs[hj] for hj in range(len(cs)) if hier[0][hj][3] == ci and cv2.contourArea(cs[hj]) >= 12]
             polys = []
             for lp in loops:
-                ap = cv2.approxPolyDP(lp, 0.45 if name.startswith('tree') else 0.7, True).reshape(-1, 2)   # (a crown's ragged fringe kept)
+                ap = cv2.approxPolyDP(lp, 0.45 if name.startswith(('tree', 'tuft')) else 0.7, True).reshape(-1, 2)   # (a crown's ragged fringe kept)
                 if len(ap) >= 3: polys.append([on_card(float(u), float(v)) for u, v in ap])
             if polys: layers.append(dict(colour=colour, layer=li, loops=polys))
     if name.startswith('tree') and layers:
