@@ -79,11 +79,14 @@ class Mesh:
         return o
 
 
+SAND_BGR = [0x93, 0xe9, 0xff]
+
+
 def base_at(x, y):
     """The ground's base field (ground.json), bilinear, as linear RGB."""
     gx = min(max((x - G['x0']) / G['dx'], 0), G['nx'] - 1.001); gy = min(max((y - G['y0']) / G['dx'], 0), G['ny'] - 1.001)
     i, j = int(gx), int(gy); fx, fy = gx - i, gy - j
-    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii]
+    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 else SAND_BGR       # (what no frame saw: the sand)
     v = [(c(i, j)[k] * (1 - fx) + c(i + 1, j)[k] * fx) * (1 - fy) + (c(i, j + 1)[k] * (1 - fx) + c(i + 1, j + 1)[k] * fx) * fy for k in range(3)]
     return lin(bgr_hex([int(round(q)) for q in v]))
 
@@ -100,6 +103,7 @@ for j in range(ny):
 g.done()
 sh = Mesh('GROUND_SHAPES')
 for k, s in enumerate(G['shapes']):
+    if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 90: continue      # (the unseen black)
     sh.poly(s['pts'], 0.004 + 0.0004 * k, s['colour'], s.get('holes', []))
 sh.done()
 # the paving's joints (tiles.py): thin ribbons over the traced court, its own colour under each
@@ -107,6 +111,11 @@ if HAS('art/canal_court/tiles.json'):
     tj = Mesh('GROUND_JOINTS')
     for t in J('art/canal_court/tiles.json'): tj.poly(t['pts'], 0.07, t['colour'])
     tj.done()
+# the fallen leaves round the trees (leaves.py): crisp gold ovals over the ground (ground.py leaves the gold out)
+if HAS('art/canal_court/leaves.json'):
+    lv = Mesh('GROUND_LEAVES')
+    for t in J('art/canal_court/leaves.json'): lv.poly(t['pts'], 0.08, t['colour'])
+    lv.done()
 # the court's stepped kerb (kerb.py): each band a ring from its outline in to the next one's, crisp, over the traced ground
 KERB = J('art/canal_court/kerb.json')['bands']
 kb = Mesh('KERB')
@@ -122,6 +131,7 @@ BEVEL = 0.45
 CLAMP = os.environ.get('CLAMP', '1') == '1'
 def hexrgb(h): return [int(h[i:i + 2], 16) for i in (1, 3, 5)]
 SHADE = dict(
+    bush=dict(top='#fe8a62', south='#e8664c', west='#ee6c50', east='#f07052', north='#f67a58'),
     lav=dict(top='#9ba6e3', south='#576cae', west='#5b6eb2', east='#6972aa', north='#8d98d8'),
     rock=dict(top='#9ba6e3', south='#5368ae', west='#5b6eb2', east='#6778ba', north='#8d98d8'),
     brown=dict(top='#986d70', south='#675464', west='#6a5260', east='#6d5562', north='#654952'),
@@ -338,7 +348,21 @@ steps = [(rp - 0.3, HT - POOL_DROP + 0.01), (rp + 0.1, HT + 0.06)] + \
 for (t0, z0), (t1, z1) in zip(steps, steps[1:]):
     a0, a1 = c0 + u_ * t0, c0 + u_ * t1; h_ = n_ * SPOUT_W / 2
     w.face([(a0.x - h_.x, YC + a0.y - h_.y, z0), (a1.x - h_.x, YC + a1.y - h_.y, z1), (a1.x + h_.x, YC + a1.y + h_.y, z1), (a0.x + h_.x, YC + a0.y + h_.y, z0)], '#8ad7e9')
+# the inlet: the stream runs on off the channel's end and down into the basin (the HQ's: one sheet from the run to the basin's water,
+# widening as it falls), from the channel's last point along its last leg
+e1, e0 = Vector(L0[-1]), Vector(L0[-2]); ue = (e1 - e0).normalized(); ne = Vector((-ue.y, ue.x)); BAJ = J('art/canal_court/basin.json')
+reach_in = (Vector((BAJ['cx'], BAJ['cy'])) - e1).length - BAJ['rin'] + 0.4
+fall = [(0.0, HC + 0.03, 0.5), (reach_in * 0.55, HC + 0.03, 0.55), (reach_in * 0.8, (HC + BAJ['hw']) / 2, 0.7), (reach_in, BAJ['hw'] + 0.03, 0.9), (reach_in + 0.8, BAJ['hw'] + 0.03, 1.2)]
+for (t0, z0, w0), (t1, z1, w1) in zip(fall, fall[1:]):
+    a0, a1 = e1 + ue * t0, e1 + ue * t1
+    w.face([(a0.x - ne.x * w0, YC + a0.y - ne.y * w0, z0), (a1.x - ne.x * w1, YC + a1.y - ne.y * w1, z1), (a1.x + ne.x * w1, YC + a1.y + ne.y * w1, z1), (a0.x + ne.x * w0, YC + a0.y + ne.y * w0, z0)], '#8ad7e9')
 w.done()
+
+# the red bushes along the south (bushes.py): soft mounds over their traced tops
+if HAS('art/canal_court/bushes.json'):
+    BU = J('art/canal_court/bushes.json')
+    for k, piece in enumerate(BU['pieces']):
+        soft_prism(f'BUSH_{k}', ccw([tuple(p) for p in piece]), -0.05, BU['h'], 'bush', bevel=0.7)
 
 # the basin (fit_basin.py): a navy footing, seven brown blocks round the octagon (none on the side the channel comes in), the pool
 B = BA; BR, RIN = B['r'], B['rin']; FOOT_R, FOOT_H, GAP = B['r'] + 0.6, 0.9, 0.06      # (the HQ's navy footing: its top shows 8 px south of the blocks, its side 16 px; under the pool's level)
@@ -361,7 +385,7 @@ w = Mesh('FLOW_basin'); w.poly(octagon(B['cx'], B['cy'], RIN + 0.15, B['turn']),
 # faces up, a little darker turned away from the light (from the north-west, above)
 PROPS = J('art/canal_court/props.json') if HAS('art/canal_court/props.json') else {}
 CARDS_ = {c['name']: c for c in J('art/canal_court/cards.json')} if HAS('art/canal_court/cards.json') else {}
-PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank'} if PROPS else set()      # (the urns stay traced: too small to fit)
+PROPS3D = {'barrel_nw', 'barrel_n', 'barrel_s', 'bucket', 'bench', 'plank', 'rack', 'tree_w', 'tree_ne', 'tree_se', 'post_n', 'tree_e'} if PROPS else set()      # (tree_e: a crown's edge the frame barely shows: left out)      # (the urns stay traced: too small to fit)
 LIGHT = Vector((-0.35, 0.45, 0.82)).normalized()
 
 
@@ -398,7 +422,112 @@ def tone(name, k, fallback):
     return order[k] if k < len(order) else fallback
 
 
+_th = math.radians(CAM['pitchDeg'])
+TOWARD = Vector((0, -math.cos(_th), math.sin(_th)))     # (from the scene towards the camera)
+_R = [[1, 0, 0], [0, -math.sin(_th), -math.cos(_th)], [0, math.cos(_th), -math.sin(_th)]]
+_RT = lambda v: Vector((sum(_R[i][0] * v[i] for i in range(3)), sum(_R[i][1] * v[i] for i in range(3)), sum(_R[i][2] * v[i] for i in range(3))))
+_FZ = CAM['focalPx'] * ZOOM
+
+
+def on_card(u, v, foot):
+    """The frame pixel (u, v) put on the upright plane facing the camera through the plan point `foot` (as cards.py does): the camera
+    never turns, so a shape drawn there shows exactly as drawn in the frame from every framing the game uses."""
+    cam = Vector(tuple(c * 100 for c in CAM['centre'])); view = _RT((0, 0, 1))
+    d = _RT(((u - 960) / _FZ, (v - 540) / _FZ, 1.0)).normalized(); A = Vector((foot[0], YC + foot[1], 0.0))
+    t = (A - cam).dot(view) / d.dot(view); return tuple(cam + d * t)
+
+
+def rack():
+    """The utensil rack by the west kerb, drawn as the READY frame shows it (its pixels measured): two dark posts (their feet at frame
+    x 193 and 304, y 432) with rounded tan caps, a bar across them at y 370-380 lashed with pale rope, and three green utensils hanging
+    from it (a blade, a whisk, a slotted spatula), brown-handled; each part a crisp flat shape on the camera-facing plane through its foot,
+    the nearer parts a hair towards the camera."""
+    m = Mesh('PROP_rack'); foot = (-23.1, 4.22)
+    post, postL, bar, cap, capD, rope, green, greenD, handle = '#645c5b', '#7a6f6c', '#65675d', '#d0b898', '#b89a78', '#f0dcbd', '#98a58e', '#7f8f78', '#9a8771'
+    layer = [0]
+    def shape(pts, col):
+        off = TOWARD * (0.01 * layer[0]); layer[0] += 1
+        P = [Vector(on_card(u, v, foot)) + off for u, v in pts]
+        up_ = TOWARD.cross(Vector((1, 0, 0)))
+        flat2 = [[Vector((q.x, (q - P[0]).dot(up_), 0)) for q in P]]
+        for tri in tessellate_polygon(flat2): m.face([tuple(P[i]) for i in tri], col)
+    ell = lambda cx, cy, rx, ry, n=20: [(cx + rx * math.cos(t), cy + ry * math.sin(t)) for t in [2 * math.pi * k / n for k in range(n)]]
+    shape([(163, 370), (331, 370), (331, 380), (163, 380)], bar)                                    # the bar
+    for u0 in (187, 297):                                                                           # the posts: a lit left edge
+        shape([(u0, 350), (u0 + 13, 350), (u0 + 14, 432), (u0 + 1, 432)], post)
+        shape([(u0, 350), (u0 + 3, 350), (u0 + 4, 432), (u0 + 1, 432)], postL)
+        shape(ell(u0 + 6.5, 347, 7.5, 5), capD); shape(ell(u0 + 6, 346, 6, 3.8), cap)              # their caps (end grain)
+        # the joint: a pale loop of rope round it, and the round tan end of a peg through it
+        loop = [(u0 + 7 + 17 * math.cos(t), 381 + 11 * math.sin(t)) for t in [math.pi * (0.55 + 1.3 * k / 16) for k in range(17)]]
+        inner_ = [(u0 + 7 + 14 * math.cos(t), 381 + 8.5 * math.sin(t)) for t in [math.pi * (0.55 + 1.3 * k / 16) for k in range(17)]]
+        for i in range(16): shape([loop[i], loop[i + 1], inner_[i + 1], inner_[i]], rope)
+        shape(ell(u0 + 9, 385, 8, 8.5), capD); shape(ell(u0 + 8.5, 384, 6.8, 7), cap)
+    shape([(208, 356), (219, 352), (223, 368), (224, 412), (217, 420), (211, 405), (209, 378)], green)   # the blade
+    shape([(212, 360), (215, 358), (218, 410), (215, 414)], greenD)
+    shape([(245, 356), (249, 356), (249, 382), (245, 382)], green)                                     # the whisk
+    ring_o = ell(247, 368, 15, 14, 24); ring_i = ell(247, 368, 11, 10.5, 24)
+    for i in range(24):
+        j = (i + 1) % 24; shape([ring_o[i], ring_o[j], ring_i[j], ring_i[i]], green)
+    shape(ell(253, 397, 6, 13), handle)
+    shape([(276, 356), (298, 354), (299, 378), (290, 382), (279, 380)], green)                        # the spatula
+    for u0 in (281, 286, 291): shape([(u0, 360), (u0 + 2.5, 360), (u0 + 2.5, 372), (u0, 372)], '#e8e2cf')
+    shape(ell(294, 394, 5.5, 13), handle)
+    m.done()
+
+
+# the autumn trees round the court, in 3D: a purple trunk from its foot, leaning as the frame draws it (its base and the point it leaves the
+# frame, frame pixels, put on the camera-facing plane through the foot), and a crown of soft gold lobes over it (light on top, a deeper
+# gold and orange below), as the HQ's maples; the game's camera only ever shows their trunks and the crowns' lower edges
+TREES = {   # name: foot (plan), trunk base and top (frame px), trunk width px, crown: centre px, radius px (the mosaic's view of each)
+    'tree_ne': ((28.34, 16.43), (1784, 141), (1829, 18), 28, (1835, -45), 95),
+    'tree_w': ((-30.9, 9.59), (25, 271), (21, 158), 26, (45, 75), 80),
+    'tree_se': ((29.29, -18.38), (1954, 1058), (1966, 950), 30, (1980, 896), 82),      # (its crown seen at 661 s: frame 39660)
+    'post_n': ((-17.52, 22.09), (458, 14), (462, -60), 26, (470, -150), 85),
+}
+
+
+def tree(name):
+    foot, (bu, bv), (tu, tv), wpx, (cu, cv), rpx = TREES[name]
+    m = Mesh(f'TREE_{name}')
+    b = Vector(on_card(bu, bv, foot)); t = Vector(on_card(tu, tv, foot))
+    ax = (t - b); L = ax.length; ax.normalize()
+    t = b + ax * L * 1.45                                                        # (on up into the crown)
+    px_unit = (Vector(on_card(bu + 100, bv, foot)) - b).length / 100            # (units a frame pixel, on this card)
+    r0 = wpx * px_unit / 2
+    side = ax.cross(TOWARD).normalized(); fwd = side.cross(ax).normalized()
+    seg = 10
+    for k in range(seg):                                                           # (the trunk: tapering a little upwards)
+        a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * (k + 1) / seg
+        ring = lambda a, rr, base: base + (side * math.cos(a) + fwd * math.sin(a)) * rr
+        q = [ring(a0, r0, b - ax * 0.3), ring(a1, r0, b - ax * 0.3), ring(a1, r0 * 0.8, t), ring(a0, r0 * 0.8, t)]
+        n = (side * math.cos((a0 + a1) / 2) + fwd * math.sin((a0 + a1) / 2))
+        m.face([tuple(v) for v in q], lit('#7b78a6', n))
+    if name == 'tree_ne':       # (its trunk forks two-thirds up: a second branch off to the left, as the frame's)
+        fb = b + ax * L * 0.62; ft = Vector(on_card(tu - 45, tv - 10, foot)); ax2 = (ft - fb).normalized()
+        side2 = ax2.cross(TOWARD).normalized(); fwd2 = side2.cross(ax2).normalized()
+        for k in range(seg):
+            a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * (k + 1) / seg
+            ring2 = lambda a, rr, base: base + (side2 * math.cos(a) + fwd2 * math.sin(a)) * rr
+            q = [ring2(a0, r0 * 0.7, fb), ring2(a1, r0 * 0.7, fb), ring2(a1, r0 * 0.55, ft), ring2(a0, r0 * 0.55, ft)]
+            m.face([tuple(v) for v in q], lit('#7b78a6', side2 * math.cos((a0 + a1) / 2) + fwd2 * math.sin((a0 + a1) / 2)))
+    C = Vector(on_card(cu, cv, foot)); R = rpx * px_unit
+    tmp = bmesh.new(); bmesh.ops.create_icosphere(tmp, subdivisions=3, radius=1.0); tmp.normal_update()
+    lobes = [(Vector((0, 0, 0)), 1.0), (Vector((-0.55, 0.1, -0.25)), 0.7), (Vector((0.55, -0.05, -0.2)), 0.72), (Vector((0.0, -0.3, -0.45)), 0.68),
+             (Vector((-0.25, 0.3, 0.35)), 0.6), (Vector((0.3, 0.25, 0.3)), 0.58)]
+    for off, sc_ in lobes:
+        for f_ in tmp.faces:
+            nz = f_.normal.z; col = '#f0ce6d' if nz > 0.35 else '#ecb561' if nz > -0.3 else '#e09a4e'
+            pts = [C + (off * Vector((1.3, 1.0, 0.8)) + v.co * sc_ * Vector((1.1, 0.85, 0.9))) * R * 0.75 for v in f_.verts]     # (wide, as the HQ's maples)
+            m.face([tuple(p) for p in pts], col)
+    tmp.free()
+    m.done()
+
+
+import numpy as np
 for name in sorted(PROPS3D):
+    if name in TREES: tree(name); continue
+    if name == 'tree_e': continue
+    if name == 'rack': rack(); continue
     P = PROPS[name]; v = P['v']; z0 = P['z0']; m = Mesh(f'PROP_{name}')
     if name.startswith('barrel'):
         cx, cy, r, h = v

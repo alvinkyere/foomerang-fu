@@ -27,7 +27,8 @@ Hm = T @ np.linalg.inv(GROUND_H) @ A
 M = cv2.imread('art/canal_court/output/mosaic_chrome.png')
 # (the ground from the frame at 654.5 s wherever nothing stands that moves: its camera is still and crisp; the mosaic under the players,
 # their power icons and the names)
-_F = cv2.imread('art/canal_court/output/chrome_0.png'); _keep = np.ones(_F.shape[:2], np.uint8)
+_F = cv2.imread('art/canal_court/output/clean_ref.png')      # (ready.py: the frame, its players filled)
+_keep = np.ones(_F.shape[:2], np.uint8)
 for _x, _y in ((305, 300), (690, 210), (1650, 760), (1555, 690), (1625, 320), (1580, 230), (300, 220)): cv2.circle(_keep, (_x, _y), 70, 0, -1)
 _keep[0:380, 0:230] = 0
 _M = M.copy()
@@ -60,6 +61,13 @@ water = (Hu >= 85) & (Hu <= 112) & (S >= 80)
 obj = (wood | lav | gold | water).astype(np.uint8)
 obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), np.ones((5, 5), np.uint8))
 cut |= cv2.dilate(red.astype(np.uint8), np.ones((15, 15), np.uint8))
+# (the rack by the west kerb: its dark posts and bar are no colour the masks above catch: its own pixels in the frame (dark wood, green
+# tools, pale rope), laid on the ground as the flat view is)
+_rk = np.zeros(_M.shape[:2], np.uint8); _raw = cv2.cvtColor(_F, cv2.COLOR_BGR2HSV).astype(int)
+_rack = ((_raw[..., 2] < 150) | ((_raw[..., 0] >= 35) & (_raw[..., 0] <= 80) & (_raw[..., 1] >= 25) & (_raw[..., 2] < 200)) |
+         ((_raw[..., 1] < 40) & (_raw[..., 2] > 225)))[328:440, 150:338]          # (its dark wood, the green tools, the pale rope)
+_rk[-MOSAIC_ORIGIN[1] + 328:-MOSAIC_ORIGIN[1] + 440, -MOSAIC_ORIGIN[0] + 150:-MOSAIC_ORIGIN[0] + 338] = cv2.dilate(_rack.astype(np.uint8), np.ones((7, 7), np.uint8))
+cut |= cv2.warpPerspective(_rk, Hm, (W, Hh), flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP)
 hole = ((cut > 0) | (obj > 0) | ~seen).astype(np.uint8)
 ground = cv2.inpaint(flat, hole * 255, 7, cv2.INPAINT_TELEA)
 
@@ -113,6 +121,7 @@ strength = np.linalg.norm(cen, axis=1)
 k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 for q in np.argsort(strength):
     m = cv2.morphologyEx((lm == q).astype(np.uint8), cv2.MORPH_OPEN, k5)
+    m = cv2.dilate(m, np.ones((3, 3), np.uint8))       # (a pixel over its neighbours: no seam of the base between two shapes)
     cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     if hier is None: continue
     for ci, c in enumerate(cs):
