@@ -15,7 +15,7 @@ import json, os, sys
 import numpy as np, cv2
 sys.path.insert(0, 'art/gong_court')
 from measure import H0 as GROUND_H, Yc, MOSAIC_ORIGIN, pix, ZS
-from geom import prisms
+from geom import prisms, simple
 
 PX = float(os.environ.get("GPX", "20")) / ZS      # (px a plan unit for the ground drawing: 20 keeps thin shadow strokes; 10 scored 3.99, 20 3.90)
 X0, X1, Y0, Y1 = -36.0 * ZS, 34.0 * ZS, -23.0 * ZS, 25.0 * ZS
@@ -121,6 +121,20 @@ for oi, q in enumerate(ORDER):
         med = np.median(ground[own], 0)
         ap = cv2.approxPolyDP(c, 0.05 * PX, True).reshape(-1, 2)
         if len(ap) < 3: continue
+        if not simple(ap):
+            # (simplified, the outline crossed itself: Blender filled half of it, a pale hole in a shadow. Finer, else row strips)
+            ap = cv2.approxPolyDP(c, 0.02 * PX, True).reshape(-1, 2)
+            if not simple(ap):
+                reg = region & (m > 0); med_ = np.median(ground[reg], 0) if reg.any() else med
+                for yy in range(0, Hh - 1, 2):
+                    row = (reg[yy] | reg[yy + 1]).astype(np.uint8)
+                    if not row.any(): continue
+                    e = np.flatnonzero(np.diff(np.concatenate([[0], row, [0]])))
+                    for a_, b_ in zip(e[::2], e[1::2]):
+                        shapes.append(dict(colour='#%02x%02x%02x' % (int(med_[2]), int(med_[1]), int(med_[0])),
+                                           pts=[[round(X0 + u / PX, 2), round(Y1 - v / PX, 2)] for u, v in ((a_, yy), (b_, yy), (b_, yy + 2.2), (a_, yy + 2.2))],
+                                           holes=[]))
+                continue
         holes = []
         for hj in range(len(cs)):
             if hier[0][hj][3] == ci and cv2.contourArea(cs[hj]) >= 0.2 * PX * PX:

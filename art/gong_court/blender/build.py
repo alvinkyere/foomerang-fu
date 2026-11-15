@@ -190,15 +190,19 @@ for name, (poly, h, mint, kind) in ([] if NOSTONE else prisms().items()):
 CAMV = Vector(tuple(v * 100 for v in CAM['centre'])); _pth = math.radians(CAM['pitchDeg'])
 TOWARD = Vector((0, -math.cos(_pth), math.sin(_pth)))
 if HAS('art/gong_court/cards.json') and not NOCARDS:
-    for c in J('art/gong_court/cards.json'):
+    for c in [c for c in J('art/gong_court/cards.json') if os.environ.get('ONLYCARD', c['name']) == c['name']]:
         m = Mesh(f'CARD_{c["name"]}')
         for s_ in c['shapes']:
-            off = Vector((0, -0.004 * s_['layer'], 0))     # (the later tones a hair to the south: nearer the camera)
+            if os.environ.get('SKIPLAYER') and str(s_['layer']) in os.environ['SKIPLAYER'].split(','): continue
+            # (the later tones a hair to the south, nearer the camera, and a hair up: where a card lies flat on the ground the south shift
+            # orders nothing, and the backing fought the trunk)
+            off = Vector((0, -0.004 * s_['layer'], 0.003 * (s_['layer'] + 1)))
             for q in s_.get('strips', []):                 # (a crown's backing: quads, cards.py)
                 m.face([tuple(Vector((x, YC + y, z)) + off) for x, y, z in q], s_['colour'])
             if not s_['loops']: continue
             loops = [[Vector((x, YC + y, z)) + off for x, y, z in lp] for lp in s_['loops']]
-            flat_ = [[Vector((v.x, v.z + (v.y - loops[0][0].y), 0)) for v in lp] for lp in loops]
+            flat_ = ([[Vector((u, -v, 0)) for u, v in lp] for lp in s_['px']] if 'px' in s_ else
+                     [[Vector((v.x, v.z + (v.y - loops[0][0].y), 0)) for v in lp] for lp in loops])
             verts = [v for lp in loops for v in lp]
             for tri in tessellate_polygon(flat_):
                 m.face([tuple(verts[i]) for i in tri], s_['colour'])
@@ -431,7 +435,8 @@ if HAS('art/gong_court/props.json') and 'aloes' in J('art/gong_court/props.json'
 # ---------------------------------------------------------------------------------------------------------------- camera, export
 cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.collection.objects.link(co); sc.camera = co
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
-cam.sensor_fit = 'HORIZONTAL'; cam.sensor_width = 36; cam.lens = CAM['focalPx'] * ZOOM / 1920 * 36; cam.clip_end = 5000
+cam.sensor_fit = 'HORIZONTAL'; cam.sensor_width = 36; cam.lens = CAM['focalPx'] * ZOOM / 1920 * 36; cam.clip_end = 400
+cam.clip_start = 40          # (the court lies 110-200 units off: at the default 0.1 the depth buffer could not part layers 0.004 apart, and a crown's base fill showed over its trunk)
 if WIDE:   # (the mosaic's view: its size, the frame at its origin)
     (ox, oy) = MOS['origin']; Wm, Hm = MOS.get('size', [2217, 1372])
     sc.render.resolution_x, sc.render.resolution_y = Wm, Hm

@@ -69,3 +69,23 @@ def aloes_mask(shape, pix, origin):
         for lf in a['leaves']:
             cv2.fillPoly(m, [np.int32(np.float32([pix(x, y, z) for x, y, z in lf['pts']]) - origin)], 1)
     return cv2.dilate(m, np.ones((7, 7), np.uint8))
+
+
+def simple(pts):
+    """No two edges of the closed outline cross (touching at a shared corner aside)."""
+    import numpy as np
+    P = np.asarray(pts, float); n = len(P)
+    if n < 4: return True
+    if len({tuple(p) for p in P.tolist()}) < n: return False      # (a corner visited twice: it touches itself)
+    a = P; b = np.roll(P, -1, 0)
+    for i in range(n):
+        p, r = a[i], b[i] - a[i]
+        q, s_ = a, b - a
+        den = r[0] * s_[:, 1] - r[1] * s_[:, 0]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            t = ((q[:, 0] - p[0]) * s_[:, 1] - (q[:, 1] - p[1]) * s_[:, 0]) / den
+            u = ((q[:, 0] - p[0]) * r[1] - (q[:, 1] - p[1]) * r[0]) / den
+        ok = (np.abs(den) > 1e-9) & (t > 1e-6) & (t < 1 - 1e-6) & (u > 1e-6) & (u < 1 - 1e-6)
+        ok[[i, (i - 1) % n, (i + 1) % n]] = False
+        if ok.any(): return False
+    return True
