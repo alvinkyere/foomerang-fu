@@ -41,7 +41,7 @@ manifest = {
     'look': dict(gong['look'], sky=[{'at': 0.0, 'colour': GRASS}, {'at': 1.0, 'colour': GRASS}]),
     'fixedFrame': {'zoom': ZOOM, 'u': 0, 'v': 0},
     'hqFrame': {'zoom': ZOOM, 'u': 0, 'v': 0},
-    'followFrame': {'minZoom': ZOOM, 'maxZoom': round(ZOOM * 1.3, 4)},
+    'followFrame': {'minZoom': ZOOM, 'maxZoom': round(ZOOM * 1.18, 4)},      # (the HQ's round, 653-675 s: its camera zooms in to 1.18x the READY view at most (H.json))
     'scenery': {'fade': False, 'sway': False},
     'canalWater': CANAL,
     'characters': gong['characters'],
