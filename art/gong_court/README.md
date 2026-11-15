@@ -29,15 +29,16 @@ frame as Chrome shows it).
 **Animation:** none. Measured over the round (frames registered on the READY frame, `stab.py`): the bamboo, the maples and the gong hold
 still, even when players pass; their apparent shifts are the moving camera's parallax. Manifest `scenery: {fade: false, sway: false}`.
 
-**Last measured (2026-11-14, render vs the still view: still.py):** mean Lab difference 4.26 (median 1.07), 10.0% of pixels over 10.
-In the game (`?arena=court&frame=hq`, two CPUs): 4.65 (was 5.3). The score rose from 3.90 when the bamboo, gong and pots became 3D:
-the traced cards were drawn from this very view (so they scored well) but read soft and smeared (the owner, 2026-11-14: "some of the
-objects are not clear, they are still blurry"); the models are crisp, their edges hard against the video's soft ones.
+**Last measured (2026-11-15, render vs the still view: still.py):** mean Lab difference 4.12 (median 1.07), 9.3% of pixels over 10,
+at the true scale (zoom.json K 1.055). The bamboo, gong, pots and aloes are 3D; the maples, bush and tufts traced cards, filled whole
+(an outline that crosses or touches itself is drawn as row strips of its pixels: Blender's polygon fill covered only part of it); the
+ground's and the platforms' traced tones run edge to edge (no sliver of the base between neighbours); the stone darkens with depth.
 
 **Tried and rejected (by the score against the still view):** (the bamboo in 3D first scored 1.5-2.4x worse than its cards and was
 rejected; on 2026-11-14 it was built anyway, six-sided as the HQ's, for clarity over the score); a bevel band on the stone's edges; stone-free top decals; rim widths 0.4 and 0.7.
 
-**Known gaps:** the stone's soft rounded edges are drawn sharp (a bevel band scored worse); the maples are still flat traced cards (now clean:
+**Known gaps:** the stone's soft rounded edges are drawn sharp (a bevel band scored worse); the south-west octagon's outline
+is read by eye and refit by the painter (a re-read scored the same and warped its east side: kept as it was); the maples are still flat traced cards (now clean:
 no cracks, no halo); the bamboo's leaf sprays are read by eye (their count and angles approximate); the south-east clump's stalks lean towards the
 camera, which the sideways-only stalk model cannot show; the platforms' outlines
 are partly hand-read (± a few px); not in the rotation (the owner's call).
