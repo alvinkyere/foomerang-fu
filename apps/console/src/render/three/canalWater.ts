@@ -123,7 +123,7 @@ vec2 bw=vec2(fbm(p*0.7+vec2(time*0.9,0.0)),fbm(p*0.7+vec2(3.0,-time*0.9)))-0.5;
 vec2 pv=p+bw*0.9;
 float ang=atan(pv.y,pv.x);
 float arms=0.5+0.5*sin(ang+5.0*length(pv)/poolR-time*1.6)+(fbm(p*0.9+vec2(0.0,-time*0.6))-0.5)*0.8+0.35*smoothstep(0.0,0.6,-pv.y/poolR);
-float neck=(1.0-smoothstep(0.12,0.22,abs(p.x)/poolR))*smoothstep(0.25,0.7,-p.y/poolR);
+float nw=0.1+0.22*smoothstep(0.35,0.95,-p.y/poolR);float neck=(1.0-smoothstep(nw,nw+0.06,abs(p.x+0.08*sin(p.y*3.0+time*2.0))/poolR))*smoothstep(0.2,0.55,-p.y/poolR);
 float foam=max(smoothstep(0.66,0.69,arms)*smoothstep(0.1,0.2,r)*(1.0-smoothstep(0.72,0.8,r)),neck)*(1.0-smoothstep(-0.45,-0.2,e));
 vec3 c=mix(${rgb(COL.deep)},${rgb(COL.deepEdge)},smoothstep(-0.8,-0.35,e));
 c=mix(c,${rgb(COL.rim)},smoothstep(-0.35,0.0,e));

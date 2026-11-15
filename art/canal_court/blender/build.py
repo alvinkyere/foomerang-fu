@@ -323,7 +323,7 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=8, a0=math.p
     return o
 
 
-POOL_K = float(os.environ.get('POOL_K', '0.68'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
+POOL_K = float(os.environ.get('POOL_K', '0.76'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
 POOL_SOFT = float(os.environ.get('POOL_SOFT', '0.6'))
 POOL_DROP = 0.3            # (the pool's water a little below the tower's top: its inner wall shows as a dark ring round it)
 TOWER_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'])      # (the HQ's tower is a crisp octagon: fit_aqueduct.py)
@@ -354,7 +354,7 @@ json.dump(dict(cx=AQ['tower']['cx'], cy=AQ['tower']['cy'], r=AQ['tower']['r'] * 
 w = Mesh('FLOW_run'); w.poly(ccw([tuple(p) for p in WAT['run']['pts']]), WAT['run']['h'] + 0.02, '#8ad7e9')
 # the spout: the pool spills over the tower's south rim, along the run's first leg, and falls down the tower's face onto the channel
 # (the HQ's: one stream from the pool to the run, no gap); SPOUT_W across, its points from the pool's edge out to the tower's
-SPOUT_W = 0.8
+SPOUT_W, SPOUT_W_LOW = 0.65, 1.1
 L0 = TOPS['channel']['line']; c0, c1 = Vector(L0[0]), Vector(L0[1]); u_ = (c1 - c0).normalized(); n_ = Vector((-u_.y, u_.x))
 def reach(poly, c, u):
     best = 0.0; P = [Vector(p) for p in poly]
@@ -367,13 +367,16 @@ def reach(poly, c, u):
 rp, rt = reach(POOL_OCT, c0, u_), reach(TOWER_OCT, c0, u_)
 HT, HC = TOPS['tower']['h'], TOPS['channel']['h']
 # (over the rounded rim: round its curve a hair outside it, then straight down the face onto the channel)
-R_ = BEVEL + 0.4          # (the rounded rim reaches out further than its nominal curve: the stream falls just clear of it)
-steps = [(rp - 0.3, HT - POOL_DROP + 0.01), (rp + 0.1, HT + 0.06)] + \
+# (over the rim exactly as it is built: across its top, round its rounded edge a hair outside it, straight down its face, onto the
+# channel's top)
+R_ = BEVEL + 0.3
+steps = [(rp - 0.6, HT - 0.04), (rp + 0.05, HT + 0.03)] + \
         [(rt - BEVEL + R_ * math.sin(a), HT - BEVEL + R_ * math.cos(a)) for a in [k * math.pi / 2 / 6 for k in range(7)]] + \
-        [(rt + 0.06, HC + 0.03), (rt + 0.7, HC + 0.03)]
-for (t0, z0), (t1, z1) in zip(steps, steps[1:]):
-    a0, a1 = c0 + u_ * t0, c0 + u_ * t1; h_ = n_ * SPOUT_W / 2
-    w.face([(a0.x - h_.x, YC + a0.y - h_.y, z0), (a1.x - h_.x, YC + a1.y - h_.y, z1), (a1.x + h_.x, YC + a1.y + h_.y, z1), (a0.x + h_.x, YC + a0.y + h_.y, z0)], '#8ad7e9')
+        [(rt + 0.04, HC + 0.03), (rt + 0.7, HC + 0.03)]
+wid = lambda k: SPOUT_W + (SPOUT_W_LOW - SPOUT_W) * k / (len(steps) - 1)
+for k, ((t0, z0), (t1, z1)) in enumerate(zip(steps, steps[1:])):
+    a0, a1 = c0 + u_ * t0, c0 + u_ * t1; h0, h1 = n_ * wid(k) / 2, n_ * wid(k + 1) / 2
+    w.face([(a0.x - h0.x, YC + a0.y - h0.y, z0), (a1.x - h1.x, YC + a1.y - h1.y, z1), (a1.x + h1.x, YC + a1.y + h1.y, z1), (a0.x + h0.x, YC + a0.y + h0.y, z0)], '#8ad7e9')
 # the inlet: the stream runs on off the channel's end and down into the basin (the HQ's: one sheet from the run to the basin's water,
 # widening as it falls), from the channel's last point along its last leg
 e1, e0 = Vector(L0[-1]), Vector(L0[-2]); ue = (e1 - e0).normalized(); ne = Vector((-ue.y, ue.x)); BAJ = J('art/canal_court/basin.json')
