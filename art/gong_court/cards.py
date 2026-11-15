@@ -75,7 +75,7 @@ from geom import simple
 out = []
 for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if name.startswith(('bamboo', 'pot', 'aloe')) or name == 'gong': continue      # (the bamboo, the gong, the pots and the aloes are 3D now: props.py)
-    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots & (m.sum(2) > 40))[y0:y1, x0:x1]   # (not the mosaic's unseen black)
+    mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = ((d > thr) & ~teal & ~water & ~_pots & (m.max(2) > 60))[y0:y1, x0:x1]   # (not the mosaic's unseen black, nor its dark feathered edge)
     if name.startswith('tree'):    # (the trunk's pale lavender lies close to the grass in value: it is the trunk by its hue)
         _lav = (h[..., 0] >= 105) & (h[..., 0] <= 150) & (h[..., 1] >= 30) & (d > 12) & ~water
         mk[y0:y1, x0:x1] |= _lav[y0:y1, x0:x1].astype(np.uint8)
