@@ -5,8 +5,8 @@ import './controlsCard.css';
 /**
  * The CONTROLS card before the first round, as ff physics hq 2.mp4 9:53 (frames 35590–35680 at 60 fps) shows it: the map
  * blurred and dimmed behind it, CONTROLS, a dark panel headed by the controller and one row per control, and CONTINUE. The
- * video's rows name a gamepad's buttons; ours name the phone's: the stick, and SLASH (the big top button), THROW (bottom
- * left) and DASH (bottom right), each drawn where it sits on the phone, in the video's colour for that action. Any phone's
+ * video's rows show a gamepad's buttons; ours show the phone's own controls exactly as the phone draws them: the stick
+ * (MOVE), and the SLASH, THROW and DASH buttons in their own looks, with their own words. Any phone's
  * SELECT (or the TV) presses CONTINUE; the match waits, still, until then (MatchDirector.dismissControls).
  */
 export const CONTROL_ROWS = [
@@ -43,31 +43,13 @@ function PhoneIcon() {
   );
 }
 
-/** A row's round button: the stick, or the phone's three buttons with this one filled. */
-function Glyph({ id }: { readonly id: ControlId }) {
-  return (
-    <span className={`cc__glyph cc__glyph--${id}`} aria-hidden="true">
-      <svg viewBox="0 0 20 20">
-        {id === 'move' ? (
-          <>
-            <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-            <circle cx="10" cy="10" r="2.6" fill="currentColor" />
-          </>
-        ) : (
-          <>
-            <rect x="3.5" y="4" width="13" height="5.5" rx="1.6" {...cell(id === 'slash')} />
-            <rect x="3.5" y="11" width="6" height="5" rx="1.6" {...cell(id === 'throw')} />
-            <rect x="10.5" y="11" width="6" height="5" rx="1.6" {...cell(id === 'dash')} />
-          </>
-        )}
-      </svg>
-    </span>
-  );
+/**
+ * A row's control drawn as the phone draws it (apps/controller/src/styles.css), its word inside: the stick's dark pad with
+ * its dashed ring and MOVE, SLASH solid amber, THROW dark with an amber border, DASH dark with a dashed amber border.
+ */
+function Control({ id, word }: { readonly id: ControlId; readonly word: string }) {
+  return <span className={`cc__button cc__button--${id}`}>{word}</span>;
 }
-const cell = (on: boolean) =>
-  on
-    ? { fill: 'currentColor' }
-    : { fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, opacity: 0.55 };
 
 export function ControlsCard({ onContinue }: { readonly onContinue: () => void }) {
   return (
@@ -92,8 +74,7 @@ function Card({ onContinue }: { readonly onContinue: () => void }) {
         <ul className="cc__rows" aria-label="Controls">
           {CONTROL_ROWS.map((row) => (
             <li key={row.id} className="cc__row">
-              <Glyph id={row.id} />
-              {row.word}
+              <Control id={row.id} word={row.word} />
             </li>
           ))}
         </ul>

@@ -1,7 +1,7 @@
 /* The CONTROLS card, measured from ff physics hq 2.mp4 9:53 (1920×1080, frame 35640). --u is 1% of the game frame's width
    (19.2 px at 1080p), so it holds at any TV size. Title CONTROLS: cap top 57 px, cap height 83 px, centred, #fcfbf6. Head
    panel 762–1158 × 235–330 px, body panel 762–1158 × 348–882 px, both #373834. Rows centred at 408 / 539 / 668 / 798 px
-   (60 px into the body, then every 130 px): a 52 px round button, 14 px gap, the word (cap 26 px, #f9f7f4). CONTINUE: a
+   (60 px into the body, then every 130 px): a 52 px round button, 14 px gap, the word (ours: the phone's own stick and buttons, see below) (cap 26 px, #f9f7f4). CONTINUE: a
    #fcfcf9 box 808–1111 × 959–1030 px, its word (cap 38 px) in grey ink (#575654). The map behind is blurred and dimmed to 55% (a mean of
    178 -> 98 over the background); the blur fits a Gaussian of sigma 8 px (frame 35589 blurred vs 35590: residual 1.9 at 8 px,
    2.4 at 6, 2.6 at 10).
@@ -81,31 +81,60 @@
   gap: calc(0.73 * var(--u));
 }
 
-/* the video's round buttons: a disc with a darker lip below */
-.cc__glyph {
+/* the phone's own controls, as apps/controller/src/styles.css draws them (its colours: surface #1f2833, border #2c3744,
+   accent #ffb020 on #1a1200, text #f2f5f8; its buttons rounded 16 px on a 56 px tap target, weight 800, spaced 0.08em) */
+.cc__button {
   display: inline-grid;
   place-items: center;
-  width: calc(2.7 * var(--u));
-  height: calc(2.7 * var(--u));
+  box-sizing: border-box;
+  width: calc(9 * var(--u));
+  height: calc(2.9 * var(--u));
+  border-radius: calc(0.8 * var(--u));
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    sans-serif;
+  font-size: calc(1.25 * var(--u));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.cc__button--move {
+  position: relative;
+  height: calc(4.4 * var(--u));
+  padding-bottom: calc(0.35 * var(--u));
+  align-items: end;
+  color: #9aa7b6;
+  background: #171d25;
+  font-size: calc(0.95 * var(--u));
+  letter-spacing: 0.12em;
+}
+/* the phone's faint dashed ring where a thumb goes, above its small MOVE */
+.cc__button--move::before {
+  content: '';
+  position: absolute;
+  top: calc(0.45 * var(--u));
+  left: 50%;
+  width: calc(2.4 * var(--u));
+  height: calc(2.4 * var(--u));
+  border: calc(0.1 * var(--u)) dashed #3a4757;
   border-radius: 50%;
-  color: #24251f;
-  box-shadow: inset 0 calc(-0.28 * var(--u)) 0 rgb(0 0 0 / 0.2);
+  transform: translateX(-50%);
 }
-.cc__glyph > svg {
-  width: 72%;
-  margin-top: calc(-0.2 * var(--u));
+.cc__button--slash {
+  color: #1a1200;
+  background: #ffb020;
 }
-.cc__glyph--move {
-  background: #e0e4f0;
+.cc__button--throw,
+.cc__button--dash {
+  color: #f2f5f8;
+  background: #1f2833;
+  border: calc(0.15 * var(--u)) solid #ffb020;
 }
-.cc__glyph--dash {
-  background: #92e62d;
-}
-.cc__glyph--slash {
-  background: #4ba1f9;
-}
-.cc__glyph--throw {
-  background: #e8b244;
+.cc__button--dash {
+  border-style: dashed;
 }
 
 .cc__continue {
