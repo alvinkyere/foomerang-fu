@@ -379,6 +379,8 @@ cam = bpy.data.cameras.new('CAM'); co = bpy.data.objects.new('CAM', cam); sc.col
 co.location = tuple(v * 100 for v in CAM['centre']); co.rotation_euler = (math.radians(90 - CAM['pitchDeg']), 0, 0)
 cam.sensor_fit = 'HORIZONTAL'; cam.sensor_width = 36; cam.lens = CAM['focalPx'] * ZOOM / 1920 * 36; cam.clip_end = 5000
 sc.render.resolution_x, sc.render.resolution_y = (2160, 1240) if WIDE else (1920, 1080)
+HI = 'hi' in args[1:]          # (hi: the READY view at twice the size, for comparing with the round's zoomed-in frames)
+if HI: sc.render.resolution_x, sc.render.resolution_y = 3840, 2160
 if WIDE:      # (the mosaic: 2625 x 1431, the frame's (0, 0) at its (229, 97))
     sc.render.resolution_x, sc.render.resolution_y = 2625, 1431; cam.sensor_width = 36 * 2625 / 1920
     cam.shift_x = (2625 / 2 - (229 + 960)) / 2625; cam.shift_y = -(1431 / 2 - (97 + 540)) / 2625

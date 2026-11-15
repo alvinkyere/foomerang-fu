@@ -66,17 +66,17 @@ const rgb = (hex: string) => {
   return `vec3(${(((n >> 16) & 255) / 255).toFixed(4)}, ${(((n >> 8) & 255) / 255).toFixed(4)}, ${((n & 255) / 255).toFixed(4)})`;
 };
 const COL = {
-  deep: '#4a79ca',
+  deep: '#4a7bc4',
   deepEdge: '#6e89ca',
   rim: '#8798cf',
   rimTop: '#a4b2ea',
-  poolFoam: '#aae0f0',
-  runCore: '#98dcf1',
-  runStreak: '#82c9ec',
-  runEdge: '#80c7ec',
-  runGlow: '#a1b3ea',
-  basin: '#a6e0f0',
-  basinBand: '#65c8ed',
+  poolFoam: '#abe0f0',
+  runCore: '#aae1f0',
+  runStreak: '#6cc6ea',
+  runEdge: '#6cc6ea',
+  runGlow: '#b4dcfb',
+  basin: '#aae3f4',
+  basinBand: '#65c4e8',
   basinEdge: '#5fc3ec',
 };
 
@@ -105,10 +105,9 @@ mat2 turn2(float a){float c=cos(a);float s=sin(a);return mat2(c,-s,s,c);}`;
  * The shaders (their comments here, not in the strings: the strings ship). POOL: the octagon distance `e` from the hole's edge (poolR: its
  * corner radius); the HQ's soft ring there, the blue lightening over ~0.6 units (#4469c0, #657ac0, #7e89c6) into the rim's lavender; the
  * foam a blob a little south of the middle, towards the spout, re-formed within half a second to a second (stabilised frames 657-664 s).
- * RUN: where along the run (s) and how far across (d), from the nearest piece of its line; across it a bright core, a darker cyan line
- * each side, then a glow out to the lavender (the HQ at 10:55). BASIN: pale strokes on darker cyan about half and half, along a swirl
- * round the octagon, darkest by the blocks; no turning, a drift east of ~0.1 units a second, re-formed in about a second (the strokes'
- * field warped by a second, moving noise).
+ * RUN (the READY frame itself, not the round's mosaic, whose median thinned it to a line): a wide pale stream, hard-edged mid-cyan
+ * streaks along it and bits of them along its edges, a light rim at each side. BASIN: hard chevron bands, '>' spreading east from the
+ * inlet on the west, ~1.4 units apart, drifting east ~0.07 units a second, their edges bent by a moving noise; darkest by the blocks.
  */
 function fragment(kind: CanalWaterKind, n: number): string {
   const body =
@@ -120,11 +119,12 @@ float o=0.0;
 for(int k=0;k<4;k++){float a=float(k)*0.785398;o=max(o,abs(dot(p,vec2(cos(a),sin(a)))));}
 float e=o-poolR*0.9239;
 float r=length(p)/poolR;
-float rf=length(p-vec2(0.0,-0.25*poolR))/poolR;
-vec2 q=turn2(time*0.7+r*1.2)*p;
-vec2 bw=vec2(fbm(p*0.7+vec2(time*1.1,0.0)),fbm(p*0.7+vec2(3.0,-time*1.1)))-0.5;
-float n=fbm(q*0.85+bw*1.2+vec2(0.0,-time*0.85));
-float foam=smoothstep(0.0,0.04,n+(1.0-rf)*0.9-0.8)*(1.0-smoothstep(-0.5,-0.2,e));
+vec2 bw=vec2(fbm(p*0.7+vec2(time*0.9,0.0)),fbm(p*0.7+vec2(3.0,-time*0.9)))-0.5;
+vec2 pv=p+bw*0.9;
+float ang=atan(pv.y,pv.x);
+float arms=0.5+0.5*sin(ang+5.0*length(pv)/poolR-time*1.6)+(fbm(p*0.9+vec2(0.0,-time*0.6))-0.5)*0.8+0.35*smoothstep(0.0,0.6,-pv.y/poolR);
+float neck=(1.0-smoothstep(0.12,0.22,abs(p.x)/poolR))*smoothstep(0.25,0.7,-p.y/poolR);
+float foam=max(smoothstep(0.66,0.69,arms)*smoothstep(0.1,0.2,r)*(1.0-smoothstep(0.72,0.8,r)),neck)*(1.0-smoothstep(-0.45,-0.2,e));
 vec3 c=mix(${rgb(COL.deep)},${rgb(COL.deepEdge)},smoothstep(-0.8,-0.35,e));
 c=mix(c,${rgb(COL.rim)},smoothstep(-0.35,0.0,e));
 c=mix(c,${rgb(COL.rimTop)},smoothstep(0.0,0.45,e));
@@ -141,10 +141,10 @@ if(dd<best){best=dd;s=acc+t*L;d=(ab.x*off.y-ab.y*off.x)/L;}
 acc+=L;
 }
 float x=abs(d)/runHalf;
-float streak=smoothstep(0.55,0.75,fbm(vec2(s*0.9-time*runSpeed,d*3.5)));
-vec3 c=mix(${rgb(COL.runCore)},${rgb(COL.runStreak)},streak*0.8);
-c=mix(c,${rgb(COL.runEdge)},smoothstep(0.25,0.4,x));
-c=mix(c,${rgb(COL.runGlow)},smoothstep(0.45,1.0,x));
+float streak=smoothstep(0.57,0.6,fbm(vec2(s*0.7-time*runSpeed,d*2.5)));
+vec3 c=mix(${rgb(COL.runCore)},${rgb(COL.runStreak)},streak);
+c=mix(c,${rgb(COL.runEdge)},smoothstep(0.66,0.7,x)*smoothstep(0.5,0.53,fbm(vec2(s*1.3-time*runSpeed,d*5.0+3.0))));
+c=mix(c,${rgb(COL.runGlow)},smoothstep(0.86,0.96,x));
 gl_FragColor=vec4(c,1.0);`
         : /* glsl */ `
 // KIND_BASIN
@@ -152,11 +152,11 @@ vec2 p=turn2(-basinTurn)*(plan-basinAt);
 float o=0.0;
 for(int k=0;k<4;k++){float a=float(k)*0.785398;o=max(o,abs(dot(p,vec2(cos(a),sin(a)))));}
 o/=basinR;
-vec2 w=vec2(fbm(p*0.5+vec2(time*0.9,0.0)),fbm(p*0.5+vec2(7.0,time*0.9)))-0.5;
-vec2 q=turn2(o*1.6)*(p-vec2(time*0.1,0.0)+w*1.4);
-float n=fbm(vec2(q.x*0.45,q.y*1.6));
-float pale=smoothstep(0.47,0.53,n+(0.55-o)*0.35);
-vec3 c=mix(${rgb(COL.basinBand)},${rgb(COL.basin)},pale);
+vec2 q=p+vec2(basinR,0.0);
+vec2 w=vec2(fbm(p*0.6+vec2(time*0.6,0.0)),fbm(p*0.6+vec2(7.0,time*0.6)))-0.5;
+float band=fract((q.x+abs(q.y)*0.85)/2.0-time*0.05+(w.x+w.y)*1.4);
+float dark=smoothstep(0.0,0.04,band)*(1.0-smoothstep(0.36,0.4,band));
+vec3 c=mix(${rgb(COL.basin)},${rgb(COL.basinBand)},dark);
 c=mix(c,${rgb(COL.basinEdge)},smoothstep(0.86,1.0,o)*0.8);
 gl_FragColor=vec4(c,1.0);`;
   return /* glsl */ `
