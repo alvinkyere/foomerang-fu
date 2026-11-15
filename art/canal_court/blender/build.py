@@ -142,6 +142,21 @@ if HAS('art/canal_court/leaves.json'):
     lv = Mesh('GROUND_LEAVES')
     for t in J('art/canal_court/leaves.json'): lv.poly(t['pts'], 0.08, t['colour'])
     lv.done()
+# the dashed border round the kerb's skirt (the HQ's, READY frame: 0.41-unit dashes on a 1.06 period, 0.25 out from the skirt's
+# outline's box, the sand under them darkened ~6%: #f5d988 on #ffe894); the rules' safeZone is that box (arena.py)
+_KB = J('art/canal_court/kerb.json')['bands'][0]['pts']; BD_OUT = float(os.environ.get('BD_OUT', '0.12'))
+_bx0, _bx1 = min(p[0] for p in _KB) - BD_OUT, max(p[0] for p in _KB) + BD_OUT
+_by0, _by1 = min(p[1] for p in _KB) - BD_OUT, max(p[1] for p in _KB) + BD_OUT
+DASH, PERIOD, THICK, DARKEN = 0.6, float(os.environ.get('BD_P', '1.13')), 0.2, 0.93
+bd = Mesh('BORDER_DASHES')
+for (ax_, ay_), (bx_, by_) in (((_bx0, _by1), (_bx1, _by1)), ((_bx1, _by1), (_bx1, _by0)), ((_bx1, _by0), (_bx0, _by0)), ((_bx0, _by0), (_bx0, _by1))):
+    a_, b_ = Vector((ax_, ay_)), Vector((bx_, by_)); ln = (b_ - a_).length; u_ = (b_ - a_) / ln
+    n_ = Vector((-u_.y, u_.x)) * (THICK if abs(u_.x) > 0.5 else THICK * 0.5) / 2      # (as thin on screen at the sides: a unit is 30 px across, 18 deep)
+    t = (ln % PERIOD) / 2
+    while t + DASH <= ln:
+        q = [a_ + u_ * t + n_, a_ + u_ * (t + DASH) + n_, a_ + u_ * (t + DASH) - n_, a_ + u_ * t - n_]
+        bd.face([(p.x, YC + p.y, 0.09) for p in q], [[c * DARKEN ** 2.2 for c in base_at(p.x, p.y)[:3]] + [1.0] for p in q]); t += PERIOD
+bd.done()
 # the court's stepped kerb (kerb.py): each band a ring from its outline in to the next one's, crisp, over the traced ground
 KERB = J('art/canal_court/kerb.json')['bands']
 kb = Mesh('KERB')
@@ -343,8 +358,39 @@ for name in ('channel', 'stub'):
     pts = [tuple(p) for p in TOPS[name]['pts']]
     if name == 'stub': pts = into(pts, 1.2)
     soft_prism(f'AQUEDUCT_{name}', ccw(pts), -0.05, TOPS[name]['h'], name, keep=CORNERS[name], bevel=0.25 if name == 'stub' else BEVEL)   # (the HQ's stub: a box, its edges barely rounded)
+def rect_of(poly):
+    """The rectangle round an outline along its long axis (its points' principal direction)."""
+    P = [Vector(p) for p in poly]; c = sum(P, Vector((0, 0))) / len(P)
+    sxx = sum((p - c).x ** 2 for p in P); syy = sum((p - c).y ** 2 for p in P); sxy = sum((p - c).x * (p - c).y for p in P)
+    a = 0.5 * math.atan2(2 * sxy, sxx - syy); u = Vector((math.cos(a), math.sin(a))); v = Vector((-u.y, u.x))
+    us = [(p - c).dot(u) for p in P]; vs = [(p - c).dot(v) for p in P]
+    return [tuple(c + u * x + v * y) for x, y in ((min(us), min(vs)), (max(us), min(vs)), (max(us), max(vs)), (min(us), max(vs)))]
+
+
+def half(poly, x0, east):
+    """The outline's part east (or west) of x = x0 (clipped against the one line)."""
+    keep = (lambda p: p[0] >= x0) if east else (lambda p: p[0] <= x0)
+    out = []
+    for i in range(len(poly)):
+        a, b = poly[i - 1], poly[i]
+        if keep(b):
+            if not keep(a): t = (x0 - a[0]) / (b[0] - a[0]); out.append((x0, a[1] + t * (b[1] - a[1])))
+            out.append(b)
+        elif keep(a): t = (x0 - a[0]) / (b[0] - a[0]); out.append((x0, a[1] + t * (b[1] - a[1])))
+    return out
+
+
+# (the east rock is two blocks in the HQ: a taller one west, a lower one east of the notch at frame x 1690 (plan x 23.6))
+ROCK_E_SPLIT, ROCK_E_LOW = 23.63, float(os.environ.get('ROCK_E_LOW', '0.88'))
+ROCK_BEVEL = float(os.environ.get('ROCK_BEVEL', '0.22'))      # (the rocks' edges)
 for name in ('rock_sw', 'rock_n', 'rock_e', 'rock_se'):
-    soft_prism(name.upper(), ccw([tuple(p) for p in TOPS[name]['pts']]), -0.05, TOPS[name]['h'], name, keep=CORNERS[name])
+    pts = [tuple(p) for p in TOPS[name]['pts']]
+    if name == 'rock_e' and ROCK_E_LOW < 1:
+        # (each block a box: the HQ's are square-ended)
+        soft_prism('ROCK_E', ccw(rect_of(half(pts, ROCK_E_SPLIT + 0.04, False))), -0.05, TOPS[name]['h'], name, bevel=ROCK_BEVEL)
+        soft_prism('ROCK_E_low', ccw(rect_of(half(pts, ROCK_E_SPLIT - 0.04, True))), -0.05, TOPS[name]['h'] * ROCK_E_LOW, name, bevel=ROCK_BEVEL)
+        continue
+    soft_prism(name.upper(), ccw([tuple(p) for p in TOPS[name]['pts']]), -0.05, TOPS[name]['h'], name, keep=CORNERS[name], bevel=ROCK_BEVEL)
 # the water: the tower's pool and the channel's run as the frame's (water.json), a hair over their tops
 # (the pool's water reaches up over the rim's soft inner slope, just under the top: the game's shader lightens it to the lavender
 # there, as the HQ's soft ring; POOL_REACH out from the hole's edge)
@@ -635,7 +681,7 @@ for name in sorted(PROPS3D):
     else:      # (bench, plank: boxes)
         cx, cy, a, b, t, h = v; a, b = abs(a), abs(b)
         if name == 'bench':      # (its silhouette fits a low box as well as the HQ's taller bench: its legs show it is ~1.1 high, 0.65 deep)
-            h, b, cy = float(os.environ.get('BENCH_H', '1.1')), float(os.environ.get('BENCH_B', '0.65')), cy - float(os.environ.get('BENCH_DY', '0.25'))
+            h, b, cy = float(os.environ.get('BENCH_H', '1.3')), float(os.environ.get('BENCH_B', '0.85')), cy - float(os.environ.get('BENCH_DY', '0.55'))
         c_, s_ = math.cos(t), math.sin(t)
         P_ = lambda x, y: (cx + c_ * x - s_ * y, cy + s_ * x + c_ * y)
         top, side = ('#9c866e', '#86755a') if name == 'bench' else ('#9d8571', '#817463')
@@ -647,8 +693,8 @@ for name in sorted(PROPS3D):
                 m.face([(p0.x, YC + p0.y, za), (p1.x, YC + p1.y, za), (p1.x, YC + p1.y, zb), (p0.x, YC + p0.y, zb)], lit(side, n))
             m.poly(q, zb, top)
         if name == 'bench':        # (a slab on two end legs, as the HQ's)
-            box(-a, -b, a, b, h * 0.55, h)
-            for sx in (-1, 1): box(sx * a * 0.7 - a * 0.18, -b * 0.8, sx * a * 0.7 + a * 0.18, b * 0.8, 0.0, h * 0.55)
+            box(-a, -b, a, b, h * 0.72, h)      # (the HQ's: a deep top, a thin slab, two square legs at its ends)
+            for sx in (-1, 1): box(sx * a * 0.78 - a * 0.14, -b * 0.85, sx * a * 0.78 + a * 0.14, b * 0.6, 0.0, h * 0.72)
         else:
             box(-a, -b, a, b, 0.0, h)
     m.done()
