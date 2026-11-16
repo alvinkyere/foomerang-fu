@@ -67,7 +67,7 @@ const rgb = (hex: string) => {
 };
 const COL = {
   deep: '#4a7bc4',
-  deepEdge: '#6e89ca',
+  deepEdge: '#5a73c2',
   rim: '#8798cf',
   rimTop: '#a4b2ea',
   poolFoam: '#abe0f0',
@@ -125,10 +125,10 @@ vec2 pv=p+bw*0.9;
 float ang=atan(pv.y,pv.x);
 float arms=0.5+0.5*sin(ang+5.0*length(pv)/poolR-time*1.6)+(fbm(p*0.9+vec2(0.0,-time*0.6))-0.5)*0.8+0.35*smoothstep(0.0,0.6,-pv.y/poolR);
 float nw=0.1+0.22*smoothstep(0.35,0.95,-p.y/poolR);float neck=(1.0-smoothstep(nw,nw+0.06,abs(p.x+0.08*sin(p.y*3.0+time*2.0))/poolR))*smoothstep(0.2,0.55,-p.y/poolR);
-float foam=max(smoothstep(0.66,0.69,arms)*smoothstep(0.1,0.2,r)*(1.0-smoothstep(0.72,0.8,r)),neck)*(1.0-smoothstep(-0.45,-0.2,e));
-vec3 c=mix(${rgb(COL.deep)},${rgb(COL.deepEdge)},smoothstep(-0.8,-0.35,e));
-c=mix(c,${rgb(COL.rim)},smoothstep(-0.35,0.0,e));
-c=mix(c,${rgb(COL.rimTop)},smoothstep(0.0,0.45,e));
+float foam=max(smoothstep(0.58,0.61,arms)*smoothstep(0.08,0.16,r),neck)*(1.0-smoothstep(-0.75,-0.45,e));
+vec3 c=mix(${rgb(COL.deep)},${rgb(COL.deepEdge)},smoothstep(-0.3,0.0,e));
+c=mix(c,${rgb(COL.rim)},smoothstep(0.0,0.22,e));
+c=mix(c,${rgb(COL.rimTop)},smoothstep(0.2,0.45,e));
 gl_FragColor=vec4(mix(c,${rgb(COL.poolFoam)},foam),1.0);`
       : kind === 'run'
         ? /* glsl */ `

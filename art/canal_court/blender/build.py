@@ -344,7 +344,12 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=8, a0=math.p
             if outward != want_out: f.normal_flip()
         elif f.normal.z < 0: f.normal_flip()
     # (the outer top edge rounded as every solid's; the pool's edge wider and softer: the HQ's rim fades into the pool over ~0.7 units)
+    # (the octagon's upright corners rounded too: the HQ's tower is soft all round)
+    vert_e = [e for e in bm.edges if (e.verts[0] in ob and e.verts[1] in ot) or (e.verts[0] in ot and e.verts[1] in ob)]
+    if TOWER_CORNER > 0: bmesh.ops.bevel(bm, geom=vert_e, offset=TOWER_CORNER, segments=4, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
+    ot = [v for v in bm.verts if abs(v.co.z - z1) < 1e-6 and (Vector((v.co.x, v.co.y - YC)) - c).length > (I[0] - c).length + 0.05]
     outer_e = [e for e in bm.edges if all(v.co.z == z1 for v in e.verts) and e.verts[0] in ot and e.verts[1] in ot]
+
     inner_e = [e for e in bm.edges if all(v.co.z == z1 for v in e.verts) and e.verts[0] in it and e.verts[1] in it]
     bmesh.ops.bevel(bm, geom=outer_e, offset=bevel, segments=5, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
     bmesh.ops.bevel(bm, geom=[e for e in inner_e if e.is_valid], offset=POOL_SOFT, segments=8, profile=0.5, affect='EDGES', clamp_overlap=CLAMP)
@@ -357,12 +362,14 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=8, a0=math.p
     return o
 
 
-POOL_K = float(os.environ.get('POOL_K', '0.76'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
+POOL_K = float(os.environ.get('POOL_K', '0.68'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
+TOWER_CORNER = float(os.environ.get('TOWER_CORNER', '0.6'))
+POOL_DY = float(os.environ.get('POOL_DY', '0.15'))      # (the HQ's pool sits a little north in the tower's top: its rim wider at the front)
 POOL_SOFT = float(os.environ.get('POOL_SOFT', '0.6'))
 POOL_DROP = 0.3            # (the pool's water a little below the tower's top: its inner wall shows as a dark ring round it)
 TOWER_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'])      # (the HQ's tower is a crisp octagon: fit_aqueduct.py)
 # (its pool: an octagon in the middle of its top, 0.57 of its size, as the HQ's: the traced water's outline is ragged with foam)
-POOL_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'] * POOL_K)
+POOL_OCT = octagon(AQ['tower']['cx'], AQ['tower']['cy'] + POOL_DY, AQ['tower']['r'] * POOL_K)
 soft_ring('AQUEDUCT_tower', TOWER_OCT, POOL_OCT, -0.05, TOPS['tower']['h'], TOPS['tower']['h'] - 1.6, 'tower')      # (its inner wall deep enough for the rim's wide soft edge)
 CORNERS = dict(channel=12, stub=4, rock_sw=5, rock_n=6, rock_e=7, rock_se=4)       # (each solid's corners in the HQ's frame)
 def into(poly, d):
@@ -413,9 +420,9 @@ for name in ('rock_sw', 'rock_n', 'rock_e', 'rock_se'):
 # the water: the tower's pool and the channel's run as the frame's (water.json), a hair over their tops
 # (the pool's water reaches up over the rim's soft inner slope, just under the top: the game's shader lightens it to the lavender
 # there, as the HQ's soft ring; POOL_REACH out from the hole's edge)
-POOL_REACH = 0.65
-w = Mesh('FLOW_pool'); w.poly(ccw(octagon(AQ['tower']['cx'], AQ['tower']['cy'], AQ['tower']['r'] * POOL_K + POOL_REACH)), TOPS['tower']['h'] - 0.06, '#4470c3'); w.done()
-json.dump(dict(cx=AQ['tower']['cx'], cy=AQ['tower']['cy'], r=AQ['tower']['r'] * POOL_K), open(os.path.join(OUT, 'pool.json'), 'w'))   # (the hole's)
+POOL_REACH = 0.5
+w = Mesh('FLOW_pool'); w.poly(ccw(octagon(AQ['tower']['cx'], AQ['tower']['cy'] + POOL_DY, AQ['tower']['r'] * POOL_K + POOL_REACH)), TOPS['tower']['h'] + 0.015, '#4470c3'); w.done()
+json.dump(dict(cx=AQ['tower']['cx'], cy=AQ['tower']['cy'] + POOL_DY, r=AQ['tower']['r'] * POOL_K), open(os.path.join(OUT, 'pool.json'), 'w'))   # (the hole's)
 w = Mesh('FLOW_run'); w.poly(ccw([tuple(p) for p in WAT['run']['pts']]), WAT['run']['h'] + 0.02, '#8ad7e9')
 # the spout: the pool spills over the tower's south rim, along the run's first leg, and falls down the tower's face onto the channel
 # (the HQ's: one stream from the pool to the run, no gap); SPOUT_W across, its points from the pool's edge out to the tower's
