@@ -611,7 +611,7 @@ def rack():
 # frame, frame pixels, put on the camera-facing plane through the foot), and a crown of soft gold lobes over it (light on top, a deeper
 # gold and orange below), as the HQ's maples; the game's camera only ever shows their trunks and the crowns' lower edges
 TREES = {   # name: foot (plan), trunk base and top (frame px), trunk width px, crown: centre px, radius px (the mosaic's view of each)
-    'tree_ne': ((28.34, 16.43), (1784, 141), (1829, 18), 36, (1835, -45), 95),
+    'tree_ne': ((28.34, 16.43), (1784, 141), (1829, 18), 44, (1850, -92), 130),
     'tree_w': ((-30.9, 9.59), (25, 271), (21, 158), 26, (45, 75), 80),
     'tree_se': ((29.29, -18.38), (1954, 1058), (1966, 950), 30, (1980, 896), 82),      # (its crown seen at 661 s: frame 39660)
     'post_n': ((-17.52, 22.09), (458, 14), (462, -60), 26, (470, -150), 85),
@@ -642,7 +642,7 @@ def tree(name):
     for k in range(seg):                                                           # (the trunk: tapering a little upwards)
         a0, a1 = 2 * math.pi * k / seg, 2 * math.pi * (k + 1) / seg
         ring = lambda a, rr, base: base + (side * math.cos(a) + fwd * math.sin(a)) * rr
-        q = [ring(a0, r0, b - ax * 0.3), ring(a1, r0, b - ax * 0.3), ring(a1, r0 * 0.8, t), ring(a0, r0 * 0.8, t)]
+        q = [ring(a0, r0, b - ax * 0.3), ring(a1, r0, b - ax * 0.3), ring(a1, r0 * 0.6, t), ring(a0, r0 * 0.6, t)]
         n = (side * math.cos((a0 + a1) / 2) + fwd * math.sin((a0 + a1) / 2))
         m.face([tuple(v) for v in q], lit('#7b78a6', n))
     if True:       # (each trunk forks high up: a second branch off to the left, as the frame's)
