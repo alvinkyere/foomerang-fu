@@ -14,7 +14,7 @@ from measure import H as GH, Yc
 
 PX = 20.0
 X0, X1, Y0, Y1 = -26.0, 28.0, -16.0, 19.0
-W_JOINT, JOINT_DARK, PIECE = 0.07, 0.982, 0.8      # (the HQ's joints are faint: 1-5 levels under the slabs)
+W_JOINT, JOINT_DARK, PIECE = 0.05, 0.996, 0.8      # (the HQ's joints are faint: 1-5 levels under the slabs)
 A = np.array([[1 / PX, 0, X0], [0, -1 / PX, Y1 + Yc], [0, 0, 1]])
 f = cv2.imread('art/canal_court/output/clean_ref.png')
 fl = cv2.warpPerspective(f, np.linalg.inv(GH) @ A, (int((X1 - X0) * PX), int((Y1 - Y0) * PX)), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
