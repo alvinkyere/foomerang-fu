@@ -1611,8 +1611,20 @@ class Plaza {
       for (const kind of ['pool', 'run', 'basin'] as const) {
         const mesh = gltf.getObjectByName(`FLOW_${kind}`);
         if (!(mesh instanceof THREE.Mesh)) continue;
+        // (its traced drawing beside the manifest, when the manifest has the art: the water stays procedural until it is in)
         const material = canalWaterMaterial(kind, canal);
         mesh.material = material;
+        if (canal.art !== undefined)
+          new THREE.TextureLoader().load(
+            `${import.meta.env.BASE_URL}${this.map.assetDir}water_${kind}.png`,
+            (t) => {
+              t.colorSpace = THREE.NoColorSpace; // (its values the HQ's, as the palette's: no conversion)
+              t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+              const traced = canalWaterMaterial(kind, canal, t);
+              traced.uniforms['time'] = material.uniforms['time'] as THREE.IUniform;
+              mesh.material = traced;
+            },
+          );
         this.#moving.push({
           object: mesh,
           motion: (t) => ((material.uniforms['time'] as { value: number }).value = t / 1000),

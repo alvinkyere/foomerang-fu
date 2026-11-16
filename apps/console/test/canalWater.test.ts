@@ -21,6 +21,11 @@ const spec = {
   },
   basin: { cx: 13, cy: -2.6, r: 3.3, turn: 0.08 },
 };
+const art = {
+  pool: { box: [-15, 0, -4, 12], palette: ['#4b7bc8', '#6b91ca', '#53a8e4', '#a8def2'] },
+  run: { box: [-13, -7, 12, 6], palette: ['#7aaad7', '#68c4e6', '#92bde8', '#a5dff5'] },
+  basin: { box: [6, -9, 19, 4], palette: ['#436486', '#7ba9c0', '#63c4e8', '#a6e0f2'] },
+};
 
 describe('the canal court’s water', () => {
   it('reads its places from the manifest, and nothing from a manifest without them or with bad ones', () => {
@@ -47,6 +52,24 @@ describe('the canal court’s water', () => {
       expect(m.uniforms['time']).toBeDefined();
       expect(m.fragmentShader).toContain(`KIND_${kind.toUpperCase()}`);
     }
+  });
+
+  it('draws the traced water (art: each body’s drawing and palette) flowing, snapped to its palette', () => {
+    const w = parseCanalWater({ canalWater: { ...spec, art } });
+    if (w === undefined) throw new Error('spec refused');
+    expect(w.art?.run.palette).toHaveLength(4);
+    for (const kind of ['pool', 'run', 'basin'] as const) {
+      const m = canalWaterMaterial(kind, w, new THREE.Texture());
+      expect(m.uniforms['artTex']).toBeDefined();
+      expect(m.uniforms['palette']).toBeDefined();
+      expect(m.fragmentShader).toContain('artTex');
+    }
+    // (a bad palette or box is refused)
+    expect(
+      parseCanalWater({
+        canalWater: { ...spec, art: { ...art, run: { ...art.run, palette: ['red'] } } },
+      }),
+    ).toBeUndefined();
   });
 
   it('names no reserved GLSL word', () => {

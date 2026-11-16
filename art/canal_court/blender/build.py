@@ -362,7 +362,7 @@ def soft_ring(name, outer, inner, z0, z1, zin, kind, bevel=BEVEL, n=8, a0=math.p
     return o
 
 
-POOL_K = float(os.environ.get('POOL_K', '0.68'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
+POOL_K = float(os.environ.get('POOL_K', '0.6'))      # (the hole's size against the tower's: the HQ's dark pool with its soft ring, 0.69)
 TOWER_CORNER = float(os.environ.get('TOWER_CORNER', '0.6'))
 POOL_DY = float(os.environ.get('POOL_DY', '0.15'))      # (the HQ's pool sits a little north in the tower's top: its rim wider at the front)
 POOL_SOFT = float(os.environ.get('POOL_SOFT', '0.6'))

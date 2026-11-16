@@ -25,7 +25,8 @@ TOPS = json.load(open('art/canal_court/tops.json')); WAT = json.load(open('art/c
 POOL = json.load(open(os.path.join(os.path.dirname(sys.argv[1]), 'pool.json')))      # (build.py: the pool's water octagon)
 CANAL = dict(yc=YC, pool={k: round(v, 3) for k, v in POOL.items()},
              run=dict(line=TOPS["channel"]["line"], halfWidth=0.5, speed=1.2),      # (noise units: the streaks go 1.33 units a second, the HQ's 1.2-1.6: stabilised frames, 657-666 s)
-             basin=dict(cx=BA['cx'], cy=BA['cy'], r=BA['rin'], turn=BA['turn']))
+             basin=dict(cx=BA['cx'], cy=BA['cy'], r=BA['rin'], turn=BA['turn']),
+             art=json.load(open('art/canal_court/water_art.json')))      # (water_art.py: each body's traced drawing, water_<body>.png)
 os.makedirs(OUT, exist_ok=True)
 shutil.copyfile(sys.argv[1], OUT + 'plaza.glb')
 gong = json.load(open('apps/console/public/maps/gong_islands/manifest.json'))
