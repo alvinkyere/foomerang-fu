@@ -80,7 +80,20 @@ class Mesh:
 
 
 SAND_BGR = [0x93, 0xe9, 0xff]
-WEST_SAND = -26.2
+_KBS = J('art/canal_court/kerb.json')['bands']
+
+
+def _inside(p, poly):
+    x, y = p; c = False
+    for i in range(len(poly)):
+        (x0, y0), (x1, y1) = poly[i - 1], poly[i]
+        if (y0 > y) != (y1 > y) and x < (x1 - x0) * (y - y0) / (y1 - y0) + x0: c = not c
+    return c
+
+
+KERB_IN = lambda p: _inside(p, _KBS[-1]['pts'])          # (on the court, inside the kerb)
+KERB_OUT = lambda p: _inside(p, _KBS[0]['pts'])          # (inside the kerb's outer edge)
+WEST_SAND = -25.5
 SEEN = J('art/canal_court/seen.json') if HAS('art/canal_court/seen.json') else [1] * (G['nx'] * G['ny'])
 
 
@@ -121,13 +134,16 @@ for k, s in enumerate(G['shapes']):
     _r, _g, _b = (int(s['colour'][i:i + 2], 16) for i in (1, 3, 5))
     _cx = sum(p[0] for p in s['pts']) / len(s['pts']); _cy = sum(p[1] for p in s['pts']) / len(s['pts'])
     if _cx < WEST_SAND and -17 < _cy < 17: continue        # (west of the kerb: under the names in every frame; the HQ's sand)
+    # (shapes the kerb crosses: the kerb's bands are drawn exactly (kerb.py); a traced patch straddling them is the names' box's smear)
+    _in = sum(1 for p in s['pts'] if KERB_IN(p)); _out = sum(1 for p in s['pts'] if not KERB_OUT(p))
+    if _in == 0 and _out == 0: continue
     if (_b > _r + 15 and _b > _g + 10) or (max(_r, _g, _b) - min(_r, _g, _b) < 25 and _r + _g + _b < 520): continue   # (a tree's trunk smeared into the round's mosaic: the trees are models)
     # (small stains the players' trails and icons left in the round's mosaic: pinks and blues the court never has, in small spots)
     import colorsys
     _h, _s, _v = colorsys.rgb_to_hsv(_r / 255, _g / 255, _b / 255); _P = s['pts']
     _area = abs(sum(_P[i][0] * _P[(i + 1) % len(_P)][1] - _P[(i + 1) % len(_P)][0] * _P[i][1] for i in range(len(_P)))) / 2
     if _area < 3.0 and _s > 0.06 and not (0.08 < _h < 0.45): continue
-    sh.poly(chaikin(s['pts']), 0.004 + 0.0004 * k, s['colour'], [chaikin(h) for h in s.get('holes', [])])
+    sh.poly(chaikin(s['pts']), 0.004 + 0.02 * k / max(1, len(G["shapes"])), s['colour'], [chaikin(h) for h in s.get('holes', [])])
 sh.done()
 # the paving's joints (tiles.py): thin ribbons over the traced court, its own colour under each
 if HAS('art/canal_court/tiles.json'):
