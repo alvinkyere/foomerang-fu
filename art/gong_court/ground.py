@@ -51,9 +51,15 @@ obj = cv2.dilate(cv2.morphologyEx(obj, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)
 # boxes (mosaic px x0, y0, x1, y1): what colour alone misses (bamboo, aloes, tufts, the names' smudges)
 BOXES = [(0, 80, 175, 400),                                                     # the players' names
          (530, 1000, 630, 1060), (1690, 920, 1770, 1020),                                         # the aloes' pots
-         (1530, 330, 1625, 470), (590, 580, 660, 700), (1712, 436, 1778, 480), (340, 490, 402, 536), (328, 790, 386, 828), (1238, 358, 1296, 414), (1420, 340, 1460, 370),   # tufts
+         (1530, 330, 1625, 470), (540, 585, 615, 700), (1712, 436, 1778, 480), (340, 490, 402, 536), (328, 790, 386, 828), (1238, 358, 1296, 414), (1420, 340, 1460, 370),   # tufts
          (480, 790, 535, 850), (1430, 260, 1520, 380)]                                            # the banana's corner, the gong's foot
-for x0, y0, x1, y1 in BOXES: obj[y0:y1, x0:x1] = 1
+for x0, y0, x1, y1 in BOXES[:1]: obj[y0:y1, x0:x1] = 1
+# the plants' boxes: only what stands out from the grass round it (a whole box blanked and filled in left a pale patch beside a bush)
+_L = cv2.cvtColor(M, cv2.COLOR_BGR2Lab).astype(np.float32)
+for x0, y0, x1, y1 in BOXES[1:]:
+    sub = _L[y0:y1, x0:x1]; ref = np.median(np.concatenate([sub[0], sub[-1], sub[:, 0], sub[:, -1]]), 0)
+    stand = (np.linalg.norm(sub - ref, axis=2) > 9).astype(np.uint8)
+    obj[y0:y1, x0:x1] |= cv2.dilate(stand, np.ones((7, 7), np.uint8))
 # the bamboo (3D now, props.py): where it stands is not ground; its shadows round it are
 from geom import bamboo_mask
 obj |= bamboo_mask(obj.shape, pix, np.float32([OX, OY]), 1.3)

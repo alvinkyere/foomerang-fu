@@ -35,12 +35,12 @@ OBJECTS = {
     'bamboo_ne': ((1675, 250, 1770, 380), 18, 7, None),
     'bamboo_s': ((760, 1110, 845, 1240), 18, 7, None),
     'bamboo_se': ((1335, 1060, 1470, 1245), 18, 7, None),
-    'bush_ne': ((1530, 330, 1625, 470), 20, 3, None),
+    'bush_ne': ((1530, 330, 1625, 470), 20, 1, None),
     'tuft_ne': ((1712, 436, 1778, 480), 18, 2, None),
     'tuft_w1': ((340, 490, 402, 536), 18, 2, None),
     'tuft_w2': ((328, 790, 386, 828), 18, 2, None),
     'tuft_n': ((1238, 358, 1296, 414), 18, 2, None),
-    'bush_w': ((545, 590, 610, 690), 20, 3, None),
+    'bush_w': ((545, 590, 610, 690), 20, 1, None),
     'flower_w1': ((405, 615, 465, 665), 20, 3, None),
     'flower_w2': ((355, 700, 415, 745), 20, 3, None),
 }
@@ -79,7 +79,16 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
     if name.startswith('tree'):    # (the trunk's pale lavender lies close to the grass in value: it is the trunk by its hue)
         _lav = (h[..., 0] >= 105) & (h[..., 0] <= 150) & (h[..., 1] >= 30) & (d > 12) & ~water
         mk[y0:y1, x0:x1] |= _lav[y0:y1, x0:x1].astype(np.uint8)
-    mk = mk if name.startswith('tuft') else \
+    if name.startswith('bush'):
+        # (a bush: one dark green against the grass round its box, its scalloped edge as it is; the difference from our render took its
+        # soft rim's blend too, a pale halo)
+        _sub = cv2.cvtColor(m[y0:y1, x0:x1], cv2.COLOR_BGR2Lab).astype(np.float32)
+        _hs = h[y0:y1, x0:x1]; _green = (_hs[..., 0] >= 30) & (_hs[..., 0] <= 90)          # (not the wall's lavender)
+        _Ls = _sub[..., 0][_green]; _grass, _core = np.percentile(_Ls, 80), np.percentile(_Ls, 4)
+        _b = (_sub[..., 0] < (_grass + _core) / 2) & _green & ~water[y0:y1, x0:x1]       # (halfway between the bush's green and the grass)
+        mk = np.zeros(d.shape, np.uint8); mk[y0:y1, x0:x1] = _b
+        mk = cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    mk = mk if name.startswith(('tuft', 'bush')) else \
         cv2.morphologyEx(cv2.morphologyEx(mk, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))   # (a tuft: its blades apart, their points kept)
     n, lab, st, _ = cv2.connectedComponentsWithStats(mk)
     if n < 2: continue
@@ -118,7 +127,7 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
             #   ground's shapes, which stack up to ~0.1)
             t = (fz + 0.15 - cam[2]) / d_[2]; p = cam + d_ * t
         return [round(float(p[0]), 3), round(float(p[1] - Yc), 3), round(float(p[2]), 3)]
-    px_ = np.float32(m[mk]); kk = min(k, max(2, len(px_) // 300))
+    px_ = np.float32(m[mk]); kk = min(k, max(1 if k == 1 else 2, len(px_) // 300))
     _, lab_, cen = cv2.kmeans(px_, kk, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.3), 4, cv2.KMEANS_PP_CENTERS)
     lm = np.full(d.shape, 255, np.uint8); lm[mk] = lab_[:, 0]; lm = (lm if name.startswith('tuft') else cv2.medianBlur(lm, 3 if name.startswith(('bush', 'flower', 'tree')) else 5)); lm[~mk] = 255   # (the bushes' and tufts' points kept)
     if name.startswith('tree'):
@@ -149,12 +158,26 @@ for name, ((x0, y0, x1, y1), thr, k, foot) in OBJECTS.items():
         cs, hier = cv2.findContours(tm, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         if hier is None: continue
         colour = '#%02x%02x%02x' % tuple(int(v) for v in cen[q][::-1])
+        if name.startswith('flower'):      # (a petal's own colour: its most saturated pixels, not the mean with its soft rim's blend)
+            _px = m[lm == q]
+            if len(_px) > 10:
+                _sat = cv2.cvtColor(_px[None].astype(np.uint8), cv2.COLOR_BGR2HSV)[0][:, 1]
+                colour = '#%02x%02x%02x' % tuple(int(v) for v in np.median(_px[_sat >= np.percentile(_sat, 75)], 0)[::-1])
         for ci, c in enumerate(cs):
             if hier[0][ci][3] >= 0 or cv2.contourArea(c) < (6 if name.startswith('tree') else 12): continue
             loops = [c] + [cs[hj] for hj in range(len(cs)) if hier[0][hj][3] == ci and cv2.contourArea(cs[hj]) >= 12]
             polys = []; pxs = []; ok_ = True
             for lp in loops:
-                ap = cv2.approxPolyDP(lp, 0.45 if name.startswith(('tree', 'tuft')) else 0.7, True).reshape(-1, 2)   # (a crown's ragged fringe kept)
+                if name.startswith(('bush', 'flower')):
+                    # (the small plants' outlines smoothed along their length, then kept fine: the HQ's are round scallops and petals, and
+                    # the pixel steps of a traced outline read as a ragged, blocky edge)
+                    q_ = lp.reshape(-1, 2).astype(np.float32); nq = len(q_)
+                    if nq >= 8:
+                        k_ = cv2.getGaussianKernel(7, 1.0).ravel()
+                        q_ = np.stack([np.convolve(np.concatenate([q_[-3:, j], q_[:, j], q_[:3, j]]), k_, 'valid') for j in (0, 1)], 1)
+                    ap = cv2.approxPolyDP(np.ascontiguousarray(q_, np.float32).reshape(-1, 1, 2), 0.25, True).reshape(-1, 2)
+                else:
+                    ap = cv2.approxPolyDP(lp, 0.45 if name.startswith(('tree', 'tuft')) else 0.7, True).reshape(-1, 2)   # (a crown's ragged fringe kept)
                 ok_ &= simple(ap) and len({tuple(p) for p in ap.tolist()}) == len(ap)
                 if len(ap) >= 3: polys.append([on_card(float(u), float(v)) for u, v in ap]); pxs.append(ap.tolist())
             if not ok_:
