@@ -65,6 +65,7 @@ def piece(xa, ya, xb, yb):
 
 
 for y in rows: piece(cx0, y, cx1, y)
+GAP = 0.12        # (vertical joints stop short of the row joints: no dark crosses where they meet)
 for (ya, yb), xs in zip(bands, band_peaks):
     halves = [x for x in xs if min(abs(x - mx) for mx in main) > 1.0]           # (the half steps found in this band)
     r0, r1 = sorted((int((Y1 - ya) * PX), int((Y1 - yb) * PX)))
@@ -73,7 +74,7 @@ for (ya, yb), xs in zip(bands, band_peaks):
         c = int((x - X0) * PX); seen_ = m[r0:r1, max(0, c - 3):c + 4].mean() if r1 > r0 else 0
         # (a main joint the frame shows clearly but no peak there: the HQ's slab runs on over it; where the frame cannot see, the pitch)
         if any(abs(x - q) < 0.6 for q in xs) or seen_ < 0.4: keep.append(x)
-    for x in keep + halves: piece(x, ya, x, yb)
+    for x in keep + halves: piece(x, ya + GAP, x, yb - GAP)
 json.dump(out, open('art/canal_court/tiles.json', 'w'))
 vis = fl.copy()
 for t in out: cv2.fillPoly(vis, [to_px(t['pts'])], (0, 0, 255))

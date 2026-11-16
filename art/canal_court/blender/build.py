@@ -101,7 +101,7 @@ def base_at(x, y):
     """The ground's base field (ground.json), bilinear, as linear RGB."""
     gx = min(max((x - G['x0']) / G['dx'], 0), G['nx'] - 1.001); gy = min(max((y - G['y0']) / G['dx'], 0), G['ny'] - 1.001)
     i, j = int(gx), int(gy); fx, fy = gx - i, gy - j
-    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 and SEEN[jj * G['nx'] + ii] and not (G['x0'] + ii * G['dx'] < WEST_SAND and -17 < G['y0'] + jj * G['dx'] < 17) else SAND_BGR       # (what no frame saw: the sand)
+    c = lambda ii, jj: G['bgr'][jj * G['nx'] + ii] if sum(G["bgr"][jj * G["nx"] + ii]) > 380 and SEEN[jj * G['nx'] + ii] and not (G['x0'] + ii * G['dx'] < WEST_SAND and -17 < G['y0'] + jj * G['dx'] < 40) else SAND_BGR       # (what no frame saw: the sand)
     v = [(c(i, j)[k] * (1 - fx) + c(i + 1, j)[k] * fx) * (1 - fy) + (c(i, j + 1)[k] * (1 - fx) + c(i + 1, j + 1)[k] * fx) * fy for k in range(3)]
     return lin(bgr_hex([int(round(q)) for q in v]))
 
@@ -133,7 +133,7 @@ for k, s in enumerate(G['shapes']):
     if sum(int(s['colour'][i:i + 2], 16) for i in (1, 3, 5)) < 200: continue      # (the unseen black, and its blend with the sand)
     _r, _g, _b = (int(s['colour'][i:i + 2], 16) for i in (1, 3, 5))
     _cx = sum(p[0] for p in s['pts']) / len(s['pts']); _cy = sum(p[1] for p in s['pts']) / len(s['pts'])
-    if _cx < WEST_SAND and -17 < _cy < 17: continue        # (west of the kerb: under the names in every frame; the HQ's sand)
+    if _cx < WEST_SAND and -17 < _cy < 40: continue        # (west of the kerb: under the names in every frame; the HQ's sand)
     # (shapes the kerb crosses: the kerb's bands are drawn exactly (kerb.py); a traced patch straddling them is the names' box's smear)
     _in = sum(1 for p in s['pts'] if KERB_IN(p)); _out = sum(1 for p in s['pts'] if not KERB_OUT(p))
     if _in == 0 and _out == 0: continue
@@ -147,14 +147,21 @@ for k, s in enumerate(G['shapes']):
 sh.done()
 # the paving's joints (tiles.py): thin ribbons over the traced court, its own colour under each
 if HAS('art/canal_court/tiles.json'):
+    JOINT_W, JOINT_MID = float(os.environ.get('JOINT_W', '0.2')), float(os.environ.get('JOINT_MID', '0.97'))
     tj = Mesh('GROUND_JOINTS')
     for t in J('art/canal_court/tiles.json'):
         # (the HQ's joints are straight: each traced piece as a straight band along its long axis, its length and a thin width)
         P = [Vector(p) for p in t['pts']]; c = sum(P, Vector((0, 0))) / len(P)
         sxx = sum((p - c).x ** 2 for p in P); syy = sum((p - c).y ** 2 for p in P); sxy = sum((p - c).x * (p - c).y for p in P)
         a_ = 0.5 * math.atan2(2 * sxy, sxx - syy); u = Vector((math.cos(a_), math.sin(a_))); v = Vector((-u.y, u.x))
-        us = [(p - c).dot(u) for p in P]; L0_, L1_ = min(us), max(us); hw = 0.045
-        tj.poly([tuple(c + u * L0_ - v * hw), tuple(c + u * L1_ - v * hw), tuple(c + u * L1_ + v * hw), tuple(c + u * L0_ + v * hw)], 0.07, t['colour'])
+        us = [(p - c).dot(u) for p in P]; L0_, L1_ = min(us), max(us); hw = JOINT_W / 2
+        # (a soft groove, as the HQ's: darkest along its middle, fading to the slab's own tone at its edges)
+        g_ = hexrgb(t['colour']); slab = '#%02x%02x%02x' % tuple(min(255, int(round(x / 0.996))) for x in g_)
+        mid = '#%02x%02x%02x' % tuple(int(round(min(255, x / 0.996) * JOINT_MID)) for x in g_)
+        a0, a1 = c + u * L0_, c + u * L1_
+        for s0, s1, c0_, c1_ in ((-hw, 0.0, slab, mid), (0.0, hw, mid, slab)):
+            q_ = [a0 + v * s0, a1 + v * s0, a1 + v * s1, a0 + v * s1]
+            tj.face([(p_.x, YC + p_.y, 0.07) for p_ in q_], [c0_, c0_, c1_, c1_])
     tj.done()
 # the fallen leaves round the trees (leaves.py): crisp gold ovals over the ground (ground.py leaves the gold out)
 if HAS('art/canal_court/leaves.json'):
