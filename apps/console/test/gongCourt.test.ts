@@ -6,9 +6,10 @@ import { PLAYABLE_ARENAS } from '../src/runtime/arenas';
 import { productArena } from '../src/runtime/powerupMode';
 import { rendererKindFor } from '../src/render/rendererKind';
 import { RECONSTRUCTED_MAPS } from '../src/render/reconstructed/maps';
+import { PRODUCT_POOL } from '../src/runtime/mapRotation';
 
-// The gong court (art/gong_court, foomerang-fu physics hq.mp4 0:35): tested at ?arena=court, on the plaza's renderer, outside the
-// rotation until the owner puts it in.
+// The gong court (art/gong_court, foomerang-fu physics hq.mp4 0:35): ?arena=court, on the plaza's renderer, in the product rotation
+// (owner, 2026-11-15: "we can even add it to the rotation of maps").
 
 const dir = join(__dirname, '..', 'public', 'maps', 'gong_court');
 
@@ -17,6 +18,7 @@ describe('the gong court', () => {
     expect(productArena('?arena=court')).toBe('gong_court');
     expect(productArena('?arena=gong_court')).toBe('gong_court');
     expect(rendererKindFor('gong_court')).toBe('three');
+    expect(PRODUCT_POOL).toContain('gong_court');
     expect(PLAYABLE_ARENAS.gong_court.arena).toBe(GONG_COURT_ARENA);
     expect(PLAYABLE_ARENAS.gong_court.named).toBe(true);
     expect(RECONSTRUCTED_MAPS.gong_court.assetDir).toBe('maps/gong_court/');

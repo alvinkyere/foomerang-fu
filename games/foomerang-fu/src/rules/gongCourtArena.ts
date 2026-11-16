@@ -689,18 +689,18 @@ export const GONG_COURT_WALLS: readonly GongCourtWall[] = Object.freeze([
   Object.freeze({ id: 'JAR_N', kind: 'WALL', shape: 'disc', x: 830, y: 483, radius: 23 }),
   Object.freeze({ id: 'JUG_N', kind: 'WALL', shape: 'disc', x: 875, y: 455, radius: 18 }),
   Object.freeze({ id: 'POT_E1', kind: 'WALL', shape: 'disc', x: 1319, y: 862, radius: 22 }),
-  Object.freeze({ id: 'BAMBOO_C1', kind: 'WALL', shape: 'disc', x: 380, y: 647, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_C2', kind: 'WALL', shape: 'disc', x: 420, y: 636, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_C4', kind: 'WALL', shape: 'disc', x: 499, y: 624, radius: 11 }),
-  Object.freeze({ id: 'BAMBOO_C5', kind: 'WALL', shape: 'disc', x: 522, y: 775, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_NW1', kind: 'WALL', shape: 'disc', x: 188, y: 386, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_NW2', kind: 'WALL', shape: 'disc', x: 215, y: 358, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_W1', kind: 'WALL', shape: 'disc', x: 75, y: 892, radius: 11 }),
-  Object.freeze({ id: 'BAMBOO_W2', kind: 'WALL', shape: 'disc', x: 62, y: 932, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_NE1', kind: 'WALL', shape: 'disc', x: 1316, y: 327, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_SE1', kind: 'WALL', shape: 'disc', x: 919, y: 1228, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_SE2', kind: 'WALL', shape: 'disc', x: 937, y: 1222, radius: 10 }),
-  Object.freeze({ id: 'BAMBOO_N2', kind: 'WALL', shape: 'disc', x: 650, y: 36, radius: 13 }),
+  Object.freeze({ id: 'BAMBOO_C1', kind: 'WALL', shape: 'disc', x: 380, y: 647, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_C2', kind: 'WALL', shape: 'disc', x: 420, y: 636, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_C4', kind: 'WALL', shape: 'disc', x: 499, y: 624, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_C5', kind: 'WALL', shape: 'disc', x: 522, y: 775, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_NW1', kind: 'WALL', shape: 'disc', x: 188, y: 386, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_NW2', kind: 'WALL', shape: 'disc', x: 215, y: 358, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_W1', kind: 'WALL', shape: 'disc', x: 75, y: 892, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_W2', kind: 'WALL', shape: 'disc', x: 62, y: 932, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_NE1', kind: 'WALL', shape: 'disc', x: 1316, y: 327, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_SE1', kind: 'WALL', shape: 'disc', x: 919, y: 1228, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_SE2', kind: 'WALL', shape: 'disc', x: 937, y: 1222, radius: 18 }),
+  Object.freeze({ id: 'BAMBOO_N2', kind: 'WALL', shape: 'disc', x: 650, y: 36, radius: 18 }),
 ]);
 
 export const GONG_COURT_SPAWNS: readonly Vec2[] = Object.freeze([
@@ -718,7 +718,7 @@ export const GONG_COURT_BOOK_SPOTS: readonly Vec2[] = Object.freeze([
   { x: 652.0, y: 1072.0 },
   { x: 712.0, y: 212.0 },
   { x: 1092.0, y: 672.0 },
-  { x: 552.0, y: 852.0 },
+  { x: 872.0, y: 592.0 },
 ]);
 
 export const GONG_COURT_ARENA: FuArena = Object.freeze({

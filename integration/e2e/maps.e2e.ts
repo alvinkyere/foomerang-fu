@@ -23,6 +23,7 @@ test('the market plaza and the gong islands take turns: start, rematch, and a ne
     'hex_meadow',
     'temple_court',
     'bridge_islands',
+    'gong_court',
   ];
   const played = async (): Promise<string | null> => {
     // (each match opens with the warm-up: its round plays out first, the CPUs getting out of their pens)
@@ -95,6 +96,7 @@ test('the product opens every match with the warm-up, then plays the rotation, a
     'hex_meadow',
     'temple_court',
     'bridge_islands',
+    'gong_court',
   ];
   const first = (await host.snapshot()).arena;
   expect(first).toBe('warm_up'); // every match opens with the warm-up, the practice round (owner, 2026-11-12)

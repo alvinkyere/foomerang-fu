@@ -59,11 +59,11 @@ for name, p_ in json.load(open('art/gong_court/props.json'))['pots'].items():   
         x, y = w(*p_['foot']); walls.append(dict(id=name.upper(), kind='WALL', shape='disc', x=x, y=y, radius=max(18, round(p_['r'] * 0.9 * S))))
 
 # the bamboo stalks: solid (owner, 2026-11-15: "make the bamboos solid"), each a disc at its foot, its measured radius plus a little for the
-# sleeve; a stalk on the planter is inside the planter's own boxes already
+# sleeve, at least 18 (the rules' floor: no solid thinner than a player's radius, 36 across, so nothing tunnels through; the drawn stalk is ~10); a stalk on the planter is inside the planter's own boxes already
 for b_ in json.load(open('art/gong_court/props.json'))['bamboo']:
     (fx, fy, fz) = b_['foot']
     if fz > 0 or not (X0 < fx < X1 and Y0 < fy < Y1): continue
-    x, y = w(fx, fy); walls.append(dict(id='BAMBOO_' + b_['name'].upper(), kind='WALL', shape='disc', x=x, y=y, radius=max(10, round(b_['r'] * 1.2 * S))))
+    x, y = w(fx, fy); walls.append(dict(id='BAMBOO_' + b_['name'].upper(), kind='WALL', shape='disc', x=x, y=y, radius=max(18, round(b_['r'] * 1.2 * S))))
 
 
 def clear(px, py, m):

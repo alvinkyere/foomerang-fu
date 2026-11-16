@@ -143,7 +143,7 @@ describe('every match is on a different map, always', () => {
     expect(c.runtime.arena()).toBe('hedge_maze');
   });
 
-  it('every product match opens with the warm-up, then rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow, the temple court and the bridge islands: never the same map twice running', async () => {
+  it('every product match opens with the warm-up, then rotates the plaza, the gong islands, the cross pond, the lily island, the autumn glade, the hex meadow, the temple court, the bridge islands and the gong court: never the same map twice running', async () => {
     expect(PRODUCT_POOL).toEqual([
       'market_plaza',
       'gong_islands',
@@ -153,6 +153,7 @@ describe('every match is on a different map, always', () => {
       'hex_meadow',
       'temple_court',
       'bridge_islands',
+      'gong_court',
     ]);
     const c = await console('product');
     // every match opens with the warm-up (owner, 2026-11-12: the practice round at the start of every match), then the rotation
